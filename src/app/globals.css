@@ -70,7 +70,7 @@ body {
   }
 
   .prose h2 {
-    @apply text-2xl font-semibold mt-6 text-foreground;
+    @apply text-3xl font-semibold mt-6 text-foreground;
   }
 
   .prose h3 {
