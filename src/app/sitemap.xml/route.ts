@@ -12,10 +12,12 @@ export async function GET() {
       .from("games")
       .select("slug, updated_at")
       .eq("is_published", true)
+      .not("slug", "is", null)
       .order("updated_at", { ascending: false }),
     sb
       .from("authors")
       .select("slug, updated_at")
+      .not("slug", "is", null)
       .order("updated_at", { ascending: false })
   ]);
 
@@ -41,6 +43,7 @@ export async function GET() {
   }
 
   for (const g of games || []) {
+    if (!g?.slug) continue;
     pages.push({
       loc: `${origin}/${g.slug}`,
       changefreq: "daily",

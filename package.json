@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "echo \"(lint intentionally omitted)\"",
-    "refresh:codes": "tsx scripts/update-codes.ts"
+    "refresh:codes": "tsx scripts/update-codes.ts",
+    "import:games": "tsx scripts/import-games.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
