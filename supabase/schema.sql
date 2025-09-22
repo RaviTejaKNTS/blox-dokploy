@@ -54,6 +54,7 @@ create table if not exists public.codes (
 
 create index if not exists idx_codes_game_status on public.codes (game_id, status);
 create index if not exists idx_games_published on public.games (is_published);
+CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
 
 -- ensure redeem image columns exist when applying to existing databases
 alter table if exists public.games add column if not exists redeem_img_1 text;

@@ -209,6 +209,15 @@ async function collectEntries(argv: string[]): Promise<ParsedEntries> {
   return { entries, errors };
 }
 
+function ensureCodesSuffix(slug: string): string {
+  const suffix = 'codes';
+  const normalizedSlug = slug.toLowerCase().trim();
+  if (!normalizedSlug.endsWith(suffix)) {
+    return `${slug}-${suffix}`.replace(/--+/g, '-');
+  }
+  return slug;
+}
+
 async function importSingleGame(
   sb: ReturnType<typeof supabaseAdmin>,
   payload: ImportPayload,
@@ -216,10 +225,13 @@ async function importSingleGame(
   const { sourceUrl, name, slug, publish } = payload;
   if (!sourceUrl) throw new Error("sourceUrl required");
 
-  const derivedSlug = slug ?? slugFromUrl(sourceUrl);
+  let derivedSlug = slug ?? slugFromUrl(sourceUrl);
   if (!derivedSlug) throw new Error("Could not derive slug from source URL");
+  
+  // Ensure slug ends with 'codes'
+  derivedSlug = ensureCodesSuffix(derivedSlug);
 
-  const derivedName = name ?? titleCase(derivedSlug);
+  const derivedName = name ?? titleCase(derivedSlug.replace(/-codes$/, ''));
   const publishFlag = publish ?? true;
 
   const { data: game, error: upsertError } = await sb
