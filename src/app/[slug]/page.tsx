@@ -6,6 +6,7 @@ import { AuthorCard } from "@/components/AuthorCard";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
+import { SocialShare } from "@/components/SocialShare";
 import { RedeemImageGallery } from "@/components/RedeemImageGallery";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { monthYear } from "@/lib/date";
@@ -507,7 +508,8 @@ export default async function GamePage({ params }: Params) {
 
       {recommended.length > 0 ? (
         <aside className="space-y-4">
-          <div className="panel space-y-2 p-5">
+          <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
+          <div className="space-y-2 p-2">
             <h2 className="text-lg font-semibold text-foreground">More games with codes</h2>
             <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
           </div>

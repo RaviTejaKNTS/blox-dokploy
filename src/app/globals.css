@@ -46,7 +46,7 @@ body {
 }
 
 .prose img {
-  @apply rounded-[var(--radius-sm)];
+  @apply rounded-[var(--radius-sm)] w-full md:w-3/4;
 }
 
 @layer base {
