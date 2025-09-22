@@ -1,6 +1,6 @@
 const DEFAULT_SITE_URL = "https://bloxodes.com";
 
-export const SITE_URL = process.env.SITE_URL?.trim() || DEFAULT_SITE_URL;
+export const SITE_URL = DEFAULT_SITE_URL;
 
 export const SITE_NAME = "Bloxodes";
 export const SITE_DESCRIPTION = "Find active and expired Roblox game codes with rewards, updated daily.";

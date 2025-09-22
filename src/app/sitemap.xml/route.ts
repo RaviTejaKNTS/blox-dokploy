@@ -5,7 +5,7 @@ export const revalidate = 3600;
 
 export async function GET() {
   const sb = supabaseAdmin();
-  const origin = process.env.SITE_URL || "http://localhost:3000";
+  const origin = "https://bloxodes.com";
 
   const [{ data: games }, { data: authors }] = await Promise.all([
     sb
