@@ -23,7 +23,7 @@ import {
   howToJsonLd
 } from "@/lib/seo";
 
-export const revalidate = 0;
+export const revalidate = 300;
 
 type Params = { params: { slug: string } };
 
@@ -515,7 +515,7 @@ export default async function GamePage({ params }: Params) {
           </div>
           <div className="grid gap-4">
             {recommended.map((g) => (
-              <GameCard key={g.id} game={g} />
+              <GameCard key={g.id} game={g} titleAs="p" />
             ))}
           </div>
         </aside>

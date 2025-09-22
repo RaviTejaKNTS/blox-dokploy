@@ -7,9 +7,11 @@ const baseCardClass = "group overflow-hidden rounded-[var(--radius-lg)] border b
 type GameCardProps = {
   game: GameWithCounts;
   className?: string;
+  titleAs?: 'h2' | 'p';
+  priority?: boolean;
 };
 
-export function GameCard({ game, className }: GameCardProps) {
+export function GameCard({ game, className, titleAs: Title = 'h2', priority }: GameCardProps) {
   const classes = className ? `${baseCardClass} ${className}` : baseCardClass;
 
   return (
@@ -23,14 +25,16 @@ export function GameCard({ game, className }: GameCardProps) {
             src={game.cover_image.startsWith("http") ? game.cover_image : `/` + game.cover_image.replace(/^\//, "")}
             alt={game.name}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
+            priority={priority}
           />
         ) : (
           <div className="absolute inset-0 grid place-items-center text-muted">{game.name}</div>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <h2 className="font-semibold text-lg text-foreground group-hover:text-accent">{game.name} Codes</h2>
+        <Title className="font-semibold text-lg text-foreground group-hover:text-accent">{game.name} Codes</Title>
         <p className="text-xs text-muted flex items-center gap-2">
           <span className="inline-flex h-2 w-2 rounded-full bg-green-400" aria-hidden />
           {game.active_count} {game.active_count === 1 ? "active code" : "active codes"}
