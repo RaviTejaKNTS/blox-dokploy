@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
-import { marked } from "marked";
 import { AuthorCard } from "@/components/AuthorCard";
+import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
+import { logger } from "@/lib/logger";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
@@ -61,16 +63,6 @@ function extractHowToSteps(markdown?: string | null): string[] {
   return steps;
 }
 
-function markdownToPlain(text?: string | null): string {
-  if (!text) return "";
-  return text
-    .replace(/\[(.+?)\]\((.*?)\)/g, "$1")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/[*_`>#~|]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function normalizeTwitter(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -81,14 +73,40 @@ function normalizeTwitter(value?: string | null): string | null {
   return `https://twitter.com/${handle}`;
 }
 
+/**
+ * Validates if a string is a valid HTTP/HTTPS URL
+ */
+function isValidUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalizes and validates a URL string
+ * - Trims whitespace
+ * - Adds https:// if no protocol is present
+ * - Validates the resulting URL
+ * - Returns null for invalid URLs
+ */
 function normalizeUrl(value?: string | null): string | null {
   if (!value) return null;
+  
+  // Trim and check for empty string
   let trimmed = value.trim();
   if (!trimmed) return null;
+
+  // Add https:// if no protocol is present
   if (!/^https?:\/\//i.test(trimmed)) {
-    trimmed = `https://${trimmed.replace(/^\/\//, "")}`;
+    // Remove any leading slashes that might cause issues
+    trimmed = `https://${trimmed.replace(/^[\s/]+/, '')}`;
   }
-  return trimmed;
+
+  // Validate the URL before returning
+  return isValidUrl(trimmed) ? trimmed : null;
 }
 
 function collectAuthorSameAs(author?: { twitter?: string | null; youtube?: string | null; website?: string | null } | null): string[] {
@@ -137,7 +155,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
     : undefined;
   const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
-  const authorBioPlain = markdownToPlain(game.author?.bio_md);
+  const authorBioPlain = game.author?.bio_md ? markdownToPlainText(game.author.bio_md) : null;
   const authorSameAs = collectAuthorSameAs(game.author);
   const otherMeta: Record<string, string> = {};
   if (authorBioPlain) {
@@ -184,11 +202,50 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
+async function fetchGameData(slug: string) {
+  try {
+    const game = await getGameBySlug(slug);
+    if (!game || !game.is_published) return { error: 'NOT_FOUND' as const };
+
+    const [codes, allGames] = await Promise.all([
+      listCodesForGame(game.id).catch(error => {
+        logger.error('Failed to fetch codes for game', { 
+          gameId: game.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return [];
+      }),
+      listGamesWithActiveCounts().catch(error => {
+        logger.error('Failed to fetch game list', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return [];
+      })
+    ]);
+
+    return { game, codes, allGames };
+  } catch (error) {
+    logger.error('Failed to fetch game data', {
+      slug,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return { error: 'FETCH_ERROR' as const };
+  }
+}
+
 export default async function GamePage({ params }: Params) {
-  const game = await getGameBySlug(params.slug);
-  if (!game || !game.is_published) return notFound();
-  const codes = await listCodesForGame(game.id);
-  const allGames = await listGamesWithActiveCounts();
+  const result = await fetchGameData(params.slug);
+  
+  if (result.error === 'NOT_FOUND') {
+    notFound();
+  }
+  
+  if (result.error === 'FETCH_ERROR') {
+    // Consider redirecting to an error page or showing a custom error component
+    throw new Error('Failed to load game data. Please try again later.');
+  }
+  
+  const { game, codes, allGames } = result;
   const author = game.author;
   const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
   const redeemImages = [game.redeem_img_1, game.redeem_img_2, game.redeem_img_3]
@@ -225,10 +282,10 @@ export default async function GamePage({ params }: Params) {
   });
 
   const [introHtml, redeemHtml, descriptionHtml, authorBioHtml] = await Promise.all([
-    game.intro_md ? marked.parse(game.intro_md) : "",
-    game.redeem_md ? marked.parse(game.redeem_md) : "",
-    game.description_md ? marked.parse(game.description_md) : "",
-    author?.bio_md ? marked.parse(author.bio_md) : "",
+    game.intro_md ? renderMarkdown(game.intro_md) : "",
+    game.redeem_md ? renderMarkdown(game.redeem_md) : "",
+    game.description_md ? renderMarkdown(game.description_md) : "",
+    author?.bio_md ? renderMarkdown(author.bio_md) : "",
   ]);
 
   const canonicalUrl = `${SITE_URL}/${game.slug}`;
@@ -237,14 +294,15 @@ export default async function GamePage({ params }: Params) {
     : game.cover_image
     ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
     : `${SITE_URL}/og-image.png`;
-  const metaDescriptionRaw =
+  const metaDescriptionRaw = markdownToPlainText(
     game.seo_description ||
-    `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
+      `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`
+  );
   const metaDescription = metaDescriptionRaw?.trim() || SITE_DESCRIPTION;
   const publishedIso = new Date(game.created_at).toISOString();
   const updatedIso = new Date(lastContentUpdate).toISOString();
   const lastCheckedIso = new Date(lastChecked).toISOString();
-  const authorBioPlain = markdownToPlain(author?.bio_md) || null;
+  const authorBioPlain = author?.bio_md ? markdownToPlainText(author.bio_md) : null;
   const authorSameAs = collectAuthorSameAs(author || undefined);
   const authorProfileUrl = author?.slug
     ? `${SITE_URL.replace(/\/$/, "")}/authors/${author.slug}`
