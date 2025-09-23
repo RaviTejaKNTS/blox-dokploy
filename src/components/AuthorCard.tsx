@@ -2,6 +2,10 @@ import Link from "next/link";
 import type { Author } from "@/lib/db";
 import { authorAvatarUrl } from "@/lib/avatar";
 
+type ProcessedHtml = {
+  __html: string;
+};
+
 function normalizeTwitter(value?: string | null) {
   if (!value) return null;
   const trimmed = value.trim();
@@ -13,7 +17,12 @@ function normalizeTwitter(value?: string | null) {
 
 const linkClass = "inline-flex items-center gap-2 rounded-full border border-border/50 bg-surface px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent/60 hover:text-accent";
 
-export function AuthorCard({ author, bioHtml }: { author: Author; bioHtml: string }) {
+interface AuthorCardProps {
+  author: Author;
+  bioHtml: string | ProcessedHtml;
+}
+
+export function AuthorCard({ author, bioHtml }: AuthorCardProps) {
   const avatar = authorAvatarUrl(author);
   const twitter = normalizeTwitter(author.twitter);
   const socials = [
@@ -43,7 +52,7 @@ export function AuthorCard({ author, bioHtml }: { author: Author; bioHtml: strin
             )}
           </h3>
           {bioHtml ? (
-            <div dangerouslySetInnerHTML={{ __html: bioHtml }} />
+            <div dangerouslySetInnerHTML={typeof bioHtml === 'string' ? { __html: bioHtml } : bioHtml} />
           ) : (
             <p className="text-muted">{author.name} curates the latest Roblox codes and keeps this guide up to date.</p>
           )}

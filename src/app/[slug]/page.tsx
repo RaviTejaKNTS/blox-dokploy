@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AuthorCard } from "@/components/AuthorCard";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
+import { processHtmlLinks } from "@/lib/link-utils";
 import { logger } from "@/lib/logger";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
@@ -450,7 +451,7 @@ export default async function GamePage({ params }: Params) {
 
         {introHtml ? (
           <section className="mb-8" id="intro" itemProp="articleBody">
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: introHtml }} />
+            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(introHtml)} />
           </section>
         ) : null}
 
@@ -562,19 +563,19 @@ export default async function GamePage({ params }: Params) {
 
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: redeemHtml }} />
+            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)} />
           </section>
         ) : null}
 
         <section className="mb-10" id="description" itemProp="articleBody">
           {descriptionHtml ? (
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(descriptionHtml)} />
           ) : (
             <p className="text-muted">This section will explain the game and how to redeem codes.</p>
           )}
         </section>
 
-        {author ? <AuthorCard author={author} bioHtml={authorBioHtml} /> : null}
+        {author ? <AuthorCard author={author} bioHtml={processHtmlLinks(authorBioHtml)} /> : null}
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: videoGameData }} />
