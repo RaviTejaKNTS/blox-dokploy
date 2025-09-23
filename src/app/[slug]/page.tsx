@@ -589,7 +589,7 @@ export default async function GamePage({ params }: Params) {
         <aside className="space-y-4">
           <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
           <div className="space-y-2 p-2">
-            <h2 className="text-lg font-semibold text-foreground">More games with codes</h2>
+            <h3 className="text-lg font-semibold text-foreground">More games with codes</h3>
             <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
           </div>
           <div className="grid gap-4">
