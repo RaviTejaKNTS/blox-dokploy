@@ -2,7 +2,7 @@ import { listGamesWithActiveCounts } from "@/lib/db";
 import { monthYear } from "@/lib/date";
 import { GameSearch } from "@/components/GameSearch";
 
-export const revalidate = 300;
+export const revalidate = 30;
 
 export const metadata = {
   title: `Bloxodes (${monthYear()})`,

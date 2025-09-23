@@ -23,7 +23,7 @@ import {
   howToJsonLd
 } from "@/lib/seo";
 
-export const revalidate = 300;
+export const revalidate = 30;
 
 type Params = { params: { slug: string } };
 
