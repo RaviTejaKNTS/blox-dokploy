@@ -94,8 +94,7 @@ export const metadata = {
       { url: "/favicon/Bloxodes-android-chrome-512x512.png", sizes: "512x512", type: "image/png" }
     ],
     apple: { url: "/favicon/Bloxodes-apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    shortcut: ["/favicon/Bloxodes-favicon.ico"],
-    other: [{ rel: "manifest", url: "/favicon/site.webmanifest" }]
+    shortcut: ["/favicon/Bloxodes-favicon.ico"]
   },
   appleWebApp: {
     capable: true,
