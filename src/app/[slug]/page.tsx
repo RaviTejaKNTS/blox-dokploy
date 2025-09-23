@@ -9,7 +9,6 @@ import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
-import { RedeemImageGallery } from "@/components/RedeemImageGallery";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { monthYear } from "@/lib/date";
 import { getGameBySlug, listCodesForGame, listGamesWithActiveCounts } from "@/lib/db";
@@ -19,7 +18,6 @@ import {
   SITE_URL,
   breadcrumbJsonLd,
   codesItemListJsonLd,
-  gameArticleJsonLd,
   gameJsonLd,
   webPageJsonLd,
   howToJsonLd
@@ -290,7 +288,6 @@ export default async function GamePage({ params }: Params) {
   const { game, codes, allGames } = result;
   const author = game.author;
   const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
-  const redeemImages: string[] = []; // Removed redeem_img_1, redeem_img_2, redeem_img_3
   const redeemSteps = extractHowToSteps(game.redeem_md);
 
   const active = codes.filter(c => c.status === "active");
@@ -375,27 +372,6 @@ export default async function GamePage({ params }: Params) {
       }))
     })
   );
-  const articleData = JSON.stringify(
-    gameArticleJsonLd({
-      siteUrl: SITE_URL,
-      game: { name: game.name, slug: game.slug },
-      author: structuredAuthor,
-      description: metaDescription,
-      coverImage,
-      publishedAt: publishedIso,
-      updatedAt: updatedIso
-    })
-  );
-  const howToData = redeemSteps.length
-    ? JSON.stringify(
-        howToJsonLd({
-          siteUrl: SITE_URL,
-          game: { name: game.name, slug: game.slug },
-          steps: redeemSteps,
-          images: redeemImages
-        })
-      )
-    : null;
   const webPageData = JSON.stringify(
     webPageJsonLd({
       siteUrl: SITE_URL,
@@ -408,6 +384,15 @@ export default async function GamePage({ params }: Params) {
       updatedAt: updatedIso
     })
   );
+  const howToData = redeemSteps.length
+    ? JSON.stringify(
+        howToJsonLd({
+          siteUrl: SITE_URL,
+          game: { name: game.name, slug: game.slug },
+          steps: redeemSteps
+        })
+      )
+    : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
@@ -578,9 +563,6 @@ export default async function GamePage({ params }: Params) {
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
             <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: redeemHtml }} />
-            {redeemImages.length ? (
-              <RedeemImageGallery images={redeemImages} gameName={game.name} />
-            ) : null}
           </section>
         ) : null}
 
@@ -597,11 +579,10 @@ export default async function GamePage({ params }: Params) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: videoGameData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: codesItemListData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleData }} />
-        {howToData ? (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
-        ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: webPageData }} />
+        {howToData && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
+        )}
       </article>
 
       {recommended.length > 0 ? (
