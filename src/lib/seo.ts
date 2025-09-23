@@ -73,27 +73,22 @@ export function codesItemListJsonLd({
   game: { name: string; slug: string };
   codes: { code: string; status: string; reward?: string | null }[];
 }) {
+  // Filter out expired codes (case-insensitive check)
+  const activeCodes = codes.filter(code => {
+    const isActive = code.status?.toLowerCase() !== 'expired';
+    return isActive;
+  });
+  
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     "name": `${game.name} Codes`,
-    "itemListElement": codes.map((c, idx) => ({
+    "itemListElement": activeCodes.map((c, idx) => ({
       "@type": "ListItem",
       "position": idx + 1,
       "name": c.code,
-      "url": `${siteUrl}/${game.slug}#${encodeURIComponent(c.code)}`,
-      "additionalType": "https://schema.org/Coupon",
-      "item": {
-        "@type": "Coupon",
-        "name": c.code,
-        "couponCode": c.code,
-        ...(c.reward ? { description: c.reward } : {}),
-        "additionalProperty": {
-          "@type": "PropertyValue",
-          "name": "status",
-          "value": c.status
-        }
-      }
+      "description": c.reward || undefined,
+      "url": `${siteUrl}/${game.slug}#${encodeURIComponent(c.code)}`
     }))
   };
 }
@@ -269,7 +264,7 @@ export function howToJsonLd({
   siteUrl,
   game,
   steps,
-  images
+  images = []
 }: {
   siteUrl: string;
   game: { name: string; slug: string };
@@ -277,12 +272,39 @@ export function howToJsonLd({
   images?: string[];
 }) {
   if (!steps.length) return null;
-  const canonical = `${siteUrl.replace(/\/$/, "")}/${game.slug.replace(/^\//, "")}`;
-  const normalizedImages = (images || [])
+  
+  const canonical = `${siteUrl.replace(/\/$/, '')}/${game.slug.replace(/^\//, '')}`;
+  const normalizedImages = images
     .map((src) =>
-      src.startsWith("http") ? src : `${siteUrl.replace(/\/$/, "")}/${src.replace(/^\//, "")}`
+      src.startsWith('http') ? src : `${siteUrl.replace(/\/$/, '')}/${src.replace(/^\//, '')}`
     )
     .slice(0, 3);
+
+  // Process steps to extract images and clean up text
+  const processedSteps = steps.map(step => {
+    // Check if the step contains an image reference
+    const imageMatch = step.match(/\[Image: ([^\]]+)\]/);
+    const stepText = step.replace(/\s*\[Image: [^\]]+\]\s*/, '').trim();
+    
+    return {
+      text: stepText,
+      // If we found an image reference, use it; otherwise, use the first available image
+      image: imageMatch ? imageMatch[1] : undefined
+    };
+  });
+
+  // If we have images but no steps with images, distribute them
+  if (normalizedImages.length > 0) {
+    const stepsWithImages = processedSteps.filter(step => step.image);
+    if (stepsWithImages.length === 0) {
+      // No steps have images, distribute available images
+      processedSteps.forEach((step, index) => {
+        if (index < normalizedImages.length) {
+          step.image = normalizedImages[index];
+        }
+      });
+    }
+  }
 
   return {
     "@context": "https://schema.org",
@@ -291,11 +313,14 @@ export function howToJsonLd({
     "description": `Step-by-step guide to redeem codes in ${game.name}.`,
     "url": canonical,
     ...(normalizedImages.length ? { image: normalizedImages } : {}),
-    "step": steps.map((text, index) => ({
+    "step": processedSteps.map((step, index) => ({
       "@type": "HowToStep",
       "position": index + 1,
-      "name": text.length > 60 ? `${text.slice(0, 57)}...` : text,
-      "text": text
+      "name": step.text.length > 60 ? `${step.text.slice(0, 57)}...` : step.text,
+      "text": step.text,
+      ...(step.image ? {
+        "image": step.image.startsWith('http') ? step.image : `${siteUrl.replace(/\/$/, '')}/${step.image.replace(/^\//, '')}`
+      } : {})
     }))
   };
 }

@@ -39,28 +39,70 @@ function cleanRewardsText(text?: string | null): string | null {
   return t || null;
 }
 
+interface HowToStep {
+  text: string;
+  image?: string;
+}
+
 function extractHowToSteps(markdown?: string | null): string[] {
   if (!markdown) return [];
-  const steps: string[] = [];
-  const seen = new Set<string>();
+  
   const lines = markdown.split(/\r?\n/);
-  for (const raw of lines) {
-    const stripped = raw
-      .replace(/^[-*+]\s+/, "")
-      .replace(/^\d+[).]\s+/, "")
-      .replace(/^#+\s+/, "")
-      .replace(/[`*_]/g, "")
-      .trim();
-    if (!stripped) continue;
-    if (/^\s*<.+>\s*$/.test(stripped)) continue;
-    const normalized = stripped.replace(/\s+/g, " ");
-    if (normalized.length < 8) continue;
-    if (seen.has(normalized.toLowerCase())) continue;
-    seen.add(normalized.toLowerCase());
-    steps.push(normalized);
-    if (steps.length >= 10) break;
+  const steps: string[] = [];
+  let currentStep: string | null = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Skip empty lines
+    if (!line) continue;
+    
+    // Check for H2 heading (## )
+    const headingMatch = line.match(/^##\s+(.+)$/);
+    if (headingMatch) {
+      // If we have a current step, add it before starting a new section
+      if (currentStep) {
+        steps.push(currentStep);
+        currentStep = null;
+      }
+      continue;
+    }
+    
+    // Check for numbered list items (1., 2., etc.)
+    const stepMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
+    if (stepMatch) {
+      // If we have a current step, add it before starting a new one
+      if (currentStep) {
+        steps.push(currentStep);
+      }
+      currentStep = stepMatch[2];
+      continue;
+    }
+    
+    // Check for images in the current line
+    const imageMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+    if (imageMatch) {
+      // If we have an image and a current step, we can associate it
+      // For now, we'll just add it to the current step text
+      // In a more advanced implementation, we could return an array of objects with text and image
+      if (currentStep) {
+        currentStep += ` [Image: ${imageMatch[1] || 'Step illustration'}]`;
+      }
+      continue;
+    }
+    
+    // If we have a current step and this is a continuation line, append it
+    if (currentStep && line.match(/^[^#\d\-*+]/)) {
+      currentStep += ' ' + line.replace(/^\s*[-*+]\s*/, '').trim();
+    }
   }
-  return steps;
+  
+  // Add the last step if there is one
+  if (currentStep) {
+    steps.push(currentStep);
+  }
+  
+  return steps.slice(0, 10); // Limit to 10 steps
 }
 
 function normalizeTwitter(value?: string | null): string | null {
