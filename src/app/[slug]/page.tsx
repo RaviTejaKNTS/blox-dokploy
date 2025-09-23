@@ -248,9 +248,7 @@ export default async function GamePage({ params }: Params) {
   const { game, codes, allGames } = result;
   const author = game.author;
   const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
-  const redeemImages = [game.redeem_img_1, game.redeem_img_2, game.redeem_img_3]
-    .map((src) => src?.trim())
-    .filter((src): src is string => !!src);
+  const redeemImages: string[] = []; // Removed redeem_img_1, redeem_img_2, redeem_img_3
   const redeemSteps = extractHowToSteps(game.redeem_md);
 
   const active = codes.filter(c => c.status === "active");

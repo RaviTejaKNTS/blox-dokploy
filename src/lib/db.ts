@@ -24,12 +24,8 @@ export type Game = {
   cover_image: string | null;
   seo_title: string | null;
   seo_description: string | null;
-  seo_keywords: string | null;
   intro_md: string | null;
   redeem_md: string | null;
-  redeem_img_1: string | null;
-  redeem_img_2: string | null;
-  redeem_img_3: string | null;
   description_md: string | null;
   is_published: boolean;
   created_at: string;
