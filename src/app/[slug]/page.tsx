@@ -513,14 +513,11 @@ export default async function GamePage({ params }: Params) {
           )}
         </section>
 
-        <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="needs-check">
-          <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
-            <h2>Codes To Double-Check</h2>
-            {needsCheck.length === 0 ? (
-              <p className="text-muted">We haven't seen any uncertain codes reported today.</p>
-            ) : null}
-          </div>
-          {needsCheck.length === 0 ? null : (
+        {needsCheck.length > 0 ? (
+          <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="needs-check">
+            <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
+              <h2>Codes To Double-Check</h2>
+            </div>
             <div className="flex flex-col gap-4">
               {[...needsCheck].reverse().map(c => {
                 const rewards = cleanRewardsText(c.rewards_text);
@@ -551,8 +548,8 @@ export default async function GamePage({ params }: Params) {
                 );
               })}
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
