@@ -293,7 +293,7 @@ export default async function GamePage({ params }: Params) {
 
   const active = codes.filter(c => c.status === "active");
   const needsCheck = codes.filter(c => c.status === "check");
-  const expired = codes.filter(c => c.status === "expired");
+  const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;

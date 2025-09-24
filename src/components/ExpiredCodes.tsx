@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type ExpiredCode = {
-  id: string;
-  code: string;
-};
-
-export function ExpiredCodes({ codes }: { codes: ExpiredCode[] }) {
+export function ExpiredCodes({ codes }: { codes: string[] }) {
   const [expanded, setExpanded] = useState(false);
   const [initialCount, setInitialCount] = useState(4);
 
@@ -39,9 +34,9 @@ export function ExpiredCodes({ codes }: { codes: ExpiredCode[] }) {
   return (
     <div className="space-y-3">
       <ul className="mt-3 grid grid-cols-2 gap-2 text-xs text-foreground/80 sm:grid-cols-3 md:grid-cols-4">
-        {visible.map((c) => (
-          <li key={c.id} className="rounded-full border border-border/40 bg-surface-muted/70 px-3 py-1 text-center font-medium text-muted">
-            <code>{c.code}</code>
+        {visible.map((code) => (
+          <li key={code} className="rounded-full border border-border/40 bg-surface-muted/70 px-3 py-1 text-center font-medium text-muted">
+            <code>{code}</code>
           </li>
         ))}
       </ul>
