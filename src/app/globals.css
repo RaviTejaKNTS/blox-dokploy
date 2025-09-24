@@ -134,6 +134,32 @@ body {
   .prose hr {
     @apply border-t border-border/60 my-6;
   }
+
+  .game-copy p {
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+
+  @media (min-width: 768px) {
+    .game-copy p {
+      font-size: 1.1rem;
+      line-height: 1.85;
+    }
+  }
+
+  .game-copy li,
+  .game-copy blockquote {
+    font-size: 1.05rem;
+    line-height: 1.75;
+  }
+
+  @media (min-width: 768px) {
+    .game-copy li,
+    .game-copy blockquote {
+      font-size: 1.1rem;
+      line-height: 1.8;
+    }
+  }
 }
 
 @layer components {

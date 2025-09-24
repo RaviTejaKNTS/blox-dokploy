@@ -9,14 +9,9 @@ const themeScript = `(() => {
   const storageKey = "roblox-codes-theme";
   try {
     const stored = window.localStorage.getItem(storageKey);
-    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = stored === "light" || stored === "dark" ? stored : (prefersDark ? "dark" : "light");
+    const theme = stored === "light" || stored === "dark" ? stored : "dark";
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    root.classList.toggle("dark", theme === "dark");
     root.dataset.theme = theme;
   } catch (error) {
     /* noop */
@@ -106,7 +101,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="dark" data-theme="dark">
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />

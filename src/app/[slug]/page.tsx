@@ -451,7 +451,10 @@ export default async function GamePage({ params }: Params) {
 
         {introHtml ? (
           <section className="mb-8" id="intro" itemProp="articleBody">
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(introHtml)} />
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(introHtml)}
+            />
           </section>
         ) : null}
 
@@ -553,7 +556,10 @@ export default async function GamePage({ params }: Params) {
 
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)} />
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)}
+            />
           </section>
         ) : null}
 
@@ -569,7 +575,10 @@ export default async function GamePage({ params }: Params) {
 
         <section className="mb-10" id="description" itemProp="articleBody">
           {descriptionHtml ? (
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(descriptionHtml)} />
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(descriptionHtml)}
+            />
           ) : (
             <p className="text-muted">This section will explain the game and how to redeem codes.</p>
           )}
