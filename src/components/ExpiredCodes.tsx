@@ -23,7 +23,7 @@ export function ExpiredCodes({ codes }: { codes: string[] }) {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const sorted = [...codes].reverse();
+  const sorted = [...codes];
   const baseLimit = Math.min(initialCount, sorted.length);
   const limit = expanded ? sorted.length : baseLimit;
   const visible = sorted.slice(0, limit);

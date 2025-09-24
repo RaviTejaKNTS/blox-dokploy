@@ -551,6 +551,12 @@ export default async function GamePage({ params }: Params) {
           )}
         </section>
 
+        {redeemHtml ? (
+          <section className="mb-8" id="redeem" itemProp="articleBody">
+            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)} />
+          </section>
+        ) : null}
+
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="expired-codes">
           <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
             <h2>Expired {game.name} Codes</h2>
@@ -560,12 +566,6 @@ export default async function GamePage({ params }: Params) {
           </div>
           {expired.length === 0 ? null : <ExpiredCodes codes={expired} />}
         </section>
-
-        {redeemHtml ? (
-          <section className="mb-8" id="redeem" itemProp="articleBody">
-            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)} />
-          </section>
-        ) : null}
 
         <section className="mb-10" id="description" itemProp="articleBody">
           {descriptionHtml ? (

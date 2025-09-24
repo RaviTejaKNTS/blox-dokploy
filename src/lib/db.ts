@@ -21,6 +21,9 @@ export type Game = {
   slug: string;
   author_id: string | null;
   source_url: string | null;
+  source_url_2: string | null;
+  source_url_3: string | null;
+  expired_codes: string[] | null;
   cover_image: string | null;
   seo_title: string | null;
   seo_description: string | null;

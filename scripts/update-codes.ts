@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { scrapeRobloxdenPage } from "@/lib/robloxden";
+import { scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
 
@@ -15,7 +15,11 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type GameRow = Game & { source_url: string | null };
+type GameRow = Game & {
+  source_url: string | null;
+  source_url_2: string | null;
+  source_url_3: string | null;
+};
 
 type ProcessResult = {
   slug: string;
@@ -51,14 +55,18 @@ async function fetchPublishedGames() {
 }
 
 async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow): Promise<ProcessResult> {
-  if (!game.source_url) {
+  const sourceUrls = [game.source_url, game.source_url_2, game.source_url_3]
+    .map((url) => (typeof url === "string" ? url.trim() : ""))
+    .filter((url) => url.length > 0);
+
+  if (sourceUrls.length === 0) {
     return { slug: game.slug, name: game.name, status: "skipped" };
   }
 
-  const scraped = await scrapeRobloxdenPage(game.source_url);
+  const { codes, expiredCodes } = await scrapeSources(sourceUrls);
   let upserted = 0;
 
-  for (const c of scraped) {
+  for (const c of codes) {
     const { error } = await sb.rpc("upsert_code", {
       p_game_id: game.id,
       p_code: c.code,
@@ -75,11 +83,22 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     upserted += 1;
   }
 
+  await sb
+    .from("games")
+    .update({ expired_codes: expiredCodes })
+    .eq("id", game.id);
+
+  await sb
+    .from("codes")
+    .delete()
+    .eq("game_id", game.id)
+    .eq("status", "expired");
+
   return {
     slug: game.slug,
     name: game.name,
     status: "ok",
-    found: scraped.length,
+    found: codes.length,
     upserted,
   };
 }
@@ -136,7 +155,7 @@ async function main() {
         console.log(`✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0})`);
       } else if (res.status === "skipped") {
         stats.skipped += 1;
-        console.log(`↷ ${res.slug} — skipped (missing source_url)`);
+        console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
       } else {
         stats.failed += 1;
         console.error(`✖ ${res.slug} — ${res.error}`);
