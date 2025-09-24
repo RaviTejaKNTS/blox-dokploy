@@ -11,10 +11,6 @@ const ONLY_SLUGS = (process.env.REFRESH_ONLY_SLUGS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 type GameRow = Game & {
   source_url: string | null;
   source_url_2: string | null;
@@ -25,10 +21,13 @@ type ProcessResult = {
   slug: string;
   name: string;
   status: "ok" | "skipped" | "error";
-  found?: number;
-  upserted?: number;
+  expired?: number;
   error?: string;
 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function fetchPublishedGames() {
   const sb = supabaseAdmin();
@@ -54,7 +53,7 @@ async function fetchPublishedGames() {
   return { sb, games: all };
 }
 
-async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow): Promise<ProcessResult> {
+async function processExpiredCodes(sb: ReturnType<typeof supabaseAdmin>, game: GameRow): Promise<ProcessResult> {
   const sourceUrls = [game.source_url, game.source_url_2, game.source_url_3]
     .map((url) => (typeof url === "string" ? url.trim() : ""))
     .filter((url) => url.length > 0);
@@ -63,37 +62,29 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     return { slug: game.slug, name: game.name, status: "skipped" };
   }
 
-  const { codes } = await scrapeSources(sourceUrls);
-  let upserted = 0;
+  const { expiredCodes } = await scrapeSources(sourceUrls);
 
-  for (const c of codes) {
-    const { error } = await sb.rpc("upsert_code", {
-      p_game_id: game.id,
-      p_code: c.code,
-      p_status: c.status,
-      p_rewards_text: c.rewardsText ?? null,
-      p_level_requirement: c.levelRequirement ?? null,
-      p_is_new: c.isNew ?? false,
-    });
+  await sb
+    .from("games")
+    .update({ expired_codes: expiredCodes })
+    .eq("id", game.id);
 
-    if (error) {
-      throw new Error(`upsert failed for ${c.code}: ${error.message}`);
-    }
-
-    upserted += 1;
-  }
+  await sb
+    .from("codes")
+    .delete()
+    .eq("game_id", game.id)
+    .eq("status", "expired");
 
   return {
     slug: game.slug,
     name: game.name,
     status: "ok",
-    found: codes.length,
-    upserted,
+    expired: expiredCodes.length,
   };
 }
 
 async function main() {
-  console.log("\n▶ Refresh run started");
+  console.log("\n▶ Expired codes refresh started");
   if (ONLY_SLUGS.length) {
     console.log(`   Filtering to slugs: ${ONLY_SLUGS.join(", ")}`);
   }
@@ -113,8 +104,7 @@ async function main() {
     success: 0,
     skipped: 0,
     failed: 0,
-    totalCodesFound: 0,
-    totalCodesUpserted: 0,
+    totalExpired: 0,
   };
 
   for (let idx = 0; idx < candidates.length; idx += CONCURRENCY) {
@@ -122,7 +112,7 @@ async function main() {
     const results = await Promise.all(
       batch.map(async (game) => {
         try {
-          const result = await processGame(sb, game);
+          const result = await processExpiredCodes(sb, game);
           return result;
         } catch (err: any) {
           return {
@@ -139,9 +129,8 @@ async function main() {
       stats.processed += 1;
       if (res.status === "ok") {
         stats.success += 1;
-        stats.totalCodesFound += res.found ?? 0;
-        stats.totalCodesUpserted += res.upserted ?? 0;
-        console.log(`✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0})`);
+        stats.totalExpired += res.expired ?? 0;
+        console.log(`✔ ${res.slug} — ${res.expired ?? 0} expired codes captured`);
       } else if (res.status === "skipped") {
         stats.skipped += 1;
         console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
@@ -156,13 +145,12 @@ async function main() {
     }
   }
 
-  console.log("\n▶ Refresh summary");
+  console.log("\n▶ Expired codes refresh summary");
   console.log(`   Processed: ${stats.processed}`);
   console.log(`   Succeeded: ${stats.success}`);
   console.log(`   Skipped:   ${stats.skipped}`);
   console.log(`   Failed:    ${stats.failed}`);
-  console.log(`   Codes found:    ${stats.totalCodesFound}`);
-  console.log(`   Codes upserted: ${stats.totalCodesUpserted}`);
+  console.log(`   Expired codes tracked: ${stats.totalExpired}`);
 
   if (stats.failed > 0) {
     process.exitCode = 1;
@@ -170,6 +158,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal refresh error", err);
+  console.error("Fatal expired refresh error", err);
   process.exit(1);
 });
