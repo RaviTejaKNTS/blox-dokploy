@@ -60,6 +60,17 @@ create index if not exists idx_games_author_published on public.games (author_id
 CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
 
 
+-- admin users table
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null default 'editor' check (role in ('owner','editor','viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_admin_users_role on public.admin_users (role);
+
+
 -- trigger to update updated_at
 create or replace function public.set_updated_at() returns trigger as $$
 begin
@@ -76,15 +87,34 @@ drop trigger if exists trg_authors_updated_at on public.authors;
 create trigger trg_authors_updated_at before update on public.authors
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_admin_users_updated_at on public.admin_users;
+create trigger trg_admin_users_updated_at before update on public.admin_users
+for each row execute function public.set_updated_at();
+
 -- RLS
 alter table public.games enable row level security;
 alter table public.codes enable row level security;
 alter table public.authors enable row level security;
+alter table public.admin_users enable row level security;
 
 -- Policy: allow read of published games and their codes to anon
 drop policy if exists "read_published_games" on public.games;
 create policy "read_published_games" on public.games
   for select using (is_published = true);
+
+drop policy if exists "admin_manage_games" on public.games;
+create policy "admin_manage_games" on public.games
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
 
 drop policy if exists "read_codes_of_published_games" on public.codes;
 create policy "read_codes_of_published_games" on public.codes
@@ -92,9 +122,41 @@ create policy "read_codes_of_published_games" on public.codes
     exists (select 1 from public.games g where g.id = codes.game_id and g.is_published = true)
   );
 
+drop policy if exists "admin_manage_codes" on public.codes;
+create policy "admin_manage_codes" on public.codes
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
 drop policy if exists "read_authors" on public.authors;
 create policy "read_authors" on public.authors
   for select using (true);
+
+drop policy if exists "admin_manage_authors" on public.authors;
+create policy "admin_manage_authors" on public.authors
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin_read_self" on public.admin_users;
+create policy "admin_read_self" on public.admin_users
+  for select using (auth.uid() = user_id);
 
 -- Admin insert/update via service role (bypass RLS)
 -- Upsert helper for codes (ensures last_seen_at is bumped; first_seen_at preserved)

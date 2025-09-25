@@ -1,0 +1,221 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { downloadCSV } from "@/lib/csv";
+import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
+import { GameDrawer } from "./GameDrawer";
+
+const columns = [
+  { key: "name", label: "Name" },
+  { key: "slug", label: "Slug" },
+  { key: "author", label: "Author" },
+  { key: "status", label: "Status" },
+  { key: "updated", label: "Last Update" },
+  { key: "active", label: "Active" },
+  { key: "check", label: "Check" }
+] as const;
+
+type ColumnKey = typeof columns[number]["key"];
+
+type ColumnVisibility = Record<ColumnKey, boolean>;
+
+const defaultVisibility: ColumnVisibility = {
+  name: true,
+  slug: true,
+  author: true,
+  status: true,
+  updated: true,
+  active: true,
+  check: true
+};
+
+interface GamesClientProps {
+  initialGames: AdminGameSummary[];
+  authors: AdminAuthorOption[];
+}
+
+export function GamesClient({ initialGames, authors }: GamesClientProps) {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [authorFilter, setAuthorFilter] = useState<string>("all");
+  const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<AdminGameSummary | null>(null);
+
+  const filtered = useMemo(() => {
+    return initialGames.filter((game) => {
+      const matchesSearch = search
+        ? game.name.toLowerCase().includes(search.toLowerCase()) || game.slug.toLowerCase().includes(search.toLowerCase())
+        : true;
+      const matchesStatus =
+        statusFilter === "all" ? true : statusFilter === "published" ? game.is_published : !game.is_published;
+      const matchesAuthor = authorFilter === "all" ? true : game.author.id === authorFilter;
+      return matchesSearch && matchesStatus && matchesAuthor;
+    });
+  }, [initialGames, search, statusFilter, authorFilter]);
+
+  function handleExportCsv() {
+    const rows = filtered.map((game) => ({
+      Name: game.name,
+      Slug: game.slug,
+      Author: game.author.name ?? "—",
+      Published: game.is_published ? "Yes" : "No",
+      "Last Update": format(new Date(game.updated_at), "yyyy-MM-dd HH:mm"),
+      "Active Codes": String(game.counts.active),
+      "Check Codes": String(game.counts.check),
+      "Expired Codes": String(game.counts.expired)
+    }));
+    downloadCSV(rows, "games.csv");
+  }
+
+  function openNewGame() {
+    setSelectedGame(null);
+    setDrawerOpen(true);
+  }
+
+  function openExistingGame(game: AdminGameSummary) {
+    setSelectedGame(game);
+    setDrawerOpen(true);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="search"
+          placeholder="Search games…"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="w-full max-w-xs rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+        />
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          <option value="all">All statuses</option>
+          <option value="published">Published</option>
+          <option value="draft">Draft</option>
+        </select>
+        <select
+          value={authorFilter}
+          onChange={(event) => setAuthorFilter(event.target.value)}
+          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          <option value="all">All authors</option>
+          {authors.map((author) => (
+            <option key={author.id} value={author.id}>
+              {author.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          className="rounded-lg border border-border/60 bg-surface px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border/40 hover:bg-surface-muted"
+        >
+          Export CSV
+        </button>
+        <button
+          type="button"
+          onClick={openNewGame}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark"
+        >
+          New Game
+        </button>
+      </div>
+
+      <details className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">
+        <summary className="cursor-pointer list-none font-semibold text-foreground">Toggle columns</summary>
+        <div className="mt-3 flex flex-wrap gap-4">
+          {columns.map((column) => (
+            <label key={column.key} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={visibility[column.key]}
+                onChange={(event) =>
+                  setVisibility((prev) => ({
+                    ...prev,
+                    [column.key]: event.target.checked
+                  }))
+                }
+              />
+              <span>{column.label}</span>
+            </label>
+          ))}
+        </div>
+      </details>
+
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="min-w-full divide-y divide-border/60 text-sm">
+          <thead className="bg-surface-muted/60 text-xs uppercase tracking-wide text-muted">
+            <tr>
+              {visibility.name ? <th className="px-4 py-3 text-left">Name</th> : null}
+              {visibility.slug ? <th className="px-4 py-3 text-left">Slug</th> : null}
+              {visibility.author ? <th className="px-4 py-3 text-left">Author</th> : null}
+              {visibility.status ? <th className="px-4 py-3 text-left">Status</th> : null}
+              {visibility.updated ? <th className="px-4 py-3 text-left">Last update</th> : null}
+              {visibility.active ? <th className="px-4 py-3 text-right">Active</th> : null}
+              {visibility.check ? <th className="px-4 py-3 text-right">Check</th> : null}
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/40">
+            {filtered.map((game) => (
+              <tr key={game.id} className="hover:bg-surface-muted/40">
+                {visibility.name ? (
+                  <td className="px-4 py-3 font-medium text-foreground">{game.name}</td>
+                ) : null}
+                {visibility.slug ? <td className="px-4 py-3 text-muted">{game.slug}</td> : null}
+                {visibility.author ? <td className="px-4 py-3">{game.author.name ?? "—"}</td> : null}
+                {visibility.status ? (
+                  <td className="px-4 py-3">
+                    <span
+                      className={game.is_published ? "rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200" : "rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200"}
+                    >
+                      {game.is_published ? "Published" : "Draft"}
+                    </span>
+                  </td>
+                ) : null}
+                {visibility.updated ? (
+                  <td className="px-4 py-3 text-muted">
+                    {format(new Date(game.updated_at), "LLL d, yyyy HH:mm")}
+                  </td>
+                ) : null}
+                {visibility.active ? <td className="px-4 py-3 text-right font-semibold text-foreground">{game.counts.active}</td> : null}
+                {visibility.check ? <td className="px-4 py-3 text-right text-muted">{game.counts.check}</td> : null}
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => openExistingGame(game)}
+                    className="rounded-lg border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-border/40 hover:bg-surface-muted"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-muted">
+                  No games match your filters yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <GameDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onRefresh={() => router.refresh()}
+        game={selectedGame}
+        authors={authors}
+      />
+    </div>
+  );
+}

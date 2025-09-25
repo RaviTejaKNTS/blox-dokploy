@@ -1,0 +1,148 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { requireAdminAction } from "@/lib/admin-auth";
+
+const upsertGameSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  author_id: z.string().uuid().nullable().optional(),
+  is_published: z.boolean(),
+  source_url: z.string().url().nullable().optional(),
+  source_url_2: z.string().url().nullable().optional(),
+  source_url_3: z.string().url().nullable().optional(),
+  intro_md: z.string().nullable().optional(),
+  redeem_md: z.string().nullable().optional(),
+  description_md: z.string().nullable().optional(),
+  seo_title: z.string().nullable().optional(),
+  seo_description: z.string().nullable().optional(),
+  cover_image: z.string().nullable().optional()
+});
+
+const gameCodeSchema = z.object({
+  game_id: z.string().uuid(),
+  id: z.string().uuid().optional(),
+  code: z.string().min(1),
+  status: z.enum(["active", "check", "expired"]),
+  rewards_text: z.string().nullable().optional(),
+  level_requirement: z.number().int().nullable().optional(),
+  is_new: z.boolean().optional()
+});
+
+export async function saveGame(form: FormData) {
+  const raw = Object.fromEntries(form.entries());
+  const payload = upsertGameSchema.parse({
+    id: raw.id ? String(raw.id) : undefined,
+    name: String(raw.name ?? ""),
+    slug: String(raw.slug ?? ""),
+    author_id: raw.author_id ? String(raw.author_id) : null,
+    is_published: raw.is_published === "on" || raw.is_published === "true",
+    source_url: raw.source_url ? String(raw.source_url) : null,
+    source_url_2: raw.source_url_2 ? String(raw.source_url_2) : null,
+    source_url_3: raw.source_url_3 ? String(raw.source_url_3) : null,
+    intro_md: raw.intro_md ? String(raw.intro_md) : null,
+    redeem_md: raw.redeem_md ? String(raw.redeem_md) : null,
+    description_md: raw.description_md ? String(raw.description_md) : null,
+    seo_title: raw.seo_title ? String(raw.seo_title) : null,
+    seo_description: raw.seo_description ? String(raw.seo_description) : null,
+    cover_image: raw.cover_image ? String(raw.cover_image) : null
+  });
+
+  const { supabase } = await requireAdminAction();
+
+  const record = {
+    name: payload.name,
+    slug: payload.slug,
+    author_id: payload.author_id,
+    is_published: payload.is_published,
+    source_url: payload.source_url,
+    source_url_2: payload.source_url_2,
+    source_url_3: payload.source_url_3,
+    intro_md: payload.intro_md,
+    redeem_md: payload.redeem_md,
+    description_md: payload.description_md,
+    seo_title: payload.seo_title,
+    seo_description: payload.seo_description,
+    cover_image: payload.cover_image
+  };
+
+  if (payload.id) {
+    const { error } = await supabase
+      .from("games")
+      .update(record)
+      .eq("id", payload.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("games").insert(record);
+    if (error) throw error;
+  }
+
+  revalidatePath("/admin/games");
+  return { success: true };
+}
+
+export async function upsertGameCode(form: FormData) {
+  const raw = Object.fromEntries(form.entries());
+  const payload = gameCodeSchema.parse({
+    game_id: String(raw.game_id ?? ""),
+    id: raw.id ? String(raw.id) : undefined,
+    code: String(raw.code ?? ""),
+    status: String(raw.status ?? "active"),
+    rewards_text: raw.rewards_text ? String(raw.rewards_text) : null,
+    level_requirement: raw.level_requirement ? Number(raw.level_requirement) : null,
+    is_new: raw.is_new === "on" || raw.is_new === "true"
+  });
+
+  const { supabase } = await requireAdminAction();
+
+  const { error } = await supabase.rpc("upsert_code", {
+    p_game_id: payload.game_id,
+    p_code: payload.code,
+    p_status: payload.status,
+    p_rewards_text: payload.rewards_text,
+    p_level_requirement: payload.level_requirement,
+    p_is_new: payload.is_new ?? false
+  });
+
+  if (error) throw error;
+
+  revalidatePath("/admin/games");
+  return { success: true };
+}
+
+export async function updateCodeStatus(form: FormData) {
+  const payload = gameCodeSchema.pick({ game_id: true, id: true, status: true }).parse({
+    game_id: String(form.get("game_id") ?? ""),
+    id: String(form.get("id") ?? ""),
+    status: String(form.get("status") ?? "active")
+  });
+
+  const { supabase } = await requireAdminAction();
+
+  const { error } = await supabase
+    .from("codes")
+    .update({ status: payload.status })
+    .eq("id", payload.id);
+
+  if (error) throw error;
+
+  revalidatePath("/admin/games");
+  return { success: true };
+}
+
+export async function deleteCode(form: FormData) {
+  const { supabase } = await requireAdminAction();
+  const id = String(form.get("id") ?? "");
+
+  const { error } = await supabase
+    .from("codes")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+
+  revalidatePath("/admin/games");
+  return { success: true };
+}
