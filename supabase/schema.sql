@@ -51,8 +51,12 @@ create table if not exists public.codes (
   unique (game_id, code)
 );
 
-create index if not exists idx_codes_game_status on public.codes (game_id, status);
+drop index if exists idx_codes_game_status;
+create index if not exists idx_codes_game_status_seen on public.codes (game_id, status, last_seen_at desc);
+create index if not exists idx_codes_status_game on public.codes (status, game_id);
 create index if not exists idx_games_published on public.games (is_published);
+create index if not exists idx_games_published_name on public.games (is_published, name);
+create index if not exists idx_games_author_published on public.games (author_id, is_published);
 CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
 
 
