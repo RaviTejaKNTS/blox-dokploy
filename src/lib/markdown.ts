@@ -1,10 +1,8 @@
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
-
-// Create a JSDOM window and get the DOMPurify function
-const { window } = new JSDOM('');
-const purify = DOMPurify(window as unknown as Window & typeof globalThis);
+import { marked } from "marked";
+import sanitizeHtml from "sanitize-html";
+import type { IOptions } from "sanitize-html";
+import { load, type CheerioAPI, type Cheerio } from "cheerio";
+import type { Element } from "domhandler";
 
 // Configure marked with basic options
 marked.setOptions({
@@ -15,43 +13,77 @@ marked.setOptions({
   // See: https://marked.js.org/using_advanced#options
 });
 
-// Configure DOMPurify to allow certain attributes and elements
-const sanitizeOptions = {
-  ALLOWED_TAGS: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'p', 'br', 'em', 'strong', 'del', 'u', 's',
-    'ul', 'ol', 'li', 'a', 'img', 'blockquote',
-    'pre', 'code', 'hr', 'div', 'span', 'table',
-    'thead', 'tbody', 'tr', 'th', 'td', 'sup', 'sub'
+// Configure sanitize-html to allow the elements and attributes we expect from markdown content
+const sanitizeOptions: IOptions = {
+  allowedTags: [
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "br",
+    "em",
+    "strong",
+    "del",
+    "u",
+    "s",
+    "ul",
+    "ol",
+    "li",
+    "a",
+    "img",
+    "blockquote",
+    "pre",
+    "code",
+    "hr",
+    "div",
+    "span",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "sup",
+    "sub"
   ],
-  ALLOWED_ATTR: [
-    'href', 'title', 'alt', 'src', 'class', 'target',
-    'width', 'height', 'align', 'border', 'cellpadding',
-    'cellspacing', 'start', 'value'
-  ],
-  ALLOW_DATA_ATTR: false,
-  FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed'],
-  FORBID_ATTR: ['style', 'onclick', 'onerror', 'onload', 'onmouseover']
+  allowedAttributes: {
+    a: ["href", "title", "class", "target"],
+    img: ["src", "alt", "title", "class", "width", "height", "align"],
+    table: ["class", "width", "height", "border", "cellpadding", "cellspacing", "align"],
+    th: ["class", "align"],
+    td: ["class", "align"],
+    ol: ["start", "value", "class"],
+    '*': ["class"]
+  },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: {
+    img: ["http", "https", "data"]
+  },
+  allowProtocolRelative: false,
+  selfClosing: ["img", "br", "hr"],
+  disallowedTagsMode: "discard"
 };
 
-function isImageOnlyElement(element: Element): boolean {
-  const childNodes = Array.from(element.childNodes);
-  if (childNodes.length === 0) {
+function isImageOnlyElement(element: Cheerio<Element>, $: CheerioAPI): boolean {
+  const nodes = element.contents().toArray();
+  if (nodes.length === 0) {
     return false;
   }
 
-  return childNodes.every((node) => {
-    if (node.nodeType === window.Node.TEXT_NODE) {
-      return node.textContent?.trim() === '';
+  return nodes.every((node) => {
+    if (node.type === "text") {
+      return (node.data ?? "").trim() === "";
     }
 
-    if (node.nodeType === window.Node.ELEMENT_NODE) {
-      const el = node as Element;
-      if (el.tagName === 'IMG') {
+    if (node.type === "tag") {
+      if (node.name === "img") {
         return true;
       }
-      if (el.tagName === 'A') {
-        return isImageOnlyElement(el);
+      if (node.name === "a") {
+        return isImageOnlyElement($(node), $);
       }
     }
 
@@ -59,16 +91,22 @@ function isImageOnlyElement(element: Element): boolean {
   });
 }
 
-function findPreviousListForContinuation(list: HTMLOListElement): HTMLOListElement | null {
-  let sibling = list.previousElementSibling;
+function findPreviousListForContinuation(list: Cheerio<Element>, $: CheerioAPI): Cheerio<Element> | null {
+  let sibling = list.prev();
 
-  while (sibling) {
-    if (sibling.tagName === 'OL') {
-      return sibling as HTMLOListElement;
+  while (sibling.length) {
+    const node = sibling.get(0);
+    if (!node) {
+      sibling = sibling.prev();
+      continue;
     }
 
-    if (isImageOnlyElement(sibling)) {
-      sibling = sibling.previousElementSibling;
+    if (node.type === "tag" && node.name === "ol") {
+      return sibling as Cheerio<Element>;
+    }
+
+    if (node.type === "tag" && isImageOnlyElement(sibling as Cheerio<Element>, $)) {
+      sibling = sibling.prev();
       continue;
     }
 
@@ -78,88 +116,96 @@ function findPreviousListForContinuation(list: HTMLOListElement): HTMLOListEleme
   return null;
 }
 
-function nextListStart(previous: HTMLOListElement | null, lengths: Map<HTMLOListElement, number>, starts: Map<HTMLOListElement, number>): number | null {
-  if (!previous) return null;
-  const prevLength = lengths.get(previous) ?? Array.from(previous.querySelectorAll(':scope > li')).length;
-  const prevStart = starts.get(previous) ?? 1;
+function nextListStart(
+  previous: Cheerio<Element> | null,
+  lengths: WeakMap<Element, number>,
+  starts: WeakMap<Element, number>
+): number | null {
+  if (!previous?.length) return null;
+  const node = previous.get(0);
+  if (!node) return null;
+  const prevLength = lengths.get(node) ?? 0;
   if (prevLength === 0) return null;
+  const prevStart = starts.get(node) ?? 1;
   return prevStart + prevLength;
 }
 
 function adjustOrderedLists(html: string): string {
-  if (!html.includes('<ol')) {
+  if (!html.includes("<ol")) {
     return html;
   }
 
-  const dom = new JSDOM(`<body>${html}</body>`);
-  const { document } = dom.window;
-  const lists = Array.from(document.querySelectorAll('ol')) as HTMLOListElement[];
-  const listLengths = new Map<HTMLOListElement, number>();
-  const listStarts = new Map<HTMLOListElement, number>();
+  const $ = load(html);
+  const listLengths = new WeakMap<Element, number>();
+  const listStarts = new WeakMap<Element, number>();
 
-  for (const list of lists) {
-    const items = Array.from(list.querySelectorAll(':scope > li'));
-    if (items.length === 0) {
-      continue;
+  $("ol").each((_, listNode) => {
+    const list = $(listNode);
+    const items = list.children("li");
+    if (!items.length) {
+      return;
     }
 
-    const firstItem = items[0];
-    const explicitStart = parseInt(firstItem.getAttribute('start') || firstItem.getAttribute('value') || '', 10);
+    const firstItem = items.first();
+    const explicitStart = parseInt(firstItem.attr("start") ?? firstItem.attr("value") ?? "", 10);
     const initialStart = Number.isFinite(explicitStart) ? explicitStart : 1;
-    listStarts.set(list, initialStart);
-    listLengths.set(list, items.length);
-  }
+    listStarts.set(listNode, initialStart);
+    listLengths.set(listNode, items.length);
+  });
 
-  for (const list of lists) {
-    const items = Array.from(list.querySelectorAll(':scope > li'));
-    if (items.length === 0) {
-      continue;
+  $("ol").each((_, listNode) => {
+    const list = $(listNode);
+    const items = list.children("li");
+    if (!items.length) {
+      return;
     }
 
-    const continuationTarget = findPreviousListForContinuation(list);
+    const continuationTarget = findPreviousListForContinuation(list as Cheerio<Element>, $);
     const startValue = nextListStart(continuationTarget, listLengths, listStarts);
 
     if (startValue && startValue > 1) {
-      items.forEach((item, index) => {
+      items.each((index, itemNode) => {
         const value = startValue + index;
+        const item = $(itemNode);
         if (index === 0) {
-          item.setAttribute('start', String(value));
+          item.attr("start", String(value));
         } else {
-          item.removeAttribute('start');
+          item.removeAttr("start");
         }
-        item.setAttribute('value', String(value));
+        item.attr("value", String(value));
       });
-      listStarts.set(list, startValue);
+      listStarts.set(listNode, startValue);
     } else {
-      items.forEach((item) => {
-        item.removeAttribute('start');
-        item.removeAttribute('value');
+      items.each((_, itemNode) => {
+        const item = $(itemNode);
+        item.removeAttr("start");
+        item.removeAttr("value");
       });
-      listStarts.set(list, 1);
+      listStarts.set(listNode, 1);
     }
 
-    listLengths.set(list, items.length);
-  }
+    listLengths.set(listNode, items.length);
+  });
 
-  return document.body.innerHTML;
+  return $.root().children().toArray().map((node) => $.html(node)).join("");
 }
 
 /**
  * Safely convert markdown to sanitized HTML
  */
 export async function renderMarkdown(markdown: string): Promise<string> {
-  if (!markdown) return '';
-  
+  if (!markdown) return "";
+
   try {
     // Convert markdown to HTML
     const html = await marked(markdown);
-    const adjusted = typeof html === 'string' ? adjustOrderedLists(html) : html;
-    
+    const adjusted = typeof html === "string" ? adjustOrderedLists(html) : html;
+
     // Sanitize the HTML
-    return typeof adjusted === 'string' ? purify.sanitize(adjusted, sanitizeOptions) : '';
+    return typeof adjusted === "string" ? sanitizeHtml(adjusted, sanitizeOptions) : "";
   } catch (error) {
-    console.error('Error rendering markdown:', error);
-    return '';
+    console.error("Error rendering markdown:", error);
+    return "";
   }
 }
 

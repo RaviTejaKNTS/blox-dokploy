@@ -120,10 +120,13 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       seo_description: game.seo_description,
       cover_image: game.cover_image,
       expired_codes: Array.isArray(game.expired_codes) ? game.expired_codes : [],
-      author: {
-        id: game.author?.id ?? null,
-        name: game.author?.name ?? null
-      },
+      author: (() => {
+        const authorEntry = Array.isArray(game.author) ? game.author[0] : game.author;
+        return {
+          id: authorEntry?.id ?? null,
+          name: authorEntry?.name ?? null
+        };
+      })(),
       counts: {
         active: count.active,
         check: count.check,

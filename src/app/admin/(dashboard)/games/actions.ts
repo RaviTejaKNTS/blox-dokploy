@@ -31,8 +31,12 @@ const gameCodeSchema = z.object({
   is_new: z.boolean().optional()
 });
 
+function formDataToObject(form: FormData): Record<string, FormDataEntryValue> {
+  return Object.fromEntries(form as unknown as Iterable<[string, FormDataEntryValue]>);
+}
+
 export async function saveGame(form: FormData) {
-  const raw = Object.fromEntries(form.entries());
+  const raw = formDataToObject(form);
   const payload = upsertGameSchema.parse({
     id: raw.id ? String(raw.id) : undefined,
     name: String(raw.name ?? ""),
@@ -84,7 +88,7 @@ export async function saveGame(form: FormData) {
 }
 
 export async function upsertGameCode(form: FormData) {
-  const raw = Object.fromEntries(form.entries());
+  const raw = formDataToObject(form);
   const payload = gameCodeSchema.parse({
     game_id: String(raw.game_id ?? ""),
     id: raw.id ? String(raw.id) : undefined,

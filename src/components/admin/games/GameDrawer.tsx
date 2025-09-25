@@ -176,7 +176,7 @@ export function GameDrawer({
                     <input
                       type="checkbox"
                       defaultChecked={defaultValues.is_published}
-                      {...register("is_published", { valueAsBoolean: true })}
+                      {...register("is_published", { setValueAs: (value) => Boolean(value) })}
                     />
                     <span>Published</span>
                   </label>
