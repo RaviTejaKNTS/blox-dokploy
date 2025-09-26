@@ -100,7 +100,7 @@ export default async function HomePage() {
           </span>
           {refreshedLabel ? (
             <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-              Last refreshed {refreshedLabel}
+              Last updated {refreshedLabel}
             </span>
           ) : null}
         </div>

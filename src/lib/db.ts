@@ -125,14 +125,20 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
 
   const { data: latestCodeRows, error: latestCodeError } = await sb
     .from("codes")
-    .select("game_id,max:first_seen_at", { group: "game_id" })
-    .in("game_id", gameIds);
+    .select("game_id,first_seen_at")
+    .in("game_id", gameIds)
+    .order("first_seen_at", { ascending: false });
   if (latestCodeError) throw latestCodeError;
 
   const latestFirstSeenMap = new Map<string, string | null>();
   for (const row of latestCodeRows || []) {
-    const record = row as unknown as { game_id: string; max: string | null };
-    latestFirstSeenMap.set(record.game_id, record.max ?? null);
+    const record = row as unknown as { game_id: string; first_seen_at: string | null };
+    if (!latestFirstSeenMap.has(record.game_id)) {
+      latestFirstSeenMap.set(record.game_id, record.first_seen_at ?? null);
+      if (latestFirstSeenMap.size === gameIds.length) {
+        break;
+      }
+    }
   }
 
   const toTimestamp = (value: string | null | undefined): number => {
@@ -186,14 +192,20 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
 
   const { data: latestCodeRows, error: latestCodeError } = await sb
     .from("codes")
-    .select("game_id,max:first_seen_at", { group: "game_id" })
-    .in("game_id", gameIds);
+    .select("game_id,first_seen_at")
+    .in("game_id", gameIds)
+    .order("first_seen_at", { ascending: false });
   if (latestCodeError) throw latestCodeError;
 
   const latestFirstSeenMap = new Map<string, string | null>();
   for (const row of latestCodeRows || []) {
-    const record = row as unknown as { game_id: string; max: string | null };
-    latestFirstSeenMap.set(record.game_id, record.max ?? null);
+    const record = row as unknown as { game_id: string; first_seen_at: string | null };
+    if (!latestFirstSeenMap.has(record.game_id)) {
+      latestFirstSeenMap.set(record.game_id, record.first_seen_at ?? null);
+      if (latestFirstSeenMap.size === gameIds.length) {
+        break;
+      }
+    }
   }
 
   return games.map((g) => ({
