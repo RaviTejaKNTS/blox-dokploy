@@ -81,7 +81,10 @@ export async function getAuthorBySlug(slug: string): Promise<Author | null> {
   return (data as Author) || null;
 }
 
-export type GameWithCounts = Game & { active_count: number };
+export type GameWithCounts = Game & {
+  active_count: number;
+  latest_code_first_seen_at: string | null;
+};
 
 export async function listAllGames(): Promise<Game[]> {
   const sb = supabaseAdmin();
@@ -99,13 +102,20 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
     .from("games")
     .select("*")
     .eq("is_published", true)
-    .order("name", { ascending: true });
+    .order("updated_at", { ascending: false });
   if (gamesError) throw gamesError;
+
+  const gameList = (games ?? []) as Game[];
+  if (gameList.length === 0) {
+    return [];
+  }
+  const gameIds = gameList.map((g) => g.id);
 
   const { data: activeCodes, error: codesError } = await sb
     .from("codes")
     .select("game_id")
-    .eq("status", "active");
+    .eq("status", "active")
+    .in("game_id", gameIds);
   if (codesError) throw codesError;
 
   const counts = new Map<string, number>();
@@ -113,10 +123,38 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
     counts.set(row.game_id, (counts.get(row.game_id) || 0) + 1);
   }
 
-  return (games || []).map((g) => ({
-    ...g,
-    active_count: counts.get(g.id) || 0,
-  })) as GameWithCounts[];
+  const { data: latestCodeRows, error: latestCodeError } = await sb
+    .from("codes")
+    .select("game_id,max:first_seen_at", { group: "game_id" })
+    .in("game_id", gameIds);
+  if (latestCodeError) throw latestCodeError;
+
+  const latestFirstSeenMap = new Map<string, string | null>();
+  for (const row of latestCodeRows || []) {
+    const record = row as unknown as { game_id: string; max: string | null };
+    latestFirstSeenMap.set(record.game_id, record.max ?? null);
+  }
+
+  const toTimestamp = (value: string | null | undefined): number => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
+  return gameList
+    .map((g) => {
+      const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
+      return {
+        ...g,
+        active_count: counts.get(g.id) || 0,
+        latest_code_first_seen_at: latestFirstSeen,
+      } satisfies GameWithCounts;
+    })
+    .sort((a, b) => {
+      const aTime = toTimestamp(a.latest_code_first_seen_at ?? a.updated_at);
+      const bTime = toTimestamp(b.latest_code_first_seen_at ?? b.updated_at);
+      return bTime - aTime;
+    });
 }
 
 export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {
@@ -146,9 +184,22 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
     counts.set(row.game_id, (counts.get(row.game_id) || 0) + 1);
   }
 
+  const { data: latestCodeRows, error: latestCodeError } = await sb
+    .from("codes")
+    .select("game_id,max:first_seen_at", { group: "game_id" })
+    .in("game_id", gameIds);
+  if (latestCodeError) throw latestCodeError;
+
+  const latestFirstSeenMap = new Map<string, string | null>();
+  for (const row of latestCodeRows || []) {
+    const record = row as unknown as { game_id: string; max: string | null };
+    latestFirstSeenMap.set(record.game_id, record.max ?? null);
+  }
+
   return games.map((g) => ({
     ...(g as Game),
-    active_count: counts.get(g.id) || 0
+    active_count: counts.get(g.id) || 0,
+    latest_code_first_seen_at: latestFirstSeenMap.get(g.id) ?? null
   })) as GameWithCounts[];
 }
 
