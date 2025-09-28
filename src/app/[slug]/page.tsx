@@ -327,13 +327,7 @@ export default async function GamePage({ params }: Params) {
     year: "numeric",
     timeZone: "UTC",
   });
-  const lastCheckedTimePart = lastCheckedDate.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  });
-  const lastCheckedFormatted = `${lastCheckedDatePart} at ${lastCheckedTimePart} UTC`;
+  const lastCheckedFormatted = lastCheckedDatePart;
 
   const lastCheckedRelativeLabel = (() => {
     const now = new Date();
@@ -485,9 +479,10 @@ export default async function GamePage({ params }: Params) {
                 Updated on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
               </span>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 font-medium text-accent">
+            <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-accent/40 bg-accent/10 px-4 py-4 font-medium text-accent">
               <time dateTime={lastCheckedIso}>
-                Last checked for new {game.name} codes on {lastCheckedFormatted}
+                Last checked for new {game.name} codes on{' '}
+                <span className="font-semibold text-foreground">{lastCheckedFormatted}</span>
                 {lastCheckedRelativeLabel ? <span>{' '}({lastCheckedRelativeLabel})</span> : null}
               </time>
             </div>
@@ -526,12 +521,12 @@ export default async function GamePage({ params }: Params) {
                     <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
                       <div className="basis-full flex flex-col gap-3 md:basis-auto">
                         <div className="flex flex-wrap items-center gap-3">
-                          <div className="relative inline-flex">
+                          <div className="relative inline-flex max-w-full min-w-0 justify-start">
                             <code
                               id={c.code}
-                              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-accent to-accent-dark px-4 py-2 text-sm font-semibold tracking-wide text-white shadow-soft"
+                              className="inline-flex max-w-full flex-wrap items-center justify-start gap-2 rounded-full bg-gradient-to-r from-accent to-accent-dark px-4 py-2 text-left text-sm font-semibold leading-tight text-white shadow-soft whitespace-normal break-words break-all min-w-0"
                             >
-                              {c.code}
+                              <span className="max-w-full break-words break-all leading-snug tracking-[0.08em]">{c.code}</span>
                             </code>
                             {c.is_new ? (
                               <span className="pointer-events-none absolute -top-2 -right-2 inline-flex items-center rounded-full bg-[#0f1121] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_18px_28px_-16px_rgba(72,92,255,0.55)] ring-2 ring-accent/25 rotate-2 md:-top-2 md:-right-2 dark:bg-white dark:text-accent">
@@ -574,8 +569,8 @@ export default async function GamePage({ params }: Params) {
                     <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
                       <div className="basis-full flex flex-col gap-3 md:basis-auto">
                         <div className="flex flex-wrap items-center gap-3">
-                          <code className="inline-flex items-center gap-2 rounded-full bg-surface-muted px-4 py-2 text-sm font-semibold tracking-wide text-foreground shadow-soft">
-                            {c.code}
+                          <code className="inline-flex max-w-full flex-wrap items-center justify-start gap-2 rounded-full bg-surface-muted px-4 py-2 text-left text-sm font-semibold leading-tight text-foreground shadow-soft whitespace-normal break-words break-all min-w-0">
+                            <span className="max-w-full break-words break-all leading-snug tracking-[0.08em]">{c.code}</span>
                           </code>
                           <CopyCodeButton code={c.code} />
                           {c.level_requirement != null ? (
