@@ -304,6 +304,13 @@ export default async function GamePage({ params }: Params) {
     ? latestCodeFirstSeen
     : game.updated_at;
 
+  const lastUpdatedFormatted = new Date(lastContentUpdate).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
   const lastChecked = codes.reduce((acc, c) => (acc > c.last_seen_at ? acc : c.last_seen_at), game.updated_at);
   const recommended = allGames
     .filter((g) => g.id !== game.id)
@@ -313,11 +320,43 @@ export default async function GamePage({ params }: Params) {
     })
     .slice(0, 6);
 
-  const lastCheckedFormatted = new Date(lastChecked).toLocaleDateString("en-US", {
+  const lastCheckedDate = new Date(lastChecked);
+  const lastCheckedDatePart = lastCheckedDate.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
+  const lastCheckedTimePart = lastCheckedDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  });
+  const lastCheckedFormatted = `${lastCheckedDatePart} at ${lastCheckedTimePart} UTC`;
+
+  const lastCheckedRelativeLabel = (() => {
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const checkedUtc = Date.UTC(
+      lastCheckedDate.getUTCFullYear(),
+      lastCheckedDate.getUTCMonth(),
+      lastCheckedDate.getUTCDate()
+    );
+    const diffDays = Math.round((todayUtc - checkedUtc) / (24 * 60 * 60 * 1000));
+    switch (diffDays) {
+      case 0:
+        return "Today";
+      case 1:
+        return "Yesterday";
+      case 2:
+        return "2 days ago";
+      case 3:
+        return "3 days ago";
+      default:
+        return null;
+    }
+  })();
 
   const [introHtml, redeemHtml, descriptionHtml, authorBioHtml] = await Promise.all([
     game.intro_md ? renderMarkdown(game.intro_md) : "",
@@ -408,42 +447,48 @@ export default async function GamePage({ params }: Params) {
           <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
             {game.name} Codes ({monthYear()})
           </h1>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted">
-            {author ? (
-              <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
-                {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
-                {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
-                {authorSameAs.map((url) => (
-                  <link key={url} itemProp="sameAs" href={url} />
-                ))}
-                <img
-                  src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
-                  alt={author.name}
-                  className="h-9 w-9 rounded-full border border-border/40 object-cover"
-                />
-                <span>
-                  Authored by {author.slug ? (
-                    <Link
-                      href={`/authors/${author.slug}`}
-                      className="font-semibold text-foreground transition hover:text-accent"
-                      itemProp="name"
-                    >
-                      {author.name}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold text-foreground" itemProp="name">{author.name}</span>
-                  )}
+          <div className="mt-4 flex flex-col gap-3 text-sm text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              {author ? (
+                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
+                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
+                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
+                  {authorSameAs.map((url) => (
+                    <link key={url} itemProp="sameAs" href={url} />
+                  ))}
+                  <img
+                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
+                    alt={author.name}
+                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                  />
+                  <span>
+                    Authored by {author.slug ? (
+                      <Link
+                        href={`/authors/${author.slug}`}
+                        className="font-semibold text-foreground transition hover:text-accent"
+                        itemProp="name"
+                      >
+                        {author.name}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-foreground" itemProp="name">{author.name}</span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-semibold text-foreground" itemProp="author">
+                  Published by {SITE_NAME}
                 </span>
-              </div>
-            ) : (
-              <span className="font-semibold text-foreground" itemProp="author">
-                Published by {SITE_NAME}
+              )}
+              <span aria-hidden="true">•</span>
+              <span className="text-foreground/80">
+                Updated on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
               </span>
-            )}
-            {author ? <span aria-hidden="true">•</span> : null}
+            </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 font-medium text-accent">
               <time dateTime={lastCheckedIso}>
-                Last checked for {game.name} codes on {lastCheckedFormatted}
+                Last checked for new {game.name} codes on {lastCheckedFormatted}
+                {lastCheckedRelativeLabel ? <span>{' '}({lastCheckedRelativeLabel})</span> : null}
               </time>
             </div>
           </div>
