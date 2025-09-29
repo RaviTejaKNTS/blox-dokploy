@@ -50,23 +50,23 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const games = await listGamesWithActiveCounts();
+  const sortedGames = [...games].sort((a, b) => {
+    const aTime = new Date(a.latest_code_first_seen_at ?? a.updated_at).getTime();
+    const bTime = new Date(b.latest_code_first_seen_at ?? b.updated_at).getTime();
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+    if (Number.isNaN(aTime)) return 1;
+    if (Number.isNaN(bTime)) return -1;
+    return bTime - aTime;
+  });
   const totalActiveCodes = games.reduce((sum, game) => sum + (game.active_count ?? 0), 0);
-  const mostRecentGame = games[0];
+  const mostRecentGame = sortedGames[0];
   const mostRecentUpdate = mostRecentGame
     ? new Date(mostRecentGame.latest_code_first_seen_at ?? mostRecentGame.updated_at)
     : null;
   const refreshedLabel = mostRecentUpdate
     ? formatDistanceToNow(mostRecentUpdate, { addSuffix: true })
     : null;
-  const featuredGames = games.slice(0, 6);
-  const gamesByUpdatedAt = [...games].sort((a, b) => {
-    const aTime = new Date(a.updated_at).getTime();
-    const bTime = new Date(b.updated_at).getTime();
-    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
-    if (Number.isNaN(aTime)) return 1;
-    if (Number.isNaN(bTime)) return -1;
-    return bTime - aTime;
-  });
+  const gamesByUpdatedAt = sortedGames;
 
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
@@ -83,7 +83,7 @@ export default async function HomePage() {
   });
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
 
       <header className="space-y-4">
@@ -106,37 +106,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {featuredGames.length ? (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">Recently updated Roblox code guides</h2>
-          <p className="text-sm text-muted md:text-base">
-            Jump straight to the hottest drops the community is chasing right now.
-          </p>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredGames.map((game) => (
-              <li key={game.id} className="rounded-[var(--radius-lg)] border border-border/50 bg-surface-muted p-4 transition hover:border-accent/60 hover:shadow-lg">
-                <Link href={`/${game.slug}`} className="flex flex-col gap-2 text-left">
-                  <span className="text-sm font-semibold uppercase tracking-wide text-accent/80">
-                    Updated {formatDistanceToNow(
-                      new Date(game.latest_code_first_seen_at ?? game.updated_at),
-                      { addSuffix: true }
-                    )}
-                  </span>
-                  <span className="text-xl font-semibold text-foreground">{game.name}</span>
-                  <span className="text-sm text-muted">
-                    {game.active_count > 0
-                      ? `${game.active_count} active ${game.active_count === 1 ? "code" : "codes"} + redemption tips`
-                      : "Check status, expiry history, and redeem instructions"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section className="space-y-6">
-        <h2 className="text-xl font-semibold text-foreground">Search the full Roblox codes library</h2>
+      <section className="space-y-4">
         <GameSearch games={gamesByUpdatedAt} />
       </section>
     </section>
