@@ -8,9 +8,9 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const revalidate = 30;
 
-const PAGE_TITLE = `${SITE_NAME} Roblox Codes (${monthYear()})`;
+const PAGE_TITLE = "Bloxodes - Check Latest Roblox Game Codes";
 const PAGE_DESCRIPTION =
-  "Bloxodes curates working Roblox promo codes, expiry alerts, and redemption tips for the most-played experiences. Check fresh rewards, filter by game, and stay ahead of the next drop.";
+  "Find the latest Roblox codes for all your favorite games in one place. Updated daily with active promo codes, rewards, and freebies to help you unlock items, boosts, and more.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -33,10 +33,10 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: `${SITE_URL}/og-image.png`,
+        url: `${SITE_URL}/Bloxodes.png`,
         width: 1200,
-        height: 630,
-        alt: `${SITE_NAME} Roblox Codes`
+        height: 675,
+        alt: PAGE_TITLE
       }
     ]
   },
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
-    images: [`${SITE_URL}/og-image.png`]
+    images: [`${SITE_URL}/Bloxodes.png`]
   }
 };
 
