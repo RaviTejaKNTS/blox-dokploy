@@ -19,13 +19,33 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
   const html = await res.text();
   const $ = cheerio.load(html);
 
+  const findListWithin = (
+    start: cheerio.Cheerio<cheerio.Element>,
+    stopSelector: string
+  ): cheerio.Cheerio<cheerio.Element> | null => {
+    if (!start || !start.length) return null;
+    const immediate = start.next();
+    if (immediate.length && immediate.is("ul, ol")) {
+      return immediate;
+    }
+    const between = start.nextUntil(stopSelector);
+    if (!between.length) return null;
+    const listCandidate = between.filter("ul, ol").first();
+    return listCandidate.length ? listCandidate : null;
+  };
+
+  const h1 = $("h1").first();
+  const firstH2 = h1.length ? h1.nextAll("h2").first() : $("h2").first();
+
   let list: cheerio.Cheerio<cheerio.Element> | null = null;
-  const firstHeading = $("h2").first();
-  if (firstHeading.length) {
-    list = firstHeading.nextUntil("h2").filter("ul, ol").first();
-  }
-  if (!list || !list.length) {
-    list = $("ul, ol").first();
+  if (firstH2.length) {
+    const immediateAfterH2 = firstH2.next();
+    if (immediateAfterH2.length && immediateAfterH2.is("h3")) {
+      list = findListWithin(immediateAfterH2, "h2, h3");
+    }
+    if (!list || !list.length) {
+      list = findListWithin(firstH2, "h2");
+    }
   }
 
   const codes: ScrapedCode[] = [];

@@ -11,6 +11,11 @@ const ONLY_SLUGS = (process.env.REFRESH_ONLY_SLUGS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+function normalizeCodeForComparison(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return code.replace(/\s+/g, "").trim().toUpperCase();
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -27,6 +32,7 @@ type ProcessResult = {
   status: "ok" | "skipped" | "error";
   found?: number;
   upserted?: number;
+  removed?: number;
   error?: string;
 };
 
@@ -64,6 +70,24 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
   }
 
   const { codes } = await scrapeSources(sourceUrls);
+
+  const incomingNormalized = new Set<string>();
+  for (const c of codes) {
+    const normalized = normalizeCodeForComparison(c.code);
+    if (normalized) {
+      incomingNormalized.add(normalized);
+    }
+  }
+
+  const { data: existingRows, error: existingError } = await sb
+    .from("codes")
+    .select("code, status")
+    .eq("game_id", game.id);
+
+  if (existingError) {
+    throw new Error(`failed to load existing codes for ${game.slug}: ${existingError.message}`);
+  }
+
   let upserted = 0;
 
   for (const c of codes) {
@@ -83,12 +107,38 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     upserted += 1;
   }
 
+  const existingActiveOrCheck = (existingRows ?? []).filter(
+    (row) => row.status === "active" || row.status === "check"
+  );
+
+  const toDelete = existingActiveOrCheck
+    .map((row) => {
+      const normalized = normalizeCodeForComparison(row.code);
+      return { normalized, original: row.code };
+    })
+    .filter((entry) => entry.normalized && !incomingNormalized.has(entry.normalized))
+    .map((entry) => entry.original)
+    .filter((code): code is string => Boolean(code));
+
+  if (toDelete.length) {
+    const { error: deleteError } = await sb
+      .from("codes")
+      .delete()
+      .eq("game_id", game.id)
+      .in("code", toDelete);
+
+    if (deleteError) {
+      throw new Error(`cleanup failed for ${game.slug}: ${deleteError.message}`);
+    }
+  }
+
   return {
     slug: game.slug,
     name: game.name,
     status: "ok",
     found: codes.length,
     upserted,
+    removed: toDelete.length,
   };
 }
 
@@ -115,6 +165,7 @@ async function main() {
     failed: 0,
     totalCodesFound: 0,
     totalCodesUpserted: 0,
+    totalCodesRemoved: 0,
   };
 
   for (let idx = 0; idx < candidates.length; idx += CONCURRENCY) {
@@ -141,7 +192,11 @@ async function main() {
         stats.success += 1;
         stats.totalCodesFound += res.found ?? 0;
         stats.totalCodesUpserted += res.upserted ?? 0;
-        console.log(`✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0})`);
+        stats.totalCodesRemoved += res.removed ?? 0;
+        const removedNote = res.removed ? `, removed ${res.removed}` : "";
+        console.log(
+          `✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0}${removedNote})`
+        );
       } else if (res.status === "skipped") {
         stats.skipped += 1;
         console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
@@ -163,6 +218,7 @@ async function main() {
   console.log(`   Failed:    ${stats.failed}`);
   console.log(`   Codes found:    ${stats.totalCodesFound}`);
   console.log(`   Codes upserted: ${stats.totalCodesUpserted}`);
+  console.log(`   Codes removed:  ${stats.totalCodesRemoved}`);
 
   if (stats.failed > 0) {
     process.exitCode = 1;

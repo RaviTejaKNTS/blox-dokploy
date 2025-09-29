@@ -31,7 +31,7 @@ export async function GET() {
     { path: "/privacy-policy", changefreq: "yearly", priority: "0.5" },
     { path: "/editorial-guidelines", changefreq: "monthly", priority: "0.5" },
     { path: "/disclaimer", changefreq: "monthly", priority: "0.5" },
-    { path: "/authors", changefreq: "weekly", priority: "0.6" }
+    { path: "/authors", changefreq: "monthly", priority: "0.6" }
   ];
 
   for (const route of staticRoutes) {
@@ -46,7 +46,7 @@ export async function GET() {
     if (!g?.slug) continue;
     pages.push({
       loc: `${origin}/${g.slug}`,
-      changefreq: "daily",
+      changefreq: "weekly",
       priority: "0.9",
       lastmod: g.updated_at ? new Date(g.updated_at).toISOString() : undefined
     });
@@ -56,7 +56,7 @@ export async function GET() {
     if (!author?.slug) continue;
     pages.push({
       loc: `${origin}/authors/${author.slug}`,
-      changefreq: "weekly",
+      changefreq: "monthly",
       priority: "0.5",
       lastmod: author.updated_at ? new Date(author.updated_at).toISOString() : undefined
     });
