@@ -8,7 +8,8 @@
     "lint": "echo \"(lint intentionally omitted)\"",
     "refresh:codes": "tsx scripts/update-codes.ts",
     "refresh:expired": "tsx scripts/update-expired.ts",
-    "import:games": "tsx scripts/import-games.ts"
+    "import:games": "tsx scripts/import-games.ts",
+    "post:online": "tsx scripts/post-online.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

@@ -7,6 +7,7 @@ export interface AdminGameCode {
   rewards_text: string | null;
   level_requirement: number | null;
   is_new: boolean | null;
+  posted_online: boolean;
   first_seen_at: string;
   last_seen_at: string;
 }
@@ -60,7 +61,7 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
 
   const { data: codeRows, error: codeError } = await client
     .from("codes")
-    .select("id, game_id, code, status, rewards_text, level_requirement, is_new, first_seen_at, last_seen_at")
+    .select("id, game_id, code, status, rewards_text, level_requirement, is_new, posted_online, first_seen_at, last_seen_at")
     .in("game_id", gameIds);
 
   if (codeError) throw codeError;
@@ -77,6 +78,7 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       rewards_text: row.rewards_text,
       level_requirement: row.level_requirement,
       is_new: row.is_new,
+      posted_online: Boolean(row.posted_online),
       first_seen_at: row.first_seen_at,
       last_seen_at: row.last_seen_at
     };

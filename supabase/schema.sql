@@ -46,6 +46,7 @@ create table if not exists public.codes (
   rewards_text text,
   level_requirement int,
   is_new boolean,
+  posted_online boolean not null default false,
   first_seen_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now(),
   unique (game_id, code)
@@ -179,3 +180,5 @@ begin
         last_seen_at = now();
 end;
 $$ language plpgsql;
+alter table public.codes
+  add column if not exists posted_online boolean not null default false;

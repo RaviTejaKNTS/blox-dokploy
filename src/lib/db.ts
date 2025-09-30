@@ -45,6 +45,7 @@ export type Code = {
   rewards_text: string | null;
   level_requirement: number | null;
   is_new: boolean | null;
+  posted_online: boolean;
   first_seen_at: string;
   last_seen_at: string;
 };
