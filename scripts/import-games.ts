@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { scrapeSources } from "@/lib/scraper";
+import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
 
 export type ImportPayload = {
   sourceUrl: string;
@@ -36,22 +36,6 @@ function parseBoolean(value: string): boolean {
   if (["true", "1", "yes", "y", "on"].includes(normalized)) return true;
   if (["false", "0", "no", "n", "off"].includes(normalized)) return false;
   throw new Error(`Invalid boolean value: ${value}`);
-}
-
-function slugFromUrl(url: string): string | null {
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split("/").filter(Boolean);
-    return parts.pop() || null;
-  } catch {
-    return null;
-  }
-}
-
-function titleCase(slug: string): string {
-  return slug
-    .replace(/[-_]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function normalizeEntry(entry: unknown): ImportPayload {
@@ -228,15 +212,6 @@ async function collectEntries(argv: string[]): Promise<ParsedEntries> {
   return { entries, errors };
 }
 
-function ensureCodesSuffix(slug: string): string {
-  const suffix = 'codes';
-  const normalizedSlug = slug.toLowerCase().trim();
-  if (!normalizedSlug.endsWith(suffix)) {
-    return `${slug}-${suffix}`.replace(/--+/g, '-');
-  }
-  return slug;
-}
-
 async function importSingleGame(
   sb: ReturnType<typeof supabaseAdmin>,
   payload: ImportPayload,
@@ -244,13 +219,11 @@ async function importSingleGame(
   const { sourceUrl, sourceUrl2, sourceUrl3, name, slug, publish } = payload;
   if (!sourceUrl) throw new Error("sourceUrl required");
 
-  let derivedSlug = slug ?? slugFromUrl(sourceUrl);
-  if (!derivedSlug) throw new Error("Could not derive slug from source URL");
-  
-  // Ensure slug ends with 'codes'
-  derivedSlug = ensureCodesSuffix(derivedSlug);
-
-  const derivedName = name ?? titleCase(derivedSlug.replace(/-codes$/, ''));
+  const { slug: derivedSlug, name: derivedName } = computeGameDetails({
+    slug,
+    name,
+    sourceUrl
+  });
   const publishFlag = publish ?? true;
 
   const normalizeOptionalUrl = (value: string | null | undefined) => {
@@ -273,61 +246,42 @@ async function importSingleGame(
     upsertPayload.source_url_3 = normalizeOptionalUrl(sourceUrl3);
   }
 
+  type GameRecord = {
+    id: string;
+    slug: string;
+    name: string;
+    source_url: string | null;
+    source_url_2: string | null;
+    source_url_3: string | null;
+    is_published: boolean | null;
+  };
+
   const { data: game, error: upsertError } = await sb
     .from("games")
     .upsert(upsertPayload, { onConflict: "slug" })
-    .select("*")
-    .single();
+    .select("id, slug, name, source_url, source_url_2, source_url_3, is_published")
+    .single<GameRecord>();
 
   if (upsertError || !game) {
     throw new Error(upsertError?.message ?? "Upsert failed");
   }
 
-  const sourceCandidates = [
+  const syncResult = await syncGameCodesFromSources(sb, game.id, [
     game.source_url,
-    (game as any).source_url_2,
-    (game as any).source_url_3,
-  ]
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter((value) => value.length > 0);
+    game.source_url_2,
+    game.source_url_3,
+  ]);
 
-  const { codes, expiredCodes } = await scrapeSources(sourceCandidates);
-  let upserted = 0;
-
-  for (const c of codes) {
-    const { error: rpcError } = await sb.rpc("upsert_code", {
-      p_game_id: game.id,
-      p_code: c.code,
-      p_status: c.status,
-      p_rewards_text: c.rewardsText ?? null,
-      p_level_requirement: c.levelRequirement ?? null,
-      p_is_new: c.isNew ?? false,
-    });
-
-    if (rpcError) {
-      throw new Error(`Upsert failed for ${c.code}: ${rpcError.message}`);
-    }
-
-    upserted += 1;
+  if (syncResult.errors.length) {
+    console.warn(`⚠ Failed to import codes for ${game.slug}: ${syncResult.errors.join(", ")}`);
   }
-
-  await sb
-    .from("games")
-    .update({ expired_codes: expiredCodes })
-    .eq("id", game.id);
-
-  await sb
-    .from("codes")
-    .delete()
-    .eq("game_id", game.id)
-    .eq("status", "expired");
 
   return {
     slug: game.slug,
     name: game.name,
     publish: Boolean(game.is_published),
-    codesFound: codes.length,
-    codesUpserted: upserted,
+    codesFound: syncResult.codesFound,
+    codesUpserted: syncResult.codesUpserted,
   };
 }
 

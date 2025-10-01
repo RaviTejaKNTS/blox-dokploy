@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin-auth";
+import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -37,54 +38,114 @@ function formDataToObject(form: FormData): Record<string, FormDataEntryValue> {
 
 export async function saveGame(form: FormData) {
   const raw = formDataToObject(form);
-  const payload = upsertGameSchema.parse({
-    id: raw.id ? String(raw.id) : undefined,
-    name: String(raw.name ?? ""),
-    slug: String(raw.slug ?? ""),
-    author_id: raw.author_id ? String(raw.author_id) : null,
-    is_published: raw.is_published === "on" || raw.is_published === "true",
-    source_url: raw.source_url ? String(raw.source_url) : null,
-    source_url_2: raw.source_url_2 ? String(raw.source_url_2) : null,
-    source_url_3: raw.source_url_3 ? String(raw.source_url_3) : null,
-    intro_md: raw.intro_md ? String(raw.intro_md) : null,
-    redeem_md: raw.redeem_md ? String(raw.redeem_md) : null,
-    description_md: raw.description_md ? String(raw.description_md) : null,
-    seo_title: raw.seo_title ? String(raw.seo_title) : null,
-    seo_description: raw.seo_description ? String(raw.seo_description) : null,
-    cover_image: raw.cover_image ? String(raw.cover_image) : null
-  });
+  try {
+    const payload = upsertGameSchema.parse({
+      id: raw.id ? String(raw.id) : undefined,
+      name: String(raw.name ?? ""),
+      slug: String(raw.slug ?? ""),
+      author_id: raw.author_id ? String(raw.author_id) : null,
+      is_published: raw.is_published === "on" || raw.is_published === "true",
+      source_url: raw.source_url ? String(raw.source_url) : null,
+      source_url_2: raw.source_url_2 ? String(raw.source_url_2) : null,
+      source_url_3: raw.source_url_3 ? String(raw.source_url_3) : null,
+      intro_md: raw.intro_md ? String(raw.intro_md) : null,
+      redeem_md: raw.redeem_md ? String(raw.redeem_md) : null,
+      description_md: raw.description_md ? String(raw.description_md) : null,
+      seo_title: raw.seo_title ? String(raw.seo_title) : null,
+      seo_description: raw.seo_description ? String(raw.seo_description) : null,
+      cover_image: raw.cover_image ? String(raw.cover_image) : null
+    });
 
-  const { supabase } = await requireAdminAction();
+    const { supabase } = await requireAdminAction();
 
-  const record = {
-    name: payload.name,
-    slug: payload.slug,
-    author_id: payload.author_id,
-    is_published: payload.is_published,
-    source_url: payload.source_url,
-    source_url_2: payload.source_url_2,
-    source_url_3: payload.source_url_3,
-    intro_md: payload.intro_md,
-    redeem_md: payload.redeem_md,
-    description_md: payload.description_md,
-    seo_title: payload.seo_title,
-    seo_description: payload.seo_description,
-    cover_image: payload.cover_image
-  };
+    const { slug, name } = computeGameDetails({
+      name: payload.name,
+      slug: payload.slug,
+      sourceUrl: payload.source_url ?? undefined
+    });
 
-  if (payload.id) {
-    const { error } = await supabase
-      .from("games")
-      .update(record)
-      .eq("id", payload.id);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("games").insert(record);
-    if (error) throw error;
+    const normalizeOptionalUrl = (value: string | null | undefined) => {
+      const trimmed = value?.trim();
+      return trimmed && trimmed.length > 0 ? trimmed : null;
+    };
+
+    const record = {
+      name,
+      slug,
+      author_id: payload.author_id,
+      is_published: payload.is_published,
+      source_url: normalizeOptionalUrl(payload.source_url),
+      source_url_2: normalizeOptionalUrl(payload.source_url_2),
+      source_url_3: normalizeOptionalUrl(payload.source_url_3),
+      intro_md: payload.intro_md,
+      redeem_md: payload.redeem_md,
+      description_md: payload.description_md,
+      seo_title: payload.seo_title,
+      seo_description: payload.seo_description,
+      cover_image: payload.cover_image
+    };
+
+    type GameRecord = {
+      id: string;
+      slug: string;
+      name: string;
+      source_url: string | null;
+      source_url_2: string | null;
+      source_url_3: string | null;
+      is_published: boolean | null;
+    };
+
+    let game: GameRecord | null = null;
+
+    if (payload.id) {
+      const { data, error } = await supabase
+        .from("games")
+        .update(record)
+        .eq("id", payload.id)
+        .select("id, slug, name, source_url, source_url_2, source_url_3, is_published")
+        .single();
+
+      if (error) {
+        return { success: false, error: error.message, code: (error as any).code ?? null };
+      }
+      game = (data as GameRecord) ?? null;
+    } else {
+      const { data, error } = await supabase
+        .from("games")
+        .insert(record)
+        .select("id, slug, name, source_url, source_url_2, source_url_3, is_published")
+        .single();
+
+      if (error) {
+        return { success: false, error: error.message, code: (error as any).code ?? null };
+      }
+      game = (data as GameRecord) ?? null;
+    }
+
+    if (!game) {
+      return { success: false, error: "Game record was not returned." };
+    }
+
+    const syncResult = await syncGameCodesFromSources(supabase, game.id, [
+      game.source_url,
+      game.source_url_2,
+      game.source_url_3
+    ]);
+
+    revalidatePath("/admin/games");
+    return {
+      success: true,
+      slug: game.slug,
+      codesFound: syncResult.codesFound,
+      codesUpserted: syncResult.codesUpserted,
+      syncErrors: syncResult.errors
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Unexpected error occurred" };
   }
-
-  revalidatePath("/admin/games");
-  return { success: true };
 }
 
 export async function upsertGameCode(form: FormData) {

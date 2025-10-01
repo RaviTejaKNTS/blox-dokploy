@@ -1,6 +1,17 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, useTransition, FormEvent } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  FormEvent,
+  type ChangeEvent,
+  type DragEvent
+} from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,11 +19,79 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { RichMarkdownEditor } from "@/components/admin/editor/RichMarkdownEditor";
 import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
 import { saveGame, upsertGameCode, updateCodeStatus, deleteCode } from "@/app/admin/(dashboard)/games/actions";
+import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
+
+function parseMarkdownSections(markdown: string) {
+  const result = {
+    intro: "",
+    redeem: "",
+    description: ""
+  };
+
+  if (!markdown.trim()) return result;
+
+  const normalized = markdown.replace(/\r\n?/g, "\n");
+  const lines = normalized.split("\n");
+  const isHeading = (line: string) => /^#{1,6}\s/.test(line.trim());
+
+  let index = 0;
+
+  while (index < lines.length && !lines[index].trim()) {
+    index += 1;
+  }
+
+  while (index < lines.length && isHeading(lines[index])) {
+    index += 1;
+    while (index < lines.length && !lines[index].trim()) {
+      index += 1;
+    }
+  }
+
+  const introLines: string[] = [];
+  while (index < lines.length && !isHeading(lines[index])) {
+    introLines.push(lines[index]);
+    index += 1;
+  }
+  while (introLines.length && !introLines[introLines.length - 1].trim()) {
+    introLines.pop();
+  }
+  if (introLines.length) {
+    result.intro = introLines.join("\n").trim();
+  }
+
+  if (index >= lines.length) {
+    return result;
+  }
+
+  const redeemStart = index;
+  let redeemEnd = lines.length;
+  for (let i = redeemStart + 1; i < lines.length; i += 1) {
+    if (isHeading(lines[i])) {
+      redeemEnd = i;
+      break;
+    }
+  }
+
+  const redeemLines = lines.slice(redeemStart, redeemEnd);
+  while (redeemLines.length && !redeemLines[redeemLines.length - 1].trim()) {
+    redeemLines.pop();
+  }
+  if (redeemLines.length) {
+    result.redeem = redeemLines.join("\n").trim();
+  }
+
+  const descriptionLines = lines.slice(redeemEnd).join("\n").trim();
+  if (descriptionLines) {
+    result.description = descriptionLines;
+  }
+
+  return result;
+}
 
 const formSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Name is required"),
-  slug: z.string().min(1, "Slug is required"),
+  name: z.string().min(1, "Name is required").or(z.literal("")),
+  slug: z.string().min(1, "Slug is required").or(z.literal("")),
   author_id: z.string().optional(),
   is_published: z.boolean().optional(),
   source_url: z.string().url().optional().or(z.literal("")),
@@ -30,14 +109,6 @@ type FormValues = z.infer<typeof formSchema>;
 
 type TabKey = "content" | "meta" | "codes";
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export function GameDrawer({
   open,
   onClose,
@@ -54,6 +125,11 @@ export function GameDrawer({
   const [activeTab, setActiveTab] = useState<TabKey>("content");
   const [isPending, startTransition] = useTransition();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const lastAutoSlugRef = useRef<string>("");
+  const slugManuallyEditedRef = useRef(false);
+  const nameManuallyEditedRef = useRef(false);
+  const [markdownError, setMarkdownError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const defaultValues = useMemo<FormValues>(() => ({
     id: game?.id,
@@ -83,36 +159,184 @@ export function GameDrawer({
     resolver: zodResolver(formSchema),
     defaultValues
   });
+  const nameRegister = register("name");
+  const slugRegister = register("slug");
 
   useEffect(() => {
     reset(defaultValues);
     setActiveTab("content");
     setStatusMessage(null);
+    setMarkdownError(null);
+    setIsDragging(false);
+    const initialSlug = normalizeGameSlug(defaultValues.slug || defaultValues.name || "");
+    lastAutoSlugRef.current = initialSlug;
+    slugManuallyEditedRef.current = false;
+    nameManuallyEditedRef.current = false;
   }, [defaultValues, reset, open]);
 
   const nameValue = watch("name");
   const slugValue = watch("slug");
+  const sourceUrlValue = watch("source_url");
+  const introValue = watch("intro_md");
+  const redeemValue = watch("redeem_md");
+  const descriptionValue = watch("description_md");
 
   useEffect(() => {
-    if (!game && nameValue && !slugValue) {
-      setValue("slug", slugify(nameValue));
+    if (game) return;
+    if (!nameValue) return;
+
+    if (!slugValue) {
+      slugManuallyEditedRef.current = false;
     }
+
+    if (slugManuallyEditedRef.current && slugValue) return;
+
+    const autoSlug = normalizeGameSlug(nameValue);
+    if (!autoSlug) return;
+
+    if (slugValue !== autoSlug) {
+      slugManuallyEditedRef.current = false;
+      setValue("slug", autoSlug, { shouldDirty: false });
+    }
+    lastAutoSlugRef.current = autoSlug;
   }, [game, nameValue, slugValue, setValue]);
+
+  useEffect(() => {
+    if (game) return;
+    const trimmedSource = sourceUrlValue?.trim();
+    if (!trimmedSource) return;
+
+    if (!nameValue) {
+      nameManuallyEditedRef.current = false;
+    }
+
+    if (!slugValue) {
+      slugManuallyEditedRef.current = false;
+    }
+
+    const sourceSlug = slugFromUrl(trimmedSource);
+    if (!sourceSlug) return;
+
+    const normalizedSlug = normalizeGameSlug(sourceSlug);
+    const derivedName = titleizeGameSlug(normalizedSlug);
+
+    if (!nameManuallyEditedRef.current && derivedName) {
+      if (nameValue !== derivedName) {
+        setValue("name", derivedName, { shouldDirty: false });
+      }
+      nameManuallyEditedRef.current = false;
+    }
+
+    if (!slugManuallyEditedRef.current && normalizedSlug) {
+      if (slugValue !== normalizedSlug) {
+        setValue("slug", normalizedSlug, { shouldDirty: false });
+      }
+      lastAutoSlugRef.current = normalizedSlug;
+      slugManuallyEditedRef.current = false;
+    }
+  }, [game, sourceUrlValue, nameValue, slugValue, setValue]);
 
   const isPublished = watch("is_published");
 
+  const applyMarkdownContent = useCallback(
+    (markdown: string) => {
+      const sections = parseMarkdownSections(markdown);
+      if (!introValue && sections.intro) {
+        setValue("intro_md", sections.intro, { shouldDirty: true });
+      }
+      if (!redeemValue && sections.redeem) {
+        setValue("redeem_md", sections.redeem, { shouldDirty: true });
+      }
+      if (!descriptionValue && sections.description) {
+        setValue("description_md", sections.description, { shouldDirty: true });
+      }
+    },
+    [descriptionValue, introValue, redeemValue, setValue]
+  );
+
+  const handleMarkdownFile = useCallback(
+    async (file: File | null) => {
+      if (!file) return;
+      try {
+        const text = await file.text();
+        applyMarkdownContent(text);
+        setMarkdownError(null);
+      } catch (error) {
+        console.error("Failed to read markdown", error);
+        setMarkdownError("Could not read the markdown file. Please try again.");
+      }
+    },
+    [applyMarkdownContent]
+  );
+
+  const onFileInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      void handleMarkdownFile(file);
+      event.target.value = "";
+    },
+    [handleMarkdownFile]
+  );
+
+  const onDragOver = useCallback((event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const onDrop = useCallback(
+    (event: DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragging(false);
+      const file = event.dataTransfer.files?.[0] ?? null;
+      void handleMarkdownFile(file);
+    },
+    [handleMarkdownFile]
+  );
+
   const onSubmit = handleSubmit((values) => {
+    const primarySource = values.source_url?.trim() || undefined;
+    const fallbackSlugSource = values.name || slugFromUrl(primarySource ?? "") || "";
+    const normalizedSlug = normalizeGameSlug(values.slug, fallbackSlugSource);
+
+    if (!normalizedSlug) {
+      setStatusMessage("Unable to derive slug. Please provide a slug or valid source URL.");
+      return;
+    }
+
+    const derivedName = values.name?.trim() || titleizeGameSlug(normalizedSlug);
+
+    const finalValues = {
+      ...values,
+      name: derivedName,
+      slug: normalizedSlug
+    };
+
     const formData = new FormData();
-    Object.entries(values).forEach(([key, raw]) => {
+    Object.entries(finalValues).forEach(([key, raw]) => {
       if (raw === undefined) return;
       if (raw === null) return;
       formData.append(key, String(raw));
     });
-    formData.set("is_published", values.is_published ? "true" : "false");
+    formData.set("is_published", finalValues.is_published ? "true" : "false");
     startTransition(async () => {
       try {
-        await saveGame(formData);
-        setStatusMessage("Saved changes");
+        const result = await saveGame(formData);
+        if (!result?.success) {
+          setStatusMessage(result?.error ?? "Failed to save. Please check your inputs.");
+          return;
+        }
+
+        if (result.syncErrors?.length) {
+          setStatusMessage(`Saved but failed to fetch codes: ${result.syncErrors.join(", ")}`);
+        } else {
+          setStatusMessage("Saved changes");
+        }
         onRefresh();
         onClose();
       } catch (error) {
@@ -217,7 +441,11 @@ export function GameDrawer({
                           <label className="text-sm font-semibold text-foreground">Name</label>
                           <input
                             type="text"
-                            {...register("name")}
+                            {...nameRegister}
+                            onChange={(event) => {
+                              nameManuallyEditedRef.current = true;
+                              nameRegister.onChange(event);
+                            }}
                             className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
                           />
                           {errors.name ? <p className="text-xs text-red-400">{errors.name.message}</p> : null}
@@ -226,7 +454,20 @@ export function GameDrawer({
                           <label className="text-sm font-semibold text-foreground">Slug</label>
                           <input
                             type="text"
-                            {...register("slug")}
+                            {...slugRegister}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              slugManuallyEditedRef.current = value.length > 0;
+                              slugRegister.onChange(event);
+                            }}
+                            onBlur={(event) => {
+                              slugRegister.onBlur(event);
+                              const normalized = normalizeGameSlug(event.target.value || nameValue || "");
+                              lastAutoSlugRef.current = normalized;
+                              if (normalized !== event.target.value) {
+                                setValue("slug", normalized, { shouldDirty: true });
+                              }
+                            }}
                             className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
                           />
                           {errors.slug ? <p className="text-xs text-red-400">{errors.slug.message}</p> : null}
@@ -274,6 +515,20 @@ export function GameDrawer({
                             placeholder="https://"
                           />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-foreground">Import Markdown</label>
+                        <label
+                          onDragOver={onDragOver}
+                          onDragLeave={onDragLeave}
+                          onDrop={onDrop}
+                          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface px-4 py-6 text-center text-sm transition hover:border-accent hover:text-accent ${isDragging ? "border-accent bg-accent/5" : ""}`}
+                        >
+                          <input type="file" accept="text/markdown,.md" className="hidden" onChange={onFileInputChange} />
+                          <span className="font-semibold">Drag & Drop markdown</span>
+                          <span className="text-xs text-muted">or click to upload a .md file</span>
+                        </label>
+                        {markdownError ? <p className="text-xs text-red-400">{markdownError}</p> : null}
                       </div>
                       <RichMarkdownEditor
                         label="Intro"
