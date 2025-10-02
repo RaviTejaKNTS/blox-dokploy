@@ -13,7 +13,7 @@ const ONLY_SLUGS = (process.env.REFRESH_ONLY_SLUGS || "")
 
 function normalizeCodeForComparison(code: string | null | undefined): string | null {
   if (!code) return null;
-  return code.replace(/\s+/g, "").trim().toUpperCase();
+  return code.replace(/\s+/g, "").trim();
 }
 
 function sleep(ms: number) {

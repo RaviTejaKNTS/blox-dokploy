@@ -13,7 +13,7 @@ const SCRAPER_MAP = {
 type Provider = keyof typeof SCRAPER_MAP;
 
 function normalizeCodeKey(code: string): string {
-  return code.replace(/\s+/g, "").trim().toUpperCase();
+  return code.replace(/\s+/g, "").trim();
 }
 
 const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
