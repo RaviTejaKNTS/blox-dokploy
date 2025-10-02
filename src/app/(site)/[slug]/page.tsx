@@ -556,7 +556,11 @@ export default async function GamePage({ params }: Params) {
         {needsCheck.length > 0 ? (
           <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="needs-check">
             <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
-              <h2>Codes To Double-Check</h2>
+              <h2>Likely Expired Codes</h2>
+              <p>
+                These codes might be just expired and may not work. However, we have not verified ourselves yet. To make sure,
+                try them on the {game.name} yourself.
+              </p>
             </div>
             <div className="flex flex-col gap-4">
               {[...needsCheck].reverse().map(c => {
