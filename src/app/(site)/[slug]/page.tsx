@@ -501,9 +501,11 @@ export default async function GamePage({ params }: Params) {
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="active-codes">
           <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
             <h2>Active {game.name} Codes</h2>
-            <p className="text-muted">
-              Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. Remember, these codes are case-sensitive, so copy/paste or enter them exactly as shown.
-            </p>
+            {active.length > 0 ? (
+              <p className="text-muted">
+                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. Remember, these codes are case-sensitive, so copy/paste or enter them exactly as shown.
+              </p>
+            ) : null}
           </div>
           {active.length === 0 ? (
             <p className="text-muted">
