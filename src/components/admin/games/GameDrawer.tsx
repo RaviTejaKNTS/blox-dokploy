@@ -18,7 +18,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RichMarkdownEditor } from "@/components/admin/editor/RichMarkdownEditor";
 import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
-import { saveGame, upsertGameCode, updateCodeStatus, deleteCode } from "@/app/admin/(dashboard)/games/actions";
+import { saveGame, upsertGameCode, updateCodeStatus, deleteCode, refreshGameCodes } from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 
 function parseMarkdownSections(markdown: string) {
@@ -624,11 +624,19 @@ export function GameDrawer({
 
 function CodesTab({ game, onRefresh }: { game: AdminGameSummary | null; onRefresh: () => void }) {
   const [isPending, startTransition] = useTransition();
+  const [refreshing, setRefreshing] = useState(false);
+  const [flash, setFlash] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [formState, setFormState] = useState({ status: "active" as "active" | "check" | "expired" });
 
   if (!game) {
     return <p className="text-sm text-muted">Save the game first to manage codes.</p>;
   }
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), 4000);
+    return () => clearTimeout(timer);
+  }, [flash]);
 
   const handleStatusChange = (id: string, status: "active" | "check" | "expired") => {
     const formData = new FormData();
@@ -651,6 +659,31 @@ function CodesTab({ game, onRefresh }: { game: AdminGameSummary | null; onRefres
     });
   };
 
+  const triggerRefresh = () => {
+    if (!game) return;
+    setFlash(null);
+    setRefreshing(true);
+    startTransition(async () => {
+      try {
+        const result = await refreshGameCodes(game.slug);
+        if (!result?.success) {
+          setFlash({ tone: "error", message: result?.error ?? "Failed to refresh codes." });
+        } else {
+          const parts = [];
+          if (typeof result.upserted === "number") parts.push(`${result.upserted} updated`);
+          if (typeof result.removed === "number" && result.removed > 0) parts.push(`${result.removed} removed`);
+          const message = parts.length ? `Codes refreshed (${parts.join(", ")}).` : "Codes refreshed.";
+          setFlash({ tone: "success", message });
+          onRefresh();
+        }
+      } catch (error) {
+        setFlash({ tone: "error", message: error instanceof Error ? error.message : "Failed to refresh codes." });
+      } finally {
+        setRefreshing(false);
+      }
+    });
+  };
+
   const handleAdd = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -666,6 +699,31 @@ function CodesTab({ game, onRefresh }: { game: AdminGameSummary | null; onRefres
 
   return (
     <div className="space-y-6">
+      {flash ? (
+        <div
+          className={`rounded-lg border px-4 py-2 text-sm ${
+            flash.tone === "success"
+              ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+              : "border-red-400/60 bg-red-500/10 text-red-100"
+          }`}
+        >
+          {flash.message}
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Manage codes</h3>
+        <button
+          type="button"
+          onClick={triggerRefresh}
+          disabled={refreshing || isPending}
+          className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-1 text-xs font-semibold text-foreground transition hover:border-border/30 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className={refreshing ? "animate-spin" : ""}>↻</span>
+          <span>{refreshing ? "Refreshing…" : "Refresh codes"}</span>
+        </button>
+      </div>
+
       <form className="rounded-lg border border-border/60 bg-surface px-4 py-4 text-sm" onSubmit={handleAdd}>
         <h3 className="mb-3 text-sm font-semibold text-foreground">Add manual code</h3>
         <div className="grid gap-3 md:grid-cols-3">
