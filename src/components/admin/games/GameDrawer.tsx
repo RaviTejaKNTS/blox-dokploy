@@ -18,7 +18,14 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RichMarkdownEditor } from "@/components/admin/editor/RichMarkdownEditor";
 import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
-import { saveGame, upsertGameCode, updateCodeStatus, deleteCode, refreshGameCodes } from "@/app/admin/(dashboard)/games/actions";
+import {
+  saveGame,
+  upsertGameCode,
+  updateCodeStatus,
+  deleteCode,
+  refreshGameCodes,
+  uploadGameImage
+} from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 
 function parseMarkdownSections(markdown: string) {
@@ -130,6 +137,14 @@ export function GameDrawer({
   const nameManuallyEditedRef = useRef(false);
   const [markdownError, setMarkdownError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isImageDragging, setIsImageDragging] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [galleryImages, setGalleryImages] = useState<Array<{ url: string; title: string }>>([]);
+  const [isGalleryDragging, setIsGalleryDragging] = useState(false);
+  const [galleryCopyMessage, setGalleryCopyMessage] = useState<string | null>(null);
 
   const defaultValues = useMemo<FormValues>(() => ({
     id: game?.id,
@@ -168,11 +183,22 @@ export function GameDrawer({
     setStatusMessage(null);
     setMarkdownError(null);
     setIsDragging(false);
+    setGalleryImages([]);
+    setGalleryError(null);
+    setGalleryCopyMessage(null);
+    setGalleryUploading(false);
+    setIsGalleryDragging(false);
     const initialSlug = normalizeGameSlug(defaultValues.slug || defaultValues.name || "");
     lastAutoSlugRef.current = initialSlug;
     slugManuallyEditedRef.current = false;
     nameManuallyEditedRef.current = false;
   }, [defaultValues, reset, open]);
+
+  useEffect(() => {
+    if (!galleryCopyMessage) return;
+    const timer = setTimeout(() => setGalleryCopyMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [galleryCopyMessage]);
 
   const nameValue = watch("name");
   const slugValue = watch("slug");
@@ -297,6 +323,145 @@ export function GameDrawer({
       void handleMarkdownFile(file);
     },
     [handleMarkdownFile]
+  );
+
+  const handleImageFile = useCallback(
+    async (file: File | null) => {
+      if (!file) return;
+      setImageError(null);
+      if (!file.type.startsWith("image/")) {
+        setImageError("Please upload an image file.");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setImageError("Image must be under 10MB.");
+        return;
+      }
+
+      setImageUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("slug", slugValue || "");
+        const result = await uploadGameImage(formData);
+        if (!result?.success || !result.url) {
+          setImageError(result?.error ?? "Upload failed. Please try again.");
+          return;
+        }
+        setValue("cover_image", result.url, { shouldDirty: true });
+      } catch (error) {
+        setImageError(error instanceof Error ? error.message : "Upload failed. Please try again.");
+      } finally {
+        setImageUploading(false);
+      }
+    },
+    [setValue, slugValue]
+  );
+
+  const onImageInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      void handleImageFile(file);
+      event.target.value = "";
+    },
+    [handleImageFile]
+  );
+
+  const onImageDragOver = useCallback((event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsImageDragging(true);
+  }, []);
+
+  const onImageDragLeave = useCallback(() => {
+    setIsImageDragging(false);
+  }, []);
+
+  const onImageDrop = useCallback(
+    (event: DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsImageDragging(false);
+      const file = event.dataTransfer.files?.[0] ?? null;
+      void handleImageFile(file);
+    },
+    [handleImageFile]
+  );
+
+  const deriveImageTitle = useCallback((fileName: string) => {
+    const base = fileName.replace(/\.[^/.]+$/, "");
+    const cleaned = base.replace(/[-_]+/g, " ").trim();
+    if (!cleaned) return "Guide image";
+    return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
+  }, []);
+
+  const handleGalleryFiles = useCallback(
+    async (files: FileList | File[] | null) => {
+      if (!files || files.length === 0) return;
+      setGalleryError(null);
+      const list = Array.from(files);
+      const uploaded: Array<{ url: string; title: string }> = [];
+      setGalleryUploading(true);
+      try {
+        for (const file of list) {
+          if (!file.type.startsWith("image/")) {
+            setGalleryError("Only image files are supported.");
+            continue;
+          }
+          if (file.size > 10 * 1024 * 1024) {
+            setGalleryError("Each image must be under 10MB.");
+            continue;
+          }
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("slug", slugValue || "");
+          const result = await uploadGameImage(formData);
+          if (!result?.success || !result.url) {
+            setGalleryError(result?.error ?? "Failed to upload one of the images.");
+            continue;
+          }
+          uploaded.push({ url: result.url, title: deriveImageTitle(file.name) });
+        }
+      } catch (error) {
+        setGalleryError(error instanceof Error ? error.message : "Failed to upload images.");
+      } finally {
+        setGalleryUploading(false);
+        if (uploaded.length) {
+          setGalleryImages((prev) => [...uploaded, ...prev]);
+        }
+      }
+    },
+    [deriveImageTitle, slugValue]
+  );
+
+  const onGalleryInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      void handleGalleryFiles(files);
+      event.target.value = "";
+    },
+    [handleGalleryFiles]
+  );
+
+  const onGalleryDragOver = useCallback((event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsGalleryDragging(true);
+  }, []);
+
+  const onGalleryDragLeave = useCallback(() => {
+    setIsGalleryDragging(false);
+  }, []);
+
+  const onGalleryDrop = useCallback(
+    (event: DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsGalleryDragging(false);
+      const files = event.dataTransfer.files;
+      void handleGalleryFiles(files);
+    },
+    [handleGalleryFiles]
   );
 
   const onSubmit = handleSubmit((values) => {
@@ -540,6 +705,98 @@ export function GameDrawer({
                         value={watch("redeem_md") ?? ""}
                         onChange={(value) => setValue("redeem_md", value, { shouldDirty: true })}
                       />
+                      <div className="space-y-3">
+                        {galleryCopyMessage ? (
+                          <div
+                            className={`rounded-lg border px-3 py-2 text-xs ${
+                              galleryCopyMessage.includes("Failed")
+                                ? "border-red-400/60 bg-red-500/10 text-red-100"
+                                : "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                            }`}
+                          >
+                            {galleryCopyMessage}
+                          </div>
+                        ) : null}
+
+                        {galleryImages.length ? (
+                          <div className="space-y-3">
+                            <p className="text-sm font-semibold text-foreground">Uploaded images</p>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {galleryImages.map((image, index) => {
+                                const markdown = `![${image.title || "Guide image"}](${image.url})`;
+                                return (
+                                  <div
+                                    key={`${image.url}-${index}`}
+                                    className="space-y-2 rounded-lg border border-border/60 bg-surface px-3 py-3"
+                                  >
+                                    <img
+                                      src={image.url}
+                                      alt={image.title || "Guide image"}
+                                      className="max-h-40 w-full rounded-lg border border-border/40 object-cover"
+                                    />
+                                    <label className="text-xs font-semibold text-foreground" htmlFor={`gallery-title-${index}`}>
+                                      Image title / alt text
+                                    </label>
+                                    <input
+                                      id={`gallery-title-${index}`}
+                                      type="text"
+                                      value={image.title}
+                                      onChange={(event) =>
+                                        setGalleryImages((prev) =>
+                                          prev.map((img, i) => (i === index ? { ...img, title: event.target.value } : img))
+                                        )
+                                      }
+                                      className="w-full rounded-lg border border-border/60 bg-background px-3 py-1 text-xs"
+                                    />
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <code className="flex-1 truncate rounded bg-background px-2 py-1 text-[0.7rem] text-muted">
+                                        {markdown}
+                                      </code>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard
+                                            .writeText(markdown)
+                                            .then(() => setGalleryCopyMessage("Markdown copied to clipboard."))
+                                            .catch(() => setGalleryCopyMessage("Failed to copy markdown."));
+                                        }}
+                                        className="rounded-full border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-border/30 hover:bg-surface-muted"
+                                      >
+                                        Copy
+                                      </button>
+                                    </div>
+                                    <a
+                                      href={image.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block truncate text-xs text-accent hover:underline"
+                                    >
+                                      {image.url}
+                                    </a>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <label className="text-sm font-semibold text-foreground">Upload guide images</label>
+                        <label
+                          onDragOver={onGalleryDragOver}
+                          onDragLeave={onGalleryDragLeave}
+                          onDrop={onGalleryDrop}
+                          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface px-4 py-6 text-center text-sm transition hover:border-accent hover:text-accent ${
+                            isGalleryDragging ? "border-accent bg-accent/5" : ""
+                          }`}
+                        >
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={onGalleryInputChange} />
+                          <span className="font-semibold">
+                            {galleryUploading ? "Uploading…" : "Drag & Drop images"}
+                          </span>
+                          <span className="text-xs text-muted">or click to select multiple images (max 10MB each)</span>
+                        </label>
+                        {galleryError ? <p className="text-xs text-red-400">{galleryError}</p> : null}
+                      </div>
                       <RichMarkdownEditor
                         label="Description"
                         value={watch("description_md") ?? ""}
@@ -568,6 +825,24 @@ export function GameDrawer({
                             placeholder="https://"
                           />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-foreground">Upload cover image</label>
+                        <label
+                          onDragOver={onImageDragOver}
+                          onDragLeave={onImageDragLeave}
+                          onDrop={onImageDrop}
+                          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface px-4 py-6 text-center text-sm transition hover:border-accent hover:text-accent ${
+                            isImageDragging ? "border-accent bg-accent/5" : ""
+                          }`}
+                        >
+                          <input type="file" accept="image/*" className="hidden" onChange={onImageInputChange} />
+                          <span className="font-semibold">
+                            {imageUploading ? "Uploading…" : "Drag & Drop image"}
+                          </span>
+                          <span className="text-xs text-muted">or click to select an image file (max 10MB)</span>
+                        </label>
+                        {imageError ? <p className="text-xs text-red-400">{imageError}</p> : null}
                       </div>
                       <div>
                         <label className="text-sm font-semibold text-foreground">SEO description</label>

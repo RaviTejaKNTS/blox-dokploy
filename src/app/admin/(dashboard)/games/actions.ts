@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin-auth";
+import { Buffer } from "node:buffer";
 import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -215,6 +217,45 @@ export async function deleteCode(form: FormData) {
 function normalizeCodeForComparison(code: string | null | undefined) {
   if (!code) return null;
   return code.replace(/\s+/g, "").trim();
+}
+
+export async function uploadGameImage(form: FormData) {
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { success: false, error: "No file provided" };
+  }
+
+  const bucket = process.env.SUPABASE_MEDIA_BUCKET;
+  if (!bucket) {
+    return { success: false, error: "SUPABASE_MEDIA_BUCKET is not configured" };
+  }
+
+  const slugRaw = form.get("slug");
+  const slug = typeof slugRaw === "string" ? slugRaw : "";
+  const safeSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "uploads";
+
+  if (file.size > 10 * 1024 * 1024) {
+    return { success: false, error: "File is too large. Maximum size is 10MB." };
+  }
+
+  const extension = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin";
+  const path = `games/${safeSlug}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const supabase = supabaseAdmin();
+
+  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, {
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message };
+  }
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return { success: true, url: data.publicUrl };
 }
 
 export async function refreshGameCodes(slug: string) {
