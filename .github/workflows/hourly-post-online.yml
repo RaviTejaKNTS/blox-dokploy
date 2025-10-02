@@ -1,0 +1,28 @@
+name: Hourly Post Online
+
+on:
+  schedule:
+    - cron: '*/75 * * * *'
+  workflow_dispatch:
+
+jobs:
+  post-online:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Post latest codes online
+        run: npm run post:online
