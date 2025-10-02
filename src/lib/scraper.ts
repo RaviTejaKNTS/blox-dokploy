@@ -1,11 +1,13 @@
 import { URL } from "node:url";
 import { scrapeRobloxdenPage } from "./robloxden";
 import { scrapeBeebomPage } from "./beebom";
+import { scrapeProGameGuidesPage } from "./progameguides";
 import type { ScrapeResult, ScrapedCode } from "./scraper-types";
 
 const SCRAPER_MAP = {
   robloxden: scrapeRobloxdenPage,
   beebom: scrapeBeebomPage,
+  progameguides: scrapeProGameGuidesPage,
 } as const;
 
 type Provider = keyof typeof SCRAPER_MAP;
@@ -92,6 +94,7 @@ export function detectProvider(url: string): Provider {
   const host = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
   if (host.endsWith("robloxden.com")) return "robloxden";
   if (host.endsWith("beebom.com")) return "beebom";
+  if (host.endsWith("progameguides.com")) return "progameguides";
   throw new Error(`Unsupported source host: ${host}`);
 }
 
