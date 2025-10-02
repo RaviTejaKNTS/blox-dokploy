@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin-auth";
 import { Buffer } from "node:buffer";
+import sharp from "sharp";
 import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -238,15 +239,33 @@ export async function uploadGameImage(form: FormData) {
     return { success: false, error: "File is too large. Maximum size is 10MB." };
   }
 
-  const extension = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin";
-  const path = `games/${safeSlug}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+  const timestamp = Date.now();
+  const originalName = file.name && file.name.trim().length ? file.name.trim() : `image-${timestamp}`;
+  const sanitizedName = originalName
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const baseName = sanitizedName.replace(/\.[^.]+$/, "") || `image-${timestamp}`;
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
+  let finalExtension = (sanitizedName.includes(".") ? sanitizedName.split(".").pop() : "bin")!.toLowerCase();
+
+  try {
+    buffer = await sharp(buffer)
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer();
+    finalExtension = "webp";
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Image processing failed" };
+  }
+
+  const path = `games/${safeSlug}/${baseName}-${timestamp}.${finalExtension}`;
 
   const supabase = supabaseAdmin();
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, {
-    contentType: file.type || "application/octet-stream",
+    contentType: "image/webp",
     upsert: false
   });
 
