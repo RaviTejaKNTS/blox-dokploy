@@ -26,6 +26,7 @@ export type SyncResult = {
   codesUpserted: number;
   expiredCodes: string[];
   errors: string[];
+  codes: { code: string; status: string }[];
 };
 
 export async function syncGameCodesFromSources(
@@ -38,7 +39,7 @@ export async function syncGameCodesFromSources(
     .filter((value, index, self) => value.length > 0 && self.indexOf(value) === index);
 
   if (sourceList.length === 0) {
-    return { codesFound: 0, codesUpserted: 0, expiredCodes: [], errors: [] };
+    return { codesFound: 0, codesUpserted: 0, expiredCodes: [], errors: [], codes: [] };
   }
 
   let codes;
@@ -47,7 +48,7 @@ export async function syncGameCodesFromSources(
     ({ codes, expiredCodes } = await scrapeSources(sourceList));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { codesFound: 0, codesUpserted: 0, expiredCodes: [], errors: [message] };
+    return { codesFound: 0, codesUpserted: 0, expiredCodes: [], errors: [message], codes: [] };
   }
 
   let upserted = 0;
@@ -82,5 +83,11 @@ export async function syncGameCodesFromSources(
       .eq("status", "expired");
   }
 
-  return { codesFound: codes.length, codesUpserted: upserted, expiredCodes, errors: [] };
+  return {
+    codesFound: codes.length,
+    codesUpserted: upserted,
+    expiredCodes,
+    errors: [],
+    codes: codes.map((entry) => ({ code: entry.code, status: entry.status }))
+  };
 }

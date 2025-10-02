@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { downloadCSV } from "@/lib/csv";
 import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
 import { GameDrawer } from "./GameDrawer";
+import { refreshGameCodes } from "@/app/admin/(dashboard)/games/actions";
 
 const columns = [
   { key: "name", label: "Name" },
@@ -44,6 +45,15 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<AdminGameSummary | null>(null);
+  const [flash, setFlash] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [refreshingSlug, setRefreshingSlug] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), 4000);
+    return () => clearTimeout(timer);
+  }, [flash]);
 
   const filtered = useMemo(() => {
     return initialGames.filter((game) => {
@@ -79,6 +89,34 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   function openExistingGame(game: AdminGameSummary) {
     setSelectedGame(game);
     setDrawerOpen(true);
+  }
+
+  function handleRefreshCodes(slug: string) {
+    setFlash(null);
+    setRefreshingSlug(slug);
+    startTransition(async () => {
+      try {
+        const result = await refreshGameCodes(slug);
+        if (!result?.success) {
+          setFlash({ tone: "error", message: result?.error ?? "Failed to refresh codes." });
+        } else {
+          const details = [];
+          if (typeof result.upserted === "number") {
+            details.push(`${result.upserted} updated`);
+          }
+          if (typeof result.removed === "number" && result.removed > 0) {
+            details.push(`${result.removed} removed`);
+          }
+          const message = details.length ? `Codes refreshed (${details.join(", ")}).` : "Codes refreshed.";
+          setFlash({ tone: "success", message });
+        }
+      } catch (error) {
+        setFlash({ tone: "error", message: error instanceof Error ? error.message : "Failed to refresh codes." });
+      } finally {
+        setRefreshingSlug(null);
+        router.refresh();
+      }
+    });
   }
 
   return (
@@ -150,6 +188,17 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
       </details>
 
       <div className="overflow-x-auto rounded-lg border border-border/60">
+        {flash ? (
+          <div
+            className={`mx-4 mt-4 rounded-lg border px-4 py-2 text-sm ${
+              flash.tone === "success"
+                ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                : "border-red-400/60 bg-red-500/10 text-red-100"
+            }`}
+          >
+            {flash.message}
+          </div>
+        ) : null}
         <table className="min-w-full divide-y divide-border/60 text-sm">
           <thead className="bg-surface-muted/60 text-xs uppercase tracking-wide text-muted">
             <tr>
@@ -185,7 +234,23 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
                     {format(new Date(game.updated_at), "LLL d, yyyy HH:mm")}
                   </td>
                 ) : null}
-                {visibility.active ? <td className="px-4 py-3 text-right font-semibold text-foreground">{game.counts.active}</td> : null}
+                {visibility.active ? (
+                  <td className="px-4 py-3 text-right font-semibold text-foreground">
+                    <div className="flex items-center justify-end gap-2">
+                      <span>{game.counts.active}</span>
+                      <button
+                        type="button"
+                        aria-label="Refresh codes"
+                        title="Refresh codes"
+                        onClick={() => handleRefreshCodes(game.slug)}
+                        disabled={isPending && refreshingSlug === game.slug}
+                        className="rounded-full border border-border/60 bg-surface-muted p-1 text-xs text-foreground transition hover:border-border/30 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        ↻
+                      </button>
+                    </div>
+                  </td>
+                ) : null}
                 {visibility.check ? <td className="px-4 py-3 text-right text-muted">{game.counts.check}</td> : null}
                 <td className="px-4 py-3 text-right">
                   <button

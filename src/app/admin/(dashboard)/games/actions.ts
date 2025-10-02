@@ -211,3 +211,72 @@ export async function deleteCode(form: FormData) {
   revalidatePath("/admin/games");
   return { success: true };
 }
+
+function normalizeCodeForComparison(code: string | null | undefined) {
+  if (!code) return null;
+  return code.replace(/\s+/g, "").trim();
+}
+
+export async function refreshGameCodes(slug: string) {
+  const { supabase } = await requireAdminAction();
+
+  const { data: game, error } = await supabase
+    .from("games")
+    .select("id, slug, name, source_url, source_url_2, source_url_3")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !game) {
+    return { success: false, error: error?.message ?? "Game not found" };
+  }
+
+  const sources = [game.source_url, game.source_url_2, game.source_url_3];
+  const syncResult = await syncGameCodesFromSources(supabase, game.id, sources);
+
+  if (syncResult.errors.length) {
+    return { success: false, error: syncResult.errors.join(", ") };
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("codes")
+    .select("code, status")
+    .eq("game_id", game.id);
+
+  if (existingError) {
+    return { success: false, error: existingError.message };
+  }
+
+  const incomingNormalized = new Set(
+    (syncResult.codes ?? []).map((entry) => normalizeCodeForComparison(entry.code)).filter((value): value is string => Boolean(value))
+  );
+
+  const toDelete = (existingRows ?? [])
+    .filter((row) => row.status === "active" || row.status === "check")
+    .map((row) => ({
+      normalized: normalizeCodeForComparison(row.code),
+      original: row.code
+    }))
+    .filter((entry) => entry.normalized && !incomingNormalized.has(entry.normalized))
+    .map((entry) => entry.original)
+    .filter((code): code is string => Boolean(code));
+
+  if (toDelete.length) {
+    const { error: deleteError } = await supabase
+      .from("codes")
+      .delete()
+      .eq("game_id", game.id)
+      .in("code", toDelete);
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+  }
+
+  revalidatePath("/admin/games");
+  return {
+    success: true,
+    found: syncResult.codesFound,
+    upserted: syncResult.codesUpserted,
+    removed: toDelete.length
+  };
+}
