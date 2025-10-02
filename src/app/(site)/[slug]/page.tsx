@@ -560,8 +560,8 @@ export default async function GamePage({ params }: Params) {
             <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
               <h2>Likely Expired Codes</h2>
               <p>
-                These codes might be just expired and may not work. However, we have not verified ourselves yet. To make sure,
-                try them on the {game.name} yourself.
+                These codes might have just expired and may not work. However, we haven’t verified them ourselves yet. 
+                To be sure, try redeeming them in {game.name} yourself.
               </p>
             </div>
             <div className="flex flex-col gap-4">
