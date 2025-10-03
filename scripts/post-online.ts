@@ -108,18 +108,142 @@ async function sendTelegramMessage(message: string) {
   }
 }
 
+const HEADLINE_TEMPLATES = [
+  'Fresh [game name] codes just dropped – [date].',
+  '✨ New [game name] codes are live now! (Updated [date])',
+  '[game name] codes updated today – check them out!',
+  '🎮 Latest [game name] codes are here ([date])',
+  'Just in: fresh [game name] codes added today.',
+  'Updated list of [game name] codes for [date].',
+  '🎁 New rewards waiting in [game name] – grab the latest codes!',
+  'Time to redeem! New [game name] codes are now available.',
+  '🔥 Hot update: [game name] just got new codes ([date])',
+  '[game name] codes refreshed – here’s what’s new today.',
+  'Don’t miss out – new [game name] codes are up!',
+  'Big update! [game name] codes have just landed.',
+  '⚡ Redeem them fast – new [game name] codes are here.',
+  'New day, new [game name] codes.',
+  '🎉 Fresh [game name] codes dropped, get your freebies now!',
+  '[game name] fans, check out today’s new codes!',
+  'Another set of [game name] codes is here.',
+  '⏳ Grab the newest [game name] codes before they expire.',
+  'Latest [game name] codes for [date] – don’t wait!',
+  '[game name] codes have been updated today.',
+  'Hey players – new [game name] codes out today.',
+  '👀 Heads up! Fresh [game name] codes are waiting.',
+  'Just spotted – latest [game name] codes ([date])',
+  'Good news – [game name] has new redeem codes today.',
+  'Quick update: new [game name] codes available.',
+  'Redeem alert: [game name] codes refreshed.',
+  'Today’s [game name] codes are finally here.',
+  '🎁 New freebie codes for [game name] – check them out!',
+  'Fresh rewards unlocked – [game name] codes updated.',
+  '[game name] codes added today – don’t miss them.',
+  'Hurry! 🚨 New [game name] codes just released.',
+  'Redeem now – latest [game name] codes are live.',
+  'Limited time? New [game name] codes are here today.',
+  '[game name] codes updated – act fast!',
+  '⚡ Grab the [date] codes before they vanish.',
+  'New codes just dropped for [game name], don’t sleep on them.',
+  'Hot off the press – [game name] codes are fresh today.',
+  '💎 Redeem your freebies! [game name] codes updated.',
+  'Don’t miss today’s [game name] code update.',
+  'Latest codes for [game name] are finally here – redeem quickly!',
+];
+
+function resolveHeadline(template: string, gameName: string, dateLabel: string) {
+  return template
+    .replace(/\[game name\]/gi, gameName)
+    .replace(/\[date\]/gi, dateLabel);
+}
+
+function selectHeadline(gameName: string, dateLabel: string) {
+  if (HEADLINE_TEMPLATES.length === 0) {
+    return `New ${gameName} codes dropped. ${dateLabel}`;
+  }
+
+  const index = Math.floor(Math.random() * HEADLINE_TEMPLATES.length);
+  return resolveHeadline(HEADLINE_TEMPLATES[index], gameName, dateLabel);
+}
+
 function buildBaseMessage(game: { name: string; slug: string }, codes: { code: string }[]) {
   const today = format(new Date(), 'MMMM d, yyyy');
-  const headline = `New ${game.name} codes dropped. ${today}`;
+  const headline = selectHeadline(game.name, today);
   const link = `${SITE_BASE}/${game.slug}`;
   const lines = [headline, '', ...codes.map((c) => c.code), '', `Check out all active ${game.name} codes on ${link}`];
   return { headline, link, message: lines.join('\n') };
 }
 
-function truncateForTwitter(text: string) {
+const TWITTER_HASHTAGS = ['#Roblox', '#RobloxCodes'];
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function headlineWithGameTag(headline: string, gameName: string, tag: string) {
+  if (!gameName || !tag) return headline;
+  const pattern = new RegExp(escapeRegExp(gameName), 'gi');
+  return headline.replace(pattern, tag);
+}
+
+function buildTwitterMessage(
+  headline: string,
+  link: string,
+  codes: string[],
+  hashtags: string[] = []
+) {
   const limit = 280;
-  if (text.length <= limit) return text;
-  return `${text.slice(0, limit - 1)}…`;
+  const hashtagsLine = hashtags.filter(Boolean).join(' ');
+
+  const composeMessage = (codesBlock: string, moreLine?: string) => {
+    const codeSection = [codesBlock, moreLine].filter(Boolean).join(codesBlock && moreLine ? '\n' : '');
+    const sections = [headline];
+    if (codeSection) {
+      sections.push('', codeSection);
+    }
+    sections.push('', link);
+    if (hashtagsLine) {
+      sections.push(hashtagsLine);
+    }
+    return sections.join('\n');
+  };
+
+  let included: string[] = [];
+  for (const code of codes) {
+    const candidate = [...included, code];
+    const message = composeMessage(candidate.join('\n'));
+    if (message.length <= limit) {
+      included = candidate;
+    } else {
+      break;
+    }
+  }
+
+  let remaining = codes.length - included.length;
+  let finalMessage = composeMessage(included.join('\n'));
+
+  if (remaining > 0) {
+    let currentIncluded = included.slice();
+    let messageWithMore = composeMessage(currentIncluded.join('\n'), `+${remaining} more`);
+
+    while (messageWithMore.length > limit && currentIncluded.length > 0) {
+      currentIncluded = currentIncluded.slice(0, -1);
+      remaining = codes.length - currentIncluded.length;
+      messageWithMore = composeMessage(currentIncluded.join('\n'), `+${remaining} more`);
+    }
+
+    if (messageWithMore.length <= limit) {
+      finalMessage = messageWithMore;
+    } else {
+      finalMessage = composeMessage('');
+    }
+  }
+
+  if (finalMessage.length > limit) {
+    finalMessage = `${headline}\n\n${link}\n${hashtagsLine}`.trim();
+  }
+
+  return finalMessage;
 }
 
 function percentEncode(value: string) {
@@ -139,7 +263,7 @@ async function postToTwitter(text: string) {
 
   const url = 'https://api.twitter.com/2/tweets';
   const method = 'POST';
-  const payload = { text: truncateForTwitter(text) };
+  const payload = { text };
 
   const oauthParams: Record<string, string> = {
     oauth_consumer_key: TWITTER_API_KEY,
@@ -293,15 +417,22 @@ async function main() {
   }
 
   const { message, headline, link } = buildBaseMessage(game, codes);
-  const summary = `${headline}\n\n${codes.map((c) => c.code).join(', ')}\n${link}`;
+  const sanitizedGameTag = game.name.replace(/[^a-zA-Z0-9]+/g, '');
+  const primaryTag = sanitizedGameTag ? `#${sanitizedGameTag}` : '';
+  const twitterHeadline = primaryTag ? headlineWithGameTag(headline, game.name, primaryTag) : headline;
+  const twitterHashtags = [...TWITTER_HASHTAGS];
+  const twitterMessage = buildTwitterMessage(twitterHeadline, link, codes.map((c) => c.code), twitterHashtags);
+  const threadsMessage = message;
 
   const tasks: Array<{ name: string; run: () => Promise<void> }> = [
     { name: 'Telegram', run: () => sendTelegramMessage(message) },
-    { name: 'Twitter', run: () => postToTwitter(summary) },
+    { name: 'Twitter', run: () => postToTwitter(twitterMessage) },
     { name: 'Facebook', run: () => postToFacebook(message) },
     { name: 'Bluesky', run: () => postToBluesky(message) },
-    { name: 'Threads', run: () => postToThreads(message) },
+    { name: 'Threads', run: () => postToThreads(threadsMessage) },
   ];
+
+  const failures: string[] = [];
 
   for (const task of tasks) {
     const before = Date.now();
@@ -309,12 +440,18 @@ async function main() {
       await task.run();
       console.log(`${task.name} post completed in ${Date.now() - before}ms.`);
     } catch (err: any) {
-      throw new Error(`${task.name} posting failed: ${err?.message ?? err}`);
+      const messageText = `${task.name} posting failed: ${err?.message ?? err}`;
+      failures.push(messageText);
+      console.error(messageText);
     }
   }
 
   await markCodesPosted(codes.map((c) => c.id));
   console.log(`Published ${codes.length} ${codes.length === 1 ? 'code' : 'codes'} for ${game.name} across channels.`);
+
+  if (failures.length) {
+    throw new Error(failures.join('; '));
+  }
 }
 
 main().catch((err) => {
