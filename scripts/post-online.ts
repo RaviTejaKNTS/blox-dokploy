@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { promises as fs } from 'node:fs';
 import { format } from 'date-fns';
 import crypto from 'node:crypto';
 import { supabaseAdmin } from "@/lib/supabase";
@@ -86,10 +87,12 @@ async function markCodesPosted(codeIds: string[]) {
   if (error) throw error;
 }
 
-async function sendTelegramMessage(message: string) {
+type PlatformResult = "sent" | "skipped";
+
+async function sendTelegramMessage(message: string): Promise<PlatformResult> {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHANNEL_ID) {
     console.log('Skipping Telegram posting (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID).');
-    return;
+    return "skipped";
   }
   const endpoint = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   const response = await fetch(endpoint, {
@@ -106,6 +109,8 @@ async function sendTelegramMessage(message: string) {
     const body = await response.text();
     throw new Error(`Telegram API error (${response.status}): ${body}`);
   }
+
+  return "sent";
 }
 
 const HEADLINE_TEMPLATES = [
@@ -255,10 +260,10 @@ function percentEncode(value: string) {
     .replace(/'/g, '%27');
 }
 
-async function postToTwitter(text: string) {
+async function postToTwitter(text: string): Promise<PlatformResult> {
   if (!TWITTER_API_KEY || !TWITTER_API_SECRET || !TWITTER_ACCESS_TOKEN || !TWITTER_ACCESS_SECRET) {
     console.log('Skipping Twitter posting (missing user-context credentials).');
-    return;
+    return "skipped";
   }
 
   const url = 'https://api.twitter.com/2/tweets';
@@ -310,12 +315,14 @@ async function postToTwitter(text: string) {
     const body = await response.text();
     throw new Error(`Twitter API error (${response.status}): ${body}`);
   }
+
+  return "sent";
 }
 
-async function postToFacebook(text: string) {
+async function postToFacebook(text: string): Promise<PlatformResult> {
   if (!FACEBOOK_PAGE_ID || !FACEBOOK_PAGE_ACCESS_TOKEN) {
     console.log('Skipping Facebook posting (missing FACEBOOK_PAGE_ID or FACEBOOK_PAGE_ACCESS_TOKEN).');
-    return;
+    return "skipped";
   }
 
   const params = new URLSearchParams({
@@ -332,12 +339,14 @@ async function postToFacebook(text: string) {
     const body = await response.text();
     throw new Error(`Facebook API error (${response.status}): ${body}`);
   }
+
+  return "sent";
 }
 
-async function postToBluesky(text: string) {
+async function postToBluesky(text: string): Promise<PlatformResult> {
   if (!BLUESKY_IDENTIFIER || !BLUESKY_PASSWORD) {
     console.log('Skipping Bluesky posting (missing BLUESKY_IDENTIFIER or BLUESKY_PASSWORD).');
-    return;
+    return "skipped";
   }
 
   const sessionResponse = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
@@ -373,12 +382,14 @@ async function postToBluesky(text: string) {
     const body = await recordResponse.text();
     throw new Error(`Bluesky post error (${recordResponse.status}): ${body}`);
   }
+
+  return "sent";
 }
 
-async function postToThreads(text: string) {
+async function postToThreads(text: string): Promise<PlatformResult> {
   if (!THREADS_USER_ID || !THREADS_ACCESS_TOKEN) {
     console.log('Skipping Threads posting (missing THREADS_USER_ID or THREADS_ACCESS_TOKEN).');
-    return;
+    return "skipped";
   }
 
   const params = new URLSearchParams({
@@ -395,6 +406,8 @@ async function postToThreads(text: string) {
     const body = await response.text();
     throw new Error(`Threads API error (${response.status}): ${body}`);
   }
+
+  return "sent";
 }
 
 async function main() {
@@ -424,7 +437,7 @@ async function main() {
   const twitterMessage = buildTwitterMessage(twitterHeadline, link, codes.map((c) => c.code), twitterHashtags);
   const threadsMessage = message;
 
-  const tasks: Array<{ name: string; run: () => Promise<void> }> = [
+  const tasks: Array<{ name: string; run: () => Promise<PlatformResult> }> = [
     { name: 'Telegram', run: () => sendTelegramMessage(message) },
     { name: 'Twitter', run: () => postToTwitter(twitterMessage) },
     { name: 'Facebook', run: () => postToFacebook(message) },
@@ -433,21 +446,55 @@ async function main() {
   ];
 
   const failures: string[] = [];
+  const platformResults: Array<{ name: string; status: 'success' | 'skipped' | 'failed'; error?: string }> = [];
 
   for (const task of tasks) {
     const before = Date.now();
     try {
-      await task.run();
-      console.log(`${task.name} post completed in ${Date.now() - before}ms.`);
+      const result = await task.run();
+      const status = result === 'skipped' ? 'skipped' : 'success';
+      platformResults.push({ name: task.name, status });
+      console.log(`${task.name} post completed in ${Date.now() - before}ms.${result === 'skipped' ? ' (skipped)' : ''}`);
     } catch (err: any) {
       const messageText = `${task.name} posting failed: ${err?.message ?? err}`;
       failures.push(messageText);
       console.error(messageText);
+      platformResults.push({ name: task.name, status: 'failed', error: err?.message ?? String(err) });
     }
   }
 
   await markCodesPosted(codes.map((c) => c.id));
   console.log(`Published ${codes.length} ${codes.length === 1 ? 'code' : 'codes'} for ${game.name} across channels.`);
+
+  const summaryPath = process.env.AUTOMATION_SUMMARY_PATH;
+  if (summaryPath) {
+    const summary = {
+      type: 'post-online' as const,
+      generatedAt: new Date().toISOString(),
+      game: {
+        id: game.id,
+        name: game.name,
+        slug: game.slug,
+      },
+      stats: {
+        codesTotal: codes.length,
+        headline,
+      },
+      messages: {
+        telegram: message,
+        twitter: twitterMessage,
+        threads: threadsMessage,
+      },
+      platforms: platformResults,
+      codes: codes.map((c) => c.code),
+    };
+
+    try {
+      await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
+    } catch (error) {
+      console.error('Failed to write automation summary', error);
+    }
+  }
 
   if (failures.length) {
     throw new Error(failures.join('; '));

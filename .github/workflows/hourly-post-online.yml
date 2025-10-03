@@ -40,7 +40,10 @@ jobs:
         run: npm ci
 
       - name: Post latest codes online
-        run: npm run post:online
+        run: |
+          SUMMARY_PATH="$RUNNER_TEMP/post-summary.json"
+          echo "AUTOMATION_SUMMARY_PATH=$SUMMARY_PATH" >> $GITHUB_ENV
+          AUTOMATION_SUMMARY_PATH="$SUMMARY_PATH" npm run post:online
 
       - name: Send automation summary
         if: always()
@@ -52,6 +55,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          AUTOMATION_SUMMARY_PATH: ${{ env.AUTOMATION_SUMMARY_PATH }}
         run: |
           END_TIME=$(date -u '+%Y-%m-%d %H:%M:%SZ')
           END_EPOCH=$(date +%s)

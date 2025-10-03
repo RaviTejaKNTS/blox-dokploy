@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import "dotenv/config";
+import { promises as fs } from "node:fs";
 import { scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
@@ -33,6 +34,7 @@ type ProcessResult = {
   found?: number;
   upserted?: number;
   removed?: number;
+  newCodes?: number;
   error?: string;
 };
 
@@ -70,6 +72,8 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
   }
 
   const { codes } = await scrapeSources(sourceUrls);
+
+  const newCodesCount = codes.filter((c) => Boolean(c.isNew)).length;
 
   const incomingNormalized = new Set<string>();
   for (const c of codes) {
@@ -139,6 +143,7 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     found: codes.length,
     upserted,
     removed: toDelete.length,
+    newCodes: newCodesCount,
   };
 }
 
@@ -166,7 +171,12 @@ async function main() {
     totalCodesFound: 0,
     totalCodesUpserted: 0,
     totalCodesRemoved: 0,
+    totalNewCodes: 0,
   };
+
+  const successDetails: ProcessResult[] = [];
+  const skippedDetails: ProcessResult[] = [];
+  const failureDetails: ProcessResult[] = [];
 
   for (let idx = 0; idx < candidates.length; idx += CONCURRENCY) {
     const batch = candidates.slice(idx, idx + CONCURRENCY);
@@ -193,16 +203,28 @@ async function main() {
         stats.totalCodesFound += res.found ?? 0;
         stats.totalCodesUpserted += res.upserted ?? 0;
         stats.totalCodesRemoved += res.removed ?? 0;
+        stats.totalNewCodes += res.newCodes ?? 0;
         const removedNote = res.removed ? `, removed ${res.removed}` : "";
         console.log(
           `✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0}${removedNote})`
         );
+        successDetails.push({
+          slug: res.slug,
+          name: res.name,
+          status: "ok",
+          found: res.found ?? 0,
+          upserted: res.upserted ?? 0,
+          removed: res.removed ?? 0,
+          newCodes: res.newCodes ?? 0,
+        });
       } else if (res.status === "skipped") {
         stats.skipped += 1;
         console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
+        skippedDetails.push(res);
       } else {
         stats.failed += 1;
         console.error(`✖ ${res.slug} — ${res.error}`);
+        failureDetails.push(res);
       }
     }
 
@@ -219,9 +241,28 @@ async function main() {
   console.log(`   Codes found:    ${stats.totalCodesFound}`);
   console.log(`   Codes upserted: ${stats.totalCodesUpserted}`);
   console.log(`   Codes removed:  ${stats.totalCodesRemoved}`);
+  console.log(`   New codes:      ${stats.totalNewCodes}`);
 
   if (stats.failed > 0) {
     process.exitCode = 1;
+  }
+
+  const summaryPath = process.env.AUTOMATION_SUMMARY_PATH;
+  if (summaryPath) {
+    const summary = {
+      type: "refresh-codes" as const,
+      generatedAt: new Date().toISOString(),
+      stats,
+      successes: successDetails.filter((detail) => detail.upserted || detail.removed || detail.newCodes),
+      skipped: skippedDetails,
+      failures: failureDetails,
+    };
+
+    try {
+      await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2), "utf8");
+    } catch (error) {
+      console.error("Failed to write automation summary", error);
+    }
   }
 }
 

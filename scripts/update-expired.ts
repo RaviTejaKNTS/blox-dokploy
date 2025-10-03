@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import "dotenv/config";
+import { promises as fs } from "node:fs";
 import { scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
@@ -107,6 +108,10 @@ async function main() {
     totalExpired: 0,
   };
 
+  const successDetails: ProcessResult[] = [];
+  const skippedDetails: ProcessResult[] = [];
+  const failureDetails: ProcessResult[] = [];
+
   for (let idx = 0; idx < candidates.length; idx += CONCURRENCY) {
     const batch = candidates.slice(idx, idx + CONCURRENCY);
     const results = await Promise.all(
@@ -131,12 +136,20 @@ async function main() {
         stats.success += 1;
         stats.totalExpired += res.expired ?? 0;
         console.log(`✔ ${res.slug} — ${res.expired ?? 0} expired codes captured`);
+        successDetails.push({
+          slug: res.slug,
+          name: res.name,
+          status: "ok",
+          expired: res.expired ?? 0,
+        });
       } else if (res.status === "skipped") {
         stats.skipped += 1;
         console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
+        skippedDetails.push(res);
       } else {
         stats.failed += 1;
         console.error(`✖ ${res.slug} — ${res.error}`);
+        failureDetails.push(res);
       }
     }
 
@@ -154,6 +167,24 @@ async function main() {
 
   if (stats.failed > 0) {
     process.exitCode = 1;
+  }
+
+  const summaryPath = process.env.AUTOMATION_SUMMARY_PATH;
+  if (summaryPath) {
+    const summary = {
+      type: "refresh-expired" as const,
+      generatedAt: new Date().toISOString(),
+      stats,
+      successes: successDetails,
+      skipped: skippedDetails,
+      failures: failureDetails,
+    };
+
+    try {
+      await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2), "utf8");
+    } catch (error) {
+      console.error("Failed to write automation summary", error);
+    }
   }
 }
 
