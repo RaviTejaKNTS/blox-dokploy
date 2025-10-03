@@ -401,7 +401,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
         <div dangerouslySetInnerHTML={processedArticleHtml} />
 
         {article.author ? (
-          <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? undefined} />
+          <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
         ) : null}
       </article>
 
