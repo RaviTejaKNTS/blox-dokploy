@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { SupabaseListener } from "@/components/SupabaseListener";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const themeScript = `(() => {
@@ -18,6 +19,7 @@ const themeScript = `(() => {
 
 const siteStructuredData = JSON.stringify(siteJsonLd({ siteUrl: SITE_URL }));
 const organizationStructuredData = JSON.stringify(organizationJsonLd({ siteUrl: SITE_URL }));
+const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -103,6 +105,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
+        <GoogleAnalytics measurementId={googleAnalyticsId} />
         {children}
       </body>
     </html>
