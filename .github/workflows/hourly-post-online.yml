@@ -24,6 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Record start time
+        run: |
+          START_TIME=$(date -u '+%Y-%m-%d %H:%M:%SZ')
+          echo "RUN_START_TIME=$START_TIME" >> $GITHUB_ENV
+          echo "RUN_START_EPOCH=$(date +%s)" >> $GITHUB_ENV
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,3 +41,25 @@ jobs:
 
       - name: Post latest codes online
         run: npm run post:online
+
+      - name: Send automation summary
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOMATION_REPORT_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.AUTOMATION_REPORT_CHAT_ID }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          END_TIME=$(date -u '+%Y-%m-%d %H:%M:%SZ')
+          END_EPOCH=$(date +%s)
+          if [ -n "${RUN_START_EPOCH}" ]; then
+            DURATION=$((END_EPOCH - RUN_START_EPOCH))
+          else
+            DURATION=0
+          fi
+          RUN_END_TIME="$END_TIME" \
+          RUN_DURATION_SECONDS="$DURATION" \
+          node scripts/report-automation.mjs
