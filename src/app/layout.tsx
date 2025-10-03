@@ -2,6 +2,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { SupabaseListener } from "@/components/SupabaseListener";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const themeScript = `(() => {
@@ -20,6 +21,7 @@ const themeScript = `(() => {
 const siteStructuredData = JSON.stringify(siteJsonLd({ siteUrl: SITE_URL }));
 const organizationStructuredData = JSON.stringify(organizationJsonLd({ siteUrl: SITE_URL }));
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+const googleAdSenseClientId = process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID;
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -106,6 +108,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
+        <GoogleAdSense clientId={googleAdSenseClientId} />
         {children}
       </body>
     </html>
