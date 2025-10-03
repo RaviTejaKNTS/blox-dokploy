@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "Disclaimer";
-const description = "Understand how Bloxodes verifies Roblox codes and why some listings may stop working.";
+const description = "Understand the limitations of Bloxodes.com and how we handle Roblox code information.";
 const canonical = `${SITE_URL.replace(/\/$/, "")}/disclaimer`;
 const ogImage = `${SITE_URL}/og-image.png`;
 
@@ -42,60 +41,116 @@ export default function DisclaimerPage() {
   });
 
   return (
-    <article className="prose dark:prose-invert max-w-3xl space-y-6">
-      <header>
-        <h1>{title}</h1>
-        <p>
-          {SITE_NAME} finds and publishes Roblox codes in good faith so players can redeem active rewards quickly. Because
-          developers retire or replace codes without notice, we cannot guarantee that every code will work for every
-          player at all times.
-        </p>
-      </header>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
+      <article className="prose dark:prose-invert max-w-none game-copy">
+        <header className="space-y-3">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Disclaimer from Bloxodes.com</h1>
+          <p className="text-base text-muted sm:text-lg">Effective Date: October 3, 2025 · Last Updated: October 3, 2025</p>
+          <p className="text-base text-muted sm:text-lg">
+            Bloxodes.com provides Roblox codes, guides, and related information to help players enjoy their gaming experience. While we
+            strive for accuracy and reliability, it is important for readers to understand the limitations of our service. This Disclaimer
+            outlines the scope of our responsibility, the use of our content, and important notes on reliance.
+          </p>
+        </header>
 
-      <section>
-        <h2>What You Can Expect</h2>
-        <ul>
-          <li>Daily monitoring of official channels, community tips, and in-game updates.</li>
-          <li>Verification attempts for each code before it appears in the active list.</li>
-          <li>Clear labeling when a code is unverified, expiring soon, or needs additional testing.</li>
-        </ul>
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">General Information Only</h2>
+          <p>
+            The content on Bloxodes.com is provided for <strong>general informational purposes only</strong>. While we do our best to keep
+            codes and guides accurate and up to date, we cannot guarantee that every code will work for every user or that information will
+            always remain current. Roblox codes are created and distributed by game developers, and they may expire or change without
+            notice. We have no control over these external decisions.
+          </p>
+        </section>
 
-      <section>
-        <h2>When Codes Fail</h2>
-        <p>
-          Codes often have secret expiration timers, player-level requirements, or server-specific limits. If a code you
-          try no longer works, it may have reached one of these conditions between our checks. We update listings as soon
-          as we confirm the change.
-        </p>
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">No Affiliation With Roblox</h2>
+          <p>
+            Bloxodes.com is an <strong>independent website</strong>. We are not affiliated with, endorsed by, or sponsored by Roblox
+            Corporation or any game developer. All Roblox-related names, logos, images, and trademarks belong to their respective owners. We
+            use them solely for identification and informational purposes under fair use principles.
+          </p>
+        </section>
 
-      <section>
-        <h2>How to Report Issues</h2>
-        <p>
-          Please share broken or newly discovered codes via <Link href="mailto:hello@bloxodes.com">hello@bloxodes.com</Link>
-          or the <Link href="/contact">contact page</Link>. Include the exact code text, where you found it, and any
-          screenshots so we can verify quickly.
-        </p>
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Accuracy and Updates</h2>
+          <p>
+            We verify codes and content from reliable sources such as official developer channels, Discord servers, and social media
+            accounts. However, errors may occur, and codes may expire between our checks. Readers should always confirm in-game whether a
+            code is valid. We update content regularly but cannot promise real-time accuracy for every game and every code.
+          </p>
+        </section>
 
-      <section>
-        <h2>No Guarantees</h2>
-        <p>
-          Using codes listed on {SITE_NAME} is at your own discretion. We provide this information as a public reference
-          and do not promise specific in-game outcomes or rewards.
-        </p>
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">No Professional Advice</h2>
+          <p>
+            The content on Bloxodes.com should not be interpreted as professional, legal, financial, or technical advice. It is purely
+            informational and intended for entertainment and general guidance. If you require professional advice, you should consult a
+            qualified individual in that field.
+          </p>
+        </section>
 
-      <section>
-        <h2>Stay Informed</h2>
-        <p>
-          For more detail on our editorial process, see the <Link href="/editorial-guidelines">editorial guidelines</Link>
-          and <Link href="/privacy-policy">privacy policy</Link>.
-        </p>
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">User Responsibility</h2>
+          <p>
+            By using Bloxodes.com, you agree that you are responsible for how you use the information provided. This includes verifying codes
+            in-game and using them at your own discretion. We strongly encourage users never to share their Roblox account credentials,
+            passwords, or sensitive personal details with anyone claiming to provide codes or rewards.
+          </p>
+        </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
-    </article>
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">External Links</h2>
+          <p>
+            Our site may contain links to third-party websites (for example, official developer Discords or social media). These links are
+            provided for convenience and reference. We do not control these external sites and are not responsible for their content,
+            accuracy, or privacy practices. We encourage you to review the privacy policies and terms of any external site you visit.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Limitation of Liability</h2>
+          <p>
+            To the maximum extent permitted by law, Bloxodes.com and its team are not liable for any damages, losses, or issues that may
+            arise from:
+          </p>
+          <ul className="list-disc space-y-1 pl-6">
+            <li>Use of or reliance on information provided on our website.</li>
+            <li>Codes that fail to work, expire, or produce unexpected results.</li>
+            <li>Technical issues such as downtime, errors, or broken links.</li>
+            <li>Actions taken by third-party websites linked from Bloxodes.com.</li>
+          </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Contact</h2>
+          <p>
+            If you have questions or concerns regarding this Disclaimer, please contact us at:
+          </p>
+          <p>
+            <strong>Email:</strong> <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>
+            <br />
+            <strong>Website:</strong>{' '}
+            <a href="https://bloxodes.com" target="_blank" rel="noopener noreferrer">
+              https://bloxodes.com
+            </a>
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Summary</h2>
+          <p>
+            Bloxodes.com is a fan-made, independent platform providing Roblox code information as a convenience to players. We do our best to
+            keep content accurate and up to date, but we cannot guarantee perfection. By using our site, you agree that you use the
+            information at your own risk and that we are not liable for issues arising from its use.
+          </p>
+        </section>
+
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+      </article>
+
+      <aside aria-hidden className="hidden lg:block" />
+    </div>
   );
 }
+
