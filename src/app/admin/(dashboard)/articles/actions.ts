@@ -32,6 +32,24 @@ function calculateWordCount(markdown: string): number {
   return words.length;
 }
 
+function extractCategorySlug(category: unknown): string | null {
+  if (Array.isArray(category)) {
+    const first = category[0];
+    if (first && typeof first === "object" && "slug" in first) {
+      const slugValue = (first as { slug?: unknown }).slug;
+      return typeof slugValue === "string" ? slugValue : null;
+    }
+    return null;
+  }
+
+  if (category && typeof category === "object" && "slug" in category) {
+    const slugValue = (category as { slug?: unknown }).slug;
+    return typeof slugValue === "string" ? slugValue : null;
+  }
+
+  return null;
+}
+
 export async function saveArticle(formData: FormData) {
   const raw = formDataToObject(formData);
 
@@ -103,23 +121,25 @@ export async function saveArticle(formData: FormData) {
       .from('articles')
       .update(record)
       .eq('id', payload.id)
-      .select('slug, category:article_categories(slug)')
+      .select('slug, category:article_categories(id, slug)')
       .maybeSingle();
 
     if (error) throw error;
-    if (data?.category?.slug) {
-      categorySlug = data.category.slug as string;
+    const relatedCategorySlug = extractCategorySlug(data?.category);
+    if (relatedCategorySlug) {
+      categorySlug = relatedCategorySlug;
     }
   } else {
     const { data, error } = await supabase
       .from('articles')
       .insert(record)
-      .select('slug, category:article_categories(slug)')
+      .select('slug, category:article_categories(id, slug)')
       .maybeSingle();
 
     if (error) throw error;
-    if (data?.category?.slug) {
-      categorySlug = data.category.slug as string;
+    const relatedCategorySlug = extractCategorySlug(data?.category);
+    if (relatedCategorySlug) {
+      categorySlug = relatedCategorySlug;
     }
   }
 
@@ -154,8 +174,9 @@ export async function deleteArticle(formData: FormData) {
   if (data?.slug) {
     revalidatePath(`/${data.slug}`);
   }
-  if (data?.category?.slug) {
-    revalidatePath(`/articles/category/${data.category.slug}`);
+  const relatedCategorySlug = extractCategorySlug(data?.category);
+  if (relatedCategorySlug) {
+    revalidatePath(`/articles/category/${relatedCategorySlug}`);
   }
 
   return { success: true };
