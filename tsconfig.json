@@ -34,7 +34,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "src/components/admin/articles/ArticleDrawer.tsx"  ],
   "exclude": [
     "node_modules"
   ]

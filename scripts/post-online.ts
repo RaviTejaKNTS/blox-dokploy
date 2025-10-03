@@ -20,21 +20,21 @@ const THREADS_ACCESS_TOKEN = process.env.THREADS_ACCESS_TOKEN;
 
 const SITE_BASE = SITE_URL.replace(/\/$/, '');
 
-type GameRelation = { name: string; slug: string } | null;
+type GameRelation = { id: string; name: string; slug: string } | null;
 
 type PendingCodeRow = {
   id: string;
   game_id: string;
   code: string;
   first_seen_at: string;
-  game: GameRelation;
+    game: GameRelation;
 };
 
 async function fetchNextPendingGame() {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from('codes')
-    .select('id, game_id, code, first_seen_at, games(name, slug)')
+    .select('id, game_id, code, first_seen_at, games(id, name, slug)')
     .eq('posted_online', false)
     .eq('status', 'active')
     .order('first_seen_at', { ascending: true })
@@ -48,7 +48,7 @@ async function fetchNextPendingGame() {
     game_id: string;
     code: string;
     first_seen_at: string;
-    games: { name: string; slug: string } | { name: string; slug: string }[] | null;
+    games: { id: string; name: string; slug: string } | { id: string; name: string; slug: string }[] | null;
   };
 
   const gameRelation = Array.isArray(row.games) ? row.games[0] ?? null : row.games;
@@ -58,7 +58,13 @@ async function fetchNextPendingGame() {
     game_id: row.game_id,
     code: row.code,
     first_seen_at: row.first_seen_at,
-    game: gameRelation ? { name: gameRelation.name, slug: gameRelation.slug } : null,
+    game: gameRelation
+      ? {
+          id: gameRelation.id,
+          name: gameRelation.name,
+          slug: gameRelation.slug
+        }
+      : null,
   } satisfies PendingCodeRow;
 }
 

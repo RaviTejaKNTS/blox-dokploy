@@ -7,7 +7,7 @@ export async function GET() {
   const sb = supabaseAdmin();
   const origin = "https://bloxodes.com";
 
-  const [{ data: games }, { data: authors }] = await Promise.all([
+  const [{ data: games }, { data: authors }, { data: articles }, { data: categories }] = await Promise.all([
     sb
       .from("games")
       .select("slug, updated_at")
@@ -18,6 +18,15 @@ export async function GET() {
       .from("authors")
       .select("slug, updated_at")
       .not("slug", "is", null)
+      .order("updated_at", { ascending: false }),
+    sb
+      .from("articles")
+      .select("slug, updated_at")
+      .eq("is_published", true)
+      .order("updated_at", { ascending: false }),
+    sb
+      .from("article_categories")
+      .select("slug, updated_at")
       .order("updated_at", { ascending: false })
   ]);
 
@@ -33,6 +42,8 @@ export async function GET() {
     { path: "/disclaimer", changefreq: "monthly", priority: "0.5" },
     { path: "/authors", changefreq: "monthly", priority: "0.6" }
   ];
+
+  staticRoutes.push({ path: "/articles", changefreq: "weekly", priority: "0.7" });
 
   for (const route of staticRoutes) {
     pages.push({
@@ -59,6 +70,26 @@ export async function GET() {
       changefreq: "monthly",
       priority: "0.5",
       lastmod: author.updated_at ? new Date(author.updated_at).toISOString() : undefined
+    });
+  }
+
+  for (const article of articles || []) {
+    if (!article?.slug) continue;
+    pages.push({
+      loc: `${origin}/${article.slug}`,
+      changefreq: "weekly",
+      priority: "0.8",
+      lastmod: article.updated_at ? new Date(article.updated_at).toISOString() : undefined
+    });
+  }
+
+  for (const category of categories || []) {
+    if (!category?.slug) continue;
+    pages.push({
+      loc: `${origin}/articles/category/${category.slug}`,
+      changefreq: "weekly",
+      priority: "0.6",
+      lastmod: category.updated_at ? new Date(category.updated_at).toISOString() : undefined
     });
   }
 

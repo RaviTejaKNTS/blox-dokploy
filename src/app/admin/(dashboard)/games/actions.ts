@@ -6,6 +6,7 @@ import { requireAdminAction } from "@/lib/admin-auth";
 import { Buffer } from "node:buffer";
 import sharp from "sharp";
 import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
+import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const upsertGameSchema = z.object({
@@ -129,6 +130,12 @@ export async function saveGame(form: FormData) {
       return { success: false, error: "Game record was not returned." };
     }
 
+    const categorySync = await ensureGameCategory(supabase, {
+      id: game.id,
+      slug: game.slug,
+      name: game.name
+    });
+
     const syncResult = await syncGameCodesFromSources(supabase, game.id, [
       game.source_url,
       game.source_url_2,
@@ -136,6 +143,21 @@ export async function saveGame(form: FormData) {
     ]);
 
     revalidatePath("/admin/games");
+    revalidatePath("/admin/article-categories");
+    revalidatePath("/articles");
+    const categorySlugs = new Set<string>();
+    if (game.slug) {
+      categorySlugs.add(game.slug);
+    }
+    if (categorySync.slug) {
+      categorySlugs.add(categorySync.slug);
+    }
+    if (categorySync.previousSlug) {
+      categorySlugs.add(categorySync.previousSlug);
+    }
+    for (const slug of categorySlugs) {
+      revalidatePath(`/articles/category/${slug}`);
+    }
     return {
       success: true,
       slug: game.slug,
@@ -212,6 +234,30 @@ export async function deleteCode(form: FormData) {
   if (error) throw error;
 
   revalidatePath("/admin/games");
+  return { success: true };
+}
+
+export async function deleteGameById(id: string) {
+  const { supabase } = await requireAdminAction();
+
+  const { data, error } = await supabase
+    .from("games")
+    .delete()
+    .eq("id", id)
+    .select("slug")
+    .maybeSingle();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/games");
+  revalidatePath("/articles");
+  if (data?.slug) {
+    revalidatePath(`/${data.slug}`);
+    revalidatePath(`/articles/category/${data.slug}`);
+  }
+
   return { success: true };
 }
 

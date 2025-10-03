@@ -14,7 +14,15 @@ import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { monthYear } from "@/lib/date";
-import { getGameBySlug, listCodesForGame, listGamesWithActiveCounts } from "@/lib/db";
+import {
+  getGameBySlug,
+  listCodesForGame,
+  listGamesWithActiveCounts,
+  getArticleBySlug,
+  listPublishedArticles,
+  listPublishedArticlesByCategory,
+  type ArticleWithRelations
+} from "@/lib/db";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -169,80 +177,266 @@ function collectAuthorSameAs(author?: { twitter?: string | null; youtube?: strin
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const game = await getGameBySlug(params.slug);
-  if (!game) return {};
-  const codes = await listCodesForGame(game.id);
-  const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
-    if (!code.first_seen_at) return latest;
-    if (!latest || code.first_seen_at > latest) return code.first_seen_at;
-    return latest;
-  }, null);
-  const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
-    ? latestCodeFirstSeen
-    : game.updated_at;
-  const when = monthYear();
-  const title = game.seo_title || `${game.name} Codes (${when})`;
-  const descriptionRaw =
-    game.seo_description ||
-    `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
-  const description = descriptionRaw?.trim() || SITE_DESCRIPTION;
-  const canonicalUrl = `${SITE_URL}/${game.slug}`;
-  const coverImage = game.cover_image?.startsWith("http")
-    ? game.cover_image
-    : game.cover_image
-    ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
-    : `${SITE_URL}/og-image.png`;
-  const publishedTime = new Date(game.created_at).toISOString();
-  const modifiedTime = new Date(lastContentUpdate).toISOString();
-  const authorUrl = game.author?.slug
-    ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
-    : undefined;
-  const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
-  const authorBioPlain = game.author?.bio_md ? markdownToPlainText(game.author.bio_md) : null;
-  const authorSameAs = collectAuthorSameAs(game.author);
-  const otherMeta: Record<string, string> = {};
-  if (authorBioPlain) {
-    otherMeta["author:bio"] = authorBioPlain;
+  const slug = params.slug;
+  const game = await getGameBySlug(slug);
+
+  if (game && game.is_published) {
+    const codes = await listCodesForGame(game.id);
+    const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
+      if (!code.first_seen_at) return latest;
+      if (!latest || code.first_seen_at > latest) return code.first_seen_at;
+      return latest;
+    }, null);
+    const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
+      ? latestCodeFirstSeen
+      : game.updated_at;
+    const when = monthYear();
+    const title = game.seo_title || `${game.name} Codes (${when})`;
+    const descriptionRaw =
+      game.seo_description ||
+      `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
+    const description = descriptionRaw?.trim() || SITE_DESCRIPTION;
+    const canonicalUrl = `${SITE_URL}/${game.slug}`;
+    const coverImage = game.cover_image?.startsWith("http")
+      ? game.cover_image
+      : game.cover_image
+      ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
+      : `${SITE_URL}/og-image.png`;
+    const publishedTime = new Date(game.created_at).toISOString();
+    const modifiedTime = new Date(lastContentUpdate).toISOString();
+    const authorUrl = game.author?.slug
+      ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
+      : undefined;
+    const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
+    const otherMeta: Record<string, string> = {};
+    return {
+      title,
+      description,
+      keywords: [
+        `${game.name} codes`,
+        "Roblox codes",
+        "Roblox promo codes",
+        "gaming rewards",
+        "Bloxodes"
+      ],
+      category: "Gaming",
+      alternates: { canonical: canonicalUrl },
+      authors,
+      publisher: SITE_NAME,
+      openGraph: {
+        type: "article",
+        title,
+        description,
+        url: canonicalUrl,
+        siteName: SITE_NAME,
+        images: [coverImage],
+        publishedTime,
+        modifiedTime,
+        locale: "en_US",
+        authors: authors?.map((author) => author.name) ?? [SITE_NAME]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        creator: "@bloxodes",
+        site: "@bloxodes",
+        images: [coverImage]
+      },
+      ...(Object.keys(otherMeta).length ? { other: otherMeta } : {})
+    };
   }
-  authorSameAs.forEach((url, idx) => {
-    otherMeta[`author:social:${idx + 1}`] = url;
+
+  const article = await getArticleBySlug(slug);
+  if (article) {
+    const canonicalUrl = `${SITE_URL}/${article.slug}`;
+    const coverImage = article.cover_image?.startsWith("http")
+      ? article.cover_image
+      : article.cover_image
+      ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
+      : `${SITE_URL}/og-image.png`;
+    const description = (article.meta_description || article.excerpt || markdownToPlainText(article.content_md)).trim();
+
+    return {
+      title: article.title,
+      description,
+      alternates: { canonical: canonicalUrl },
+      openGraph: {
+        type: "article",
+        url: canonicalUrl,
+        title: article.title,
+        description,
+        siteName: SITE_NAME,
+        images: [coverImage],
+        publishedTime: new Date(article.published_at).toISOString(),
+        modifiedTime: new Date(article.updated_at).toISOString(),
+        authors: article.author ? [article.author.name] : undefined,
+        section: article.category?.name ?? undefined
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: article.title,
+        description,
+        images: [coverImage]
+      }
+    };
+  }
+
+  return {};
+}
+
+async function renderArticlePage(article: ArticleWithRelations) {
+  const canonicalUrl = `${SITE_URL}/${article.slug}`;
+  const coverImage = article.cover_image?.startsWith("http")
+    ? article.cover_image
+    : article.cover_image
+    ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
+    : null;
+  const descriptionPlain = (article.meta_description || article.excerpt || markdownToPlainText(article.content_md)).trim();
+  const [articleHtml, authorBioHtml, categoryArticles, latestArticles] = await Promise.all([
+    renderMarkdown(article.content_md),
+    article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
+    article.category?.slug ? listPublishedArticlesByCategory(article.category.slug, 6) : Promise.resolve([]),
+    listPublishedArticles(6)
+  ]);
+
+  const sameCategoryArticles = (categoryArticles ?? []).filter((entry) => entry.id !== article.id);
+  const fallbackArticles = (latestArticles ?? []).filter((entry) => entry.id !== article.id);
+  const relatedArticles = (sameCategoryArticles.length ? sameCategoryArticles : fallbackArticles).slice(0, 5);
+  const relatedHeading = sameCategoryArticles.length && article.category
+    ? `More in ${article.category.name}`
+    : "Latest articles";
+  const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
+  const publishedDate = new Date(article.published_at);
+  const updatedDate = new Date(article.updated_at);
+  const readingTime = article.reading_time_minutes ?? Math.max(1, Math.ceil(((article.word_count ?? 0) || 0) / 200));
+  const formattedPublished = publishedDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
   });
-  return {
-    title,
-    description,
-    keywords: [
-      `${game.name} codes`,
-      "Roblox codes",
-      "Roblox promo codes",
-      "gaming rewards",
-      "Bloxodes"
-    ],
-    category: "Gaming",
-    alternates: { canonical: canonicalUrl },
-    authors,
-    publisher: SITE_NAME,
-    openGraph: {
-      type: "article",
-      title,
-      description,
-      url: canonicalUrl,
-      siteName: SITE_NAME,
-      images: [coverImage],
-      publishedTime,
-      modifiedTime,
-      locale: "en_US",
-      authors: authors?.map((author) => author.name) ?? [SITE_NAME]
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      creator: "@bloxodes",
-      site: "@bloxodes",
-      images: [coverImage]
-    },
-    ...(Object.keys(otherMeta).length ? { other: otherMeta } : {})
+  const formattedUpdated = updatedDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    datePublished: publishedDate.toISOString(),
+    dateModified: updatedDate.toISOString(),
+    mainEntityOfPage: canonicalUrl,
+    description: descriptionPlain,
+    image: coverImage ?? `${SITE_URL}/og-image.png`,
+    author: article.author
+      ? {
+          '@type': 'Person',
+          name: article.author.name,
+          url: article.author.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : undefined
+        }
+      : undefined,
+    articleSection: article.category?.name ?? undefined
   };
+
+  const processedArticleHtml = processHtmlLinks(articleHtml);
+  const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
+      <article className="prose dark:prose-invert max-w-none game-copy space-y-8">
+        <header className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-muted">
+            <Link href="/articles" className="underline-offset-2 hover:underline">
+              Articles
+            </Link>
+            <span>/</span>
+            {article.category ? (
+              <Link href={`/articles/category/${article.category.slug}`} className="underline-offset-2 hover:underline">
+                {article.category.name}
+              </Link>
+            ) : (
+              <span>General</span>
+            )}
+          </div>
+          <h1 className="text-4xl font-bold text-foreground sm:text-5xl">{article.title}</h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
+            {article.author ? (
+              <div className="flex items-center gap-3">
+                {authorAvatar ? <Image src={authorAvatar} alt={article.author.name} width={36} height={36} className="h-9 w-9 rounded-full border border-border/50 object-cover" /> : null}
+                <span>
+                  By{' '}
+                  {article.author.slug ? (
+                    <Link href={`/authors/${article.author.slug}`} className="text-accent underline-offset-2 hover:underline">
+                      {article.author.name}
+                    </Link>
+                  ) : (
+                    article.author.name
+                  )}
+                </span>
+              </div>
+            ) : null}
+            <span>Published {formattedPublished}</span>
+            {formattedUpdated !== formattedPublished ? <span>Updated {formattedUpdated}</span> : null}
+            <span>{readingTime} min read</span>
+          </div>
+        </header>
+
+        {coverImage ? (
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 shadow-soft">
+            <Image
+              src={coverImage}
+              alt={article.title}
+              width={1200}
+              height={630}
+              className="h-auto w-full object-cover"
+              priority
+            />
+          </div>
+        ) : null}
+
+        <SocialShare url={canonicalUrl} title={article.title} />
+
+        <div dangerouslySetInnerHTML={processedArticleHtml} />
+
+        {article.author ? (
+          <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? undefined} />
+        ) : null}
+      </article>
+
+      <aside className="space-y-4">
+        {article.category ? (
+          <section className="panel space-y-3 px-5 py-4">
+            <h3 className="text-lg font-semibold text-foreground">Category</h3>
+            <p className="text-sm text-muted">
+              <Link href={`/articles/category/${article.category.slug}`} className="text-accent underline-offset-2 hover:underline">
+                {article.category.name}
+              </Link>
+            </p>
+          </section>
+        ) : null}
+
+        {relatedArticles.length ? (
+          <section className="panel space-y-3 px-5 py-4">
+            <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3>
+            <ul className="space-y-2 text-sm">
+              {relatedArticles.map((item) => (
+                <li key={item.id}>
+                  <Link href={`/${item.slug}`} className="text-accent underline-offset-2 hover:underline">
+                    {item.title}
+                  </Link>
+                  <div className="text-xs text-muted">{new Date(item.published_at).toLocaleDateString('en-US')}</div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </aside>
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+    </div>
+  );
 }
 
 async function fetchGameData(slug: string) {
@@ -280,6 +474,10 @@ export default async function GamePage({ params }: Params) {
   const result = await fetchGameData(params.slug);
   
   if (result.error === 'NOT_FOUND') {
+    const article = await getArticleBySlug(params.slug);
+    if (article) {
+      return renderArticlePage(article);
+    }
     notFound();
   }
   

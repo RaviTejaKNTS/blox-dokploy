@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { ensureCategoryForGame } from "@/lib/admin/categories";
 import { DEFAULT_AUTHOR_ID } from "./constants";
 
 export type Author = {
@@ -36,6 +37,40 @@ export type Game = {
 };
 
 export type GameWithAuthor = Game & { author: Author | null };
+
+export type ArticleCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  game_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Article = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content_md: string;
+  cover_image: string | null;
+  author_id: string | null;
+  category_id: string | null;
+  is_published: boolean;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+  reading_time_minutes: number | null;
+  word_count: number | null;
+  meta_description: string | null;
+  meta_keywords: string | null;
+};
+
+export type ArticleWithRelations = Article & {
+  author: Author | null;
+  category: (ArticleCategory & { game: Game | null }) | null;
+};
 
 export type Code = {
   id: string;
@@ -162,6 +197,115 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
       const bTime = toTimestamp(b.latest_code_first_seen_at ?? b.updated_at);
       return bTime - aTime;
     });
+}
+
+export async function listArticleCategories(autoEnsureGameCategories = true): Promise<(ArticleCategory & { game: Game | null })[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from('article_categories')
+    .select('*, game:games(id,name,slug,is_published)')
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  let categories = (data ?? []).map((row) => row as unknown as ArticleCategory & { game: Game | null });
+
+  if (autoEnsureGameCategories) {
+    const { data: games, error: gamesError } = await sb
+      .from('games')
+      .select('id,name,slug,is_published')
+      .order('name', { ascending: true });
+    if (gamesError) throw gamesError;
+    for (const game of games ?? []) {
+      if (!game.slug) continue;
+      await ensureCategoryForGame(sb, {
+        id: game.id,
+        slug: game.slug,
+        name: game.name
+      });
+    }
+
+    const { data: refreshed, error: refreshError } = await sb
+      .from('article_categories')
+      .select('*, game:games(id,name,slug,is_published)')
+      .order('name', { ascending: true });
+
+    if (refreshError) throw refreshError;
+    categories = (refreshed ?? []).map((row) => row as unknown as ArticleCategory & { game: Game | null });
+  }
+
+  return categories.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getArticleCategoryBySlug(slug: string): Promise<(ArticleCategory & { game: Game | null }) | null> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from('article_categories')
+    .select('*, game:games(id,name,slug,is_published)')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return data as unknown as ArticleCategory & { game: Game | null };
+}
+
+function articleSelectFields() {
+  return `*, author:authors(id,name,slug,avatar_url,gravatar_email,twitter,youtube,website,created_at,updated_at), category:article_categories(*, game:games(id,name,slug,is_published)))`;
+}
+
+export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from('articles')
+    .select(articleSelectFields())
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+  return (data ?? []) as unknown as ArticleWithRelations[];
+}
+
+export async function listPublishedArticlesByCategory(categorySlug: string, limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
+  const sb = supabaseAdmin();
+
+  const { data: category, error: categoryError } = await sb
+    .from('article_categories')
+    .select('id')
+    .eq('slug', categorySlug)
+    .maybeSingle();
+
+  if (categoryError) throw categoryError;
+  if (!category) return [];
+
+  const { data, error } = await sb
+    .from('articles')
+    .select(articleSelectFields())
+    .eq('is_published', true)
+    .eq('category_id', (category as { id: string }).id)
+    .order('published_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+  return (data ?? []) as unknown as ArticleWithRelations[];
+}
+
+export async function getArticleBySlug(slug: string): Promise<ArticleWithRelations | null> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from('articles')
+    .select(articleSelectFields())
+    .eq('slug', slug)
+    .eq('is_published', true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return data as unknown as ArticleWithRelations;
+}
+
+export async function listRecentArticlesForSitemap(): Promise<ArticleWithRelations[]> {
+  return listPublishedArticles(200, 0);
 }
 
 export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {

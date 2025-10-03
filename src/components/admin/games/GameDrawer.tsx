@@ -24,7 +24,8 @@ import {
   updateCodeStatus,
   deleteCode,
   refreshGameCodes,
-  uploadGameImage
+  uploadGameImage,
+  deleteGameById
 } from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 
@@ -145,6 +146,8 @@ export function GameDrawer({
   const [galleryImages, setGalleryImages] = useState<Array<{ url: string; title: string }>>([]);
   const [isGalleryDragging, setIsGalleryDragging] = useState(false);
   const [galleryCopyMessage, setGalleryCopyMessage] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   const defaultValues = useMemo<FormValues>(() => ({
     id: game?.id,
@@ -515,6 +518,30 @@ export function GameDrawer({
   const checkCodes = game?.codes.check ?? [];
   const expiredCodes = game?.codes.expired ?? [];
 
+  const handleDeleteGame = useCallback(() => {
+    if (!game?.id) return;
+    const confirmed = window.confirm(`Delete game "${game.name}"? This will remove all associated codes.`);
+    if (!confirmed) return;
+    setDeleteStatus(null);
+    setDeletePending(true);
+    startTransition(async () => {
+      try {
+        const result = await deleteGameById(game.id);
+        if (!result?.success) {
+          setDeleteStatus(result?.error ?? "Failed to delete game.");
+          return;
+        }
+        setDeleteStatus("Game deleted.");
+        onRefresh();
+        onClose();
+      } catch (error) {
+        setDeleteStatus(error instanceof Error ? error.message : "Failed to delete game.");
+      } finally {
+        setDeletePending(false);
+      }
+    });
+  }, [game, onClose, onRefresh, startTransition]);
+
   return (
     <Transition show={open} as={Fragment}>
       <Dialog onClose={onClose} className="relative z-50">
@@ -547,6 +574,7 @@ export function GameDrawer({
                       {game ? `Edit ${game.name}` : "Create game"}
                     </Dialog.Title>
                     {statusMessage ? <p className="text-sm text-muted">{statusMessage}</p> : null}
+                    {deleteStatus ? <p className="text-sm text-destructive">{deleteStatus}</p> : null}
                   </div>
                   <button
                     type="button"
@@ -560,17 +588,6 @@ export function GameDrawer({
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span className="rounded-full bg-surface-muted px-3 py-1 text-muted">
                     {game ? `Last updated ${new Date(game.updated_at).toLocaleString()}` : "New game"}
-                  </span>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      defaultChecked={defaultValues.is_published}
-                      {...register("is_published", { setValueAs: (value) => Boolean(value) })}
-                    />
-                    <span>Published</span>
-                  </label>
-                  <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase text-accent">
-                    {isPublished ? "Published" : "Draft"}
                   </span>
                 </div>
 
@@ -871,21 +888,46 @@ export function GameDrawer({
                     </div>
                   ) : null}
 
-                  <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted hover:text-foreground"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isPending ? "Saving…" : "Save"}
-                    </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <label className="flex items-center gap-2 text-foreground">
+                        <input
+                          type="checkbox"
+                          defaultChecked={defaultValues.is_published}
+                          {...register("is_published", { setValueAs: (value) => Boolean(value) })}
+                        />
+                        <span>Published</span>
+                      </label>
+                      <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase text-accent">
+                        {isPublished ? "Published" : "Draft"}
+                      </span>
+                      {game ? (
+                        <button
+                          type="button"
+                          onClick={handleDeleteGame}
+                          disabled={deletePending}
+                          className="rounded-lg border border-destructive/60 px-3 py-1 text-xs font-semibold text-destructive transition hover:border-destructive hover:bg-destructive/10 disabled:opacity-60"
+                        >
+                          {deletePending ? "Deleting…" : "Delete game"}
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isPending}
+                        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isPending ? "Saving…" : "Save"}
+                      </button>
+                    </div>
                   </div>
                 </form>
               </Dialog.Panel>

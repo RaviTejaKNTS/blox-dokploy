@@ -12,6 +12,17 @@ export function appendCodesSuffix(value: string) {
   return base.endsWith("-codes") ? base : `${base}-codes`;
 }
 
+export function stripCodesSuffix(value: string) {
+  return value.replace(/-codes$/i, "");
+}
+
+export function categorySlugFromGame(game: { name?: string | null; slug?: string | null }) {
+  const nameSlug = game.name ? slugify(game.name) : "";
+  const fallbackSlug = game.slug ? slugify(stripCodesSuffix(game.slug)) : "";
+  const slug = nameSlug || fallbackSlug;
+  return slug || null;
+}
+
 export function normalizeGameSlug(input?: string | null, fallback?: string | null) {
   const source = input?.trim() || fallback?.trim() || "";
   return appendCodesSuffix(source);

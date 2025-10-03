@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { AdminCategorySummary } from "@/lib/admin/categories";
 import { saveArticleCategory, deleteArticleCategory } from "@/app/admin/(dashboard)/article-categories/actions";
 import Link from "next/link";
+import { slugify } from "@/lib/slug";
 
 const formSchema = z.object({
   id: z.string().optional(),
