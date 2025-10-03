@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { FaTelegramPlane } from "react-icons/fa";
+import { RiTwitterXLine } from "react-icons/ri";
 import { AuthorCard } from "@/components/AuthorCard";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
@@ -641,6 +643,35 @@ export default async function GamePage({ params }: Params) {
       {recommended.length > 0 ? (
         <aside className="space-y-4">
           <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
+          <section className="panel space-y-3 px-4 py-5">
+            <h3 className="text-lg font-semibold text-foreground">Get Roblox codes directly on</h3>
+            <div className="space-y-2 text-sm">
+              <Link
+                href="https://t.me/bloxodes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <FaTelegramPlane className="h-4 w-4" aria-hidden />
+                  Telegram
+                </span>
+                <span className="text-xs text-muted">@bloxodes</span>
+              </Link>
+              <Link
+                href="https://x.com/bloxodes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <RiTwitterXLine className="h-4 w-4" aria-hidden />
+                  X (Twitter)
+                </span>
+                <span className="text-xs text-muted">@bloxodes</span>
+              </Link>
+            </div>
+          </section>
           <div className="space-y-2 p-2">
             <h3 className="text-lg font-semibold text-foreground">More games with codes</h3>
             <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
