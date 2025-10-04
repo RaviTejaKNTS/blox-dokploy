@@ -321,6 +321,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
     day: "numeric",
     year: "numeric"
   });
+  const updatedRelativeLabel = formatDistanceToNow(updatedDate, { addSuffix: true });
 
   const structuredData = {
     '@context': 'https://schema.org',
@@ -347,7 +348,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="prose dark:prose-invert max-w-none game-copy space-y-8">
-        <header className="space-y-4">
+        <header className="space-y-5">
           <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-muted">
             <Link href="/articles" className="underline-offset-2 hover:underline">
               Articles
@@ -361,7 +362,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               <span>General</span>
             )}
           </div>
-          <h1 className="text-4xl font-bold text-foreground sm:text-5xl">{article.title}</h1>
+          <h1 className="text-5xl font-bold text-foreground sm:text-6xl">{article.title}</h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
             {article.author ? (
               <div className="flex items-center gap-3">
@@ -378,9 +379,13 @@ async function renderArticlePage(article: ArticleWithRelations) {
                 </span>
               </div>
             ) : null}
-            <span>Published {formattedPublished}</span>
-            {formattedUpdated !== formattedPublished ? <span>Updated {formattedUpdated}</span> : null}
-            <span>{readingTime} min read</span>
+            {article.author ? <span aria-hidden className="text-border/60">•</span> : null}
+            <span>
+              Published{' '}
+              <time dateTime={article.published_at} className="font-medium text-foreground">
+                {formattedPublished}
+              </time>
+            </span>
           </div>
         </header>
 
@@ -396,8 +401,6 @@ async function renderArticlePage(article: ArticleWithRelations) {
             />
           </div>
         ) : null}
-
-        <SocialShare url={canonicalUrl} title={article.title} />
 
         <div dangerouslySetInnerHTML={processedArticleHtml} />
 
