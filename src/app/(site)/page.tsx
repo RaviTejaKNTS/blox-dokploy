@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import { formatDistanceToNow } from "date-fns";
 import { listGamesWithActiveCounts } from "@/lib/db";
-import { monthYear } from "@/lib/date";
-import { GameSearch } from "@/components/GameSearch";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { GameCard } from "@/components/GameCard";
+
+const INITIAL_FEATURED_COUNT = 12;
+const LOAD_STEP = 12;
+
+const LazyMoreGames = dynamic(() => import("@/components/MoreGames").then((mod) => mod.MoreGames), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center py-6 text-sm text-muted">Preparing more games…</div>
+  )
+});
 
 export const revalidate = 30;
 
@@ -68,6 +77,21 @@ export default async function HomePage() {
     : null;
   const gamesByUpdatedAt = sortedGames;
 
+  const formatRelative = (date: string | null) => {
+    if (!date) return null;
+    return formatDistanceToNow(new Date(date), { addSuffix: true });
+  };
+
+  const featuredGames = gamesByUpdatedAt.slice(0, INITIAL_FEATURED_COUNT).map((game) => ({
+    data: game,
+    lastUpdatedLabel: formatRelative(game.latest_code_first_seen_at ?? game.updated_at)
+  }));
+
+  const remainingGames = gamesByUpdatedAt.slice(INITIAL_FEATURED_COUNT).map((game) => ({
+    data: game,
+    lastUpdatedLabel: formatRelative(game.latest_code_first_seen_at ?? game.updated_at)
+  }));
+
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -106,8 +130,21 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <section className="space-y-4">
-        <GameSearch games={gamesByUpdatedAt} />
+      <section className="space-y-6">
+        <h2 className="text-xl font-semibold text-foreground">Trending Roblox games</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {featuredGames.map(({ data: game, lastUpdatedLabel }, index) => (
+            <GameCard
+              key={game.id}
+              game={game}
+              priority={index === 0}
+              lastUpdatedLabel={lastUpdatedLabel}
+            />
+          ))}
+        </div>
+        {remainingGames.length ? (
+          <LazyMoreGames games={remainingGames} step={LOAD_STEP} />
+        ) : null}
       </section>
     </section>
   );

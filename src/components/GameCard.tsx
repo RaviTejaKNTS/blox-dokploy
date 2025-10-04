@@ -1,24 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatDistanceToNowStrict } from "date-fns";
 import type { GameWithCounts } from "@/lib/db";
 import { FiClock } from "react-icons/fi";
 
 const baseCardClass = "group overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-surface transition-colors flex flex-col";
+const BLUR_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nMTAwMCcgaGVpZ2h0PSc1NjInIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zyc+PHJlY3Qgd2lkdGg9JzEwMDAnIGhlaWdodD0nNTYyJyBmaWxsPSdyZ2JhKDQ4LDUwLDU4LDAuMyknIC8+PC9zdmc+";
 
 type GameCardProps = {
   game: GameWithCounts;
   className?: string;
   titleAs?: 'h2' | 'p';
   priority?: boolean;
+  lastUpdatedLabel?: string | null;
 };
 
-export function GameCard({ game, className, titleAs: Title = 'h2', priority }: GameCardProps) {
+export function GameCard({
+  game,
+  className,
+  titleAs: Title = 'h2',
+  priority,
+  lastUpdatedLabel,
+}: GameCardProps) {
   const classes = className ? `${baseCardClass} ${className}` : baseCardClass;
-  const lastUpdatedAt = game.latest_code_first_seen_at ?? game.updated_at;
-  const updatedLabel = lastUpdatedAt
-    ? formatDistanceToNowStrict(new Date(lastUpdatedAt), { addSuffix: true })
-    : null;
 
   return (
     <Link
@@ -34,6 +38,9 @@ export function GameCard({ game, className, titleAs: Title = 'h2', priority }: G
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             priority={priority}
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
+            loading={priority ? undefined : "lazy"}
           />
         ) : (
           <div className="absolute inset-0 grid place-items-center text-muted">{game.name}</div>
@@ -46,11 +53,11 @@ export function GameCard({ game, className, titleAs: Title = 'h2', priority }: G
           <span>
             {game.active_count} {game.active_count === 1 ? "active code" : "active codes"}
           </span>
-          {updatedLabel ? (
+          {lastUpdatedLabel ? (
             <span className="flex items-center gap-1 whitespace-nowrap text-muted">
               <span aria-hidden className="text-border/60">·</span>
               <FiClock aria-hidden className="h-3 w-3 text-muted/80" />
-              <span>{updatedLabel}</span>
+              <span>{lastUpdatedLabel}</span>
             </span>
           ) : null}
         </p>

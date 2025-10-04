@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { marked } from "marked";
 import { GameCard } from "@/components/GameCard";
 import { authorAvatarUrl } from "@/lib/avatar";
+import { formatDistanceToNow } from "date-fns";
 import {
   getAuthorBySlug,
   listPublishedGamesByAuthorWithActiveCounts
@@ -108,6 +109,13 @@ export default async function AuthorPage({ params }: Params) {
   );
 
   const links = authorLinks(author);
+  const authoredGames = games.map((game) => ({
+    game,
+    lastUpdatedLabel: (() => {
+      const last = game.latest_code_first_seen_at ?? game.updated_at;
+      return last ? formatDistanceToNow(new Date(last), { addSuffix: true }) : null;
+    })()
+  }));
 
   return (
     <div className="space-y-12">
@@ -160,10 +168,10 @@ export default async function AuthorPage({ params }: Params) {
             Active Roblox code collections published by {author.name}.
           </p>
         </div>
-        {games.length ? (
+        {authoredGames.length ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {games.map((game) => (
-              <GameCard key={game.id} game={game} />
+            {authoredGames.map(({ game, lastUpdatedLabel }) => (
+              <GameCard key={game.id} game={game} lastUpdatedLabel={lastUpdatedLabel} />
             ))}
           </div>
         ) : (

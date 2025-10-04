@@ -1,9 +1,9 @@
 import "./globals.css";
 import { ReactNode } from "react";
-import { SupabaseListener } from "@/components/SupabaseListener";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
+import { GlobalSearchOverlay } from "@/components/GlobalSearchOverlay";
 
 const themeScript = `(() => {
   const storageKey = "roblox-codes-theme";
@@ -106,11 +106,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <GoogleAdSense clientId={googleAdSenseClientId} />
       </head>
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
-        <SupabaseListener />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
+        <GlobalSearchOverlay />
         {children}
       </body>
     </html>

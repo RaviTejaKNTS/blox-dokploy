@@ -30,6 +30,17 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
             <span className="mb-[2px] text-xs font-sans text-muted-foreground">for Roblox Codes</span>
           </a>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              data-search-trigger
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+            >
+              <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="m21 21-4.35-4.35" />
+                <circle cx="11" cy="11" r="6" />
+              </svg>
+              <span className="hidden sm:inline">Search</span>
+            </button>
             <ThemeToggle />
           </div>
         </div>

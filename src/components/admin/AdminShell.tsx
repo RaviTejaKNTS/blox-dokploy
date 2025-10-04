@@ -29,6 +29,30 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
   }, [loading, session, role, router, pathname]);
 
+  useEffect(() => {
+    const supabase = supabaseBrowser();
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      try {
+        await fetch("/auth/callback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ event, session: nextSession })
+        });
+      } catch (error) {
+        console.error("Failed to sync Supabase auth session", error);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   async function handleSignOut() {
     if (signingOut) return;
     setSigningOut(true);

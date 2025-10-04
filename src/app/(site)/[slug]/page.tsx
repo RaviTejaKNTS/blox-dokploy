@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { FaTelegramPlane } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
+import { formatDistanceToNow } from "date-fns";
 import { AuthorCard } from "@/components/AuthorCard";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
@@ -518,7 +519,14 @@ export default async function GamePage({ params }: Params) {
       if (b.active_count !== a.active_count) return b.active_count - a.active_count;
       return a.name.localeCompare(b.name);
     })
-    .slice(0, 6);
+    .slice(0, 6)
+    .map((g) => ({
+      game: g,
+      lastUpdatedLabel: (() => {
+        const last = g.latest_code_first_seen_at ?? g.updated_at;
+        return last ? formatDistanceToNow(new Date(last), { addSuffix: true }) : null;
+      })()
+    }));
 
   const lastCheckedDate = new Date(lastChecked);
   const lastCheckedDatePart = lastCheckedDate.toLocaleDateString("en-US", {
@@ -875,8 +883,8 @@ export default async function GamePage({ params }: Params) {
             <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
           </div>
           <div className="grid gap-4">
-            {recommended.map((g) => (
-              <GameCard key={g.id} game={g} titleAs="p" />
+            {recommended.map(({ game: g, lastUpdatedLabel }) => (
+              <GameCard key={g.id} game={g} titleAs="p" lastUpdatedLabel={lastUpdatedLabel} />
             ))}
           </div>
         </aside>

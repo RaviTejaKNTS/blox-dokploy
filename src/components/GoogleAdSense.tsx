@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Script from "next/script";
 
 type GoogleAdSenseProps = {
   clientId?: string;
@@ -25,11 +26,11 @@ export function GoogleAdSense({ clientId, excludePrefix = "/admin" }: GoogleAdSe
   }
 
   return (
-    <script
-      async
+    <Script
+      id="google-adsense"
       src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`}
+      strategy="lazyOnload"
       crossOrigin="anonymous"
     />
   );
 }
-
