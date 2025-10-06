@@ -10,7 +10,8 @@
     "refresh:expired": "tsx scripts/update-expired.ts",
     "import:games": "tsx scripts/import-games.ts",
     "post:codes": "tsx scripts/post-codes.ts",
-    "post:online": "tsx scripts/post-online.ts"
+    "post:online": "tsx scripts/post-online.ts",
+    "generate": "tsx scripts/generateGameArticle.tsx"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
@@ -31,6 +32,7 @@
     "marked-highlight": "^2.2.2",
     "next": "^14.2.32",
     "node-fetch": "^3.3.2",
+    "openai": "^6.1.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-hook-form": "^7.52.0",
@@ -38,7 +40,7 @@
     "sanitize-html": "^2.17.0",
     "sharp": "^0.33.5",
     "tailwind-merge": "^3.3.1",
-    "zod": "3.23.8"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.3",
