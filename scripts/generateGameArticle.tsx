@@ -69,6 +69,7 @@ Sections required:
 1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
+   - If in the requirements, there's a link to follow any community or anything, include that link in our article as well. 
    - Write step-by-step in numbered list and keep the sentences simple and write in conversational tone. Do not use : and write like key value pairs, just write simple sentences.
    - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available).
 3. description_md – include all these sections:
