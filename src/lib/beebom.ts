@@ -7,16 +7,81 @@ function normalizeCode(raw: string): string | null {
   if (!raw) return null;
   let code = raw.replace(/[`"'“”‘’]/g, "").trim();
   code = code.replace(/^code[:\s-]*/i, "").trim();
+
+  // 🧹 Remove anything inside parentheses
+  code = code.replace(/\(.*?\)/g, "").trim();
+
   if (!code) return null;
-  return code.replace(/\s+/g, "").toUpperCase();
+  return code.replace(/\s+/g, "");
 }
 
-const NEW_REGEX = /\(\s*new\s*\)/i;
+const NEW_REGEX = /\(\s*new\s*(?:code)?\s*\)/i;
 
 function stripNewFlag(value: string): { cleaned: string; isNew: boolean } {
   const hasNew = NEW_REGEX.test(value);
-  const cleaned = value.replace(new RegExp(NEW_REGEX, "gi"), "").trim();
+  const cleaned = value.replace(NEW_REGEX, "").trim();
   return { cleaned, isNew: hasNew };
+}
+
+/**
+ * Finds the correct code list or table
+ * - Looks only inside .beebom-single-content.entry-content.highlight
+ * - Skips divider lists and menus
+ * - No regex restriction for code patterns (Beebom may list codes without rewards)
+ */
+function findCodesContainer($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Element> | null {
+  const content = $(".beebom-single-content.entry-content.highlight");
+  if (!content.length) return null;
+
+  // 1️⃣ Try headings like "Active Codes" / "Working Codes"
+  let section = content.find(
+    "h2:contains('Active Codes'), h3:contains('Active Codes'), h2:contains('Working Codes'), h3:contains('Working Codes')"
+  ).first();
+
+  // 2️⃣ Fallback: find any list/table that isn't a menu, divider, or redeem section
+  if (!section.length) {
+    const candidates = content.find("ul, ol, table");
+
+    // ✅ Fix: initialize as an empty Cheerio collection instead of null
+    let probable: cheerio.Cheerio<cheerio.Element> = $([]);
+
+    candidates.each((_: number, el: cheerio.Element) => {
+      const elem = $(el);
+
+      if (
+        elem.hasClass("is-style-inline-divider-list") ||
+        elem.hasClass("menu") ||
+        elem.attr("id") === "primary-menu"
+      ) {
+        return;
+      }
+
+      const text = elem.text().trim();
+      if (!text) return;
+
+      const prevHeading = elem.prevAll("h2, h3").first().text().toLowerCase();
+      if (prevHeading.includes("redeem") || prevHeading.includes("expired")) return;
+
+      probable = elem;
+      return false; // stop at the first valid one
+    });
+
+    if (probable.length) return probable;
+  }
+
+  // 3️⃣ If found via heading, locate the list/table below it
+  if (section.length) {
+    const next = section
+      .nextAll("ul, ol, table")
+      .not(".is-style-inline-divider-list")
+      .not(".menu")
+      .filter((_: number, el: cheerio.Element) => $(el).attr("id") !== "primary-menu")
+      .first();
+
+    if (next.length) return next;
+  }
+
+  return null;
 }
 
 export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
@@ -24,89 +89,30 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
   }
+
   const html = await res.text();
   const $ = cheerio.load(html);
-
-  const nextElementSibling = (node: cheerio.Cheerio<cheerio.Element>) => {
-    let sibling = node.next();
-    while (sibling.length && sibling[0].type !== "tag") {
-      sibling = sibling.next();
-    }
-    return sibling;
-  };
-
-  const collectSectionNodes = (
-    start: cheerio.Cheerio<cheerio.Element>,
-    stopSelector: string
-  ): cheerio.Cheerio<cheerio.Element> => {
-    if (!start || !start.length) return $([]);
-    const span = start.nextUntil(stopSelector);
-    const immediate = nextElementSibling(start);
-    if (immediate.length) {
-      return immediate.add(span);
-    }
-    return span;
-  };
-
-  const locateContainer = (
-    start: cheerio.Cheerio<cheerio.Element>,
-    stopSelector: string
-  ): cheerio.Cheerio<cheerio.Element> | null => {
-    const sectionNodes = collectSectionNodes(start, stopSelector);
-    if (!sectionNodes.length) return null;
-    const direct = sectionNodes.filter("ul, ol, table").first();
-    if (direct.length) return direct;
-    const nested = sectionNodes.find("ul, ol, table").first();
-    return nested.length ? nested : null;
-  };
-
-  const h1 = $("h1").first();
-  let firstH2 = h1.length ? h1.nextAll("h2").first() : $([]);
-
-  if (!firstH2 || !firstH2.length) {
-    const articleRoot = h1.length ? h1.closest(".beebom-single-content, article, main, .entry-content") : $([]);
-    if (articleRoot.length) {
-      firstH2 = articleRoot.find("h2").first();
-    }
-  }
-
-  if (!firstH2 || !firstH2.length) {
-    firstH2 = $("h2").first();
-  }
-
-  let container: cheerio.Cheerio<cheerio.Element> | null = null;
-  if (firstH2.length) {
-    const immediateAfterH2 = nextElementSibling(firstH2);
-    if (immediateAfterH2.length && immediateAfterH2.is("h3")) {
-      container = locateContainer(immediateAfterH2, "h2, h3");
-    }
-    if (!container || !container.length) {
-      container = locateContainer(firstH2, "h2");
-    }
-  }
-
+  const container = findCodesContainer($);
   const codes: ScrapedCode[] = [];
+
   if (container && container.length) {
     if (container.is("table")) {
       const rows = container.find("tbody tr");
       const targetRows = rows.length ? rows : container.find("tr");
-      targetRows.each((_, row) => {
+
+      targetRows.each((_: number, row: cheerio.Element) => {
         const cells = $(row).find("td");
-        if (cells.length < 2) return;
+        if (!cells.length) return;
 
         const codeCell = $(cells[0]);
-        const rewardCell = $(cells[1]);
+        const rewardCell = cells.length > 1 ? $(cells[1]) : null;
 
-        const codeDisplayRaw = codeCell.find("strong").first().text().trim();
-        const codeFallbackRaw = codeCell.text().trim();
-        const rewardRaw = rewardCell.text().trim();
+        const codeText =
+          codeCell.find("strong").first().text().trim() || codeCell.text().trim();
+        const rewardText = rewardCell ? rewardCell.text().trim() : "";
 
-        const { cleaned: codeDisplayClean, isNew: codeDisplayMarkedNew } = stripNewFlag(codeDisplayRaw || codeFallbackRaw);
-        const { cleaned: codeCellClean, isNew: codeCellMarkedNew } = stripNewFlag(codeFallbackRaw);
-        const { cleaned: rewardCleaned, isNew: rewardMarkedNew } = stripNewFlag(rewardRaw);
-
-        const baseCodeText = codeDisplayRaw || codeFallbackRaw;
-        const normalized = normalizeCode(codeDisplayClean || baseCodeText);
+        const { cleaned: codeClean, isNew: codeNew } = stripNewFlag(codeText);
+        const normalized = normalizeCode(codeClean);
         if (!normalized) return;
 
         const entry: ScrapedCode = {
@@ -115,38 +121,31 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
           provider: "beebom",
         };
 
-        if (rewardCleaned) {
-          entry.rewardsText = rewardCleaned;
-        }
-
-        if (codeDisplayMarkedNew || codeCellMarkedNew || rewardMarkedNew) {
-          entry.isNew = true;
-        }
+        if (rewardText) entry.rewardsText = rewardText;
+        if (codeNew) entry.isNew = true;
 
         codes.push(entry);
       });
     } else {
-      container.find("li").each((_, li) => {
-        const text = $(li).text();
+      container.find("li").each((_: number, li: cheerio.Element) => {
+        const text = $(li).text().trim();
         if (!text) return;
+
         const [beforeColon, ...rest] = text.split(":");
-        const { cleaned: codeClean, isNew: codeMarkedNew } = stripNewFlag(beforeColon);
-        const normalized = normalizeCode(codeClean || beforeColon);
+        const { cleaned: codeClean, isNew: codeNew } = stripNewFlag(beforeColon);
+        const normalized = normalizeCode(codeClean);
         if (!normalized) return;
+
         const rewardRaw = rest.join(":").trim();
-        const { cleaned: cleanedReward, isNew: rewardMarkedNew } = stripNewFlag(rewardRaw);
         const entry: ScrapedCode = {
           code: normalized,
           status: "active",
           provider: "beebom",
         };
-        const reward = cleanedReward.trim();
-        if (reward) {
-          entry.rewardsText = reward;
-        }
-        if (codeMarkedNew || rewardMarkedNew) {
-          entry.isNew = true;
-        }
+
+        if (rewardRaw) entry.rewardsText = rewardRaw;
+        if (codeNew) entry.isNew = true;
+
         codes.push(entry);
       });
     }
