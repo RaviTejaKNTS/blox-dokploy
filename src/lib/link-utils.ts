@@ -11,12 +11,12 @@ export function processHtmlLinks(html: string): ProcessedHtml {
     const processedHtml = html.replace(/<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g, (match, quote, href) => {
       if (!href) return match;
       
-      // Skip processing if it's a relative URL or bloxcodes.com
+      // Skip processing if it's a relative URL or bloxodes.com
       if (href.startsWith('/') || 
           href.startsWith('#') || 
           href.startsWith('mailto:') || 
           href.startsWith('tel:') ||
-          new URL(href, 'https://bloxcodes.com').hostname === 'bloxcodes.com') {
+          new URL(href, 'https://bloxodes.com').hostname === 'bloxodes.com') {
         return match;
       }
       
@@ -39,12 +39,12 @@ export function processHtmlLinks(html: string): ProcessedHtml {
       try {
         const url = new URL(link.href, window.location.origin);
         
-        // Skip if it's a relative URL or bloxcodes.com
+        // Skip if it's a relative URL or bloxodes.com
         if (link.href.startsWith('/') || 
             link.href.startsWith('#') || 
             link.href.startsWith('mailto:') || 
             link.href.startsWith('tel:') ||
-            url.hostname === 'bloxcodes.com') {
+            url.hostname === 'bloxodes.com') {
           return;
         }
         

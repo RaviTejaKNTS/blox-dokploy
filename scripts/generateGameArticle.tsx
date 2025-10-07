@@ -69,7 +69,8 @@ Sections required:
 1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
-   - If in the requirements, there's a link to follow any community or anything, include that link in our article as well. 
+   - If in the requirements, there's a link to follow any community or anything, include that link when mentioning requirements.
+   - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and write in conversational tone. Do not use : and write like key value pairs, just write simple sentences.
    - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available).
 3. description_md – include all these sections:
@@ -78,8 +79,7 @@ Sections required:
      Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.
    - ## Where to Find More ${gameName} Codes
      1–2 paragraphs. Mention the official sources where the codes come from, which are generally like official Roblox page, verified Discord, Twitter/X, or Trello if present.
-     Add this line naturally:
-     "To make things easier, bookmark our website so you never miss a new code drop. Just press Ctrl + D (or CMD + D on Mac) to save this page for quick access."
+     Also suggest users to bookmark our page with ctrl + D on Windows (CMD + D on mac). Tell them that we will update the article with new working active codes as soon as they dropped. 
      Link only to the actual game or developer social URLs found in the sources. Skip generic links.
    - ## What Rewards You Normally Get?
      Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
