@@ -63,7 +63,7 @@ Do NOT invent or guess anything. If something isn't in the sources, skip it.
 ${sources}
 === SOURCES END ===
 
-Write in clean markdown, no em-dashes, no placeholders, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend.
+Write in clean markdown, no em-dashes, no placeholders, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. 
 
 Sections required:
 1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
@@ -83,7 +83,7 @@ Sections required:
      Link only to the actual game or developer social URLs found in the sources. Skip generic links.
    - ## What Rewards You Normally Get?
      Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
-   - ## How to Play ${gameName} and How These Codes Will Help You
+   - ## How to Play ${gameName} and What It's All About
      200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story.
 
 Return valid JSON:
