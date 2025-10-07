@@ -73,6 +73,7 @@ Sections required:
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and write in conversational tone. Do not use : and write like key value pairs, just write simple sentences.
    - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available).
+   - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. 
 3. description_md – include all these sections:
    - ## Why Is My ${gameName} Code Not Working?
      Bullet list of real reasons from sources. Be very detailed and include all the reasons for why any code could fail. Before the bullet points, write at least a line or two to give cue to the actual points.
@@ -107,7 +108,7 @@ Return valid JSON:
     console.log(`🔍 Collecting Google data for "${gameName}"...`);
 
     // Main query – open top 3 pages fully
-    const mainQuery = `"${gameName}" Roblox codes site:beebom.com OR site:progameguides.com OR site:roblox.com OR site:pcgamesn.com OR site:fandom.com OR site:tryhardguides.com`;
+    const mainQuery = `"${gameName}" Roblox codes site:beebom.com OR site:destructoid.com OR site:progameguides.com OR site:roblox.com OR site:pcgamesn.com OR site:pockettactics.com OR site:gamerant.com OR site:fandom.com OR site:tryhardguides.com or site:techwiser.com`;
     const mainResults = await googleSearch(mainQuery, 5);
 
     const topLinks = mainResults.slice(0, 3).map((r: any) => r.match(/URL:\s(.*)/)?.[1]).filter(Boolean);
@@ -134,9 +135,9 @@ Return valid JSON:
 
     const combinedSources = `${fullText}\n\n${snippetText}`;
 
-    console.log(`🧠 Writing detailed article using GPT-4o-mini...`);
+    console.log(`🧠 Writing detailed article using GPT-4.1-mini...`);
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       temperature: 0.3,
       max_tokens: 5000,
       response_format: { type: 'json_object' },
