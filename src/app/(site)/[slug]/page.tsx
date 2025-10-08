@@ -322,6 +322,11 @@ async function renderArticlePage(article: ArticleWithRelations) {
     year: "numeric"
   });
   const updatedRelativeLabel = formatDistanceToNow(updatedDate, { addSuffix: true });
+  const publishedIso = publishedDate.toISOString();
+  const updatedIso = updatedDate.toISOString();
+  const authorProfileUrl = article.author?.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : null;
+  const authorSameAs = collectAuthorSameAs(article.author);
+  const authorBioPlain = article.author?.bio_md ? markdownToPlainText(article.author.bio_md) : null;
 
   const structuredData = {
     '@context': 'https://schema.org',
@@ -347,71 +352,81 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="prose dark:prose-invert max-w-none game-copy space-y-8">
-        <header className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-muted">
-            <Link href="/articles" className="underline-offset-2 hover:underline">
-              Articles
-            </Link>
-            <span>/</span>
-            {article.category ? (
-              <Link href={`/articles/category/${article.category.slug}`} className="underline-offset-2 hover:underline">
-                {article.category.name}
-              </Link>
-            ) : (
-              <span>General</span>
-            )}
-          </div>
-          <h1 className="text-5xl font-bold text-foreground sm:text-6xl">{article.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
-            {article.author ? (
-              <div className="flex items-center gap-3">
-                {authorAvatar ? <Image src={authorAvatar} alt={article.author.name} width={36} height={36} className="h-9 w-9 rounded-full border border-border/50 object-cover" /> : null}
-                <span>
-                  By{' '}
-                  {article.author.slug ? (
-                    <Link href={`/authors/${article.author.slug}`} className="text-accent underline-offset-2 hover:underline">
-                      {article.author.name}
-                    </Link>
-                  ) : (
-                    article.author.name
-                  )}
+      <article itemScope itemType="https://schema.org/Article">
+        <meta itemProp="mainEntityOfPage" content={canonicalUrl} />
+        <meta itemProp="datePublished" content={publishedIso} />
+        <meta itemProp="dateModified" content={updatedIso} />
+        <meta itemProp="description" content={descriptionPlain} />
+        <meta itemProp="image" content={coverImage ?? `${SITE_URL}/og-image.png`} />
+        {!article.author ? <meta itemProp="author" content={SITE_NAME} /> : null}
+        <header className="mb-6">
+          <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
+            {article.title}
+          </h1>
+          <div className="mt-4 flex flex-col gap-3 text-sm text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              {article.author ? (
+                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
+                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
+                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
+                  {authorSameAs.map((url) => (
+                    <link key={url} itemProp="sameAs" href={url} />
+                  ))}
+                  <img
+                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
+                    alt={article.author.name}
+                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                  />
+                  <span>
+                    Authored by {article.author.slug ? (
+                      <Link
+                        href={`/authors/${article.author.slug}`}
+                        className="font-semibold text-foreground transition hover:text-accent"
+                        itemProp="name"
+                      >
+                        {article.author.name}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-foreground" itemProp="name">
+                        {article.author.name}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-semibold text-foreground" itemProp="author">
+                  Published by {SITE_NAME}
                 </span>
-              </div>
-            ) : null}
-            {article.author ? <span aria-hidden className="text-border/60">•</span> : null}
-            <span>
-              Published{' '}
-              <time dateTime={article.published_at} className="font-medium text-foreground">
-                {formattedPublished}
-              </time>
-            </span>
+              )}
+              <span aria-hidden="true">•</span>
+              <span className="text-foreground/80">
+                Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+                {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+              </span>
+            </div>
+            <time className="text-sm text-foreground/80" dateTime={article.published_at}>
+              Published <span className="font-semibold text-foreground">{formattedPublished}</span>
+              {readingTime ? <span className="ml-2">• {readingTime} min read</span> : null}
+            </time>
           </div>
         </header>
 
-        {coverImage ? (
-          <div className="relative overflow-hidden rounded-2xl border border-border/60 shadow-soft">
-            <Image
-              src={coverImage}
-              alt={article.title}
-              width={1200}
-              height={630}
-              className="h-auto w-full object-cover"
-              priority
-            />
-          </div>
-        ) : null}
-
-        <div dangerouslySetInnerHTML={processedArticleHtml} />
+        <section className="prose dark:prose-invert max-w-none game-copy" id="article-body" itemProp="articleBody">
+          <div dangerouslySetInnerHTML={processedArticleHtml} />
+        </section>
 
         {article.author ? (
           <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
         ) : null}
+
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       </article>
 
       <aside className="space-y-4">
+        <SocialShare url={canonicalUrl} title={article.title} />
+
         {article.category ? (
-          <section className="panel space-y-3 px-5 py-4">
+          <section className="panel space-y-3 px-4 py-5">
             <h3 className="text-lg font-semibold text-foreground">Category</h3>
             <p className="text-sm text-muted">
               <Link href={`/articles/category/${article.category.slug}`} className="text-accent underline-offset-2 hover:underline">
@@ -422,23 +437,21 @@ async function renderArticlePage(article: ArticleWithRelations) {
         ) : null}
 
         {relatedArticles.length ? (
-          <section className="panel space-y-3 px-5 py-4">
+          <section className="panel space-y-3 px-4 py-5">
             <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3>
-            <ul className="space-y-2 text-sm">
+            <div className="space-y-3">
               {relatedArticles.map((item) => (
-                <li key={item.id}>
-                  <Link href={`/${item.slug}`} className="text-accent underline-offset-2 hover:underline">
+                <div key={item.id} className="space-y-1">
+                  <Link href={`/${item.slug}`} className="text-sm font-semibold text-foreground transition hover:text-accent">
                     {item.title}
                   </Link>
                   <div className="text-xs text-muted">{new Date(item.published_at).toLocaleDateString('en-US')}</div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         ) : null}
       </aside>
-
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     </div>
   );
 }
