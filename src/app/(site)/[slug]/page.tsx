@@ -404,10 +404,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
                 {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
               </span>
             </div>
-            <time className="text-sm text-foreground/80" dateTime={article.published_at}>
-              Published <span className="font-semibold text-foreground">{formattedPublished}</span>
-              {readingTime ? <span className="ml-2">• {readingTime} min read</span> : null}
-            </time>
+            {/* Removed published timestamp row for articles */}
           </div>
         </header>
 
