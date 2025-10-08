@@ -28,6 +28,7 @@ import {
   deleteGameById
 } from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 function parseMarkdownSections(markdown: string) {
   const result = {
@@ -172,7 +173,8 @@ export function GameDrawer({
     reset,
     watch,
     setValue,
-    formState: { errors }
+    getValues,
+    formState: { errors, isDirty }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues
@@ -181,7 +183,7 @@ export function GameDrawer({
   const slugRegister = register("slug");
 
   useEffect(() => {
-    reset(defaultValues);
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
     setActiveTab("content");
     setStatusMessage(null);
     setMarkdownError(null);
@@ -209,6 +211,26 @@ export function GameDrawer({
   const introValue = watch("intro_md");
   const redeemValue = watch("redeem_md");
   const descriptionValue = watch("description_md");
+
+  const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
+
+  const requestClose = useCallback(() => {
+    if (!confirmClose()) return;
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+    onClose();
+  }, [confirmClose, reset, defaultValues, onClose]);
+
+  const closeAfterSave = useCallback(
+    (values?: FormValues) => {
+      if (values) {
+        reset(values, { keepDirty: false, keepDirtyValues: false });
+      } else {
+        reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+      }
+      onClose();
+    },
+    [defaultValues, onClose, reset]
+  );
 
   useEffect(() => {
     if (game) return;
@@ -351,14 +373,16 @@ export function GameDrawer({
           setImageError(result?.error ?? "Upload failed. Please try again.");
           return;
         }
-        setValue("cover_image", result.url, { shouldDirty: true });
+        if (getValues("cover_image") !== result.url) {
+          setValue("cover_image", result.url, { shouldDirty: true });
+        }
       } catch (error) {
         setImageError(error instanceof Error ? error.message : "Upload failed. Please try again.");
       } finally {
         setImageUploading(false);
       }
     },
-    [setValue, slugValue]
+    [getValues, setValue, slugValue]
   );
 
   const onImageInputChange = useCallback(
@@ -506,7 +530,7 @@ export function GameDrawer({
           setStatusMessage("Saved changes");
         }
         onRefresh();
-        onClose();
+        closeAfterSave(finalValues);
       } catch (error) {
         console.error(error);
         setStatusMessage("Failed to save. Check console for details.");
@@ -533,18 +557,18 @@ export function GameDrawer({
         }
         setDeleteStatus("Game deleted.");
         onRefresh();
-        onClose();
+        closeAfterSave();
       } catch (error) {
         setDeleteStatus(error instanceof Error ? error.message : "Failed to delete game.");
       } finally {
         setDeletePending(false);
       }
     });
-  }, [game, onClose, onRefresh, startTransition]);
+  }, [closeAfterSave, game, onRefresh, startTransition]);
 
   return (
     <Transition show={open} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={requestClose} className="relative z-50">
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -578,7 +602,7 @@ export function GameDrawer({
                   </div>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="rounded-full border border-border/60 px-3 py-1 text-sm text-muted hover:text-foreground"
                   >
                     Close
@@ -714,13 +738,19 @@ export function GameDrawer({
                       </div>
                       <RichMarkdownEditor
                         label="Intro"
-                        value={watch("intro_md") ?? ""}
-                        onChange={(value) => setValue("intro_md", value, { shouldDirty: true })}
+                        value={introValue ?? ""}
+                        onChange={(value) => {
+                          if ((introValue ?? "") === value) return;
+                          setValue("intro_md", value, { shouldDirty: true });
+                        }}
                       />
                       <RichMarkdownEditor
                         label="How to redeem"
-                        value={watch("redeem_md") ?? ""}
-                        onChange={(value) => setValue("redeem_md", value, { shouldDirty: true })}
+                        value={redeemValue ?? ""}
+                        onChange={(value) => {
+                          if ((redeemValue ?? "") === value) return;
+                          setValue("redeem_md", value, { shouldDirty: true });
+                        }}
                       />
                       <div className="space-y-3">
                         {galleryCopyMessage ? (
@@ -816,8 +846,11 @@ export function GameDrawer({
                       </div>
                       <RichMarkdownEditor
                         label="Description"
-                        value={watch("description_md") ?? ""}
-                        onChange={(value) => setValue("description_md", value, { shouldDirty: true })}
+                        value={descriptionValue ?? ""}
+                        onChange={(value) => {
+                          if ((descriptionValue ?? "") === value) return;
+                          setValue("description_md", value, { shouldDirty: true });
+                        }}
                       />
                     </div>
                   ) : null}
@@ -915,7 +948,7 @@ export function GameDrawer({
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={onClose}
+                        onClick={requestClose}
                         className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted hover:text-foreground"
                       >
                         Cancel

@@ -1,15 +1,22 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { getSupabaseConfig } from "@/lib/supabase-config";
 
 export const metadata = {
   title: "Admin Overview"
 };
 
 export default async function AdminHomePage() {
+  const { supabaseUrl, supabaseKey, cookieOptions } = getSupabaseConfig();
+
   const cookieStore = cookies();
   const supabase = createServerComponentClient({
     cookies: () => cookieStore
+  }, {
+    supabaseUrl,
+    supabaseKey,
+    cookieOptions
   });
 
   const {

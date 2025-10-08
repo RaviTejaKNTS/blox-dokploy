@@ -20,6 +20,7 @@ import { RichMarkdownEditor } from "@/components/admin/editor/RichMarkdownEditor
 import { saveArticle, deleteArticle, uploadArticleAsset } from "@/app/admin/(dashboard)/articles/actions";
 import { slugify } from "@/lib/slug";
 import Link from "next/link";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -96,9 +97,10 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     control,
-    formState: { errors }
+    formState: { errors, isDirty }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues
@@ -111,8 +113,28 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
   const isPublished = watch("is_published");
   const uploadSlug = useMemo(() => slugify(slugValue || titleValue || "article"), [slugValue, titleValue]);
 
+  const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
+
+  const requestClose = useCallback(() => {
+    if (!confirmClose()) return;
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+    onClose();
+  }, [confirmClose, reset, defaultValues, onClose]);
+
+  const closeAfterSave = useCallback(
+    (values?: FormValues) => {
+      if (values) {
+        reset(values, { keepDirty: false, keepDirtyValues: false });
+      } else {
+        reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+      }
+      onClose();
+    },
+    [defaultValues, onClose, reset]
+  );
+
   useEffect(() => {
-    reset(defaultValues);
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
     setActiveTab("content");
     setStatusMessage(null);
     setMarkdownError(null);
@@ -144,13 +166,15 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
       if (!file) return;
       try {
         const text = await file.text();
+        const current = getValues("content_md");
+        if (current === text) return;
         setValue("content_md", text, { shouldDirty: true });
         setMarkdownError(null);
       } catch (error) {
         setMarkdownError(error instanceof Error ? error.message : "Failed to read markdown file.");
       }
     },
-    [setValue]
+    [getValues, setValue]
   );
 
   const onMarkdownInputChange = useCallback(
@@ -207,7 +231,9 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
           return;
         }
         if ("url" in result && result.url) {
-          setValue("cover_image", result.url, { shouldDirty: true });
+          if (getValues("cover_image") !== result.url) {
+            setValue("cover_image", result.url, { shouldDirty: true });
+          }
         }
       } catch (error) {
         setCoverError(error instanceof Error ? error.message : "Upload failed. Please try again.");
@@ -215,7 +241,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
         setCoverUploading(false);
       }
     },
-    [setValue, uploadSlug]
+    [getValues, setValue, uploadSlug]
   );
 
   const onCoverInputChange = useCallback(
@@ -352,7 +378,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
         }
         setStatusMessage({ tone: "success", text: "Article saved." });
         onRefresh();
-        onClose();
+        closeAfterSave(values);
       } catch (error) {
         setStatusMessage({
           tone: "error",
@@ -378,7 +404,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
         }
         setStatusMessage({ tone: "success", text: "Article deleted." });
         onRefresh();
-        onClose();
+        closeAfterSave();
       } catch (error) {
         setStatusMessage({
           tone: "error",
@@ -393,7 +419,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
 
   return (
     <Transition show={open} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={requestClose} className="relative z-50">
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -428,7 +454,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
                   </div>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="rounded-full border border-border/60 px-3 py-1 text-sm text-muted hover:text-foreground"
                   >
                     Close
@@ -585,7 +611,10 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
                         <RichMarkdownEditor
                           label="Markdown content"
                           value={contentValue}
-                          onChange={(value) => setValue("content_md", value, { shouldDirty: true })}
+                          onChange={(value) => {
+                            if (getValues("content_md") === value) return;
+                            setValue("content_md", value, { shouldDirty: true });
+                          }}
                         />
                         <label
                           onDragOver={onMarkdownDragOver}
@@ -719,7 +748,7 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={onClose}
+                        onClick={requestClose}
                         className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted hover:text-foreground"
                       >
                         Cancel

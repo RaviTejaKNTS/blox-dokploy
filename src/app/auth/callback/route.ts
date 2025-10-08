@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { getSupabaseConfig } from "@/lib/supabase-config";
 
 export async function POST(request: Request) {
+  const { supabaseUrl, supabaseKey, cookieOptions } = getSupabaseConfig();
+
   const supabase = createRouteHandlerClient({
     cookies
+  }, {
+    supabaseUrl,
+    supabaseKey,
+    cookieOptions
   });
 
   const { event, session } = await request.json();
@@ -20,4 +27,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ status: "ok" });
 }
-

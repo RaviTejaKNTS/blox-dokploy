@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient, createServerActionClient } from "@supabase/auth-helpers-nextjs";
 import type { Session } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseConfig } from "@/lib/supabase-config";
 
 export class AdminAccessError extends Error {
   constructor(public readonly code: "not-authenticated" | "not-authorized", message?: string) {
@@ -16,17 +17,6 @@ type RequireAdminResult = {
   role: string;
 };
 
-const supabaseEnv = {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
-};
-
-function assertSupabaseEnv() {
-  if (!supabaseEnv.supabaseUrl || !supabaseEnv.supabaseKey) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-}
-
 async function fetchAdminRole(client: SupabaseClient, userId: string) {
   const { data, error } = await client
     .from("admin_users")
@@ -39,13 +29,14 @@ async function fetchAdminRole(client: SupabaseClient, userId: string) {
 }
 
 export async function requireAdmin(): Promise<RequireAdminResult> {
-  assertSupabaseEnv();
+  const { supabaseUrl, supabaseKey, cookieOptions } = getSupabaseConfig();
   const cookieStore = cookies();
   const supabase = createServerComponentClient({
     cookies: () => cookieStore
   }, {
-    supabaseUrl: supabaseEnv.supabaseUrl!,
-    supabaseKey: supabaseEnv.supabaseKey!
+    supabaseUrl,
+    supabaseKey,
+    cookieOptions
   });
 
   const {
@@ -65,12 +56,13 @@ export async function requireAdmin(): Promise<RequireAdminResult> {
 }
 
 export async function requireAdminAction() {
-  assertSupabaseEnv();
+  const { supabaseUrl, supabaseKey, cookieOptions } = getSupabaseConfig();
   const supabase = createServerActionClient({
     cookies
   }, {
-    supabaseUrl: supabaseEnv.supabaseUrl!,
-    supabaseKey: supabaseEnv.supabaseKey!
+    supabaseUrl,
+    supabaseKey,
+    cookieOptions
   });
 
   const {

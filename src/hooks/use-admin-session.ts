@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
+type AdminRole = string | null | undefined;
+
 export function useAdminSession() {
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<AdminRole>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,9 +22,9 @@ export function useAdminSession() {
 
       if (!mounted) return;
       setSession(session ?? null);
-      setLoading(false);
 
       if (session) {
+        setRole(undefined);
         const { data } = await supabase
           .from("admin_users")
           .select("role")
@@ -33,6 +35,10 @@ export function useAdminSession() {
       } else {
         setRole(null);
       }
+
+      if (mounted) {
+        setLoading(false);
+      }
     }
 
     bootstrap();
@@ -41,6 +47,7 @@ export function useAdminSession() {
       if (!mounted) return;
       setSession(nextSession ?? null);
       if (nextSession) {
+        setRole(undefined);
         const { data } = await supabase
           .from("admin_users")
           .select("role")

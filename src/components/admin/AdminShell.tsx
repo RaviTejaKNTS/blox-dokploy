@@ -20,14 +20,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [signingOut, setSigningOut] = useState(false);
   const { session, role, loading } = useAdminSession();
   const email = session?.user.email ?? "";
+  const roleResolved = role !== undefined;
 
   useEffect(() => {
-    if (loading) return;
-    if (!session || !role) {
+    if (loading || !roleResolved) return;
+    if (!session || role === null) {
       const search = new URLSearchParams({ redirect: pathname || "/admin" });
       router.replace(`/admin/login?${search.toString()}`);
     }
-  }, [loading, session, role, router, pathname]);
+  }, [loading, roleResolved, session, role, router, pathname]);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
@@ -93,7 +94,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <span className="font-semibold text-foreground">
                 {loading ? "Loading…" : email || "Unknown"}
               </span>
-              <span className="uppercase tracking-wide">{role ?? ""}</span>
+              <span className="uppercase tracking-wide">{roleResolved ? role ?? "" : ""}</span>
             </div>
             <button
               type="button"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import type { AdminCategorySummary } from "@/lib/admin/categories";
 import { saveArticleCategory, deleteArticleCategory } from "@/app/admin/(dashboard)/article-categories/actions";
 import Link from "next/link";
 import { slugify } from "@/lib/slug";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -51,14 +52,34 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
     register,
     handleSubmit,
     reset,
-    formState: { errors }
+    formState: { errors, isDirty }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues
   });
 
+  const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
+
+  const requestClose = useCallback(() => {
+    if (!confirmClose()) return;
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+    onClose();
+  }, [confirmClose, reset, defaultValues, onClose]);
+
+  const closeAfterSave = useCallback(
+    (values?: FormValues) => {
+      if (values) {
+        reset(values, { keepDirty: false, keepDirtyValues: false });
+      } else {
+        reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
+      }
+      onClose();
+    },
+    [defaultValues, onClose, reset]
+  );
+
   useEffect(() => {
-    reset(defaultValues);
+    reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
     setStatusMessage(null);
   }, [defaultValues, reset, open]);
 
@@ -84,7 +105,7 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
         }
         setStatusMessage({ tone: "success", text: "Category saved." });
         onRefresh();
-        onClose();
+        closeAfterSave(values);
       } catch (error) {
         setStatusMessage({
           tone: "error",
@@ -110,7 +131,7 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
         }
         setStatusMessage({ tone: "success", text: "Category deleted." });
         onRefresh();
-        onClose();
+        closeAfterSave();
       } catch (error) {
         setStatusMessage({
           tone: "error",
@@ -125,7 +146,7 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
 
   return (
     <Transition show={open} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={requestClose} className="relative z-50">
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -160,7 +181,7 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
                   </div>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="rounded-full border border-border/60 px-3 py-1 text-sm text-muted hover:text-foreground"
                   >
                     Close
@@ -248,7 +269,7 @@ export function CategoryDrawer({ open, onClose, onRefresh, category }: CategoryD
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={onClose}
+                        onClick={requestClose}
                         className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted hover:text-foreground"
                       >
                         Cancel

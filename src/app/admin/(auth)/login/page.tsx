@@ -1,12 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { getSupabaseConfig } from "@/lib/supabase-config";
 import { AdminLoginForm } from "./LoginForm";
-
-const supabaseEnv = {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
-};
 
 function sanitizeRedirect(input?: string | string[] | null): string {
   if (!input || Array.isArray(input)) return "/admin";
@@ -25,16 +21,15 @@ export default async function AdminLoginPage({
 }: {
   searchParams: { redirect?: string | string[]; error?: string | string[] };
 }) {
-  if (!supabaseEnv.supabaseUrl || !supabaseEnv.supabaseKey) {
-    throw new Error("Supabase environment variables are not configured");
-  }
+  const { supabaseUrl, supabaseKey, cookieOptions } = getSupabaseConfig();
 
   const cookieStore = cookies();
   const supabase = createServerComponentClient({
     cookies: () => cookieStore
   }, {
-    supabaseUrl: supabaseEnv.supabaseUrl,
-    supabaseKey: supabaseEnv.supabaseKey
+    supabaseUrl,
+    supabaseKey,
+    cookieOptions
   });
 
   const {
