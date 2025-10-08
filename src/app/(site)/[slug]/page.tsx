@@ -256,7 +256,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       : article.cover_image
       ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
       : `${SITE_URL}/og-image.png`;
-    const description = (article.meta_description || article.excerpt || markdownToPlainText(article.content_md)).trim();
+    const description = (article.meta_description || markdownToPlainText(article.content_md)).trim();
 
     return {
       title: article.title,
@@ -293,7 +293,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
     : article.cover_image
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : null;
-  const descriptionPlain = (article.meta_description || article.excerpt || markdownToPlainText(article.content_md)).trim();
+  const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
   const [articleHtml, authorBioHtml, categoryArticles, latestArticles] = await Promise.all([
     renderMarkdown(article.content_md),
     article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
@@ -310,7 +310,6 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
   const publishedDate = new Date(article.published_at);
   const updatedDate = new Date(article.updated_at);
-  const readingTime = article.reading_time_minutes ?? Math.max(1, Math.ceil(((article.word_count ?? 0) || 0) / 200));
   const formattedPublished = publishedDate.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",

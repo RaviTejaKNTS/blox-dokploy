@@ -4,17 +4,14 @@ export interface AdminArticleSummary {
   id: string;
   title: string;
   slug: string;
-  excerpt: string | null;
   content_md: string;
   cover_image: string | null;
   is_published: boolean;
   published_at: string | null;
   created_at: string;
   updated_at: string;
-  reading_time_minutes: number | null;
   word_count: number | null;
   meta_description: string | null;
-  meta_keywords: string | null;
   author: { id: string | null; name: string | null };
   category: { id: string | null; name: string | null };
 }
@@ -48,8 +45,8 @@ export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminA
   const { data, error } = await client
     .from("articles")
     .select(
-      `id, title, slug, excerpt, content_md, cover_image, is_published, published_at, created_at, updated_at,
-       reading_time_minutes, word_count, meta_description, meta_keywords,
+      `id, title, slug, content_md, cover_image, is_published, published_at, created_at, updated_at,
+       word_count, meta_description,
        author:authors ( id, name ),
        category:article_categories ( id, name )`
     )
@@ -63,17 +60,14 @@ export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminA
     id: article.id,
     title: article.title,
     slug: article.slug,
-    excerpt: article.excerpt ?? null,
     content_md: article.content_md ?? "",
     cover_image: article.cover_image ?? null,
     is_published: Boolean(article.is_published),
     published_at: article.published_at ?? null,
     created_at: article.created_at,
     updated_at: article.updated_at,
-    reading_time_minutes: article.reading_time_minutes ?? null,
     word_count: article.word_count ?? null,
     meta_description: article.meta_description ?? null,
-    meta_keywords: article.meta_keywords ?? null,
     author: normalizeRelation(article.author as { id: string; name: string } | null | undefined),
     category: normalizeRelation(article.category as { id: string; name: string } | null | undefined)
   }));

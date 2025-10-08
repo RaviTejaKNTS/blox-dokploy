@@ -52,7 +52,6 @@ export type Article = {
   id: string;
   title: string;
   slug: string;
-  excerpt: string | null;
   content_md: string;
   cover_image: string | null;
   author_id: string | null;
@@ -61,10 +60,8 @@ export type Article = {
   published_at: string;
   created_at: string;
   updated_at: string;
-  reading_time_minutes: number | null;
   word_count: number | null;
   meta_description: string | null;
-  meta_keywords: string | null;
 };
 
 export type ArticleWithRelations = Article & {

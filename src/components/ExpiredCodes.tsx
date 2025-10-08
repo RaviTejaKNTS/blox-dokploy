@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export function ExpiredCodes({ codes }: { codes: string[] }) {
   const [expanded, setExpanded] = useState(false);
   const [initialCount, setInitialCount] = useState(4);
+  const listId = "expired-codes-list";
 
   useEffect(() => {
     function computeCount(width: number) {
@@ -33,7 +34,10 @@ export function ExpiredCodes({ codes }: { codes: string[] }) {
 
   return (
     <div className="space-y-3">
-      <ul className="mt-3 grid grid-cols-2 gap-2 text-xs text-foreground/80 sm:grid-cols-3 md:grid-cols-4">
+      <ul
+        id={listId}
+        className="mt-3 grid grid-cols-2 gap-2 text-xs text-foreground/80 sm:grid-cols-3 md:grid-cols-4"
+      >
         {visible.map((code) => (
           <li key={code} className="rounded-full border border-border/40 bg-surface-muted/70 px-3 py-1 text-center font-medium text-muted">
             <code>{code}</code>
@@ -45,6 +49,7 @@ export function ExpiredCodes({ codes }: { codes: string[] }) {
           type="button"
           className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent-dark"
           aria-expanded={expanded}
+          aria-controls={listId}
           onClick={() => setExpanded((prev) => !prev)}
         >
           <span>{label}</span>

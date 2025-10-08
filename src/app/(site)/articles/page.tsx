@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { listArticleCategories, listPublishedArticles } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
+import { markdownToPlainText } from "@/lib/markdown";
 
 export const revalidate = 300;
 
@@ -88,10 +89,10 @@ export default async function ArticlesIndexPage() {
                       </Link>
                     </h3>
                     <p className="line-clamp-3 text-sm text-muted">
-                      {article.excerpt ?? article.meta_description ?? SITE_DESCRIPTION}
+                      {(article.meta_description ?? markdownToPlainText(article.content_md).slice(0, 160)) || SITE_DESCRIPTION}
                     </p>
                     <div className="mt-auto flex items-center justify-between text-xs text-muted">
-                      <span>{article.reading_time_minutes ? `${article.reading_time_minutes} min read` : `${article.word_count ?? 0} words`}</span>
+                      <span>{Math.max(1, Math.ceil(((article.word_count ?? 0) || 0) / 200))} min read</span>
                       <Link href={`/${article.slug}`} className="text-accent underline-offset-2 hover:underline">
                         Read article
                       </Link>

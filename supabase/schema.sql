@@ -91,7 +91,6 @@ create table if not exists public.articles (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   slug text not null unique,
-  excerpt text,
   content_md text not null,
   cover_image text,
   author_id uuid references public.authors(id) on delete set null,
@@ -100,10 +99,8 @@ create table if not exists public.articles (
   published_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  reading_time_minutes int,
   word_count int,
-  meta_description text,
-  meta_keywords text
+  meta_description text
 );
 
 create index if not exists idx_articles_published on public.articles (is_published);

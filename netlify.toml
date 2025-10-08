@@ -15,4 +15,3 @@
   for = "/*"
 
   [headers.values]
-    X-Powered-By = "Next.js"

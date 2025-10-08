@@ -26,7 +26,6 @@ const formSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Title is required"),
   slug: z.string().optional(),
-  excerpt: z.string().optional(),
   content_md: z.string().min(1, "Content is required"),
   cover_image: z
     .string()
@@ -36,7 +35,6 @@ const formSchema = z.object({
   author_id: z.string().optional(),
   category_id: z.string().optional(),
   meta_description: z.string().optional(),
-  meta_keywords: z.string().optional(),
   is_published: z.boolean().optional()
 });
 
@@ -82,13 +80,11 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
     id: article?.id,
     title: article?.title ?? "",
     slug: article?.slug ?? "",
-    excerpt: article?.excerpt ?? "",
     content_md: article?.content_md ?? "",
     cover_image: article?.cover_image ?? "",
     author_id: article?.author.id ?? "",
     category_id: article?.category.id ?? "",
     meta_description: article?.meta_description ?? "",
-    meta_keywords: article?.meta_keywords ?? "",
     is_published: article?.is_published ?? false
   }), [article]);
 
@@ -524,19 +520,6 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-foreground" htmlFor="article-excerpt">
-                          Excerpt
-                        </label>
-                        <textarea
-                          id="article-excerpt"
-                          rows={3}
-                          {...register("excerpt")}
-                          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                        />
-                        {errors.excerpt ? <p className="text-xs text-destructive">{errors.excerpt.message}</p> : null}
-                      </div>
-
-                      <div className="space-y-2">
                         <label className="text-sm font-semibold text-foreground" htmlFor="article-cover">
                           Cover image
                         </label>
@@ -687,17 +670,6 @@ export function ArticleDrawer({ open, onClose, onRefresh, article, authors, cate
                           id="article-meta-description"
                           rows={3}
                           {...register("meta_description")}
-                          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-foreground" htmlFor="article-meta-keywords">
-                          Meta keywords (comma separated)
-                        </label>
-                        <input
-                          id="article-meta-keywords"
-                          type="text"
-                          {...register("meta_keywords")}
                           className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                         />
                       </div>

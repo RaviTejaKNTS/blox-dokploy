@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getArticleCategoryBySlug, listPublishedArticlesByCategory } from "@/lib/db";
 import { SITE_NAME } from "@/lib/seo";
+import { markdownToPlainText } from "@/lib/markdown";
 
 export const revalidate = 300;
 
@@ -79,7 +80,7 @@ export default async function ArticleCategoryPage({ params }: Params) {
                   <div className="flex flex-1 flex-col gap-4 p-6">
                     <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
                       <span>{publishedLabel}</span>
-                      {article.reading_time_minutes ? <span>{article.reading_time_minutes} min read</span> : null}
+                      <span>{Math.max(1, Math.ceil(((article.word_count ?? 0) || 0) / 200))} min read</span>
                     </div>
                     <h3 className="text-2xl font-semibold text-foreground">
                       <Link href={`/${article.slug}`} className="hover:text-accent">
@@ -87,7 +88,7 @@ export default async function ArticleCategoryPage({ params }: Params) {
                       </Link>
                     </h3>
                     <p className="line-clamp-3 text-sm text-muted">
-                      {article.excerpt ?? article.meta_description ?? ''}
+                      {article.meta_description ?? markdownToPlainText(article.content_md).slice(0, 160)}
                     </p>
                     <div className="mt-auto flex items-center justify-end text-xs text-muted">
                       <Link href={`/${article.slug}`} className="text-accent underline-offset-2 hover:underline">
