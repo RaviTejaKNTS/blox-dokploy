@@ -7,7 +7,7 @@ export async function GET() {
   const sb = supabaseAdmin();
   const origin = "https://bloxodes.com";
 
-  const [{ data: games }, { data: authors }, { data: articles }, { data: categories }] = await Promise.all([
+  const [{ data: games }, { data: authors }, { data: articles }] = await Promise.all([
     sb
       .from("games")
       .select("slug, updated_at")
@@ -23,10 +23,6 @@ export async function GET() {
       .from("articles")
       .select("slug, updated_at")
       .eq("is_published", true)
-      .order("updated_at", { ascending: false }),
-    sb
-      .from("article_categories")
-      .select("slug, updated_at")
       .order("updated_at", { ascending: false })
   ]);
 
@@ -80,16 +76,6 @@ export async function GET() {
       changefreq: "weekly",
       priority: "0.8",
       lastmod: article.updated_at ? new Date(article.updated_at).toISOString() : undefined
-    });
-  }
-
-  for (const category of categories || []) {
-    if (!category?.slug) continue;
-    pages.push({
-      loc: `${origin}/articles/category/${category.slug}`,
-      changefreq: "weekly",
-      priority: "0.6",
-      lastmod: category.updated_at ? new Date(category.updated_at).toISOString() : undefined
     });
   }
 

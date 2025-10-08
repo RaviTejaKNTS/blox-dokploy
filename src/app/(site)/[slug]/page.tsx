@@ -420,30 +420,31 @@ async function renderArticlePage(article: ArticleWithRelations) {
       </article>
 
       <aside className="space-y-4">
-        <SocialShare url={canonicalUrl} title={article.title} />
+        <section className="space-y-3">
+          <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
+        </section>
 
-        {article.category ? (
+        {article.category && relatedArticles.length ? (
           <section className="panel space-y-3 px-4 py-5">
-            <h3 className="text-lg font-semibold text-foreground">Category</h3>
-            <p className="text-sm text-muted">
+            <h3 className="text-lg font-semibold text-foreground">
+              Check more articles on{' '}
               <Link href={`/articles/category/${article.category.slug}`} className="text-accent underline-offset-2 hover:underline">
                 {article.category.name}
               </Link>
-            </p>
-          </section>
-        ) : null}
-
-        {relatedArticles.length ? (
-          <section className="panel space-y-3 px-4 py-5">
-            <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3>
-            <div className="space-y-3">
-              {relatedArticles.map((item) => (
-                <div key={item.id} className="space-y-1">
+            </h3>
+            <div className="space-y-4">
+              {relatedArticles.slice(0, 5).map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-[var(--radius-sm)] border border-border/60 bg-surface px-4 py-3"
+                >
                   <Link href={`/${item.slug}`} className="text-sm font-semibold text-foreground transition hover:text-accent">
                     {item.title}
                   </Link>
-                  <div className="text-xs text-muted">{new Date(item.published_at).toLocaleDateString('en-US')}</div>
-                </div>
+                  <div className="mt-1 text-xs text-muted">
+                    {new Date(item.published_at).toLocaleDateString('en-US')}
+                  </div>
+                </article>
               ))}
             </div>
           </section>
@@ -719,7 +720,7 @@ export default async function GamePage({ params }: Params) {
           </section>
         ) : null}
 
-        <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="active-codes">
+          <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="active-codes">
           <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
             <h2>Active {game.name} Codes</h2>
             {active.length > 0 ? (
@@ -739,7 +740,7 @@ export default async function GamePage({ params }: Params) {
                 return (
                   <article
                     key={c.id}
-                    className="rounded-[var(--radius-sm)] border border-accent/25 bg-surface px-5 py-4 shadow-soft transition hover:-translate-y-[1px] hover:border-accent/40 hover:shadow-lg"
+                    className="rounded-[var(--radius-sm)] border border-accent/25 bg-surface px-5 py-4 shadow-soft"
                   >
                     <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
                       <div className="basis-full flex flex-col gap-3 md:basis-auto">
@@ -791,7 +792,7 @@ export default async function GamePage({ params }: Params) {
                 return (
                   <article
                     key={c.id}
-                    className="rounded-[var(--radius-sm)] border border-amber-200/70 bg-surface px-5 py-4 shadow-soft transition hover:-translate-y-[1px] hover:border-amber-300 dark:border-amber-500/40"
+                    className="rounded-[var(--radius-sm)] border border-amber-200/70 bg-surface px-5 py-4 shadow-soft"
                   >
                     <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
                       <div className="basis-full flex flex-col gap-3 md:basis-auto">

@@ -11,9 +11,10 @@ import {
 type SocialShareProps = {
   url: string;
   title: string;
+  heading?: string;
 };
 
-export function SocialShare({ url, title }: SocialShareProps) {
+export function SocialShare({ url, title, heading = "Share these codes with your friends" }: SocialShareProps) {
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
 
@@ -54,7 +55,7 @@ export function SocialShare({ url, title }: SocialShareProps) {
 
   return (
     <div className="mb-4 p-2">
-      <h3 className="text-lg font-semibold text-foreground mb-3">Share these codes with your friends</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-3">{heading}</h3>
       <div className="flex items-center gap-2">
         {socialLinks.map((social) => (
           <a
