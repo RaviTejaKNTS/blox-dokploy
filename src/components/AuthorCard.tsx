@@ -38,6 +38,8 @@ export function AuthorCard({ author, bioHtml }: AuthorCardProps) {
           src={avatar}
           alt={author.name}
           className="h-24 w-24 rounded-full border border-border/50 object-cover shadow-soft"
+          loading="lazy"
+          decoding="async"
         />
       </div>
       <div className="flex-1 space-y-3">

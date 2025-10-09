@@ -132,7 +132,7 @@ Sections required:
    - If in the requirements, there's a link to follow any community or anything, include that link when mentioning requirements.
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences.
-   - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available). Link the correct anchor text, don't link to words like here. 
+   - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available). Link to the anchor text of ${gameName}
    - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. 
 3. description_md – include all these sections:
    - ## Why Is My ${gameName} Code Not Working?

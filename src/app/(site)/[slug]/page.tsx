@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FaTelegramPlane } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
 import { formatDistanceToNow } from "date-fns";
+import "@/styles/article-content.css";
 import { AuthorCard } from "@/components/AuthorCard";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
@@ -375,6 +376,8 @@ async function renderArticlePage(article: ArticleWithRelations) {
                     src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
                     alt={article.author.name}
                     className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span>
                     Authored by {article.author.slug ? (
@@ -675,6 +678,8 @@ export default async function GamePage({ params }: Params) {
                     src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
                     alt={author.name}
                     className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span>
                     Authored by {author.slug ? (
