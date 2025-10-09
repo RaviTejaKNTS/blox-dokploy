@@ -1,22 +1,70 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 
 type GoogleAnalyticsProps = {
   measurementId?: string;
+  idleDelay?: number;
 };
 
 const adminPrefix = "/admin";
+const DEFAULT_IDLE_DELAY = 3000;
 
-export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
-  const pathname = usePathname();
+type IdleWindow = typeof window & {
+  requestIdleCallback?: (callback: (deadline: IdleDeadline) => void, opts?: IdleRequestOptions) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
 
-  if (!measurementId) {
-    return null;
+function scheduleIdle(callback: () => void, delay: number) {
+  if (typeof window === "undefined") {
+    return () => {};
   }
 
-  if (pathname && pathname.startsWith(adminPrefix)) {
+  const idleWin = window as IdleWindow;
+
+  if (typeof idleWin.requestIdleCallback === "function") {
+    const handle = idleWin.requestIdleCallback(() => callback(), { timeout: delay });
+    return () => {
+      idleWin.cancelIdleCallback?.(handle);
+    };
+  }
+
+  const timeout = window.setTimeout(callback, delay);
+  return () => {
+    window.clearTimeout(timeout);
+  };
+}
+
+export function GoogleAnalytics({ measurementId, idleDelay = DEFAULT_IDLE_DELAY }: GoogleAnalyticsProps) {
+  const pathname = usePathname();
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  const isBlockedRoute = useMemo(() => {
+    return Boolean(pathname && pathname.startsWith(adminPrefix));
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!measurementId || isBlockedRoute) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const cancel = scheduleIdle(() => {
+      if (!cancelled) {
+        setShouldLoad(true);
+      }
+    }, idleDelay);
+
+    return () => {
+      cancelled = true;
+      cancel();
+    };
+  }, [measurementId, idleDelay, isBlockedRoute]);
+
+  if (!measurementId || isBlockedRoute || !shouldLoad) {
     return null;
   }
 
@@ -24,9 +72,9 @@ export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
     <>
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
-      <Script id="google-analytics" strategy="lazyOnload">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}

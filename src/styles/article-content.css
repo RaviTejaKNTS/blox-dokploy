@@ -1,202 +1,253 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+.prose,
+.game-copy {
+  color: rgb(var(--color-foreground));
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
 
-@layer components {
+.prose > * + *,
+.game-copy > * + * {
+  margin-top: 1.5rem;
+}
+
+.prose img,
+.game-copy img {
+  border-radius: var(--radius-sm);
+  display: block;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+@media (min-width: 768px) {
   .prose img,
   .game-copy img {
-    @apply my-6 rounded-[var(--radius-sm)] w-full md:w-4/5;
-  }
-
-  .prose table,
-  .game-copy table {
-    @apply my-8 w-full overflow-hidden rounded-[var(--radius-lg)] border border-accent/20 text-left text-[0.98rem];
-    border-collapse: separate;
-    border-spacing: 0;
-    box-shadow: var(--shadow-soft);
-  }
-
-  .prose thead,
-  .game-copy thead {
-    background: rgba(var(--color-accent), 0.12);
-  }
-
-  .prose thead th,
-  .game-copy thead th {
-    @apply px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-foreground/90;
-    border-bottom: 1px solid rgba(var(--color-border), 0.5);
-    border-right: 1px solid rgba(var(--color-border), 0.45);
-  }
-
-  .prose thead th:last-child,
-  .game-copy thead th:last-child {
-    border-right: none;
-  }
-
-  .prose tbody tr,
-  .game-copy tbody tr {
-    background: rgb(var(--color-surface));
-  }
-
-  .prose tbody tr:nth-child(even),
-  .game-copy tbody tr:nth-child(even) {
-    background: rgba(var(--color-surface-muted), 0.75);
-  }
-
-  .prose td,
-  .game-copy td {
-    @apply px-5 py-3 align-top text-foreground/90;
-    border-bottom: 1px solid rgba(var(--color-border), 0.4);
-    border-right: 1px solid rgba(var(--color-border), 0.35);
-  }
-
-  .prose td:last-child,
-  .game-copy td:last-child {
-    border-right: none;
-  }
-
-  .prose tbody tr:first-child td,
-  .game-copy tbody tr:first-child td {
-    border-top: 1px solid rgba(var(--color-border), 0.4);
-  }
-
-  .prose tbody tr:last-child td,
-  .game-copy tbody tr:last-child td {
-    border-bottom: none;
+    width: 80%;
   }
 }
 
-@layer base {
-  .prose {
-    @apply space-y-6 text-[1.05rem] leading-[1.85] text-foreground;
-  }
+.prose table,
+.game-copy table {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(var(--color-accent-dark), 0.7);
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 2rem 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  text-align: left;
+  font-size: 0.98rem;
+}
 
-  .prose > * + * {
-    @apply mt-6;
-  }
+.prose thead,
+.game-copy thead {
+  background: rgba(var(--color-accent), 0.18);
+}
 
-  .dark .prose {
-    @apply text-foreground;
-  }
+.prose thead th,
+.game-copy thead th {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(var(--color-foreground), 0.92);
+  border-right: 1px solid rgba(var(--color-accent-dark), 0.5);
+  border-bottom: 2px solid rgba(var(--color-accent-dark), 0.6);
+}
 
-  .prose h1 {
-    @apply text-4xl font-semibold leading-[1.1] text-foreground md:text-5xl mb-6;
-  }
+.prose tbody tr,
+.game-copy tbody tr {
+  background: rgb(var(--color-surface));
+  border-top: 1px solid rgba(var(--color-accent-dark), 0.45);
+}
 
-  .prose h2 {
-    @apply text-3xl font-semibold mt-10 text-foreground md:text-4xl mb-4;
-  }
+.prose tbody tr:nth-child(even),
+.game-copy tbody tr:nth-child(even) {
+  background: rgba(var(--color-surface-muted), 0.82);
+}
 
-  .prose h3 {
-    @apply text-2xl font-semibold mt-8 text-foreground mb-3;
-  }
+.prose td,
+.game-copy td {
+  padding: 0.75rem 1.25rem;
+  color: rgba(var(--color-foreground), 0.92);
+  border-right: 1px solid rgba(var(--color-accent-dark), 0.45);
+  border-bottom: 1px solid rgba(var(--color-accent-dark), 0.45);
+}
 
-  .prose h4 {
-    @apply text-xl font-semibold mt-6 text-foreground mb-2;
-  }
+.prose thead th:last-child,
+.game-copy thead th:last-child,
+.prose td:last-child,
+.game-copy td:last-child {
+  border-right: none;
+}
 
-  .prose p {
-    @apply text-[1.05rem] leading-[1.85] text-foreground/90;
-  }
+.prose tbody tr:last-child td,
+.game-copy tbody tr:last-child td {
+  border-bottom: none;
+}
 
-  .prose strong {
-    @apply font-semibold text-foreground;
-  }
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.game-copy h1,
+.game-copy h2,
+.game-copy h3,
+.game-copy h4 {
+  color: rgb(var(--color-foreground));
+  margin-top: 0;
+  font-weight: 600;
+}
 
-  .prose em {
-    @apply italic text-foreground;
-  }
+.prose h1,
+.game-copy h1 {
+  font-size: 2.5rem;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+}
 
-  .prose ul,
-  .prose ol {
-    @apply mt-6 mb-6 space-y-3 pl-6 text-[1.05rem] leading-[1.85] text-foreground/90;
-  }
+.prose h2,
+.game-copy h2 {
+  font-size: 2rem;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
 
-  .prose ul {
-    list-style-type: disc;
-  }
+.prose h3,
+.game-copy h3 {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 2rem 0 0.75rem;
+}
 
-  .prose ol {
-    list-style-type: decimal;
-  }
+.prose h4,
+.game-copy h4 {
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin: 1.75rem 0 0.5rem;
+}
 
-  .prose li {
-    @apply leading-[1.85];
-  }
+.prose p,
+.game-copy p {
+  color: rgba(var(--color-foreground), 0.9);
+}
 
-  .prose li > ul,
-  .prose li > ol {
-    @apply mt-2;
-  }
+.game-copy p {
+  font-size: 1.08rem;
+  letter-spacing: 0.012em;
+}
 
-  .prose a {
-    @apply font-semibold text-accent underline-offset-[6px] transition hover:text-accent-dark;
-  }
-
-  .prose a strong,
-  .prose strong a {
-    @apply text-accent-dark;
-  }
-
-  .prose blockquote {
-    @apply border-l-4 border-accent/40 pl-4 italic text-foreground/75;
-  }
-
-  .prose code {
-    @apply rounded-[0.5rem] bg-surface px-2 py-0.5 text-sm font-mono text-foreground;
-  }
-
-  .prose pre {
-    @apply overflow-x-auto rounded-[var(--radius-lg)] p-5 text-[0.95rem] text-foreground border border-border/50;
-    background: rgb(var(--color-surface-muted));
-  }
-
-  .prose hr {
-    @apply border-t border-border/60 my-6;
-  }
-
+@media (min-width: 768px) {
   .game-copy p {
-    font-size: 1.08rem;
-    line-height: 1.9;
-    letter-spacing: 0.012em;
+    font-size: 1.14rem;
+    line-height: 1.95;
+    letter-spacing: 0.014em;
   }
+}
 
-  @media (min-width: 768px) {
-    .game-copy p {
-      font-size: 1.14rem;
-      line-height: 1.95;
-      letter-spacing: 0.014em;
-    }
-  }
+.prose strong,
+.game-copy strong {
+  font-weight: 600;
+  color: rgb(var(--color-foreground));
+}
 
-  .game-copy li,
-  .game-copy blockquote {
-    font-size: 1.08rem;
-    line-height: 1.85;
-    letter-spacing: 0.012em;
-  }
+.prose em,
+.game-copy em {
+  font-style: italic;
+}
 
-  .game-copy ul,
-  .game-copy ol {
-    margin-top: 1.5rem;
-    margin-bottom: 1.5rem;
-    padding-left: 1.75rem;
-  }
+.prose ul,
+.prose ol,
+.game-copy ul,
+.game-copy ol {
+  margin: 1.5rem 0;
+  padding-left: 1.75rem;
+  list-style-position: outside;
+}
 
-  .game-copy li + li {
-    margin-top: 0.6rem;
-  }
+.prose ul,
+.game-copy ul {
+  list-style-type: disc;
+}
 
-  .game-copy > * + * {
-    margin-top: 1.75rem;
-  }
+.prose ol,
+.game-copy ol {
+  list-style-type: decimal;
+}
 
-  @media (min-width: 768px) {
-    .game-copy li,
-    .game-copy blockquote {
-      font-size: 1.14rem;
-      line-height: 1.9;
-      letter-spacing: 0.014em;
-    }
-  }
+.prose li,
+.game-copy li {
+  line-height: 1.85;
+}
+
+.prose li + li,
+.game-copy li + li {
+  margin-top: 0.6rem;
+}
+
+.prose li > ul,
+.prose li > ol,
+.game-copy li > ul,
+.game-copy li > ol {
+  margin-top: 0.75rem;
+}
+
+.prose a,
+.game-copy a {
+  color: rgb(var(--color-accent));
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  transition: color 0.2s ease;
+}
+
+.prose a:hover,
+.game-copy a:hover {
+  color: rgb(var(--color-accent-dark));
+}
+
+.prose blockquote,
+.game-copy blockquote {
+  border-left: 4px solid rgba(var(--color-accent), 0.4);
+  color: rgba(var(--color-foreground), 0.75);
+  font-style: italic;
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+}
+
+.prose code,
+.game-copy code {
+  background: rgb(var(--color-surface));
+  border-radius: 0.5rem;
+  color: rgb(var(--color-foreground));
+  font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9rem;
+  padding: 0.125rem 0.5rem;
+}
+
+.prose pre,
+.game-copy pre {
+  background: rgb(var(--color-surface-muted));
+  border: 1px solid rgba(var(--color-border), 0.5);
+  border-radius: var(--radius-lg);
+  color: rgb(var(--color-foreground));
+  font-size: 0.95rem;
+  margin: 2rem 0;
+  overflow-x: auto;
+  padding: 1.25rem;
+}
+
+.prose hr,
+.game-copy hr {
+  border: none;
+  border-top: 1px solid rgba(var(--color-border), 0.6);
+  margin: 1.5rem 0;
+}
+
+.prose.dark,
+.game-copy.dark,
+.dark .prose,
+.dark .game-copy {
+  color: rgb(var(--color-foreground));
 }

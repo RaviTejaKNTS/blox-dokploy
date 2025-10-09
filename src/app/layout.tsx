@@ -112,13 +112,11 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className="dark" data-theme="dark">
-      <head>
-        <GoogleAdSense clientId={googleAdSenseClientId} />
-      </head>
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
+        <GoogleAdSense clientId={googleAdSenseClientId} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
         <GlobalSearchOverlay />
         {children}
