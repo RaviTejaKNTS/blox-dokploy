@@ -11,7 +11,7 @@
     "import:games": "tsx scripts/import-games.ts",
     "post:codes": "tsx scripts/post-codes.ts",
     "post:online": "tsx scripts/post-online.ts",
-    "generate": "tsx scripts/generateGameArticle.tsx"
+    "generate": "tsx scripts/generate-game-article.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

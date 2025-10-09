@@ -5,7 +5,8 @@ import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin-auth";
 import { Buffer } from "node:buffer";
 import sharp from "sharp";
-import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
+import { computeGameDetails } from "@/lib/admin/game-import";
+import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -240,30 +241,69 @@ export async function deleteCode(form: FormData) {
 export async function deleteGameById(id: string) {
   const { supabase } = await requireAdminAction();
 
-  const { data, error } = await supabase
+  type GameSlugRow = { slug: string | null };
+  const { data: game, error: gameError } = await supabase
     .from("games")
-    .delete()
+    .select<GameSlugRow>("slug")
     .eq("id", id)
-    .select("slug")
     .maybeSingle();
 
-  if (error) {
-    return { success: false, error: error.message };
+  if (gameError) {
+    return { success: false, error: gameError.message };
+  }
+
+  if (!game) {
+    return { success: false, error: "Game not found" };
+  }
+
+  type CategoryRow = { slug: string | null };
+  const { data: categoryRows, error: categoryQueryError } = await supabase
+    .from("article_categories")
+    .select<CategoryRow>("slug")
+    .eq("game_id", id);
+
+  if (categoryQueryError) {
+    return { success: false, error: categoryQueryError.message };
+  }
+
+  if ((categoryRows?.length ?? 0) > 0) {
+    const { error: categoryDeleteError } = await supabase
+      .from("article_categories")
+      .delete()
+      .eq("game_id", id);
+
+    if (categoryDeleteError) {
+      return { success: false, error: categoryDeleteError.message };
+    }
+  }
+
+  const { error: gameDeleteError } = await supabase.from("games").delete().eq("id", id);
+
+  if (gameDeleteError) {
+    return { success: false, error: gameDeleteError.message };
   }
 
   revalidatePath("/admin/games");
+  revalidatePath("/admin/article-categories");
   revalidatePath("/articles");
-  if (data?.slug) {
-    revalidatePath(`/${data.slug}`);
-    revalidatePath(`/articles/category/${data.slug}`);
+
+  const categorySlugs = new Set<string>();
+  for (const row of categoryRows ?? []) {
+    if (row?.slug) {
+      categorySlugs.add(row.slug);
+    }
+  }
+
+  if (game.slug) {
+    categorySlugs.add(game.slug);
+    revalidatePath(`/${game.slug}`);
+  }
+
+  for (const slug of categorySlugs) {
+    revalidatePath(`/articles/category/${slug}`);
   }
 
   return { success: true };
-}
-
-function normalizeCodeForComparison(code: string | null | undefined) {
-  if (!code) return null;
-  return code.replace(/\s+/g, "").trim();
 }
 
 export async function uploadGameImage(form: FormData) {
@@ -336,53 +376,17 @@ export async function refreshGameCodes(slug: string) {
     return { success: false, error: error?.message ?? "Game not found" };
   }
 
-  const sources = [game.source_url, game.source_url_2, game.source_url_3];
-  const syncResult = await syncGameCodesFromSources(supabase, game.id, sources);
+  const refreshResult = await refreshGameCodesWithSupabase(supabase, game);
 
-  if (syncResult.errors.length) {
-    return { success: false, error: syncResult.errors.join(", ") };
-  }
-
-  const { data: existingRows, error: existingError } = await supabase
-    .from("codes")
-    .select("code, status")
-    .eq("game_id", game.id);
-
-  if (existingError) {
-    return { success: false, error: existingError.message };
-  }
-
-  const incomingNormalized = new Set(
-    (syncResult.codes ?? []).map((entry) => normalizeCodeForComparison(entry.code)).filter((value): value is string => Boolean(value))
-  );
-
-  const toDelete = (existingRows ?? [])
-    .filter((row) => row.status === "active" || row.status === "check")
-    .map((row) => ({
-      normalized: normalizeCodeForComparison(row.code),
-      original: row.code
-    }))
-    .filter((entry) => entry.normalized && !incomingNormalized.has(entry.normalized))
-    .map((entry) => entry.original)
-    .filter((code): code is string => Boolean(code));
-
-  if (toDelete.length) {
-    const { error: deleteError } = await supabase
-      .from("codes")
-      .delete()
-      .eq("game_id", game.id)
-      .in("code", toDelete);
-
-    if (deleteError) {
-      return { success: false, error: deleteError.message };
-    }
+  if (!refreshResult.success) {
+    return refreshResult;
   }
 
   revalidatePath("/admin/games");
   return {
     success: true,
-    found: syncResult.codesFound,
-    upserted: syncResult.codesUpserted,
-    removed: toDelete.length
+    found: refreshResult.found,
+    upserted: refreshResult.upserted,
+    removed: refreshResult.removed
   };
 }

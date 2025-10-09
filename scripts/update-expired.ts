@@ -12,6 +12,30 @@ const ONLY_SLUGS = (process.env.REFRESH_ONLY_SLUGS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+function collectSlugsFromArgs(): string[] {
+  const args = process.argv.slice(2);
+  const slugs: string[] = [];
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--slug" || arg === "-s") {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --slug option");
+      }
+      slugs.push(value.trim());
+      i += 1;
+    } else if (arg.startsWith("--slug=")) {
+      slugs.push(arg.slice("--slug=".length).trim());
+    }
+  }
+
+  return slugs.filter(Boolean);
+}
+
+const CLI_SLUGS = collectSlugsFromArgs();
+const TARGET_SLUGS = Array.from(new Set([...ONLY_SLUGS, ...CLI_SLUGS]));
+
 type GameRow = Game & {
   source_url: string | null;
   source_url_2: string | null;
@@ -86,12 +110,12 @@ async function processExpiredCodes(sb: ReturnType<typeof supabaseAdmin>, game: G
 
 async function main() {
   console.log("\n▶ Expired codes refresh started");
-  if (ONLY_SLUGS.length) {
-    console.log(`   Filtering to slugs: ${ONLY_SLUGS.join(", ")}`);
+  if (TARGET_SLUGS.length) {
+    console.log(`   Filtering to slugs: ${TARGET_SLUGS.join(", ")}`);
   }
 
   const { sb, games } = await fetchPublishedGames();
-  const candidates = games.filter((g) => !ONLY_SLUGS.length || ONLY_SLUGS.includes(g.slug));
+  const candidates = games.filter((g) => !TARGET_SLUGS.length || TARGET_SLUGS.includes(g.slug));
 
   if (!candidates.length) {
     console.log("No games to refresh. Exiting.");
