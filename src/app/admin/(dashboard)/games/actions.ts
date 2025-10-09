@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin-auth";
 import { Buffer } from "node:buffer";
 import sharp from "sharp";
-import { computeGameDetails } from "@/lib/admin/game-import";
+import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
