@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { ScrapeResult, ScrapedCode } from "./scraper-types";
 
 const USER_AGENT = "Mozilla/5.0 (compatible; RobloxCodesBot/1.0)";
+const LIST_SEPARATOR_REGEX = /\s*:\s*|\s*[–—]\s*|(?:\s+-\s*|\s*-\s+)/;
 
 function normalizeCode(raw: string): string | null {
   if (!raw) return null;
@@ -12,6 +13,12 @@ function normalizeCode(raw: string): string | null {
   code = code.replace(/\(.*?\)/g, "").trim();
 
   if (!code) return null;
+
+  const spacedParts = code.split(/\s+/).filter(Boolean);
+  const hasSingleLetterSegments =
+    spacedParts.length > 1 && spacedParts.every((segment) => segment.length === 1);
+  if (hasSingleLetterSegments) return null;
+
   return code.replace(/\s+/g, "");
 }
 
@@ -131,12 +138,12 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
         const text = $(li).text().trim();
         if (!text) return;
 
-        const [beforeColon, ...rest] = text.split(":");
-        const { cleaned: codeClean, isNew: codeNew } = stripNewFlag(beforeColon);
+        const [beforeSeparator, rewardPart = ""] = text.split(LIST_SEPARATOR_REGEX, 2);
+        const rewardRaw = rewardPart.trim();
+
+        const { cleaned: codeClean, isNew: codeNew } = stripNewFlag(beforeSeparator);
         const normalized = normalizeCode(codeClean);
         if (!normalized) return;
-
-        const rewardRaw = rest.join(":").trim();
         const entry: ScrapedCode = {
           code: normalized,
           status: "active",
