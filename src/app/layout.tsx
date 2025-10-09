@@ -1,9 +1,17 @@
 import "./globals.css";
 import { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
-import { GlobalSearchOverlay } from "@/components/GlobalSearchOverlay";
+
+const GlobalSearchOverlay = dynamic(
+  () =>
+    import("@/components/GlobalSearchOverlay").then((mod) => ({
+      default: mod.GlobalSearchOverlay
+    })),
+  { ssr: false, loading: () => null }
+);
 
 const themeScript = `(() => {
   const storageKey = "roblox-codes-theme";

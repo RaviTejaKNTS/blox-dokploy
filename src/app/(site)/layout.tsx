@@ -24,7 +24,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
               alt="Bloxodes"
               width={948}
               height={319}
-              priority
+              loading="lazy"
+              fetchPriority="low"
               className="block h-9 w-auto dark:hidden"
             />
             <span className="mb-[2px] text-xs font-sans text-muted-foreground">for Roblox Codes</span>
@@ -55,6 +56,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
                 alt="Bloxodes"
                 width={948}
                 height={319}
+                loading="lazy"
+                fetchPriority="low"
                 className="hidden h-8 w-auto dark:block"
               />
               <Image
@@ -62,6 +65,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
                 alt="Bloxodes"
                 width={948}
                 height={319}
+                loading="lazy"
+                fetchPriority="low"
                 className="block h-8 w-auto dark:hidden"
               />
             </div>

@@ -1,0 +1,7 @@
+[production]
+> 0.2% and supports es6-module and not dead
+
+[development]
+last 1 chrome version
+last 1 firefox version
+last 1 safari version

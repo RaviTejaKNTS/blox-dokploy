@@ -27,6 +27,7 @@ export function GameCard({
   return (
     <Link
       href={`/${game.slug}`}
+      prefetch={false}
       className={`${classes} hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]`}
     >
       <div className="relative aspect-[16/9] bg-surface-muted">

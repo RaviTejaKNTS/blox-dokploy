@@ -114,10 +114,13 @@ export async function getAuthorBySlug(slug: string): Promise<Author | null> {
   return (data as Author) || null;
 }
 
-export type GameWithCounts = Game & {
+type GameSummaryFields = Pick<Game, "id" | "name" | "slug" | "cover_image" | "created_at" | "updated_at">;
+
+export type GameWithCounts = GameSummaryFields & {
   active_count: number;
   latest_code_first_seen_at: string | null;
 };
+
 
 export async function listAllGames(): Promise<Game[]> {
   const sb = supabaseAdmin();
@@ -133,12 +136,12 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   const sb = supabaseAdmin();
   const { data: games, error: gamesError } = await sb
     .from("games")
-    .select("*")
+    .select("id,name,slug,cover_image,created_at,updated_at")
     .eq("is_published", true)
     .order("updated_at", { ascending: false });
   if (gamesError) throw gamesError;
 
-  const gameList = (games ?? []) as Game[];
+  const gameList = (games ?? []) as GameSummaryFields[];
   if (gameList.length === 0) {
     return [];
   }
@@ -180,15 +183,16 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
     return Number.isNaN(ts) ? 0 : ts;
   };
 
-  return gameList
-    .map((g) => {
-      const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
-      return {
-        ...g,
-        active_count: counts.get(g.id) || 0,
-        latest_code_first_seen_at: latestFirstSeen,
-      } satisfies GameWithCounts;
-    })
+  const withCounts = gameList.map<GameWithCounts>((g) => {
+    const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
+    return {
+      ...g,
+      active_count: counts.get(g.id) || 0,
+      latest_code_first_seen_at: latestFirstSeen
+    };
+  });
+
+  return withCounts
     .sort((a, b) => {
       const aTime = toTimestamp(a.latest_code_first_seen_at ?? a.updated_at);
       const bTime = toTimestamp(b.latest_code_first_seen_at ?? b.updated_at);
@@ -309,17 +313,18 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
   const sb = supabaseAdmin();
   const { data: games, error: gamesError } = await sb
     .from("games")
-    .select("*")
+    .select("id,name,slug,cover_image,created_at,updated_at")
     .eq("is_published", true)
     .eq("author_id", authorId)
     .order("name", { ascending: true });
   if (gamesError) throw gamesError;
 
-  if (!games || games.length === 0) {
+  const gameList = (games ?? []) as GameSummaryFields[];
+  if (!gameList.length) {
     return [];
   }
 
-  const gameIds = games.map((g) => g.id);
+  const gameIds = gameList.map((g) => g.id);
   const { data: activeCodes, error: codesError } = await sb
     .from("codes")
     .select("game_id")
@@ -350,11 +355,11 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
     }
   }
 
-  return games.map((g) => ({
-    ...(g as Game),
+  return gameList.map<GameWithCounts>((g) => ({
+    ...g,
     active_count: counts.get(g.id) || 0,
     latest_code_first_seen_at: latestFirstSeenMap.get(g.id) ?? null
-  })) as GameWithCounts[];
+  }));
 }
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
