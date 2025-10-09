@@ -242,11 +242,13 @@ export async function deleteGameById(id: string) {
   const { supabase } = await requireAdminAction();
 
   type GameSlugRow = { slug: string | null };
-  const { data: game, error: gameError } = await supabase
+  const { data: gameRaw, error: gameError } = await supabase
     .from("games")
-    .select<GameSlugRow>("slug")
+    .select("slug")
     .eq("id", id)
     .maybeSingle();
+
+  const game = gameRaw as GameSlugRow | null;
 
   if (gameError) {
     return { success: false, error: gameError.message };
@@ -257,10 +259,12 @@ export async function deleteGameById(id: string) {
   }
 
   type CategoryRow = { slug: string | null };
-  const { data: categoryRows, error: categoryQueryError } = await supabase
+  const { data: categoryRowsRaw, error: categoryQueryError } = await supabase
     .from("article_categories")
-    .select<CategoryRow>("slug")
+    .select("slug")
     .eq("game_id", id);
+
+  const categoryRows = categoryRowsRaw as CategoryRow[] | null;
 
   if (categoryQueryError) {
     return { success: false, error: categoryQueryError.message };
