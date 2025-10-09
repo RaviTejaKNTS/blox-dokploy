@@ -9,6 +9,7 @@ import sharp from "sharp";
 
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { getSupabaseConfig } from "@/lib/supabase-config";
+import { normalizeGameSlug } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const supabase = createClient(
@@ -248,20 +249,24 @@ async function main() {
   const article = parsed;
 
   const name = gameName.trim();
-  let slug = gameName.toLowerCase().replace(/\s+/g, "-") + "-codes";
+  const slug = normalizeGameSlug(gameName, gameName);
 
-  const { data: existing } = await supabase
+  const { data: existingGame, error: existingError } = await supabase
     .from("games")
-    .select("id")
+    .select("id, is_published")
     .eq("slug", slug)
     .maybeSingle();
 
-  if (existing) {
-    slug = `roblox-${slug}`;
-    console.log(`⚠️ Duplicate slug detected, using "${slug}" instead.`);
+  if (existingError) {
+    throw existingError;
   }
 
-  console.log(`📦 Inserting article for "${name}"...`);
+  if (existingGame?.is_published) {
+    console.log(`ℹ️ "${name}" already exists and is published. Skipping generation.`);
+    return;
+  }
+
+  console.log(`📦 Saving article for "${name}"...`);
   const insertPayload: Record<string, unknown> = {
     name,
     slug,
@@ -274,12 +279,17 @@ async function main() {
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
   if (beebomSource) insertPayload.source_url_2 = beebomSource;
 
-  const { error } = await supabase.from("games").insert(insertPayload);
+  const upsert = await supabase
+    .from("games")
+    .upsert(insertPayload, { onConflict: "slug" })
+    .select("id")
+    .maybeSingle();
 
-  if (error) throw error;
-  console.log(`✅ "${name}" inserted successfully as draft (${slug})`);
+  if (upsert.error) throw upsert.error;
+  const gameId = upsert.data?.id ?? existingGame?.id;
+  console.log(`✅ "${name}" saved successfully (${slug})`);
 
-  await maybeAttachCoverImage({ slug, name });
+  await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined });
   await refreshCodesForGame(slug);
 }
 
@@ -323,7 +333,7 @@ async function refreshCodesForGame(slug: string) {
   );
 }
 
-async function maybeAttachCoverImage(game: { slug: string; name: string }) {
+async function maybeAttachCoverImage(game: { slug: string; name: string; id?: string }) {
   if (!process.env.SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
     return;
@@ -340,12 +350,15 @@ async function maybeAttachCoverImage(game: { slug: string; name: string }) {
     return;
   }
 
-  if (!existing.data?.id) {
+  const gameId = game.id ?? existing.data?.id ?? null;
+
+  if (!gameId) {
     console.error("⚠️ Game record not found when preparing cover image.");
     return;
   }
 
-  if (existing.data.cover_image) {
+  const coverImage = existing.data?.cover_image;
+  if (coverImage) {
     console.log("ℹ️ Cover image already exists. Skipping upload.");
     return;
   }
@@ -373,7 +386,7 @@ async function maybeAttachCoverImage(game: { slug: string; name: string }) {
     const { error: updateError } = await supabase
       .from("games")
       .update({ cover_image: uploadedUrl })
-      .eq("id", existing.data.id);
+      .eq("id", gameId);
 
     if (updateError) {
       console.error("⚠️ Failed to store cover image URL:", updateError.message);

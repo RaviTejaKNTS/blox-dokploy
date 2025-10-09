@@ -61,6 +61,22 @@ create index if not exists idx_games_author_published on public.games (author_id
 CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
 
 
+-- game generation queue table
+create table if not exists public.game_generation_queue (
+  id uuid primary key default uuid_generate_v4(),
+  game_name text not null,
+  status text not null default 'pending' check (status in ('pending','in_progress','completed','failed','skipped')),
+  attempts int not null default 0,
+  last_attempted_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_game_generation_queue_status_created
+  on public.game_generation_queue (status, created_at);
+
+
 -- admin users table
 create table if not exists public.admin_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -136,6 +152,10 @@ drop trigger if exists trg_articles_updated_at on public.articles;
 create trigger trg_articles_updated_at before update on public.articles
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_game_generation_queue_updated_at on public.game_generation_queue;
+create trigger trg_game_generation_queue_updated_at before update on public.game_generation_queue
+for each row execute function public.set_updated_at();
+
 -- RLS
 alter table public.games enable row level security;
 alter table public.codes enable row level security;
@@ -143,6 +163,7 @@ alter table public.authors enable row level security;
 alter table public.admin_users enable row level security;
 alter table public.article_categories enable row level security;
 alter table public.articles enable row level security;
+alter table public.game_generation_queue enable row level security;
 
 -- Policy: allow read of published games and their codes to anon
 drop policy if exists "read_published_games" on public.games;
@@ -211,6 +232,20 @@ create policy "read_article_categories" on public.article_categories
 
 drop policy if exists "admin_manage_article_categories" on public.article_categories;
 create policy "admin_manage_article_categories" on public.article_categories
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin_manage_game_generation_queue" on public.game_generation_queue;
+create policy "admin_manage_game_generation_queue" on public.game_generation_queue
   for all
   using (
     exists (
