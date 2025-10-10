@@ -24,6 +24,11 @@ export type Game = {
   source_url: string | null;
   source_url_2: string | null;
   source_url_3: string | null;
+  roblox_link?: string | null;
+  community_link?: string | null;
+  discord_link?: string | null;
+  twitter_link?: string | null;
+  youtube_link?: string | null;
   expired_codes: string[] | null;
   cover_image: string | null;
   seo_title: string | null;

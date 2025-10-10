@@ -9,7 +9,7 @@ import sharp from "sharp";
 
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { getSupabaseConfig } from "@/lib/supabase-config";
-import { normalizeGameSlug } from "@/lib/slug";
+import { normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const supabase = createClient(
@@ -36,6 +36,15 @@ type ArticleResponse = {
   intro_md: string;
   redeem_md: string;
   description_md: string;
+};
+
+type ProcessedArticle = ArticleResponse;
+
+type SocialLinks = {
+  roblox_link?: string;
+  community_link?: string;
+  discord_link?: string;
+  twitter_link?: string;
 };
 
 function isArticleResponse(value: unknown): value is ArticleResponse {
@@ -71,19 +80,264 @@ async function googleSearch(query: string, limit = 5): Promise<SearchEntry[]> {
   );
 }
 
+const ALLOWED_EXTRA_TITLE_TOKENS = new Set([
+  "roblox",
+  "code",
+  "codes",
+  "new",
+  "updated",
+  "update",
+  "working",
+  "active",
+  "latest",
+  "all",
+  "free",
+  "list",
+  "guide",
+  "wiki",
+  "rewards",
+  "bonus",
+  "bonuses",
+  "gift",
+  "gifts",
+  "promo",
+  "promos",
+  "redeem",
+  "how",
+  "to",
+  "get",
+  "the",
+  "for",
+  "of",
+  "and",
+  "with",
+  "best",
+  "tips",
+  "tricks",
+  "today"
+]);
+
+const tokenize = (value: string): string[] =>
+  normalizeForMatch(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+const isAllowedExtraToken = (token: string): boolean =>
+  ALLOWED_EXTRA_TITLE_TOKENS.has(token) || /^20\d{2}$/.test(token);
+
+function titleMatchesGame(title: string, gameName: string): boolean {
+  const titleTokens = tokenize(title);
+  const gameTokens = tokenize(gameName);
+
+  if (gameTokens.length === 0 || titleTokens.length === 0) {
+    return false;
+  }
+
+  const counts = new Map<string, number>();
+  for (const token of gameTokens) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+
+  for (const token of titleTokens) {
+    if (counts.has(token) && (counts.get(token) ?? 0) > 0) {
+      counts.set(token, (counts.get(token) ?? 0) - 1);
+      continue;
+    }
+
+    if (!isAllowedExtraToken(token)) {
+      return false;
+    }
+  }
+
+  return Array.from(counts.values()).every((value) => value === 0);
+}
+
+async function fetchWithRetry(url: string, attempts = 2): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+      if (response.ok) return response;
+      lastError = new Error(`Fetch failed with status ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(500);
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 async function findGameCodeArticle(gameName: string, siteSpecifier: string) {
-  const query = `"${gameName}" codes site:${siteSpecifier}`;
-  const results = await googleSearch(query, 5);
+  const { domain, pathFragment } = parseSiteSpecifier(siteSpecifier);
+
+  const queries = [
+    `"${gameName}" codes site:${domain}${pathFragment ? ` inurl:${pathFragment}` : ""}`,
+    `"${gameName}" Roblox codes site:${domain}${pathFragment ? ` inurl:${pathFragment}` : ""}`,
+    `"${gameName}" code list site:${domain}${pathFragment ? ` inurl:${pathFragment}` : ""}`,
+  ];
+
+  const visited = new Set<string>();
   const normalizedGame = normalizeForMatch(gameName);
 
-  for (const entry of results) {
-    const normalizedTitle = normalizeForMatch(entry.title);
-    if (!normalizedTitle.includes(normalizedGame)) continue;
-    if (!/\bcodes?\b/i.test(entry.title)) continue;
-    return entry.url;
+  for (const query of queries) {
+    const results = await googleSearch(query, 7);
+
+    for (const entry of results) {
+      if (!entry.url) continue;
+      if (visited.has(entry.url)) continue;
+      visited.add(entry.url);
+
+      if (!/\bcodes?\b/i.test(entry.title)) continue;
+
+      const urlMatches = await validateGameMatch(entry.url, gameName);
+      if (urlMatches) {
+        return entry.url;
+      }
+
+      const normalizedTitle = normalizeForMatch(entry.title);
+      if (!normalizedTitle.includes(normalizedGame)) continue;
+      if (!titleMatchesGame(entry.title, gameName)) continue;
+      if (urlMatches) {
+        return entry.url;
+      }
+    }
+  }
+
+  if (domain.includes("robloxden.com")) {
+    const slugCandidate = stripCodesSuffix(normalizeGameSlug(gameName, gameName));
+    if (slugCandidate) {
+      const candidateUrl = `https://robloxden.com/game-codes/${slugCandidate}`;
+      if (await validateGameMatch(candidateUrl, gameName)) {
+        return candidateUrl;
+      }
+    }
   }
 
   return null;
+}
+
+function parseSiteSpecifier(value: string): { domain: string; pathFragment: string | null } {
+  const parts = value.split("/").filter(Boolean);
+  const domain = parts[0] ?? value;
+  const pathFragment = parts.slice(1).join("/") || null;
+  return { domain, pathFragment };
+}
+
+async function validateGameMatch(url: string, gameName: string): Promise<boolean> {
+  try {
+    const response = await fetchWithRetry(url);
+    const html = await response.text();
+    const dom = new JSDOM(html);
+    const { document } = dom.window;
+
+    const title = document.querySelector("meta[property='og:title']")?.getAttribute("content")
+      ?? document.querySelector("title")?.textContent
+      ?? "";
+
+    const heading = document.querySelector("h1")?.textContent ?? "";
+
+    const combined = `${title}\n${heading}`;
+    const titleMatches = titleMatchesGame(combined, gameName);
+    if (titleMatches) return true;
+
+    const normalizedGame = normalizeForMatch(gameName);
+    const normalizedCombined = normalizeForMatch(combined);
+    return normalizedCombined.includes(normalizedGame);
+  } catch (error) {
+    console.warn(`⚠️ Unable to validate game match for ${url}:`, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
+function resolveHref(href: string | null | undefined, base: string): string | null {
+  if (!href) return null;
+  try {
+    return new URL(href, base).toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeExternalLink(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  try {
+    const resolved = new URL(trimmed);
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+      return null;
+    }
+    return resolved.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isTwitterProfile(url: URL): boolean {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  if (!host.includes("twitter.com") && !host.includes("x.com")) return false;
+  if (path.startsWith("/intent") || path.startsWith("/share") || path.includes("/intent/")) return false;
+  const handle = path.split("/").filter(Boolean)[0] ?? "";
+  if (["beebomco", "beebom"].includes(handle)) return false;
+  return path.split("/").filter(Boolean).length >= 1;
+}
+
+async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
+  const result: SocialLinks = {};
+
+  try {
+    const response = await fetchWithRetry(url);
+    const html = await response.text();
+    const dom = new JSDOM(html, { url });
+    const anchors = Array.from(dom.window.document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+
+    for (const anchor of anchors) {
+      const resolved = resolveHref(anchor.getAttribute("href"), url);
+      const normalized = normalizeExternalLink(resolved);
+      if (!normalized) continue;
+
+      if (!result.roblox_link && /roblox\.com\/games\//i.test(normalized)) {
+        result.roblox_link = normalized;
+        continue;
+      }
+
+      if (!result.community_link && /roblox\.com\/communities\//i.test(normalized)) {
+        result.community_link = normalized;
+        continue;
+      }
+
+      if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
+        result.discord_link = normalized;
+        continue;
+      }
+
+      if (!result.twitter_link) {
+        try {
+          const parsed = new URL(normalized);
+          if (isTwitterProfile(parsed)) {
+            result.twitter_link = parsed.toString();
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (result.roblox_link && result.community_link && result.discord_link && result.twitter_link) {
+        break;
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Failed to extract social links from Beebom:", error instanceof Error ? error.message : error);
+  }
+
+  return result;
 }
 
 async function fetchArticleText(url: string): Promise<string> {
@@ -120,20 +374,28 @@ You are a professional Roblox journalist.
 Use ONLY the information from these trusted sources below to write an accurate, detailed, and structured article.
 Do NOT invent or guess anything. If something isn't in the sources, skip it.
 
+Use the link placeholders below instead of raw URLs. Always wrap the exact anchor text in the placeholder format [[placeholder_key|Anchor Text]] and never output the actual URL.
+- [[roblox_link|...]] → official Roblox experience page
+- [[community_link|...]] → community links players should join or follow
+- [[discord_link|...]] → Discord server or channel names
+- [[twitter_link|...]] → Twitter/X handles or profiles
+- [[youtube_link|...]] → YouTube channels
+If a source does not mention a specific destination, simply skip the placeholder for that item.
+
 === SOURCES START ===
 ${sources}
 === SOURCES END ===
 
-Write in clean markdown, no em-dashes, no placeholders, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. 
+Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above.
 
 Sections required:
 1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
-   - If in the requirements, there's a link to follow any community or anything, include that link when mentioning requirements.
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences.
-   - Link the line “Launch ${gameName}” to its actual Roblox page (from the sources if available). Link to the anchor text of ${gameName}
+   - Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]].
+   - When you ask readers to join or follow a community, wrap the relevant words with [[community_link|...]].
    - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. 
 3. description_md – include all these sections:
    - ## Why Is My ${gameName} Code Not Working?
@@ -142,8 +404,9 @@ Sections required:
    - ## Where to Find More ${gameName} Codes
      1–2 paragraphs. Use the sources to locate the official Roblox page plus any verified social channels (Discord, Twitter/X, Trello, Roblox Group, etc.).
      Mention each channel by exact name (Discord server title, channel names, Twitter @handle, Roblox group title, etc.) and explain what players can find there.
-     Include direct Markdown links to those pages using the exact URLs from the sources. 
-     Those links should also be inside the paras seamlessly when mentioned, no bullet-points in this section at all. Link to the correct anchor text like Discord channel name or twitter account name. Else link to works like Discord, Twitter, Community, etc. Don't link to words like here. 
+     Wrap Roblox mentions with [[roblox_link|...]], Discord mentions with [[discord_link|...]], Twitter/X mentions with [[twitter_link|...]], community links with [[community_link|...]], and YouTube mentions with [[youtube_link|...]]. Make sure the anchor text is the real channel or profile name (e.g. [[discord_link|Tower Defense Discord]]).
+     If a source clearly references a Discord, Twitter/X, or community link, you must include the corresponding placeholder in this section. If the source does not mention that channel, do not invent it.
+     no bullet-points in this section at all. Just conversational paras
      Also suggest users to bookmark our page with ctrl + D on Windows (CMD + D on mac). Tell them that we will update the article with new working active codes as soon as they dropped.
    - ## What Rewards You Normally Get?
      Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
@@ -210,6 +473,11 @@ async function main() {
     findGameCodeArticle(gameName, "beebom.com"),
   ]);
 
+  let socialLinks: SocialLinks = {};
+  if (beebomSource) {
+    socialLinks = await extractSocialLinksFromBeebom(beebomSource);
+  }
+
   if (robloxDenSource) {
     console.log(`🔗 Roblox Den source found: ${robloxDenSource}`);
   } else {
@@ -246,14 +514,14 @@ async function main() {
     throw new Error("Article generation incomplete.");
   }
 
-  const article = parsed;
+  const article = applyLinkPlaceholders(parsed, gameName);
 
   const name = gameName.trim();
   const slug = normalizeGameSlug(gameName, gameName);
 
   const { data: existingGame, error: existingError } = await supabase
     .from("games")
-    .select("id, is_published")
+    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, source_url")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -278,6 +546,10 @@ async function main() {
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
   if (beebomSource) insertPayload.source_url_2 = beebomSource;
+  if (socialLinks.roblox_link) insertPayload.roblox_link = socialLinks.roblox_link;
+  if (socialLinks.community_link) insertPayload.community_link = socialLinks.community_link;
+  if (socialLinks.discord_link) insertPayload.discord_link = socialLinks.discord_link;
+  if (socialLinks.twitter_link) insertPayload.twitter_link = socialLinks.twitter_link;
 
   const upsert = await supabase
     .from("games")
@@ -289,7 +561,8 @@ async function main() {
   const gameId = upsert.data?.id ?? existingGame?.id;
   console.log(`✅ "${name}" saved successfully (${slug})`);
 
-  await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined });
+  const coverSourceLink = socialLinks.roblox_link ?? existingGame?.roblox_link ?? existingGame?.source_url ?? null;
+  await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });
   await refreshCodesForGame(slug);
 }
 
@@ -333,7 +606,34 @@ async function refreshCodesForGame(slug: string) {
   );
 }
 
-async function maybeAttachCoverImage(game: { slug: string; name: string; id?: string }) {
+function applyLinkPlaceholders(article: ArticleResponse, gameName: string): ProcessedArticle {
+  return {
+    intro_md: article.intro_md,
+    redeem_md: ensureLaunchPlaceholder(article.redeem_md, gameName),
+    description_md: article.description_md,
+  };
+}
+
+function ensureLaunchPlaceholder(markdown: string, gameName: string): string {
+  if (markdown.includes("[[roblox_link|")) {
+    return markdown;
+  }
+
+  const escapedName = escapeRegExp(gameName);
+  const pattern = new RegExp(`Launch\\s+(?:the\\s+)?${escapedName}`, "gi");
+
+  if (!pattern.test(markdown)) {
+    return markdown;
+  }
+
+  return markdown.replace(pattern, (match) => `[[roblox_link|${match}]]`);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function maybeAttachCoverImage(game: { slug: string; name: string; id?: string; robloxLink?: string | null }) {
   if (!process.env.SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
     return;
@@ -364,7 +664,14 @@ async function maybeAttachCoverImage(game: { slug: string; name: string; id?: st
   }
 
   console.log("🖼️ Searching for cover image...");
-  const imageUrl = await findRobloxImageUrl(game.name);
+  let imageUrl: string | null = null;
+  if (game.robloxLink) {
+    imageUrl = await fetchRobloxExperienceThumbnail(game.robloxLink);
+  }
+
+  if (!imageUrl) {
+    imageUrl = await findRobloxImageUrl(game.name);
+  }
 
   if (!imageUrl) {
     console.log("⚠️ No suitable image found.");
@@ -396,6 +703,46 @@ async function maybeAttachCoverImage(game: { slug: string; name: string; id?: st
     console.log("✅ Cover image uploaded and stored.");
   } catch (err) {
     console.error("⚠️ Could not attach cover image:", err instanceof Error ? err.message : err);
+  }
+}
+
+async function fetchRobloxExperienceThumbnail(gameUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(gameUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const html = await response.text();
+    const dom = new JSDOM(html, { url: gameUrl });
+    const { document } = dom.window;
+
+    const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute("content") ?? null;
+    if (ogImage) {
+      try {
+        return new URL(ogImage, gameUrl).toString();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const primaryImage = document.querySelector("img") as HTMLImageElement | null;
+    if (primaryImage?.src) {
+      try {
+        return new URL(primaryImage.src, gameUrl).toString();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("⚠️ Failed to fetch Roblox thumbnail:", error instanceof Error ? error.message : error);
+    return null;
   }
 }
 
@@ -444,7 +791,12 @@ async function downloadResizeAndUploadImage(params: {
   slug: string;
   gameName: string;
 }): Promise<string | null> {
-  const response = await fetch(params.imageUrl);
+  const response = await fetch(params.imageUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    },
+  });
   if (!response.ok) {
     console.warn("⚠️ Failed to download image:", response.statusText);
     return null;

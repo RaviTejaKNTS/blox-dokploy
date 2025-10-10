@@ -35,6 +35,7 @@ import {
   webPageJsonLd,
   howToJsonLd
 } from "@/lib/seo";
+import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 
 export const revalidate = 30;
 
@@ -506,8 +507,6 @@ export default async function GamePage({ params }: Params) {
   const { game, codes, allGames } = result;
   const author = game.author;
   const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
-  const redeemSteps = extractHowToSteps(game.redeem_md);
-
   const active = codes.filter(c => c.status === "active");
   const needsCheck = codes.filter(c => c.status === "check");
   const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
@@ -576,10 +575,24 @@ export default async function GamePage({ params }: Params) {
     }
   })();
 
+  const linkMap = {
+    roblox_link: normalizeUrl(game.roblox_link) ?? normalizeUrl(game.source_url),
+    community_link: normalizeUrl(game.community_link),
+    discord_link: normalizeUrl(game.discord_link),
+    twitter_link: normalizeUrl(game.twitter_link),
+    youtube_link: normalizeUrl(game.youtube_link),
+  } as const;
+
+  const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
+  const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
+  const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
+
+  const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
+
   const [introHtml, redeemHtml, descriptionHtml, authorBioHtml] = await Promise.all([
-    game.intro_md ? renderMarkdown(game.intro_md) : "",
-    game.redeem_md ? renderMarkdown(game.redeem_md) : "",
-    game.description_md ? renderMarkdown(game.description_md) : "",
+    introMarkdown ? renderMarkdown(introMarkdown) : "",
+    redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
+    descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
     author?.bio_md ? renderMarkdown(author.bio_md) : "",
   ]);
 

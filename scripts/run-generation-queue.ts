@@ -45,13 +45,23 @@ async function pickQueueItems(limit: number): Promise<QueueRow[]> {
     .select("id, game_name, status, attempts, last_attempted_at, last_error")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
-    .limit(limit);
+    .limit(200);
 
   if (error) {
     throw new Error(`Failed to load queue: ${error.message}`);
   }
 
-  return data ?? [];
+  const candidates = data ?? [];
+  if (candidates.length <= limit) {
+    return candidates;
+  }
+
+  for (let i = candidates.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+
+  return candidates.slice(0, limit);
 }
 
 async function markInProgress(id: string, attempts: number) {
@@ -120,6 +130,13 @@ async function processQueueItem(entry: QueueRow) {
   if (existing?.is_published) {
     console.log(`ℹ️ ${entry.game_name} already published. Marking as skipped.`);
     await updateQueueStatus(entry.id, "skipped");
+
+    await supabase
+      .from("game_generation_queue")
+      .update({ status: "skipped", last_error: "Slug already published" })
+      .neq("id", entry.id)
+      .eq("status", "pending")
+      .eq("game_name", entry.game_name);
     return;
   }
 
