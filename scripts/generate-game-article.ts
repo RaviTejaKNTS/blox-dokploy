@@ -708,9 +708,15 @@ async function maybeAttachCoverImage(game: { slug: string; name: string; id?: st
 
 async function fetchRobloxExperienceThumbnail(gameUrl: string): Promise<string | null> {
   try {
+    const viaApi = await fetchRobloxThumbnailViaApi(gameUrl);
+    if (viaApi) {
+      return viaApi;
+    }
+
     const response = await fetch(gameUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
     if (!response.ok) {
@@ -742,6 +748,47 @@ async function fetchRobloxExperienceThumbnail(gameUrl: string): Promise<string |
     return null;
   } catch (error) {
     console.warn("⚠️ Failed to fetch Roblox thumbnail:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+async function fetchRobloxThumbnailViaApi(gameUrl: string): Promise<string | null> {
+  try {
+    const placeMatch = gameUrl.match(/roblox\.com\/(?:games|game-details)\/(\d+)/i);
+    const placeId = placeMatch ? placeMatch[1] : null;
+    if (!placeId) return null;
+
+    const placeDetailsRes = await fetch(
+      `https://games.roblox.com/v1/games/multiget-place-details?placeIds=${placeId}`,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!placeDetailsRes.ok) return null;
+    const placeDetails = await placeDetailsRes.json();
+    const universeId = Array.isArray(placeDetails) && placeDetails[0]?.universeId;
+    if (!universeId) return null;
+
+    const thumbRes = await fetch(
+      `https://thumbnails.roblox.com/v1/games/multiget-thumbnails?universeIds=${universeId}&size=768x432&format=Png&isCircular=false`,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!thumbRes.ok) return null;
+    const thumbs = await thumbRes.json();
+    const imageUrl = thumbs?.data?.[0]?.imageUrl;
+    return typeof imageUrl === "string" ? imageUrl : null;
+  } catch (error) {
+    console.warn("⚠️ Roblox thumbnail API failed:", error instanceof Error ? error.message : error);
     return null;
   }
 }
