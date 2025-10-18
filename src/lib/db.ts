@@ -137,6 +137,68 @@ export async function listAllGames(): Promise<Game[]> {
   return data as Game[];
 }
 
+const ACTIVE_CODE_BATCH_SIZE = 50;
+const ACTIVE_CODE_PAGE_SIZE = 1000;
+
+async function fetchActiveCodeStats(
+  sb: ReturnType<typeof supabaseAdmin>,
+  gameIds: string[]
+): Promise<{
+  counts: Map<string, number>;
+  latestFirstSeenMap: Map<string, string | null>;
+}> {
+  const counts = new Map<string, number>();
+  const latestFirstSeenMap = new Map<string, string | null>();
+
+  for (let offset = 0; offset < gameIds.length; offset += ACTIVE_CODE_BATCH_SIZE) {
+    const batchIds = gameIds.slice(offset, offset + ACTIVE_CODE_BATCH_SIZE);
+    let from = 0;
+
+    while (true) {
+      const to = from + ACTIVE_CODE_PAGE_SIZE - 1;
+      const { data, error } = await sb
+        .from("codes")
+        .select("game_id, status, first_seen_at")
+        .in("game_id", batchIds)
+        .range(from, to);
+
+      if (error) {
+        throw error;
+      }
+
+      const rows = (data ?? []) as {
+        game_id: string;
+        status: "active" | "expired" | "check";
+        first_seen_at: string | null;
+      }[];
+
+      for (const row of rows) {
+        if (row.status === "active") {
+          counts.set(row.game_id, (counts.get(row.game_id) ?? 0) + 1);
+        }
+
+        const existing = latestFirstSeenMap.get(row.game_id) ?? null;
+        if (!existing) {
+          latestFirstSeenMap.set(row.game_id, row.first_seen_at ?? null);
+        } else if (row.first_seen_at) {
+          const existingTime = new Date(existing).getTime();
+          const candidateTime = new Date(row.first_seen_at).getTime();
+          if (Number.isNaN(existingTime) || candidateTime > existingTime) {
+            latestFirstSeenMap.set(row.game_id, row.first_seen_at);
+          }
+        }
+      }
+
+      if (rows.length < ACTIVE_CODE_PAGE_SIZE) {
+        break;
+      }
+      from += ACTIVE_CODE_PAGE_SIZE;
+    }
+  }
+
+  return { counts, latestFirstSeenMap };
+}
+
 export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   const sb = supabaseAdmin();
   const { data: games, error: gamesError } = await sb
@@ -152,35 +214,7 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   }
   const gameIds = gameList.map((g) => g.id);
 
-  const { data: activeCodes, error: codesError } = await sb
-    .from("codes")
-    .select("game_id")
-    .eq("status", "active")
-    .in("game_id", gameIds);
-  if (codesError) throw codesError;
-
-  const counts = new Map<string, number>();
-  for (const row of activeCodes || []) {
-    counts.set(row.game_id, (counts.get(row.game_id) || 0) + 1);
-  }
-
-  const { data: latestCodeRows, error: latestCodeError } = await sb
-    .from("codes")
-    .select("game_id,first_seen_at")
-    .in("game_id", gameIds)
-    .order("first_seen_at", { ascending: false });
-  if (latestCodeError) throw latestCodeError;
-
-  const latestFirstSeenMap = new Map<string, string | null>();
-  for (const row of latestCodeRows || []) {
-    const record = row as unknown as { game_id: string; first_seen_at: string | null };
-    if (!latestFirstSeenMap.has(record.game_id)) {
-      latestFirstSeenMap.set(record.game_id, record.first_seen_at ?? null);
-      if (latestFirstSeenMap.size === gameIds.length) {
-        break;
-      }
-    }
-  }
+  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
 
   const toTimestamp = (value: string | null | undefined): number => {
     if (!value) return 0;

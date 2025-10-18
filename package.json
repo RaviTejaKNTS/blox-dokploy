@@ -13,7 +13,8 @@
     "post:online": "tsx scripts/post-online.ts",
     "generate": "tsx scripts/generate-game-article.ts",
     "generate:queue": "tsx scripts/run-generation-queue.ts",
-    "backfill:categories": "tsx scripts/backfill-game-categories.ts" 
+    "backfill:categories": "tsx scripts/backfill-game-categories.ts",
+    "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
