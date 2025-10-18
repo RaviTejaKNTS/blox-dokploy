@@ -255,6 +255,34 @@ async function validateGameMatch(url: string, gameName: string): Promise<boolean
   }
 }
 
+async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const html = await res.text();
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+    const readableText = article?.textContent?.trim();
+
+    if (readableText) {
+      return `\n[${url}]\n${readableText}`;
+    }
+
+    if (article?.content) {
+      const fragment = JSDOM.fragment(article.content);
+      const fallbackText = fragment.textContent?.trim();
+      if (fallbackText) {
+        return `\n[${url}]\n${fallbackText}`;
+      }
+    }
+
+    return `\n[${url}]\n`;
+  } catch {
+    console.warn(`⚠️ Failed to fetch ${url}`);
+    return "";
+  }
+}
+
 function resolveHref(href: string | null | undefined, base: string): string | null {
   if (!href) return null;
   try {
@@ -296,36 +324,33 @@ async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
     const response = await fetchWithRetry(url);
     const html = await response.text();
     const dom = new JSDOM(html, { url });
-    const anchors = Array.from(dom.window.document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+    const container = dom.window.document.querySelector(".beebom-single-content-container");
 
+    if (!container) {
+      console.warn("⚠️ Beebom content container not found for social link extraction.");
+      return result;
+    }
+
+    const anchors = Array.from(container.querySelectorAll<HTMLAnchorElement>("a[href]"));
     for (const anchor of anchors) {
       const resolved = resolveHref(anchor.getAttribute("href"), url);
       const normalized = normalizeExternalLink(resolved);
       if (!normalized) continue;
 
-      if (!result.roblox_link && /roblox\.com\/games\//i.test(normalized)) {
+      if (!result.roblox_link && /roblox\.com\/(games|game-details|experiences)\//i.test(normalized)) {
         result.roblox_link = normalized;
-        continue;
-      }
-
-      if (!result.community_link && /roblox\.com\/communities\//i.test(normalized)) {
+      } else if (!result.community_link && /roblox\.com\/(communities|groups)\//i.test(normalized)) {
         result.community_link = normalized;
-        continue;
-      }
-
-      if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
+      } else if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
         result.discord_link = normalized;
-        continue;
-      }
-
-      if (!result.twitter_link) {
+      } else if (!result.twitter_link) {
         try {
           const parsed = new URL(normalized);
           if (isTwitterProfile(parsed)) {
             result.twitter_link = parsed.toString();
           }
         } catch {
-          /* ignore */
+          /* ignore malformed links */
         }
       }
 
@@ -338,34 +363,6 @@ async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
   }
 
   return result;
-}
-
-async function fetchArticleText(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    const html = await res.text();
-    const dom = new JSDOM(html, { url });
-    const reader = new Readability(dom.window.document);
-    const article = reader.parse();
-    const readableText = article?.textContent?.trim();
-
-    if (readableText) {
-      return `\n[${url}]\n${readableText}`;
-    }
-
-    if (article?.content) {
-      const fragment = JSDOM.fragment(article.content);
-      const fallbackText = fragment.textContent?.trim();
-      if (fallbackText) {
-        return `\n[${url}]\n${fallbackText}`;
-      }
-    }
-
-    return `\n[${url}]\n`;
-  } catch {
-    console.warn(`⚠️ Failed to fetch ${url}`);
-    return "";
-  }
 }
 
 function buildArticlePrompt(gameName: string, sources: string) {
@@ -514,8 +511,6 @@ async function main() {
     throw new Error("Article generation incomplete.");
   }
 
-  const article = applyLinkPlaceholders(parsed, gameName);
-
   const name = gameName.trim();
   const slug = normalizeGameSlug(gameName, gameName);
 
@@ -533,6 +528,15 @@ async function main() {
     console.log(`ℹ️ "${name}" already exists and is published. Skipping generation.`);
     return;
   }
+
+  const resolvedLinks: SocialLinks = {
+    roblox_link: socialLinks.roblox_link ?? existingGame?.roblox_link ?? undefined,
+    community_link: socialLinks.community_link ?? existingGame?.community_link ?? undefined,
+    discord_link: socialLinks.discord_link ?? existingGame?.discord_link ?? undefined,
+    twitter_link: socialLinks.twitter_link ?? existingGame?.twitter_link ?? undefined,
+  };
+
+  const article = applyLinkPlaceholders(parsed, gameName, resolvedLinks);
 
   console.log(`📦 Saving article for "${name}"...`);
   const insertPayload: Record<string, unknown> = {
@@ -574,7 +578,7 @@ async function main() {
     }
   }
 
-  const coverSourceLink = socialLinks.roblox_link ?? existingGame?.roblox_link ?? existingGame?.source_url ?? null;
+  const coverSourceLink = resolvedLinks.roblox_link ?? existingGame?.source_url ?? null;
   await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });
   await refreshCodesForGame(slug);
 }
@@ -619,11 +623,134 @@ async function refreshCodesForGame(slug: string) {
   );
 }
 
-function applyLinkPlaceholders(article: ArticleResponse, gameName: string): ProcessedArticle {
+function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links: SocialLinks): ProcessedArticle {
+  let intro = article.intro_md;
+  let redeem = links.roblox_link ? ensureLaunchPlaceholder(article.redeem_md, gameName) : article.redeem_md;
+  let description = article.description_md;
+
+  const hasPlaceholder = (key: keyof SocialLinks) => {
+    const token = new RegExp(`\\[\\[${key}\\|`, "i");
+    return token.test(intro) || token.test(redeem) || token.test(description);
+  };
+
+  const wrapWithRegex = (value: string, regex: RegExp, key: keyof SocialLinks) => {
+    const pattern = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`);
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(value)) !== null) {
+      const full = match[0];
+      const index = match.index;
+      const before = value.slice(Math.max(0, index - 2), index);
+      if (before.includes("[[")) {
+        continue;
+      }
+      const replacement = `[[${key}|${full}]]`;
+      const updated = value.slice(0, index) + replacement + value.slice(index + full.length);
+      return { applied: true, value: updated };
+    }
+    return { applied: false, value };
+  };
+
+  const wrapWithKeyword = (value: string, keyword: string, key: keyof SocialLinks) => {
+    const lower = value.toLowerCase();
+    const target = keyword.toLowerCase();
+    const index = lower.indexOf(target);
+    if (index === -1) return { applied: false, value };
+    if (index > 0) {
+      const prev = value[index - 1];
+      const prev2 = value[index - 2] ?? "";
+      if (prev === "[" || prev === "|" || (prev === ":" && prev2 === "|")) {
+        return { applied: false, value };
+      }
+    }
+    const original = value.slice(index, index + keyword.length);
+    const replacement = `[[${key}|${original}]]`;
+    const updated = value.slice(0, index) + replacement + value.slice(index + keyword.length);
+    return { applied: true, value: updated };
+  };
+
+  const appendSentence = (value: string, sentence: string) => {
+    const trimmed = value.trimEnd();
+    const separator = trimmed.length ? "\n\n" : "";
+    return `${trimmed}${separator}${sentence}`;
+  };
+
+  const ensurePlaceholder = (
+    key: keyof SocialLinks,
+    keywords: string[],
+    regexes: RegExp[],
+    fallback: string
+  ) => {
+    if (!links[key]) return;
+    if (hasPlaceholder(key)) return;
+
+    for (const regex of regexes) {
+      let result = wrapWithRegex(description, regex, key);
+      if (result.applied) {
+        description = result.value;
+        return;
+      }
+      result = wrapWithRegex(redeem, regex, key);
+      if (result.applied) {
+        redeem = result.value;
+        return;
+      }
+      result = wrapWithRegex(intro, regex, key);
+      if (result.applied) {
+        intro = result.value;
+        return;
+      }
+    }
+
+    for (const keyword of keywords) {
+      let result = wrapWithKeyword(description, keyword, key);
+      if (result.applied) {
+        description = result.value;
+        return;
+      }
+      result = wrapWithKeyword(redeem, keyword, key);
+      if (result.applied) {
+        redeem = result.value;
+        return;
+      }
+      result = wrapWithKeyword(intro, keyword, key);
+      if (result.applied) {
+        intro = result.value;
+        return;
+      }
+    }
+
+    description = appendSentence(description, fallback);
+  };
+
+  ensurePlaceholder(
+    "roblox_link",
+    ["Launch", "Roblox"],
+    [],
+    `Visit the [[roblox_link|official Roblox experience]] to hop in and start playing.`
+  );
+  ensurePlaceholder(
+    "community_link",
+    ["community", "group"],
+    [/Roblox\s+community/i],
+    `Join the [[community_link|official Roblox community]] to catch every update.`
+  );
+  ensurePlaceholder(
+    "discord_link",
+    ["Discord"],
+    [/\bdiscord\b/i],
+    `Chat with other players in the [[discord_link|official Discord]] server.`
+  );
+  ensurePlaceholder(
+    "twitter_link",
+    ["Twitter", "X"],
+    [/@[a-z0-9_]{3,}/i],
+    `Follow the [[twitter_link|official Twitter]] feed for code drops.`
+  );
+
   return {
-    intro_md: article.intro_md,
-    redeem_md: ensureLaunchPlaceholder(article.redeem_md, gameName),
-    description_md: article.description_md,
+    intro_md: intro,
+    redeem_md: redeem,
+    description_md: description,
   };
 }
 
