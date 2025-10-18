@@ -7,8 +7,8 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import sharp from "sharp";
 
+import { ensureCategoryForGame } from "@/lib/admin/categories";
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
-import { getSupabaseConfig } from "@/lib/supabase-config";
 import { normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -561,6 +561,19 @@ async function main() {
   const gameId = upsert.data?.id ?? existingGame?.id;
   console.log(`✅ "${name}" saved successfully (${slug})`);
 
+  if (!gameId) {
+    console.warn(`⚠️ Unable to determine game id for "${name}". Skipping category sync.`);
+  } else {
+    try {
+      await ensureCategoryForGame(supabase, { id: gameId, slug, name });
+    } catch (ensureError) {
+      console.warn(
+        `⚠️ Failed to ensure category for "${name}":`,
+        ensureError instanceof Error ? ensureError.message : ensureError
+      );
+    }
+  }
+
   const coverSourceLink = socialLinks.roblox_link ?? existingGame?.roblox_link ?? existingGame?.source_url ?? null;
   await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });
   await refreshCodesForGame(slug);
@@ -866,7 +879,6 @@ async function downloadResizeAndUploadImage(params: {
   const path = `games/${params.slug}/${fileName}`;
 
   const bucket = process.env.SUPABASE_MEDIA_BUCKET!;
-  const { supabaseUrl } = getSupabaseConfig();
   const storageClient = supabase.storage.from(bucket);
 
   const { error } = await storageClient.upload(path, resized, {
