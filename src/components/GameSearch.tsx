@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
+import { formatUpdatedLabel } from "@/lib/updated-label";
 
 type GameSearchProps = {
   games: Array<{
@@ -9,7 +10,7 @@ type GameSearchProps = {
     name: string;
     slug: string;
     activeCount: number;
-    lastUpdatedLabel: string | null;
+    articleUpdatedAt: string | null;
   }>;
   autoFocus?: boolean;
 };
@@ -163,21 +164,24 @@ export function GameSearch({ games, autoFocus = false }: GameSearchProps) {
       {normalizedQuery && results.length > 0 ? (
         <>
           <ul className="space-y-3">
-            {limitedResults.map((game) => (
-              <li key={game.id}>
-                <Link
-                  href={`/${game.slug}`}
-                  className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border/60 bg-surface px-4 py-3 text-sm text-foreground transition hover:border-accent hover:text-accent"
-                >
-                  <span className="font-medium">{game.name}</span>
-                  <span className="flex items-center gap-3 text-xs text-muted">
-                    <span>{game.activeCount} active</span>
-                    {game.lastUpdatedLabel ? <span aria-hidden className="text-border/60">·</span> : null}
-                    {game.lastUpdatedLabel ? <span>{game.lastUpdatedLabel}</span> : null}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {limitedResults.map((game) => {
+              const updatedLabel = formatUpdatedLabel(game.articleUpdatedAt);
+              return (
+                <li key={game.id}>
+                  <Link
+                    href={`/${game.slug}`}
+                    className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border/60 bg-surface px-4 py-3 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                  >
+                    <span className="font-medium">{game.name}</span>
+                    <span className="flex items-center gap-3 text-xs text-muted">
+                      <span>{game.activeCount} active</span>
+                      {updatedLabel ? <span aria-hidden className="text-border/60">·</span> : null}
+                      {updatedLabel ? <span>{updatedLabel}</span> : null}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
           {hasMore ? (
             <div className="pt-2">

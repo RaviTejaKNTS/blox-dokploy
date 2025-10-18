@@ -9,7 +9,7 @@ export async function GET() {
       name: game.name,
       slug: game.slug,
       activeCount: game.active_count ?? 0,
-      lastUpdated: game.latest_code_first_seen_at ?? game.updated_at
+      articleUpdated: game.content_updated_at ?? game.updated_at
     }));
 
     return NextResponse.json({ games: payload });
@@ -18,4 +18,3 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load search data" }, { status: 500 });
   }
 }
-

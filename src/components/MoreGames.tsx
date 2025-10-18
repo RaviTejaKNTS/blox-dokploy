@@ -7,7 +7,7 @@ import type { GameWithCounts } from "@/lib/db";
 type MoreGamesProps = {
   games: Array<{
     data: GameWithCounts;
-    lastUpdatedLabel: string | null;
+    articleUpdatedAt: string | null;
   }>;
   step: number;
 };
@@ -50,8 +50,8 @@ export function MoreGames({ games, step }: MoreGamesProps) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {visible.map(({ data: game, lastUpdatedLabel }) => (
-          <GameCard key={game.id} game={game} lastUpdatedLabel={lastUpdatedLabel} />
+        {visible.map(({ data: game, articleUpdatedAt }) => (
+          <GameCard key={game.id} game={game} articleUpdatedAt={articleUpdatedAt} />
         ))}
       </div>
       {hasMore ? (

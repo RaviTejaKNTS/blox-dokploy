@@ -3,14 +3,13 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatDistanceToNow } from "date-fns";
 
 type SearchGame = {
   id: string;
   name: string;
   slug: string;
   activeCount: number;
-  lastUpdated: string | null;
+  articleUpdated: string | null;
 };
 
 const GameSearch = dynamic(() => import("@/components/GameSearch").then((mod) => mod.GameSearch), {
@@ -179,9 +178,7 @@ export function GlobalSearchOverlay() {
                 name: game.name,
                 slug: game.slug,
                 activeCount: game.activeCount,
-                lastUpdatedLabel: game.lastUpdated
-                  ? formatDistanceToNow(new Date(game.lastUpdated), { addSuffix: true })
-                  : null
+                articleUpdatedAt: game.articleUpdated
               }))}
               autoFocus
             />

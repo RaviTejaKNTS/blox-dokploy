@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { GameWithCounts } from "@/lib/db";
 import { FiClock } from "react-icons/fi";
+import { formatUpdatedLabel } from "@/lib/updated-label";
 
 const baseCardClass = "group overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-surface transition-colors flex flex-col";
 const BLUR_DATA_URL =
@@ -12,7 +13,7 @@ type GameCardProps = {
   className?: string;
   titleAs?: 'h2' | 'p';
   priority?: boolean;
-  lastUpdatedLabel?: string | null;
+  articleUpdatedAt?: string | null;
 };
 
 export function GameCard({
@@ -20,9 +21,10 @@ export function GameCard({
   className,
   titleAs: Title = 'h2',
   priority,
-  lastUpdatedLabel,
+  articleUpdatedAt,
 }: GameCardProps) {
   const classes = className ? `${baseCardClass} ${className}` : baseCardClass;
+  const updatedLabel = formatUpdatedLabel(articleUpdatedAt);
 
   return (
     <Link
@@ -54,11 +56,11 @@ export function GameCard({
           <span>
             {game.active_count} {game.active_count === 1 ? "active code" : "active codes"}
           </span>
-          {lastUpdatedLabel ? (
+          {updatedLabel ? (
             <span className="flex items-center gap-1 whitespace-nowrap text-muted">
               <span aria-hidden className="text-border/60">·</span>
               <FiClock aria-hidden className="h-3 w-3 text-muted/80" />
-              <span>{lastUpdatedLabel}</span>
+              <span>{updatedLabel}</span>
             </span>
           ) : null}
         </p>

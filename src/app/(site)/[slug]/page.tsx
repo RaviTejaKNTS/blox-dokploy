@@ -537,10 +537,7 @@ export default async function GamePage({ params }: Params) {
     .slice(0, 6)
     .map((g) => ({
       game: g,
-      lastUpdatedLabel: (() => {
-        const last = g.latest_code_first_seen_at ?? g.updated_at;
-        return last ? formatDistanceToNow(new Date(last), { addSuffix: true }) : null;
-      })()
+      articleUpdatedAt: g.content_updated_at ?? g.updated_at ?? null
     }));
 
   const lastCheckedDate = new Date(lastChecked);
@@ -914,8 +911,8 @@ export default async function GamePage({ params }: Params) {
             <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
           </div>
           <div className="grid gap-4">
-            {recommended.map(({ game: g, lastUpdatedLabel }) => (
-              <GameCard key={g.id} game={g} titleAs="p" lastUpdatedLabel={lastUpdatedLabel} />
+            {recommended.map(({ game: g, articleUpdatedAt }) => (
+              <GameCard key={g.id} game={g} titleAs="p" articleUpdatedAt={articleUpdatedAt} />
             ))}
           </div>
         </aside>

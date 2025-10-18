@@ -60,8 +60,8 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const games = await listGamesWithActiveCounts();
   const sortedGames = [...games].sort((a, b) => {
-    const aTime = new Date(a.latest_code_first_seen_at ?? a.updated_at).getTime();
-    const bTime = new Date(b.latest_code_first_seen_at ?? b.updated_at).getTime();
+    const aTime = new Date(a.content_updated_at ?? a.updated_at).getTime();
+    const bTime = new Date(b.content_updated_at ?? b.updated_at).getTime();
     if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
     if (Number.isNaN(aTime)) return 1;
     if (Number.isNaN(bTime)) return -1;
@@ -70,26 +70,21 @@ export default async function HomePage() {
   const totalActiveCodes = games.reduce((sum, game) => sum + (game.active_count ?? 0), 0);
   const mostRecentGame = sortedGames[0];
   const mostRecentUpdate = mostRecentGame
-    ? new Date(mostRecentGame.latest_code_first_seen_at ?? mostRecentGame.updated_at)
+    ? new Date(mostRecentGame.content_updated_at ?? mostRecentGame.updated_at)
     : null;
   const refreshedLabel = mostRecentUpdate
     ? formatDistanceToNow(mostRecentUpdate, { addSuffix: true })
     : null;
   const gamesByUpdatedAt = sortedGames;
 
-  const formatRelative = (date: string | null) => {
-    if (!date) return null;
-    return formatDistanceToNow(new Date(date), { addSuffix: true });
-  };
-
   const featuredGames = gamesByUpdatedAt.slice(0, INITIAL_FEATURED_COUNT).map((game) => ({
     data: game,
-    lastUpdatedLabel: formatRelative(game.latest_code_first_seen_at ?? game.updated_at)
+    articleUpdatedAt: game.content_updated_at ?? game.updated_at ?? null
   }));
 
   const remainingGames = gamesByUpdatedAt.slice(INITIAL_FEATURED_COUNT).map((game) => ({
     data: game,
-    lastUpdatedLabel: formatRelative(game.latest_code_first_seen_at ?? game.updated_at)
+    articleUpdatedAt: game.content_updated_at ?? game.updated_at ?? null
   }));
 
   const structuredData = JSON.stringify({
@@ -102,7 +97,7 @@ export default async function HomePage() {
       position: index + 1,
       name: `${game.name} codes`,
       url: `${SITE_URL}/${game.slug}`,
-      dateModified: game.latest_code_first_seen_at ?? game.updated_at
+      dateModified: game.content_updated_at ?? game.updated_at
     }))
   });
 
@@ -133,12 +128,12 @@ export default async function HomePage() {
       <section className="space-y-6">
         <h2 className="text-xl font-semibold text-foreground">Trending Roblox games</h2>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {featuredGames.map(({ data: game, lastUpdatedLabel }, index) => (
+          {featuredGames.map(({ data: game, articleUpdatedAt }, index) => (
             <GameCard
               key={game.id}
               game={game}
               priority={index === 0}
-              lastUpdatedLabel={lastUpdatedLabel}
+              articleUpdatedAt={articleUpdatedAt}
             />
           ))}
         </div>

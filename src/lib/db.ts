@@ -124,6 +124,7 @@ type GameSummaryFields = Pick<Game, "id" | "name" | "slug" | "cover_image" | "cr
 export type GameWithCounts = GameSummaryFields & {
   active_count: number;
   latest_code_first_seen_at: string | null;
+  content_updated_at: string | null;
 };
 
 
@@ -160,6 +161,7 @@ async function fetchActiveCodeStats(
         .from("codes")
         .select("game_id, status, first_seen_at")
         .in("game_id", batchIds)
+        .order("first_seen_at", { ascending: false })
         .range(from, to);
 
       if (error) {
@@ -177,15 +179,8 @@ async function fetchActiveCodeStats(
           counts.set(row.game_id, (counts.get(row.game_id) ?? 0) + 1);
         }
 
-        const existing = latestFirstSeenMap.get(row.game_id) ?? null;
-        if (!existing) {
+        if (!latestFirstSeenMap.has(row.game_id)) {
           latestFirstSeenMap.set(row.game_id, row.first_seen_at ?? null);
-        } else if (row.first_seen_at) {
-          const existingTime = new Date(existing).getTime();
-          const candidateTime = new Date(row.first_seen_at).getTime();
-          if (Number.isNaN(existingTime) || candidateTime > existingTime) {
-            latestFirstSeenMap.set(row.game_id, row.first_seen_at);
-          }
         }
       }
 
@@ -224,10 +219,22 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
 
   const withCounts = gameList.map<GameWithCounts>((g) => {
     const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
+    const updatedAtTime = Date.parse(g.updated_at ?? "");
+    const latestFirstSeenTime = latestFirstSeen ? Date.parse(latestFirstSeen) : NaN;
+    const hasLatestFirstSeen = Number.isFinite(latestFirstSeenTime);
+    const hasUpdatedAt = Number.isFinite(updatedAtTime);
+    let contentUpdatedAt: string | null = g.updated_at ?? null;
+    if (hasLatestFirstSeen && hasUpdatedAt) {
+      contentUpdatedAt = latestFirstSeenTime > updatedAtTime ? latestFirstSeen : g.updated_at ?? latestFirstSeen;
+    } else if (hasLatestFirstSeen) {
+      contentUpdatedAt = latestFirstSeen;
+    }
+
     return {
       ...g,
       active_count: counts.get(g.id) || 0,
-      latest_code_first_seen_at: latestFirstSeen
+      latest_code_first_seen_at: latestFirstSeen,
+      content_updated_at: contentUpdatedAt ?? g.updated_at ?? null
     };
   });
 
@@ -364,41 +371,28 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
   }
 
   const gameIds = gameList.map((g) => g.id);
-  const { data: activeCodes, error: codesError } = await sb
-    .from("codes")
-    .select("game_id")
-    .eq("status", "active")
-    .in("game_id", gameIds);
-  if (codesError) throw codesError;
+  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
 
-  const counts = new Map<string, number>();
-  for (const row of activeCodes || []) {
-    counts.set(row.game_id, (counts.get(row.game_id) || 0) + 1);
-  }
-
-  const { data: latestCodeRows, error: latestCodeError } = await sb
-    .from("codes")
-    .select("game_id,first_seen_at")
-    .in("game_id", gameIds)
-    .order("first_seen_at", { ascending: false });
-  if (latestCodeError) throw latestCodeError;
-
-  const latestFirstSeenMap = new Map<string, string | null>();
-  for (const row of latestCodeRows || []) {
-    const record = row as unknown as { game_id: string; first_seen_at: string | null };
-    if (!latestFirstSeenMap.has(record.game_id)) {
-      latestFirstSeenMap.set(record.game_id, record.first_seen_at ?? null);
-      if (latestFirstSeenMap.size === gameIds.length) {
-        break;
-      }
+  return gameList.map<GameWithCounts>((g) => {
+    const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
+    const updatedAtTime = Date.parse(g.updated_at ?? "");
+    const latestFirstSeenTime = latestFirstSeen ? Date.parse(latestFirstSeen) : NaN;
+    const hasLatestFirstSeen = Number.isFinite(latestFirstSeenTime);
+    const hasUpdatedAt = Number.isFinite(updatedAtTime);
+    let contentUpdatedAt: string | null = g.updated_at ?? null;
+    if (hasLatestFirstSeen && hasUpdatedAt) {
+      contentUpdatedAt = latestFirstSeenTime > updatedAtTime ? latestFirstSeen : g.updated_at ?? latestFirstSeen;
+    } else if (hasLatestFirstSeen) {
+      contentUpdatedAt = latestFirstSeen;
     }
-  }
 
-  return gameList.map<GameWithCounts>((g) => ({
-    ...g,
-    active_count: counts.get(g.id) || 0,
-    latest_code_first_seen_at: latestFirstSeenMap.get(g.id) ?? null
-  }));
+    return {
+      ...g,
+      active_count: counts.get(g.id) || 0,
+      latest_code_first_seen_at: latestFirstSeen,
+      content_updated_at: contentUpdatedAt ?? g.updated_at ?? null
+    };
+  });
 }
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
