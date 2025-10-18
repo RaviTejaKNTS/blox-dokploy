@@ -197,7 +197,6 @@
 .game-copy a {
   color: rgb(var(--color-accent));
   font-weight: 600;
-  text-decoration: underline;
   text-underline-offset: 6px;
   transition: color 0.2s ease;
 }

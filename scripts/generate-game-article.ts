@@ -317,6 +317,30 @@ function isTwitterProfile(url: URL): boolean {
   return path.split("/").filter(Boolean).length >= 1;
 }
 
+function isRobloxExperienceUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (!host.endsWith("roblox.com")) return false;
+    const path = url.pathname.toLowerCase();
+    return /^\/(games|game-details|experiences)(\/|$)/.test(path);
+  } catch {
+    return false;
+  }
+}
+
+function isRobloxCommunityUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (!host.endsWith("roblox.com")) return false;
+    const path = url.pathname.toLowerCase();
+    return /^\/(communities|groups)(\/|$)/.test(path);
+  } catch {
+    return false;
+  }
+}
+
 async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
   const result: SocialLinks = {};
 
@@ -337,9 +361,9 @@ async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
       const normalized = normalizeExternalLink(resolved);
       if (!normalized) continue;
 
-      if (!result.roblox_link && /roblox\.com\/(games|game-details|experiences)\//i.test(normalized)) {
+      if (!result.roblox_link && isRobloxExperienceUrl(normalized)) {
         result.roblox_link = normalized;
-      } else if (!result.community_link && /roblox\.com\/(communities|groups)\//i.test(normalized)) {
+      } else if (!result.community_link && isRobloxCommunityUrl(normalized)) {
         result.community_link = normalized;
       } else if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
         result.discord_link = normalized;
