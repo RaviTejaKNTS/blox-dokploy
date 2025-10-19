@@ -37,18 +37,29 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<AdminCategorySummary | null>(null);
+  const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return initialCategories;
-    const query = search.toLowerCase();
-    return initialCategories.filter((category) => {
-      return (
-        category.name.toLowerCase().includes(query) ||
-        category.slug.toLowerCase().includes(query) ||
-        (category.description ?? "").toLowerCase().includes(query)
-      );
+    const query = search.trim().toLowerCase();
+    const base = query
+      ? initialCategories.filter((category) => {
+          return (
+            category.name.toLowerCase().includes(query) ||
+            category.slug.toLowerCase().includes(query) ||
+            (category.description ?? "").toLowerCase().includes(query)
+          );
+        })
+      : [...initialCategories];
+    return base.sort((a, b) => {
+      const aTime = new Date(sortKey === "created_at" ? a.created_at : a.updated_at).getTime();
+      const bTime = new Date(sortKey === "created_at" ? b.created_at : b.updated_at).getTime();
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+      if (Number.isNaN(aTime)) return sortOrder === "desc" ? 1 : -1;
+      if (Number.isNaN(bTime)) return sortOrder === "desc" ? -1 : 1;
+      return sortOrder === "desc" ? bTime - aTime : aTime - bTime;
     });
-  }, [initialCategories, search]);
+  }, [initialCategories, search, sortKey, sortOrder]);
 
   const totalCount = initialCategories.length;
   const filteredCount = filtered.length;
@@ -83,6 +94,28 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
         >
           New Category
         </button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="categories-sort-key">
+            Sort
+          </label>
+          <select
+            id="categories-sort-key"
+            value={sortKey}
+            onChange={(event) => setSortKey(event.target.value as typeof sortKey)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="updated_at">Updated date</option>
+            <option value="created_at">Created date</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
+        </div>
       </div>
 
       <details className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">

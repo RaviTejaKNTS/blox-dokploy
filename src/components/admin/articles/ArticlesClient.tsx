@@ -38,18 +38,35 @@ interface ArticlesClientProps {
   categories: AdminArticleCategoryOption[];
 }
 
+function sortArticles(
+  articles: AdminArticleSummary[],
+  sortKey: "updated_at" | "created_at",
+  order: "desc" | "asc"
+) {
+  return [...articles].sort((a, b) => {
+    const aTime = new Date(sortKey === "created_at" ? a.created_at : a.updated_at).getTime();
+    const bTime = new Date(sortKey === "created_at" ? b.created_at : b.updated_at).getTime();
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+    if (Number.isNaN(aTime)) return order === "desc" ? 1 : -1;
+    if (Number.isNaN(bTime)) return order === "desc" ? -1 : 1;
+    return order === "desc" ? bTime - aTime : aTime - bTime;
+  });
+}
+
 export function ArticlesClient({ initialArticles, authors, categories }: ArticlesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("published");
   const [authorFilter, setAuthorFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<AdminArticleSummary | null>(null);
 
   const filtered = useMemo(() => {
-    return initialArticles.filter((article) => {
+    const filteredArticles = initialArticles.filter((article) => {
       const matchesSearch = search
         ? article.title.toLowerCase().includes(search.toLowerCase()) ||
           article.slug.toLowerCase().includes(search.toLowerCase())
@@ -60,7 +77,8 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
       const matchesCategory = categoryFilter === "all" ? true : article.category.id === categoryFilter;
       return matchesSearch && matchesStatus && matchesAuthor && matchesCategory;
     });
-  }, [initialArticles, search, statusFilter, authorFilter, categoryFilter]);
+    return sortArticles(filteredArticles, sortKey, sortOrder);
+  }, [initialArticles, search, statusFilter, authorFilter, categoryFilter, sortKey, sortOrder]);
 
   const totalCount = initialArticles.length;
   const filteredCount = filtered.length;
@@ -128,6 +146,28 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
         >
           New Article
         </button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="articles-sort-key">
+            Sort
+          </label>
+          <select
+            id="articles-sort-key"
+            value={sortKey}
+            onChange={(event) => setSortKey(event.target.value as typeof sortKey)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="updated_at">Updated date</option>
+            <option value="created_at">Created date</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
+        </div>
       </div>
 
       <details className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">

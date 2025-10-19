@@ -21,6 +21,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { session, role, loading } = useAdminSession();
   const email = session?.user.email ?? "";
   const roleResolved = role !== undefined;
+  const displayEmail = email || "Unknown";
+  const showLoading = loading && !session;
 
   useEffect(() => {
     if (loading || !roleResolved) return;
@@ -72,7 +74,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
           <div className="flex items-center gap-4">
             <Link href="/admin" className="text-lg font-semibold text-foreground">
-              Control Panel
+              Admin Panel
             </Link>
             <nav className="hidden items-center gap-3 text-sm text-muted md:flex">
               {adminNavItems.map((item) => (
@@ -92,7 +94,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 text-xs text-muted md:text-sm">
             <div className="hidden flex-col md:flex">
               <span className="font-semibold text-foreground">
-                {loading ? "Loading…" : email || "Unknown"}
+                {showLoading ? "Loading…" : displayEmail}
               </span>
               <span className="uppercase tracking-wide">{roleResolved ? role ?? "" : ""}</span>
             </div>
