@@ -14,6 +14,7 @@ const columns = [
   { key: "author", label: "Author" },
   { key: "status", label: "Status" },
   { key: "updated", label: "Last Update" },
+  { key: "redeemImages", label: "Redeem Images" },
   { key: "active", label: "Active" },
   { key: "check", label: "Check" }
 ] as const;
@@ -28,6 +29,7 @@ const defaultVisibility: ColumnVisibility = {
   author: true,
   status: true,
   updated: true,
+  redeemImages: true,
   active: true,
   check: true
 };
@@ -37,11 +39,29 @@ interface GamesClientProps {
   authors: AdminAuthorOption[];
 }
 
+function sortGames(
+  games: AdminGameSummary[],
+  sortKey: "updated_at" | "created_at",
+  order: "desc" | "asc"
+) {
+  return [...games].sort((a, b) => {
+    const aTime = new Date(a[sortKey]).getTime();
+    const bTime = new Date(b[sortKey]).getTime();
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+    if (Number.isNaN(aTime)) return order === "desc" ? 1 : -1;
+    if (Number.isNaN(bTime)) return order === "desc" ? -1 : 1;
+    return order === "desc" ? bTime - aTime : aTime - bTime;
+  });
+}
+
 export function GamesClient({ initialGames, authors }: GamesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
   const [authorFilter, setAuthorFilter] = useState<string>("all");
+  const [redeemImageFilter, setRedeemImageFilter] = useState<"all" | "zero" | "nonzero">("all");
+  const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<AdminGameSummary | null>(null);
@@ -56,16 +76,30 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   }, [flash]);
 
   const filtered = useMemo(() => {
-    return initialGames.filter((game) => {
+    const filteredGames = initialGames.filter((game) => {
       const matchesSearch = search
         ? game.name.toLowerCase().includes(search.toLowerCase()) || game.slug.toLowerCase().includes(search.toLowerCase())
         : true;
       const matchesStatus =
         statusFilter === "all" ? true : statusFilter === "published" ? game.is_published : !game.is_published;
       const matchesAuthor = authorFilter === "all" ? true : game.author.id === authorFilter;
-      return matchesSearch && matchesStatus && matchesAuthor;
+      const matchesRedeemImage =
+        redeemImageFilter === "all"
+          ? true
+          : redeemImageFilter === "zero"
+          ? game.redeem_image_count === 0
+          : game.redeem_image_count > 0;
+      return matchesSearch && matchesStatus && matchesAuthor && matchesRedeemImage;
     });
-  }, [initialGames, search, statusFilter, authorFilter]);
+    return sortGames(filteredGames, sortKey, sortOrder);
+  }, [initialGames, search, statusFilter, authorFilter, redeemImageFilter, sortKey, sortOrder]);
+
+  const totalCount = initialGames.length;
+  const filteredCount = filtered.length;
+
+  const visibleColumnCount = useMemo(() => {
+    return columns.reduce((total, column) => (visibility[column.key] ? total + 1 : total), 1); // +1 for actions column
+  }, [visibility]);
 
   function handleExportCsv() {
     const rows = filtered.map((game) => ({
@@ -74,6 +108,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
       Author: game.author.name ?? "—",
       Published: game.is_published ? "Yes" : "No",
       "Last Update": format(new Date(game.updated_at), "yyyy-MM-dd HH:mm"),
+      "Redeem Images": String(game.redeem_image_count),
       "Active Codes": String(game.counts.active),
       "Check Codes": String(game.counts.check),
       "Expired Codes": String(game.counts.expired)
@@ -122,6 +157,9 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs font-semibold text-muted">
+          Showing {filteredCount} of {totalCount} games
+        </span>
         <input
           type="search"
           placeholder="Search games…"
@@ -150,6 +188,15 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
             </option>
           ))}
         </select>
+        <select
+          value={redeemImageFilter}
+          onChange={(event) => setRedeemImageFilter(event.target.value as typeof redeemImageFilter)}
+          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          <option value="all">All redeem images</option>
+          <option value="nonzero">With images</option>
+          <option value="zero">Without images</option>
+        </select>
         <button
           type="button"
           onClick={handleExportCsv}
@@ -157,6 +204,28 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         >
           Export CSV
         </button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="sort-key">
+            Sort
+          </label>
+          <select
+            id="sort-key"
+            value={sortKey}
+            onChange={(event) => setSortKey(event.target.value as typeof sortKey)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="updated_at">Updated date</option>
+            <option value="created_at">Created date</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          >
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
+        </div>
         <button
           type="button"
           onClick={openNewGame}
@@ -207,6 +276,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
               {visibility.author ? <th className="px-4 py-3 text-left">Author</th> : null}
               {visibility.status ? <th className="px-4 py-3 text-left">Status</th> : null}
               {visibility.updated ? <th className="px-4 py-3 text-left">Last update</th> : null}
+              {visibility.redeemImages ? <th className="px-4 py-3 text-right">Redeem images</th> : null}
               {visibility.active ? <th className="px-4 py-3 text-right">Active</th> : null}
               {visibility.check ? <th className="px-4 py-3 text-right">Check</th> : null}
               <th className="px-4 py-3 text-right">Actions</th>
@@ -233,6 +303,9 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
                   <td className="px-4 py-3 text-muted">
                     {format(new Date(game.updated_at), "LLL d, yyyy HH:mm")}
                   </td>
+                ) : null}
+                {visibility.redeemImages ? (
+                  <td className="px-4 py-3 text-right text-muted">{game.redeem_image_count}</td>
                 ) : null}
                 {visibility.active ? (
                   <td className="px-4 py-3 text-right font-semibold text-foreground">
@@ -265,7 +338,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
             ))}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-muted">
+                <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-muted">
                   No games match your filters yet.
                 </td>
               </tr>

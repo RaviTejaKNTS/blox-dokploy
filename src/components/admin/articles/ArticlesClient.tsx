@@ -61,6 +61,9 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
     });
   }, [initialArticles, search, statusFilter, authorFilter, categoryFilter]);
 
+  const totalCount = initialArticles.length;
+  const filteredCount = filtered.length;
+
   function openNewArticle() {
     setSelectedArticle(null);
     setDrawerOpen(true);
@@ -74,6 +77,9 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs font-semibold text-muted">
+          Showing {filteredCount} of {totalCount} articles
+        </span>
         <input
           type="search"
           placeholder="Search articles…"

@@ -49,6 +49,9 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
     });
   }, [initialCategories, search]);
 
+  const totalCount = initialCategories.length;
+  const filteredCount = filtered.length;
+
   function handleNewCategory() {
     setSelectedCategory(null);
     setDrawerOpen(true);
@@ -62,6 +65,9 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs font-semibold text-muted">
+          Showing {filteredCount} of {totalCount} categories
+        </span>
         <input
           type="search"
           placeholder="Search categories…"

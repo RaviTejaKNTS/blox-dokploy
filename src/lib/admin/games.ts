@@ -29,6 +29,7 @@ export interface AdminGameSummary {
   seo_description: string | null;
   cover_image: string | null;
   expired_codes: string[];
+  redeem_image_count: number;
   author: { id: string | null; name: string | null };
   counts: { active: number; check: number; expired: number };
   codes: {
@@ -43,28 +44,60 @@ export type AdminAuthorOption = {
   name: string;
 };
 
-export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGameSummary[]> {
-  const { data: games, error } = await client
-    .from("games")
-    .select(
-      `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
-       intro_md, redeem_md, description_md, seo_title, seo_description, cover_image, expired_codes,
-       author:authors ( id, name )`
-    )
-    .order("updated_at", { ascending: false });
+const GAME_PAGE_SIZE = 500;
+const CODE_CHUNK_SIZE = 100;
 
-  if (error) throw error;
-  const gameIds = (games ?? []).map((game) => game.id);
+async function fetchAllGames(client: SupabaseClient) {
+  const games: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + GAME_PAGE_SIZE - 1;
+    const { data, error } = await client
+      .from("games")
+      .select(
+        `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
+         intro_md, redeem_md, description_md, seo_title, seo_description, cover_image, expired_codes,
+         author:authors ( id, name )`
+      )
+      .order("updated_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    const chunk = data ?? [];
+    games.push(...chunk);
+    if (chunk.length < GAME_PAGE_SIZE) {
+      break;
+    }
+    from += GAME_PAGE_SIZE;
+  }
+
+  return games;
+}
+
+async function fetchCodesForGames(client: SupabaseClient, gameIds: string[]) {
+  const rows: any[] = [];
+  for (let index = 0; index < gameIds.length; index += CODE_CHUNK_SIZE) {
+    const chunkIds = gameIds.slice(index, index + CODE_CHUNK_SIZE);
+    const { data, error } = await client
+      .from("codes")
+      .select("id, game_id, code, status, rewards_text, level_requirement, is_new, posted_online, first_seen_at, last_seen_at")
+      .in("game_id", chunkIds);
+
+    if (error) throw error;
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
+
+export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGameSummary[]> {
+  const games = await fetchAllGames(client);
+  const gameIds = games.map((game) => game.id as string);
   if (gameIds.length === 0) {
     return [];
   }
 
-  const { data: codeRows, error: codeError } = await client
-    .from("codes")
-    .select("id, game_id, code, status, rewards_text, level_requirement, is_new, posted_online, first_seen_at, last_seen_at")
-    .in("game_id", gameIds);
-
-  if (codeError) throw codeError;
+  const codeRows = await fetchCodesForGames(client, gameIds);
 
   const counts = new Map<string, { active: number; check: number; expired: number }>();
   const groupedCodes = new Map<string, { active: AdminGameCode[]; check: AdminGameCode[] }>();
@@ -104,6 +137,10 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
   return (games ?? []).map((game) => {
     const grouped = groupedCodes.get(game.id) ?? { active: [], check: [] };
     const count = counts.get(game.id) ?? { active: 0, check: 0, expired: game.expired_codes?.length ?? 0 };
+    const redeemImageCount =
+      typeof game.redeem_md === "string"
+        ? (game.redeem_md.match(/!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)/g) ?? []).length
+        : 0;
 
     return {
       id: game.id,
@@ -122,6 +159,7 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       seo_description: game.seo_description,
       cover_image: game.cover_image,
       expired_codes: Array.isArray(game.expired_codes) ? game.expired_codes : [],
+      redeem_image_count: redeemImageCount,
       author: (() => {
         const authorEntry = Array.isArray(game.author) ? game.author[0] : game.author;
         return {
