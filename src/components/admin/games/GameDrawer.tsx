@@ -29,6 +29,7 @@ import {
 } from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
+import Link from "next/link";
 
 function parseMarkdownSections(markdown: string) {
   const result = {
@@ -179,6 +180,7 @@ export function GameDrawer({
     resolver: zodResolver(formSchema),
     defaultValues
   });
+  const viewUrl = game?.slug ? `/${game.slug}` : null;
   const nameRegister = register("name");
   const slugRegister = register("slug");
 
@@ -943,6 +945,16 @@ export function GameDrawer({
                         >
                           {deletePending ? "Deleting…" : "Delete game"}
                         </button>
+                      ) : null}
+                      {viewUrl ? (
+                        <Link
+                          href={viewUrl}
+                          className="text-xs text-accent underline-offset-2 hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View live page
+                        </Link>
                       ) : null}
                     </div>
                     <div className="flex gap-3">

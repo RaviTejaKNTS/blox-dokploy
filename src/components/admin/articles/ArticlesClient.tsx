@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { AdminArticleSummary, AdminArticleCategoryOption } from "@/lib/admin/articles";
@@ -170,7 +171,22 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
                 {visibility.title ? (
                   <td className="px-4 py-3 font-medium text-foreground">{article.title}</td>
                 ) : null}
-                {visibility.slug ? <td className="px-4 py-3 text-muted">{article.slug}</td> : null}
+                {visibility.slug ? (
+                  <td className="px-4 py-3 text-muted">
+                    {article.slug ? (
+                      <Link
+                        href={`/${article.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        {article.slug}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                ) : null}
                 {visibility.author ? <td className="px-4 py-3">{article.author.name ?? "—"}</td> : null}
                 {visibility.category ? <td className="px-4 py-3">{article.category.name ?? "—"}</td> : null}
                 {visibility.status ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { downloadCSV } from "@/lib/csv";
@@ -288,7 +289,22 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
                 {visibility.name ? (
                   <td className="px-4 py-3 font-medium text-foreground">{game.name}</td>
                 ) : null}
-                {visibility.slug ? <td className="px-4 py-3 text-muted">{game.slug}</td> : null}
+                {visibility.slug ? (
+                  <td className="px-4 py-3 text-muted">
+                    {game.slug ? (
+                      <Link
+                        href={`/${game.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        {game.slug}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                ) : null}
                 {visibility.author ? <td className="px-4 py-3">{game.author.name ?? "—"}</td> : null}
                 {visibility.status ? (
                   <td className="px-4 py-3">

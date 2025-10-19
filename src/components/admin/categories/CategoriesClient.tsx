@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { AdminCategorySummary } from "@/lib/admin/categories";
@@ -123,7 +124,22 @@ export function CategoriesClient({ initialCategories }: CategoriesClientProps) {
                 {visibility.name ? (
                   <td className="px-4 py-3 font-medium text-foreground">{category.name}</td>
                 ) : null}
-                {visibility.slug ? <td className="px-4 py-3 text-muted">{category.slug}</td> : null}
+                {visibility.slug ? (
+                  <td className="px-4 py-3 text-muted">
+                    {category.slug ? (
+                      <Link
+                        href={`/articles/category/${category.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent underline-offset-2 hover:underline"
+                      >
+                        {category.slug}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                ) : null}
                 {visibility.articles ? (
                   <td className="px-4 py-3 text-right font-semibold text-foreground">{category.article_count}</td>
                 ) : null}
