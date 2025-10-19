@@ -13,10 +13,21 @@ type Params = { params: { slug: string } };
 type CategoryPageMetadata = Awaited<ReturnType<typeof getArticleCategoryBySlug>>;
 
 function buildMetadata(category: CategoryPageMetadata | null): Metadata {
-  if (!category) return {};
+  if (!category) {
+    return {
+      robots: {
+        index: false,
+        follow: false
+      }
+    };
+  }
   return {
     title: `${category.name} Articles | ${SITE_NAME}`,
-    description: category.description ?? undefined
+    description: category.description ?? undefined,
+    robots: {
+      index: false,
+      follow: false
+    }
   };
 }
 

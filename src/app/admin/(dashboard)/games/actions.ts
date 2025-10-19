@@ -9,6 +9,7 @@ import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-i
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
+import { listMediaEntries, deleteMediaObject } from "@/app/admin/(dashboard)/media/actions";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -299,6 +300,33 @@ export async function deleteGameById(id: string) {
   }
 
   if (game.slug) {
+    const bucket = process.env.SUPABASE_MEDIA_BUCKET;
+    if (bucket) {
+      try {
+        const basePath = `games/${game.slug}`;
+        const listing = await listMediaEntries(basePath);
+        const filesToRemove: string[] = [];
+        const queue: string[] = listing.folders.map((folder) => folder.path);
+        filesToRemove.push(...listing.files.map((file) => file.path));
+
+        while (queue.length) {
+          const folderPath = queue.shift()!;
+          const subListing = await listMediaEntries(folderPath);
+          filesToRemove.push(...subListing.files.map((file) => file.path));
+          queue.push(...subListing.folders.map((folder) => folder.path));
+        }
+
+        for (const filePath of filesToRemove) {
+          await deleteMediaObject(filePath);
+        }
+
+        if (filesToRemove.length === 0) {
+          await supabase.storage.from(bucket).remove([basePath]);
+        }
+      } catch (error) {
+        console.error("Failed to clean up media for game", game.slug, error);
+      }
+    }
     categorySlugs.add(game.slug);
     revalidatePath(`/${game.slug}`);
   }
