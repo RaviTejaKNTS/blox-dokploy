@@ -7,8 +7,6 @@ import { listMediaEntries, uploadMedia, deleteMediaObject } from "@/app/admin/(d
 import type { MediaListing } from "@/app/admin/(dashboard)/media/page";
 
 type MediaClientProps = {
-  bucket: string;
-  publicBaseUrl: string;
   initialListing: MediaListing;
 };
 
@@ -34,6 +32,7 @@ function breadcrumbSegments(path: string) {
 export function MediaClient({ initialListing }: MediaClientProps) {
   const [listing, setListing] = useState<MediaListing>(initialListing);
   const [currentPath, setCurrentPath] = useState(initialListing.path);
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -41,8 +40,18 @@ export function MediaClient({ initialListing }: MediaClientProps) {
 
   const breadcrumbs = useMemo(() => breadcrumbSegments(currentPath), [currentPath]);
 
-  const totalFiles = listing.files.length;
-  const totalFolders = listing.folders.length;
+  const filteredListing = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return listing;
+    return {
+      path: listing.path,
+      folders: listing.folders.filter((folder) => folder.name.toLowerCase().includes(query)),
+      files: listing.files.filter((file) => file.name.toLowerCase().includes(query))
+    } satisfies MediaListing;
+  }, [listing, search]);
+
+  const totalFiles = filteredListing.files.length;
+  const totalFolders = filteredListing.folders.length;
 
   const refreshPath = (path: string) => {
     startNavigation(async () => {
@@ -51,6 +60,9 @@ export function MediaClient({ initialListing }: MediaClientProps) {
         const data = await listMediaEntries(path);
         setListing(data);
         setCurrentPath(data.path);
+        if (data.path !== currentPath) {
+          setSearch("");
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load media.");
       }
@@ -137,6 +149,13 @@ export function MediaClient({ initialListing }: MediaClientProps) {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <input
+            type="search"
+            placeholder="Search in folder…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
           <button
             type="button"
             onClick={navigateUp}
@@ -184,7 +203,7 @@ export function MediaClient({ initialListing }: MediaClientProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {listing.folders.map((folder) => (
+            {filteredListing.folders.map((folder) => (
               <tr key={`folder-${folder.path}`} className="hover:bg-surface-muted/40">
                 <td className="px-4 py-3 font-semibold text-foreground">
                   <button
@@ -209,7 +228,7 @@ export function MediaClient({ initialListing }: MediaClientProps) {
                 </td>
               </tr>
             ))}
-            {listing.files.map((file) => {
+            {filteredListing.files.map((file) => {
               const publicUrl = file.public_url;
               const updatedLabel = file.updated_at
                 ? `${format(new Date(file.updated_at), "LLL d, yyyy HH:mm")} (${formatDistanceToNow(new Date(file.updated_at), { addSuffix: true })})`
@@ -251,10 +270,12 @@ export function MediaClient({ initialListing }: MediaClientProps) {
                 </tr>
               );
             })}
-            {listing.folders.length === 0 && listing.files.length === 0 ? (
+            {filteredListing.folders.length === 0 && filteredListing.files.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                  This folder is empty.
+                  {search.trim()
+                    ? "No files or folders match your search."
+                    : "This folder is empty."}
                 </td>
               </tr>
             ) : null}

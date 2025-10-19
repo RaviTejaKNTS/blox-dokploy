@@ -4,9 +4,6 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { MediaClient } from "@/components/admin/media/MediaClient";
 
 const BUCKET = process.env.SUPABASE_MEDIA_BUCKET;
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/public/${BUCKET}`
-  : null;
 
 type StorageItem = {
   name: string;
@@ -101,7 +98,7 @@ async function fetchListing(path: string): Promise<MediaListing> {
 export default async function AdminMediaPage() {
   await requireAdmin();
 
-  if (!BUCKET || !PUBLIC_BASE) {
+  if (!BUCKET) {
     return notFound();
   }
 
@@ -109,8 +106,6 @@ export default async function AdminMediaPage() {
 
   return (
     <MediaClient
-      bucket={BUCKET}
-      publicBaseUrl={PUBLIC_BASE}
       initialListing={initialListing}
     />
   );

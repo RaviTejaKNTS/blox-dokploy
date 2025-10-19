@@ -1174,6 +1174,7 @@ function GameMediaTab({ slug }: { slug: string }) {
   const basePath = useMemo(() => `games/${slug}`, [slug]);
   const [currentPath, setCurrentPath] = useState(basePath);
   const [listing, setListing] = useState<MediaListing | null>(null);
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -1184,13 +1185,16 @@ function GameMediaTab({ slug }: { slug: string }) {
   }, [basePath]);
 
   const fetchListing = useCallback(
-    (path: string) => {
+    (path: string, resetSearch = false) => {
       startTransition(async () => {
         try {
           setError(null);
           const data = await listMediaEntries(path);
           setListing(data);
           setCurrentPath(data.path || basePath);
+          if (resetSearch || data.path !== path) {
+            setSearch("");
+          }
         } catch (err) {
           setError(err instanceof Error ? err.message : "Failed to load media.");
         }
@@ -1200,7 +1204,7 @@ function GameMediaTab({ slug }: { slug: string }) {
   );
 
   useEffect(() => {
-    fetchListing(basePath);
+    fetchListing(basePath, true);
   }, [basePath, fetchListing]);
 
   const handleUpload = async (fileList: FileList | null) => {
@@ -1246,18 +1250,18 @@ function GameMediaTab({ slug }: { slug: string }) {
   };
 
   const navigateTo = (path: string) => {
-    fetchListing(path);
+    fetchListing(path, true);
   };
 
   const navigateUp = () => {
     if (currentPath === basePath) return;
     const segments = currentPath.split("/").filter(Boolean);
     if (segments.length <= 2) {
-      fetchListing(basePath);
+      fetchListing(basePath, true);
       return;
     }
     segments.pop();
-    fetchListing(segments.join("/"));
+    fetchListing(segments.join("/"), true);
   };
 
   const isLoading = isPending && !listing;
@@ -1279,6 +1283,17 @@ function GameMediaTab({ slug }: { slug: string }) {
     return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
   }, []);
 
+  const filteredListing = useMemo(() => {
+    if (!listing) return null;
+    const query = search.trim().toLowerCase();
+    if (!query) return listing;
+    return {
+      path: listing.path,
+      folders: listing.folders.filter((folder) => folder.name.toLowerCase().includes(query)),
+      files: listing.files.filter((file) => file.name.toLowerCase().includes(query))
+    } satisfies MediaListing;
+  }, [listing, search]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted md:text-sm">
@@ -1297,12 +1312,19 @@ function GameMediaTab({ slug }: { slug: string }) {
           <span>
             {isLoading
               ? "Loading…"
-              : listing
-              ? `Folders ${listing.folders.length} · Files ${listing.files.length}`
+              : filteredListing
+              ? `Folders ${filteredListing.folders.length} · Files ${filteredListing.files.length}`
               : ""}
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="search"
+            placeholder="Search in folder…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
           <button
             type="button"
             onClick={navigateUp}
@@ -1337,7 +1359,7 @@ function GameMediaTab({ slug }: { slug: string }) {
         </div>
       ) : null}
       {isLoading && !listing ? <p className="text-sm text-muted">Loading media…</p> : null}
-      {listing ? (
+      {filteredListing ? (
         <div className="rounded-lg border border-border/60">
           <table className="min-w-full divide-y divide-border/60 text-sm">
             <thead className="bg-surface-muted/60 text-xs uppercase tracking-wide text-muted">
@@ -1350,7 +1372,7 @@ function GameMediaTab({ slug }: { slug: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {listing.folders.map((folder) => (
+              {filteredListing.folders.map((folder) => (
                 <tr key={`folder-${folder.path}`} className="hover:bg-surface-muted/40">
                   <td className="px-4 py-3 font-semibold text-foreground">
                     <button
@@ -1375,7 +1397,7 @@ function GameMediaTab({ slug }: { slug: string }) {
                   </td>
                 </tr>
               ))}
-              {listing.files.map((file) => {
+              {filteredListing.files.map((file) => {
                 const updatedLabel = file.updated_at
                   ? `${format(new Date(file.updated_at), "LLL d, yyyy HH:mm")} (${formatDistanceToNow(new Date(file.updated_at), {
                       addSuffix: true
@@ -1413,10 +1435,10 @@ function GameMediaTab({ slug }: { slug: string }) {
                   </tr>
                 );
               })}
-              {listing.folders.length === 0 && listing.files.length === 0 ? (
+              {filteredListing.folders.length === 0 && filteredListing.files.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    This folder is empty.
+                    {search.trim() ? "No files or folders match your search." : "This folder is empty."}
                   </td>
                 </tr>
               ) : null}
