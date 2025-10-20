@@ -649,7 +649,7 @@ async function main() {
     intro_md: article.intro_md,
     redeem_md: article.redeem_md,
     description_md: article.description_md,
-    is_published: true,
+    is_published: false,
   };
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
