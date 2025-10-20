@@ -34,6 +34,22 @@ import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import Link from "next/link";
 
+function normalizeLinkForPreview(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const prefixed = /^(https?:)?\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+    const parsed = new URL(prefixed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function parseMarkdownSections(markdown: string) {
   const result = {
     intro: "",
@@ -223,6 +239,13 @@ export function GameDrawer({
   const nameValue = watch("name");
   const slugValue = watch("slug");
   const sourceUrlValue = watch("source_url");
+  const sourceUrl2Value = watch("source_url_2");
+  const sourceUrl3Value = watch("source_url_3");
+  const robloxLinkValue = watch("roblox_link");
+  const communityLinkValue = watch("community_link");
+  const twitterLinkValue = watch("twitter_link");
+  const discordLinkValue = watch("discord_link");
+  const youtubeLinkValue = watch("youtube_link");
   const introValue = watch("intro_md");
   const redeemValue = watch("redeem_md");
   const descriptionValue = watch("description_md");
@@ -581,6 +604,21 @@ export function GameDrawer({
     });
   }, [closeAfterSave, game, onRefresh, startTransition]);
 
+  const renderOpenLinkButton = useCallback((url?: string | null) => {
+    const normalized = normalizeLinkForPreview(url);
+    if (!normalized) return null;
+    return (
+      <a
+        href={normalized}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-border/60 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+      >
+        Open
+      </a>
+    );
+  }, []);
+
   return (
     <Transition show={open} as={Fragment}>
       <Dialog onClose={requestClose} className="relative z-50">
@@ -718,81 +756,105 @@ export function GameDrawer({
                       <div className="grid gap-4 md:grid-cols-3">
                         <div>
                           <label className="text-sm font-semibold text-foreground">Primary source URL</label>
-                          <input
-                            type="url"
-                            {...register("source_url")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("source_url")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(sourceUrlValue)}
+                          </div>
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">Secondary source URL</label>
-                          <input
-                            type="url"
-                            {...register("source_url_2")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("source_url_2")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(sourceUrl2Value)}
+                          </div>
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">Tertiary source URL</label>
-                          <input
-                            type="url"
-                            {...register("source_url_3")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("source_url_3")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(sourceUrl3Value)}
+                          </div>
                         </div>
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="md:col-span-2">
                           <label className="text-sm font-semibold text-foreground">Roblox link</label>
-                          <input
-                            type="url"
-                            {...register("roblox_link")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("roblox_link")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(robloxLinkValue)}
+                          </div>
                           {errors.roblox_link ? <p className="text-xs text-red-400">{errors.roblox_link.message}</p> : null}
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">Community link</label>
-                          <input
-                            type="url"
-                            {...register("community_link")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("community_link")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(communityLinkValue)}
+                          </div>
                           {errors.community_link ? <p className="text-xs text-red-400">{errors.community_link.message}</p> : null}
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">Twitter link</label>
-                          <input
-                            type="url"
-                            {...register("twitter_link")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("twitter_link")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(twitterLinkValue)}
+                          </div>
                           {errors.twitter_link ? <p className="text-xs text-red-400">{errors.twitter_link.message}</p> : null}
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">Discord link</label>
-                          <input
-                            type="url"
-                            {...register("discord_link")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("discord_link")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(discordLinkValue)}
+                          </div>
                           {errors.discord_link ? <p className="text-xs text-red-400">{errors.discord_link.message}</p> : null}
                         </div>
                         <div>
                           <label className="text-sm font-semibold text-foreground">YouTube link</label>
-                          <input
-                            type="url"
-                            {...register("youtube_link")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
+                          <div className="mt-1 flex gap-2">
+                            <input
+                              type="url"
+                              {...register("youtube_link")}
+                              className="w-full flex-1 rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                              placeholder="https://"
+                            />
+                            {renderOpenLinkButton(youtubeLinkValue)}
+                          </div>
                           {errors.youtube_link ? <p className="text-xs text-red-400">{errors.youtube_link.message}</p> : null}
                         </div>
                       </div>

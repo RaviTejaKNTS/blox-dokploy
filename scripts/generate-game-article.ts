@@ -461,7 +461,7 @@ Sections required:
    - Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences.
    - Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]].
    - When you ask readers to join or follow a community, wrap the relevant words with [[community_link|...]].
-   - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. 
+   - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.
 3. description_md – include all these sections:
    - ## Why Is My ${gameName} Code Not Working?
      Bullet list of real reasons from sources. Be very detailed and include all the reasons for why any code could fail. Before the bullet points, write at least a line or two to give cue to the actual points.
@@ -649,7 +649,7 @@ async function main() {
     intro_md: article.intro_md,
     redeem_md: article.redeem_md,
     description_md: article.description_md,
-    is_published: true,
+    is_published: false,
   };
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
