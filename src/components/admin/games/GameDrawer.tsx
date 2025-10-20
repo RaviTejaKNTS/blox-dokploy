@@ -110,6 +110,11 @@ const formSchema = z.object({
   source_url: z.string().url().optional().or(z.literal("")),
   source_url_2: z.string().url().optional().or(z.literal("")),
   source_url_3: z.string().url().optional().or(z.literal("")),
+  roblox_link: z.string().url().optional().or(z.literal("")),
+  community_link: z.string().url().optional().or(z.literal("")),
+  twitter_link: z.string().url().optional().or(z.literal("")),
+  discord_link: z.string().url().optional().or(z.literal("")),
+  youtube_link: z.string().url().optional().or(z.literal("")),
   intro_md: z.string().optional(),
   redeem_md: z.string().optional(),
   description_md: z.string().optional(),
@@ -163,6 +168,11 @@ export function GameDrawer({
     source_url: game?.source_url ?? "",
     source_url_2: game?.source_url_2 ?? "",
     source_url_3: game?.source_url_3 ?? "",
+    roblox_link: game?.roblox_link ?? "",
+    community_link: game?.community_link ?? "",
+    twitter_link: game?.twitter_link ?? "",
+    discord_link: game?.discord_link ?? "",
+    youtube_link: game?.youtube_link ?? "",
     intro_md: game?.intro_md ?? "",
     redeem_md: game?.redeem_md ?? "",
     description_md: game?.description_md ?? "",
@@ -732,6 +742,58 @@ export function GameDrawer({
                             className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
                             placeholder="https://"
                           />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                          <label className="text-sm font-semibold text-foreground">Roblox link</label>
+                          <input
+                            type="url"
+                            {...register("roblox_link")}
+                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            placeholder="https://"
+                          />
+                          {errors.roblox_link ? <p className="text-xs text-red-400">{errors.roblox_link.message}</p> : null}
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-foreground">Community link</label>
+                          <input
+                            type="url"
+                            {...register("community_link")}
+                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            placeholder="https://"
+                          />
+                          {errors.community_link ? <p className="text-xs text-red-400">{errors.community_link.message}</p> : null}
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-foreground">Twitter link</label>
+                          <input
+                            type="url"
+                            {...register("twitter_link")}
+                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            placeholder="https://"
+                          />
+                          {errors.twitter_link ? <p className="text-xs text-red-400">{errors.twitter_link.message}</p> : null}
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-foreground">Discord link</label>
+                          <input
+                            type="url"
+                            {...register("discord_link")}
+                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            placeholder="https://"
+                          />
+                          {errors.discord_link ? <p className="text-xs text-red-400">{errors.discord_link.message}</p> : null}
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-foreground">YouTube link</label>
+                          <input
+                            type="url"
+                            {...register("youtube_link")}
+                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            placeholder="https://"
+                          />
+                          {errors.youtube_link ? <p className="text-xs text-red-400">{errors.youtube_link.message}</p> : null}
                         </div>
                       </div>
                       <div className="space-y-2">

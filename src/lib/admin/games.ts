@@ -22,6 +22,11 @@ export interface AdminGameSummary {
   source_url: string | null;
   source_url_2: string | null;
   source_url_3: string | null;
+  roblox_link: string | null;
+  community_link: string | null;
+  twitter_link: string | null;
+  discord_link: string | null;
+  youtube_link: string | null;
   intro_md: string | null;
   redeem_md: string | null;
   description_md: string | null;
@@ -57,6 +62,7 @@ async function fetchAllGames(client: SupabaseClient) {
       .from("games")
       .select(
         `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
+         roblox_link, community_link, twitter_link, discord_link, youtube_link,
          intro_md, redeem_md, description_md, seo_title, seo_description, cover_image, expired_codes,
          author:authors ( id, name )`
       )
@@ -152,6 +158,11 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       source_url: game.source_url,
       source_url_2: game.source_url_2,
       source_url_3: game.source_url_3,
+      roblox_link: game.roblox_link,
+      community_link: game.community_link,
+      twitter_link: game.twitter_link,
+      discord_link: game.discord_link,
+      youtube_link: game.youtube_link,
       intro_md: game.intro_md,
       redeem_md: game.redeem_md,
       description_md: game.description_md,

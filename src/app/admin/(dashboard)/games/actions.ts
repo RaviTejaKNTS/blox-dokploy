@@ -20,6 +20,11 @@ const upsertGameSchema = z.object({
   source_url: z.string().url().nullable().optional(),
   source_url_2: z.string().url().nullable().optional(),
   source_url_3: z.string().url().nullable().optional(),
+  roblox_link: z.string().url().nullable().optional(),
+  community_link: z.string().url().nullable().optional(),
+  twitter_link: z.string().url().nullable().optional(),
+  discord_link: z.string().url().nullable().optional(),
+  youtube_link: z.string().url().nullable().optional(),
   intro_md: z.string().nullable().optional(),
   redeem_md: z.string().nullable().optional(),
   description_md: z.string().nullable().optional(),
@@ -54,6 +59,11 @@ export async function saveGame(form: FormData) {
       source_url: raw.source_url ? String(raw.source_url) : null,
       source_url_2: raw.source_url_2 ? String(raw.source_url_2) : null,
       source_url_3: raw.source_url_3 ? String(raw.source_url_3) : null,
+      roblox_link: raw.roblox_link ? String(raw.roblox_link) : null,
+      community_link: raw.community_link ? String(raw.community_link) : null,
+      twitter_link: raw.twitter_link ? String(raw.twitter_link) : null,
+      discord_link: raw.discord_link ? String(raw.discord_link) : null,
+      youtube_link: raw.youtube_link ? String(raw.youtube_link) : null,
       intro_md: raw.intro_md ? String(raw.intro_md) : null,
       redeem_md: raw.redeem_md ? String(raw.redeem_md) : null,
       description_md: raw.description_md ? String(raw.description_md) : null,
@@ -83,6 +93,11 @@ export async function saveGame(form: FormData) {
       source_url: normalizeOptionalUrl(payload.source_url),
       source_url_2: normalizeOptionalUrl(payload.source_url_2),
       source_url_3: normalizeOptionalUrl(payload.source_url_3),
+      roblox_link: normalizeOptionalUrl(payload.roblox_link),
+      community_link: normalizeOptionalUrl(payload.community_link),
+      twitter_link: normalizeOptionalUrl(payload.twitter_link),
+      discord_link: normalizeOptionalUrl(payload.discord_link),
+      youtube_link: normalizeOptionalUrl(payload.youtube_link),
       intro_md: payload.intro_md,
       redeem_md: payload.redeem_md,
       description_md: payload.description_md,
@@ -98,6 +113,11 @@ export async function saveGame(form: FormData) {
       source_url: string | null;
       source_url_2: string | null;
       source_url_3: string | null;
+      roblox_link: string | null;
+      community_link: string | null;
+      twitter_link: string | null;
+      discord_link: string | null;
+      youtube_link: string | null;
       is_published: boolean | null;
     };
 
@@ -108,7 +128,9 @@ export async function saveGame(form: FormData) {
         .from("games")
         .update(record)
         .eq("id", payload.id)
-        .select("id, slug, name, source_url, source_url_2, source_url_3, is_published")
+        .select(
+          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published"
+        )
         .single();
 
       if (error) {
@@ -119,7 +141,9 @@ export async function saveGame(form: FormData) {
       const { data, error } = await supabase
         .from("games")
         .insert(record)
-        .select("id, slug, name, source_url, source_url_2, source_url_3, is_published")
+        .select(
+          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published"
+        )
         .single();
 
       if (error) {

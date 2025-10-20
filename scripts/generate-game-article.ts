@@ -40,11 +40,17 @@ type ArticleResponse = {
 
 type ProcessedArticle = ArticleResponse;
 
+type LinkInfo = {
+  url: string;
+  label?: string;
+};
+
 type SocialLinks = {
-  roblox_link?: string;
-  community_link?: string;
-  discord_link?: string;
-  twitter_link?: string;
+  roblox_link?: LinkInfo;
+  community_link?: LinkInfo;
+  discord_link?: LinkInfo;
+  twitter_link?: LinkInfo;
+  youtube_link?: LinkInfo;
 };
 
 function isArticleResponse(value: unknown): value is ArticleResponse {
@@ -307,6 +313,18 @@ function normalizeExternalLink(url: string | null | undefined): string | null {
   }
 }
 
+function extractAnchorLabel(anchor: HTMLAnchorElement | Element | null | undefined): string | undefined {
+  if (!anchor) return undefined;
+  const raw =
+    "textContent" in anchor && typeof anchor.textContent === "string"
+      ? anchor.textContent
+      : undefined;
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/\s+/g, " ").trim();
+  if (!cleaned) return undefined;
+  return cleaned;
+}
+
 function isTwitterProfile(url: URL): boolean {
   const host = url.hostname.toLowerCase();
   const path = url.pathname.toLowerCase();
@@ -341,6 +359,31 @@ function isRobloxCommunityUrl(raw: string): boolean {
   }
 }
 
+async function fetchCommunityLinkFromRobloxExperience(gameUrl: string): Promise<LinkInfo | null> {
+  try {
+    const response = await fetchWithRetry(gameUrl);
+    const html = await response.text();
+    const dom = new JSDOM(html, { url: gameUrl });
+    const { document } = dom.window;
+
+    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+    const prioritized = anchors.filter((anchor) => anchor.classList.contains("text-name") && anchor.classList.contains("text-overflow"));
+
+    const candidates = [...prioritized, ...anchors];
+    for (const anchor of candidates) {
+      const resolved = resolveHref(anchor.getAttribute("href"), gameUrl);
+      if (!resolved) continue;
+      if (isRobloxCommunityUrl(resolved)) {
+        const label = extractAnchorLabel(anchor);
+        return { url: resolved, label };
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Failed to fetch Roblox community link:", error instanceof Error ? error.message : error);
+  }
+  return null;
+}
+
 async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
   const result: SocialLinks = {};
 
@@ -360,18 +403,19 @@ async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
       const resolved = resolveHref(anchor.getAttribute("href"), url);
       const normalized = normalizeExternalLink(resolved);
       if (!normalized) continue;
+      const label = extractAnchorLabel(anchor);
 
       if (!result.roblox_link && isRobloxExperienceUrl(normalized)) {
-        result.roblox_link = normalized;
+        result.roblox_link = { url: normalized, label };
       } else if (!result.community_link && isRobloxCommunityUrl(normalized)) {
-        result.community_link = normalized;
+        result.community_link = { url: normalized, label };
       } else if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
-        result.discord_link = normalized;
+        result.discord_link = { url: normalized, label };
       } else if (!result.twitter_link) {
         try {
           const parsed = new URL(normalized);
           if (isTwitterProfile(parsed)) {
-            result.twitter_link = parsed.toString();
+            result.twitter_link = { url: parsed.toString(), label };
           }
         } catch {
           /* ignore malformed links */
@@ -553,11 +597,47 @@ async function main() {
     return;
   }
 
+  const robloxExperienceLink = socialLinks.roblox_link?.url ?? existingGame?.roblox_link ?? undefined;
+  if (!socialLinks.community_link && robloxExperienceLink) {
+    const scrapedCommunityLink = await fetchCommunityLinkFromRobloxExperience(robloxExperienceLink);
+    if (scrapedCommunityLink) {
+      socialLinks.community_link = scrapedCommunityLink;
+      console.log(
+        `🤖 Extracted community link from Roblox page: ${scrapedCommunityLink.url}${
+          scrapedCommunityLink.label ? ` (${scrapedCommunityLink.label})` : ""
+        }`
+      );
+    }
+  }
+
+  const defaultLabels: Record<keyof SocialLinks, string> = {
+    roblox_link: `${name} on Roblox`,
+    community_link: `${name} Community`,
+    discord_link: `${name} Discord`,
+    twitter_link: `${name} Twitter`,
+    youtube_link: `${name} YouTube Channel`,
+  };
+
+  const buildLink = (
+    preferred: LinkInfo | undefined,
+    fallbackUrl: string | null | undefined,
+    fallbackLabel: string
+  ): LinkInfo | undefined => {
+    if (preferred?.url) {
+      const label = preferred.label?.trim() || fallbackLabel;
+      return { url: preferred.url, label };
+    }
+    if (fallbackUrl) {
+      return { url: fallbackUrl, label: fallbackLabel };
+    }
+    return undefined;
+  };
+
   const resolvedLinks: SocialLinks = {
-    roblox_link: socialLinks.roblox_link ?? existingGame?.roblox_link ?? undefined,
-    community_link: socialLinks.community_link ?? existingGame?.community_link ?? undefined,
-    discord_link: socialLinks.discord_link ?? existingGame?.discord_link ?? undefined,
-    twitter_link: socialLinks.twitter_link ?? existingGame?.twitter_link ?? undefined,
+    roblox_link: buildLink(socialLinks.roblox_link, existingGame?.roblox_link, defaultLabels.roblox_link),
+    community_link: buildLink(socialLinks.community_link, existingGame?.community_link, defaultLabels.community_link),
+    discord_link: buildLink(socialLinks.discord_link, existingGame?.discord_link, defaultLabels.discord_link),
+    twitter_link: buildLink(socialLinks.twitter_link, existingGame?.twitter_link, defaultLabels.twitter_link),
   };
 
   const article = applyLinkPlaceholders(parsed, gameName, resolvedLinks);
@@ -574,10 +654,10 @@ async function main() {
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
   if (beebomSource) insertPayload.source_url_2 = beebomSource;
-  if (socialLinks.roblox_link) insertPayload.roblox_link = socialLinks.roblox_link;
-  if (socialLinks.community_link) insertPayload.community_link = socialLinks.community_link;
-  if (socialLinks.discord_link) insertPayload.discord_link = socialLinks.discord_link;
-  if (socialLinks.twitter_link) insertPayload.twitter_link = socialLinks.twitter_link;
+  if (resolvedLinks.roblox_link) insertPayload.roblox_link = resolvedLinks.roblox_link.url;
+  if (resolvedLinks.community_link) insertPayload.community_link = resolvedLinks.community_link.url;
+  if (resolvedLinks.discord_link) insertPayload.discord_link = resolvedLinks.discord_link.url;
+  if (resolvedLinks.twitter_link) insertPayload.twitter_link = resolvedLinks.twitter_link.url;
 
   const upsert = await supabase
     .from("games")
@@ -602,7 +682,7 @@ async function main() {
     }
   }
 
-  const coverSourceLink = resolvedLinks.roblox_link ?? existingGame?.source_url ?? null;
+  const coverSourceLink = resolvedLinks.roblox_link?.url ?? existingGame?.source_url ?? null;
   await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });
   await refreshCodesForGame(slug);
 }
@@ -657,7 +737,24 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     return token.test(intro) || token.test(redeem) || token.test(description);
   };
 
-  const wrapWithRegex = (value: string, regex: RegExp, key: keyof SocialLinks) => {
+  const defaultLabelForKey = (key: keyof SocialLinks): string => {
+    switch (key) {
+      case "roblox_link":
+        return `${gameName} on Roblox`;
+      case "community_link":
+        return `${gameName} Community`;
+      case "discord_link":
+        return `${gameName} Discord`;
+      case "twitter_link":
+        return `${gameName} Twitter`;
+      case "youtube_link":
+        return `${gameName} YouTube Channel`;
+      default:
+        return gameName;
+    }
+  };
+
+  const wrapWithRegex = (value: string, regex: RegExp, key: keyof SocialLinks, label: string) => {
     const pattern = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`);
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(value)) !== null) {
@@ -667,14 +764,14 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
       if (before.includes("[[")) {
         continue;
       }
-      const replacement = `[[${key}|${full}]]`;
+      const replacement = `[[${key}|${label}]]`;
       const updated = value.slice(0, index) + replacement + value.slice(index + full.length);
       return { applied: true, value: updated };
     }
     return { applied: false, value };
   };
 
-  const wrapWithKeyword = (value: string, keyword: string, key: keyof SocialLinks) => {
+  const wrapWithKeyword = (value: string, keyword: string, key: keyof SocialLinks, label: string) => {
     const lower = value.toLowerCase();
     const target = keyword.toLowerCase();
     const index = lower.indexOf(target);
@@ -686,8 +783,7 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
         return { applied: false, value };
       }
     }
-    const original = value.slice(index, index + keyword.length);
-    const replacement = `[[${key}|${original}]]`;
+    const replacement = `[[${key}|${label}]]`;
     const updated = value.slice(0, index) + replacement + value.slice(index + keyword.length);
     return { applied: true, value: updated };
   };
@@ -702,73 +798,77 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     key: keyof SocialLinks,
     keywords: string[],
     regexes: RegExp[],
-    fallback: string
+    buildFallback: (label: string) => string
   ) => {
-    if (!links[key]) return;
+    const link = links[key];
+    if (!link?.url) return;
     if (hasPlaceholder(key)) return;
 
+    const label = link.label?.trim() || defaultLabelForKey(key);
+    const keywordPool = Array.from(new Set([label, ...keywords])).filter(Boolean) as string[];
+
     for (const regex of regexes) {
-      let result = wrapWithRegex(description, regex, key);
+      let result = wrapWithRegex(description, regex, key, label);
       if (result.applied) {
         description = result.value;
         return;
       }
-      result = wrapWithRegex(redeem, regex, key);
+      result = wrapWithRegex(redeem, regex, key, label);
       if (result.applied) {
         redeem = result.value;
         return;
       }
-      result = wrapWithRegex(intro, regex, key);
+      result = wrapWithRegex(intro, regex, key, label);
       if (result.applied) {
         intro = result.value;
         return;
       }
     }
 
-    for (const keyword of keywords) {
-      let result = wrapWithKeyword(description, keyword, key);
+    for (const keyword of keywordPool) {
+      let result = wrapWithKeyword(description, keyword, key, label);
       if (result.applied) {
         description = result.value;
         return;
       }
-      result = wrapWithKeyword(redeem, keyword, key);
+      result = wrapWithKeyword(redeem, keyword, key, label);
       if (result.applied) {
         redeem = result.value;
         return;
       }
-      result = wrapWithKeyword(intro, keyword, key);
+      result = wrapWithKeyword(intro, keyword, key, label);
       if (result.applied) {
         intro = result.value;
         return;
       }
     }
 
-    description = appendSentence(description, fallback);
+    description = appendSentence(description, buildFallback(label));
   };
 
   ensurePlaceholder(
     "roblox_link",
-    ["Launch", "Roblox"],
+    [gameName],
     [],
-    `Visit the [[roblox_link|official Roblox experience]] to hop in and start playing.`
+    (label) => `Visit [[roblox_link|${label}]] to hop in and start playing.`
   );
   ensurePlaceholder(
     "community_link",
     ["community", "group"],
     [/Roblox\s+community/i],
-    `Join the [[community_link|official Roblox community]] to catch every update.`
+    (label) => `Join [[community_link|${label}]] to catch every update.`
   );
   ensurePlaceholder(
     "discord_link",
     ["Discord"],
     [/\bdiscord\b/i],
-    `Chat with other players in the [[discord_link|official Discord]] server.`
+    (label) => `Chat with other players in [[discord_link|${label}]].`
   );
   ensurePlaceholder(
     "twitter_link",
     ["Twitter", "X"],
     [/@[a-z0-9_]{3,}/i],
-    `Follow the [[twitter_link|official Twitter]] feed for code drops.`
+    (label) => `Follow [[twitter_link|${label}]] for code drops.`
   );
 
   return {

@@ -6,6 +6,9 @@ export const metadata = {
   title: "Games"
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminGamesPage() {
   const supabase = supabaseAdmin();
   const [games, authors] = await Promise.all([
