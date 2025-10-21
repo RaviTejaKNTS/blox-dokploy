@@ -36,6 +36,8 @@ type ArticleResponse = {
   intro_md: string;
   redeem_md: string;
   description_md: string;
+  meta_description: string;
+  game_display_name: string;
 };
 
 type ProcessedArticle = ArticleResponse;
@@ -56,7 +58,7 @@ type SocialLinks = {
 function isArticleResponse(value: unknown): value is ArticleResponse {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
-  return ["intro_md", "redeem_md", "description_md"].every(
+  return ["intro_md", "redeem_md", "description_md", "meta_description", "game_display_name"].every(
     (key) => typeof candidate[key] === "string" && Boolean(candidate[key])
   );
 }
@@ -454,6 +456,7 @@ ${sources}
 Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above.
 
 Sections required:
+0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
 1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
@@ -477,12 +480,14 @@ Sections required:
      Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
    - ## How to Play ${gameName} and What It's All About
      200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story.
-
+4. meta_description – a single 150–160 character sentence that naturally summarizes the article for search engines. Mention ${gameName} codes and the value players get, keep it friendly, and do not use markdown, placeholders, or quotation marks.
 Return valid JSON:
 {
   "intro_md": "...",
   "redeem_md": "...",
-  "description_md": "..."
+  "description_md": "...",
+  "meta_description": "...",
+  "game_display_name": "..."
 }
 `;
 }
@@ -579,12 +584,12 @@ async function main() {
     throw new Error("Article generation incomplete.");
   }
 
-  const name = gameName.trim();
-  const slug = normalizeGameSlug(gameName, gameName);
+  const canonicalName = sanitizeGameDisplayName(parsed.game_display_name, gameName);
+  let slug = normalizeGameSlug(canonicalName, gameName);
 
   const { data: existingGame, error: existingError } = await supabase
     .from("games")
-    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, source_url")
+    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -593,7 +598,7 @@ async function main() {
   }
 
   if (existingGame?.is_published) {
-    console.log(`ℹ️ "${name}" already exists and is published. Skipping generation.`);
+    console.log(`ℹ️ "${canonicalName}" already exists and is published. Skipping generation.`);
     return;
   }
 
@@ -611,11 +616,11 @@ async function main() {
   }
 
   const defaultLabels: Record<keyof SocialLinks, string> = {
-    roblox_link: `${name} on Roblox`,
-    community_link: `${name} Community`,
-    discord_link: `${name} Discord`,
-    twitter_link: `${name} Twitter`,
-    youtube_link: `${name} YouTube Channel`,
+    roblox_link: `${canonicalName} on Roblox`,
+    community_link: `${canonicalName} Community`,
+    discord_link: `${canonicalName} Discord`,
+    twitter_link: `${canonicalName} Twitter`,
+    youtube_link: `${canonicalName} YouTube Channel`,
   };
 
   const buildLink = (
@@ -638,9 +643,13 @@ async function main() {
     community_link: buildLink(socialLinks.community_link, existingGame?.community_link, defaultLabels.community_link),
     discord_link: buildLink(socialLinks.discord_link, existingGame?.discord_link, defaultLabels.discord_link),
     twitter_link: buildLink(socialLinks.twitter_link, existingGame?.twitter_link, defaultLabels.twitter_link),
+    youtube_link: buildLink(socialLinks.youtube_link, existingGame?.youtube_link, defaultLabels.youtube_link),
   };
 
-  const article = applyLinkPlaceholders(parsed, gameName, resolvedLinks);
+  const article = applyLinkPlaceholders(parsed, canonicalName, resolvedLinks);
+
+  const name = article.game_display_name;
+  slug = normalizeGameSlug(name, slug);
 
   console.log(`📦 Saving article for "${name}"...`);
   const insertPayload: Record<string, unknown> = {
@@ -649,6 +658,7 @@ async function main() {
     intro_md: article.intro_md,
     redeem_md: article.redeem_md,
     description_md: article.description_md,
+    seo_description: article.meta_description,
     is_published: false,
   };
 
@@ -658,6 +668,7 @@ async function main() {
   if (resolvedLinks.community_link) insertPayload.community_link = resolvedLinks.community_link.url;
   if (resolvedLinks.discord_link) insertPayload.discord_link = resolvedLinks.discord_link.url;
   if (resolvedLinks.twitter_link) insertPayload.twitter_link = resolvedLinks.twitter_link.url;
+  if (resolvedLinks.youtube_link) insertPayload.youtube_link = resolvedLinks.youtube_link.url;
 
   const upsert = await supabase
     .from("games")
@@ -728,9 +739,11 @@ async function refreshCodesForGame(slug: string) {
 }
 
 function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links: SocialLinks): ProcessedArticle {
+  const displayName = sanitizeGameDisplayName(article.game_display_name, gameName);
   let intro = article.intro_md;
-  let redeem = links.roblox_link ? ensureLaunchPlaceholder(article.redeem_md, gameName) : article.redeem_md;
+  let redeem = links.roblox_link ? ensureLaunchPlaceholder(article.redeem_md, displayName) : article.redeem_md;
   let description = article.description_md;
+  const metaDescription = formatMetaDescription(article.meta_description, displayName);
 
   const hasPlaceholder = (key: keyof SocialLinks) => {
     const token = new RegExp(`\\[\\[${key}\\|`, "i");
@@ -740,17 +753,17 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
   const defaultLabelForKey = (key: keyof SocialLinks): string => {
     switch (key) {
       case "roblox_link":
-        return `${gameName} on Roblox`;
+        return `${displayName} on Roblox`;
       case "community_link":
-        return `${gameName} Community`;
+        return `${displayName} Community`;
       case "discord_link":
-        return `${gameName} Discord`;
+        return `${displayName} Discord`;
       case "twitter_link":
-        return `${gameName} Twitter`;
+        return `${displayName} Twitter`;
       case "youtube_link":
-        return `${gameName} YouTube Channel`;
+        return `${displayName} YouTube Channel`;
       default:
-        return gameName;
+        return displayName;
     }
   };
 
@@ -848,7 +861,7 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
 
   ensurePlaceholder(
     "roblox_link",
-    [gameName],
+    [displayName],
     [],
     (label) => `Visit [[roblox_link|${label}]] to hop in and start playing.`
   );
@@ -870,11 +883,19 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     [/@[a-z0-9_]{3,}/i],
     (label) => `Follow [[twitter_link|${label}]] for code drops.`
   );
+  ensurePlaceholder(
+    "youtube_link",
+    ["YouTube", "channel"],
+    [/\byoutube\b/i],
+    (label) => `Watch new showcases on [[youtube_link|${label}]].`
+  );
 
   return {
     intro_md: intro,
     redeem_md: redeem,
     description_md: description,
+    meta_description: metaDescription,
+    game_display_name: displayName,
   };
 }
 
@@ -895,6 +916,34 @@ function ensureLaunchPlaceholder(markdown: string, gameName: string): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatMetaDescription(raw: string, gameName: string): string {
+  const withoutPlaceholders = raw.replace(/\[\[[a-z0-9_]+\|([^\]]+)\]\]/gi, "$1");
+  const withoutQuotes = withoutPlaceholders.replace(/["“”]+/g, "");
+  const normalized = withoutQuotes.replace(/\s+/g, " ").trim();
+  const fallback = `Discover the latest ${gameName} codes, rewards, and easy redemption tips.`;
+  const base = normalized.length ? normalized : fallback;
+  if (base.length <= 160) {
+    return base;
+  }
+  const sliceLimit = 159;
+  let truncated = base.slice(0, sliceLimit);
+  const lastSpace = truncated.lastIndexOf(" ");
+  if (lastSpace > 120) {
+    truncated = truncated.slice(0, lastSpace);
+  }
+  return `${truncated.trim()}…`;
+}
+
+function sanitizeGameDisplayName(raw: string | undefined, fallback: string): string {
+  const fallbackValue = fallback.trim();
+  if (!raw) return fallbackValue;
+  const cleaned = raw
+    .replace(/\[\[[a-z0-9_]+\|([^\]]+)\]\]/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.length ? cleaned : fallbackValue;
 }
 
 async function maybeAttachCoverImage(game: { slug: string; name: string; id?: string; robloxLink?: string | null }) {
