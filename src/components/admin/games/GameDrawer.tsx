@@ -406,6 +406,8 @@ export function GameDrawer({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("slug", slugValue || "");
+        formData.append("game_name", nameValue || "");
+        formData.append("type", "cover");
         const result = await uploadGameImage(formData);
         if (!result?.success || !result.url) {
           setImageError(result?.error ?? "Upload failed. Please try again.");
@@ -420,7 +422,7 @@ export function GameDrawer({
         setImageUploading(false);
       }
     },
-    [getValues, setValue, slugValue]
+    [getValues, setValue, slugValue, nameValue]
   );
 
   const onImageInputChange = useCallback(
@@ -480,6 +482,8 @@ export function GameDrawer({
           const formData = new FormData();
           formData.append("file", file);
           formData.append("slug", slugValue || "");
+          formData.append("game_name", nameValue || "");
+          formData.append("type", "gallery");
           const result = await uploadGameImage(formData);
           if (!result?.success || !result.url) {
             setGalleryError(result?.error ?? "Failed to upload one of the images.");
@@ -496,7 +500,7 @@ export function GameDrawer({
         }
       }
     },
-    [deriveImageTitle, slugValue]
+    [deriveImageTitle, slugValue, nameValue]
   );
 
   const onGalleryInputChange = useCallback(

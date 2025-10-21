@@ -10,6 +10,7 @@ import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
 import { listMediaEntries, deleteMediaObject } from "@/app/admin/(dashboard)/media/actions";
+import { normalizeGameSlug } from "@/lib/slug";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -381,6 +382,12 @@ export async function uploadGameImage(form: FormData) {
     return { success: false, error: "File is too large. Maximum size is 10MB." };
   }
 
+  const typeRaw = form.get("type");
+  const uploadType = typeof typeRaw === "string" ? typeRaw : "generic";
+  const rawGameName = form.get("game_name");
+  const gameName = typeof rawGameName === "string" ? rawGameName.trim() : "";
+  const coverTitle = gameName ? `${gameName} Codes` : undefined;
+
   const timestamp = Date.now();
   const originalName = file.name && file.name.trim().length ? file.name.trim() : `image-${timestamp}`;
   const sanitizedName = originalName
@@ -388,28 +395,70 @@ export async function uploadGameImage(form: FormData) {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/(^-|-$)/g, "");
-  const baseName = sanitizedName.replace(/\.[^.]+$/, "") || `image-${timestamp}`;
+  const fallbackBaseName = sanitizedName.replace(/\.[^.]+$/, "") || `image-${timestamp}`;
 
   let buffer = Buffer.from(await file.arrayBuffer());
-  let finalExtension = (sanitizedName.includes(".") ? sanitizedName.split(".").pop() : "bin")!.toLowerCase();
+  const MAX_COVER_SIZE_BYTES = 100 * 1024;
+  const COVER_WIDTH = 1200;
+  const COVER_HEIGHT = 675;
 
   try {
-    buffer = await sharp(buffer)
-      .webp({ quality: 90, effort: 4 })
-      .toBuffer();
-    finalExtension = "webp";
+    if (uploadType === "cover") {
+      const qualities = [90, 80, 70, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10];
+      let optimized: Buffer | null = null;
+
+      for (const quality of qualities) {
+        const candidate = await sharp(buffer)
+          .rotate()
+          .resize(COVER_WIDTH, COVER_HEIGHT, { fit: "cover", position: "attention" })
+          .webp({ quality, effort: 6 })
+          .toBuffer();
+        optimized = candidate;
+        if (candidate.length <= MAX_COVER_SIZE_BYTES) {
+          break;
+        }
+      }
+
+      if (!optimized || optimized.length > MAX_COVER_SIZE_BYTES) {
+        return {
+          success: false,
+          error: "Cover image could not be optimized under 100KB. Please choose a different image."
+        };
+      }
+
+      buffer = optimized;
+    } else {
+      buffer = await sharp(buffer)
+        .rotate()
+        .webp({ quality: 90, effort: 4 })
+        .toBuffer();
+    }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Image processing failed" };
   }
 
-  const path = `games/${safeSlug}/${baseName}-${timestamp}.${finalExtension}`;
+  const finalExtension = "webp";
+  const coverBaseName = coverTitle ? normalizeGameSlug(coverTitle) : null;
+  const baseName = uploadType === "cover" ? coverBaseName || `cover-${timestamp}` : fallbackBaseName;
+  const subDirectory = uploadType === "cover" ? "cover" : "gallery";
+  const path = `games/${safeSlug}/${subDirectory}/${baseName}-${timestamp}.${finalExtension}`;
 
   const supabase = supabaseAdmin();
 
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, {
+  const uploadOptions: {
+    contentType: string;
+    upsert: boolean;
+    metadata?: Record<string, string>;
+  } = {
     contentType: "image/webp",
     upsert: false
-  });
+  };
+
+  if (uploadType === "cover" && coverTitle) {
+    uploadOptions.metadata = { title: coverTitle };
+  }
+
+  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, uploadOptions);
 
   if (uploadError) {
     return { success: false, error: uploadError.message };

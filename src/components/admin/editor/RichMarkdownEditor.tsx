@@ -270,21 +270,22 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
   const editorCommands = useMemo<ICommand[]>(() => {
     const base = mdCommands.getCommands();
     if (placeholderCommands.length === 0) {
-      return base;
+      return [...base];
     }
-    const linkIndex = base.findIndex((command) => command.name === "link");
+    const commands = [...base];
+    const linkIndex = commands.findIndex((command) => command.name === "link");
     if (linkIndex === -1) {
-      return [...base, ...placeholderCommands];
+      return [...commands, ...placeholderCommands];
     }
-    base.splice(linkIndex + 1, 0, ...placeholderCommands);
-    return base;
+    commands.splice(linkIndex + 1, 0, ...placeholderCommands);
+    return commands;
   }, [placeholderCommands]);
 
   const editorExtraCommands = useMemo<ICommand[]>(() => mdCommands.getExtraCommands(), []);
 
   useEffect(() => {
     return decoratePlaceholderChips(containerRef.current);
-  }, [mode, value]);
+  }, [localValue, mode]);
 
   return (
     <div
