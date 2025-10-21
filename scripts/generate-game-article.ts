@@ -457,7 +457,7 @@ Write in clean markdown, no em-dashes, no speculation. The entire article should
 
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
-1. intro_md – 1–2 paragraphs. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
+1. intro_md – Just 1 small paragraph. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
@@ -479,7 +479,7 @@ Sections required:
    - ## What Rewards You Normally Get?
      Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
    - ## How to Play ${gameName} and What It's All About
-     200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story.
+     200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story. Add a bit of personal experience or opinion in this section in a way that fits. Don't over emphasise on the opinion though. 
 4. meta_description – a single 150–160 character sentence that naturally summarizes the article for search engines. Mention ${gameName} codes and the value players get, keep it friendly, and do not use markdown, placeholders, or quotation marks.
 Return valid JSON:
 {
