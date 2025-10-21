@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { MDEditorProps } from "@uiw/react-md-editor";
+import type { ICommand, MDEditorProps } from "@uiw/react-md-editor";
+import { commands as mdCommands } from "@uiw/react-md-editor";
 import remarkGfm from "remark-gfm";
 
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -13,6 +14,74 @@ const MDEditor = dynamic<MDEditorProps>(() => import("@uiw/react-md-editor"), {
 });
 
 const PLACEHOLDER_PATTERN = /\[\[([a-z0-9_]+)\|([^\]]+)\]\]/gi;
+
+type PlaceholderDefinition = {
+  key: string;
+  shortLabel: string;
+  defaultLabel: string;
+  title: string;
+};
+
+const PLACEHOLDER_DEFINITIONS: PlaceholderDefinition[] = [
+  {
+    key: "roblox_link",
+    shortLabel: "RB",
+    defaultLabel: "Roblox link",
+    title: "Insert Roblox placeholder link"
+  },
+  {
+    key: "community_link",
+    shortLabel: "CM",
+    defaultLabel: "Community link",
+    title: "Insert Community placeholder link"
+  },
+  {
+    key: "discord_link",
+    shortLabel: "DC",
+    defaultLabel: "Discord server",
+    title: "Insert Discord placeholder link"
+  },
+  {
+    key: "twitter_link",
+    shortLabel: "TW",
+    defaultLabel: "Twitter profile",
+    title: "Insert Twitter placeholder link"
+  },
+  {
+    key: "youtube_link",
+    shortLabel: "YT",
+    defaultLabel: "YouTube channel",
+    title: "Insert YouTube placeholder link"
+  }
+];
+
+function createPlaceholderCommand(definition: PlaceholderDefinition): ICommand {
+  const { key, shortLabel, defaultLabel, title } = definition;
+  return {
+    name: `placeholder-${key}`,
+    keyCommand: `placeholder-${key}`,
+    buttonProps: {
+      "aria-label": title,
+      title
+    },
+    icon: (
+      <span className="md-placeholder-command-icon" aria-hidden="true">
+        {shortLabel}
+      </span>
+    ),
+    execute: (state, api) => {
+      const selectionStart = state.selection.start ?? 0;
+      const selectedText = state.selectedText ?? "";
+      const trimmedSelection = selectedText.trim();
+      const labelText = trimmedSelection.length > 0 ? trimmedSelection : defaultLabel;
+      const placeholder = `[[${key}|${labelText}]]`;
+      api.replaceSelection(placeholder);
+      const labelStart = selectionStart + 2 + key.length + 1;
+      const labelEnd = labelStart + labelText.length;
+      api.setSelectionRange({ start: labelStart, end: labelEnd });
+    }
+  };
+}
 
 function remarkPlaceholderLinks() {
   return (tree: any) => {
@@ -194,9 +263,28 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
     };
   }, []);
 
+  const placeholderCommands = useMemo<ICommand[]>(() => {
+    return PLACEHOLDER_DEFINITIONS.map((definition) => createPlaceholderCommand(definition));
+  }, []);
+
+  const editorCommands = useMemo<ICommand[]>(() => {
+    const base = mdCommands.getCommands();
+    if (placeholderCommands.length === 0) {
+      return base;
+    }
+    const linkIndex = base.findIndex((command) => command.name === "link");
+    if (linkIndex === -1) {
+      return [...base, ...placeholderCommands];
+    }
+    base.splice(linkIndex + 1, 0, ...placeholderCommands);
+    return base;
+  }, [placeholderCommands]);
+
+  const editorExtraCommands = useMemo<ICommand[]>(() => mdCommands.getExtraCommands(), []);
+
   useEffect(() => {
     return decoratePlaceholderChips(containerRef.current);
-  }, [localValue, mode]);
+  }, [mode, value]);
 
   return (
     <div
@@ -221,6 +309,8 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
           value={localValue}
           preview={preview}
           height={360}
+          commands={editorCommands}
+          extraCommands={editorExtraCommands}
           textareaProps={{ placeholder: placeholder ?? "Write your content…" }}
           previewOptions={previewOptions}
           onChange={(next) => {
@@ -252,6 +342,20 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
         [data-md-editor-mode] .wmde-markdown-color a:hover,
         [data-md-editor-mode] .wmde-markdown-color a:focus-visible {
           text-decoration: underline;
+        }
+        [data-placeholder-enhanced="true"] .w-md-editor-toolbar .md-placeholder-command-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 1.25rem;
+          height: 1.25rem;
+          padding: 0 0.2rem;
+          border-radius: 0.35rem;
+          font-size: 0.62rem;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          pointer-events: none;
         }
         [data-md-editor-mode] .wmde-markdown .md-placeholder-link,
         [data-md-editor-mode] .markdown-body .md-placeholder-link,
