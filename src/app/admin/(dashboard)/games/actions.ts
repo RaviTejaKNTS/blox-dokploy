@@ -440,8 +440,9 @@ export async function uploadGameImage(form: FormData) {
   const finalExtension = "webp";
   const coverBaseName = coverTitle ? normalizeGameSlug(coverTitle) : null;
   const baseName = uploadType === "cover" ? coverBaseName || `cover-${timestamp}` : fallbackBaseName;
-  const subDirectory = uploadType === "cover" ? "cover" : "gallery";
-  const path = `games/${safeSlug}/${subDirectory}/${baseName}-${timestamp}.${finalExtension}`;
+  const path = uploadType === "cover"
+    ? `games/${safeSlug}/${baseName}-${timestamp}.${finalExtension}`
+    : `games/${safeSlug}/gallery/${baseName}-${timestamp}.${finalExtension}`;
 
   const supabase = supabaseAdmin();
 
