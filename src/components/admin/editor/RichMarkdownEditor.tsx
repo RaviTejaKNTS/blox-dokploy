@@ -27,17 +27,22 @@ function remarkPlaceholderLinks() {
           let lastIndex = 0;
           let match: RegExpExecArray | null;
           while ((match = pattern.exec(text)) !== null) {
-            const [raw, key, rawLabel] = match;
-            const label = (rawLabel ?? "").trim() || key;
+            const [raw, key] = match;
             const start = match.index;
             if (start > lastIndex) {
               segments.push({ type: "text", value: text.slice(lastIndex, start) });
             }
             segments.push({
               type: "link",
-              url: `#placeholder-${key}`,
-              data: { hProperties: { className: "md-placeholder-chip", "data-placeholder-key": key } },
-              children: [{ type: "text", value: label }]
+              url: "#",
+              data: {
+                hProperties: {
+                  className: "md-placeholder-link",
+                  "data-placeholder-key": key,
+                  "data-placeholder-raw": raw
+                }
+              },
+              children: [{ type: "text", value: raw }]
             });
             lastIndex = start + raw.length;
           }
@@ -60,67 +65,110 @@ function remarkPlaceholderLinks() {
   };
 }
 
-function decoratePlaceholderChips(root: HTMLElement | null) {
-  if (!root) return;
-  const queue: HTMLElement[] = [];
-  root.querySelectorAll<HTMLElement>(".wmde-markdown-color, .markdown-body").forEach((el) => queue.push(el));
-  if (queue.length === 0) {
-    if (root.classList.contains("wmde-markdown-color") || root.classList.contains("markdown-body")) {
-      queue.push(root);
-    }
-  }
+function decoratePlaceholderChips(root: HTMLElement | null): () => void {
+  if (!root) return () => {};
 
-  for (const container of queue) {
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        return node.nodeValue && node.nodeValue.includes("[[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+  let isDecorating = false;
+  let frame: number | null = null;
+
+  const apply = () => {
+    if (!root || isDecorating) return;
+    isDecorating = true;
+    try {
+      const containers: HTMLElement[] = [];
+      root.querySelectorAll<HTMLElement>(".wmde-markdown-color, .markdown-body").forEach((el) => containers.push(el));
+      if (
+        root instanceof HTMLElement &&
+        (root.classList.contains("wmde-markdown-color") || root.classList.contains("markdown-body"))
+      ) {
+        containers.push(root);
       }
-    });
 
-    const textNodes: Text[] = [];
-    let current = walker.nextNode();
-    while (current) {
-      if (current.nodeType === Node.TEXT_NODE) {
-        textNodes.push(current as Text);
-      }
-      current = walker.nextNode();
-    }
+      for (const container of containers) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            if (!node.nodeValue || !node.nodeValue.includes("[[")) return NodeFilter.FILTER_REJECT;
+            if (node.parentElement?.closest(".md-placeholder-link")) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        });
 
-    for (const textNode of textNodes) {
-      const text = textNode.nodeValue ?? "";
-      const pattern = /\[\[([a-z0-9_]+)\|([^\]]+)\]\]/gi;
-      let lastIndex = 0;
-      const fragments: (Text | HTMLElement)[] = [];
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(text)) !== null) {
-        const [raw, key, rawLabel] = match;
-        const label = (rawLabel ?? "").trim() || key;
-        const start = match.index;
-        if (start > lastIndex) {
-          fragments.push(document.createTextNode(text.slice(lastIndex, start)));
+        const textNodes: Text[] = [];
+        let current = walker.nextNode();
+        while (current) {
+          if (current.nodeType === Node.TEXT_NODE) {
+            textNodes.push(current as Text);
+          }
+          current = walker.nextNode();
         }
 
-        const span = document.createElement("span");
-        span.className = "md-placeholder-chip";
-        span.dataset.placeholderKey = key;
-        span.textContent = label;
-        fragments.push(span);
-        lastIndex = start + raw.length;
-      }
+        for (const textNode of textNodes) {
+          const text = textNode.nodeValue ?? "";
+          const pattern = /\[\[([a-z0-9_]+)\|([^\]]+)\]\]/gi;
+          let lastIndex = 0;
+          const fragments: (Text | HTMLElement)[] = [];
+          let match: RegExpExecArray | null;
+          while ((match = pattern.exec(text)) !== null) {
+            const [raw, key] = match;
+            const start = match.index;
+            if (start > lastIndex) {
+              fragments.push(document.createTextNode(text.slice(lastIndex, start)));
+            }
 
-      if (fragments.length === 0) continue;
-      if (lastIndex < text.length) {
-        fragments.push(document.createTextNode(text.slice(lastIndex)));
-      }
+            const span = document.createElement("span");
+            span.className = "md-placeholder-link";
+            span.dataset.placeholderKey = key;
+            span.dataset.placeholderRaw = raw;
+            span.textContent = raw;
+            fragments.push(span);
+            lastIndex = start + raw.length;
+          }
 
-      const parent = textNode.parentNode;
-      if (!parent) continue;
-      fragments.forEach((fragment) => {
-        parent.insertBefore(fragment, textNode);
-      });
-      parent.removeChild(textNode);
+          if (fragments.length === 0) continue;
+          if (lastIndex < text.length) {
+            fragments.push(document.createTextNode(text.slice(lastIndex)));
+          }
+
+          const parent = textNode.parentNode;
+          if (!parent) continue;
+          fragments.forEach((fragment) => {
+            parent.insertBefore(fragment, textNode);
+          });
+          parent.removeChild(textNode);
+        }
+      }
+    } finally {
+      isDecorating = false;
     }
-  }
+  };
+
+  apply();
+
+  const observer = new MutationObserver((mutations) => {
+    if (isDecorating) return;
+    for (const mutation of mutations) {
+      if (mutation.type === "childList" || mutation.type === "characterData") {
+        if (frame != null) {
+          cancelAnimationFrame(frame);
+          frame = null;
+        }
+        frame = requestAnimationFrame(() => {
+          frame = null;
+          apply();
+        });
+        break;
+      }
+    }
+  });
+
+  observer.observe(root, { subtree: true, childList: true, characterData: true });
+
+  return () => {
+    observer.disconnect();
+    if (frame != null) {
+      cancelAnimationFrame(frame);
+    }
+  };
 }
 
 type RichMarkdownEditorProps = {
@@ -142,72 +190,12 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
   const preview = useMemo(() => (mode === "edit" ? "edit" : "live"), [mode]);
   const previewOptions = useMemo<MDEditorProps["previewOptions"]>(() => {
     return {
-      remarkPlugins: [
-        remarkGfm,
-        () => (tree: any) => {
-          const maybeWrap = (label: string, key: string) => {
-            return {
-              type: "mdxJsxFlowElement",
-              name: "span",
-              attributes: [
-                { type: "mdxJsxAttribute", name: "className", value: "md-placeholder-chip" },
-                { type: "mdxJsxAttribute", name: "data-placeholder-key", value: key }
-              ],
-              children: [{ type: "text", value: label }]
-            };
-          };
-
-          const visit = (node: any) => {
-            if (!node || !Array.isArray(node.children)) return;
-            const nextChildren: any[] = [];
-            node.children.forEach((child: any) => {
-              if (child?.type === "text" && typeof child.value === "string" && child.value.includes("[[")) {
-                const text = child.value;
-                const segments: any[] = [];
-                const pattern = /\[\[([a-z0-9_]+)\|([^\]]+)\]\]/gi;
-                let lastIndex = 0;
-                let match: RegExpExecArray | null;
-                while ((match = pattern.exec(text)) !== null) {
-                  const [raw, key, rawLabel] = match;
-                  const label = (rawLabel ?? "").trim() || key;
-                  const start = match.index;
-                  if (start > lastIndex) {
-                    segments.push({ type: "text", value: text.slice(lastIndex, start) });
-                  }
-                  segments.push(maybeWrap(label, key));
-                  lastIndex = start + raw.length;
-                }
-                if (segments.length) {
-                  if (lastIndex < text.length) {
-                    segments.push({ type: "text", value: text.slice(lastIndex) });
-                  }
-                  nextChildren.push(...segments);
-                  return;
-                }
-              }
-              if (child && Array.isArray(child.children)) {
-                visit(child);
-              }
-              nextChildren.push(child);
-            });
-            node.children = nextChildren;
-          };
-          visit(tree);
-        }
-      ],
-      rehypeRewrite: (node: any) => {
-        if (node?.properties?.href && typeof node.properties.href === "string" && node.properties.href.startsWith("#placeholder-")) {
-          node.properties["data-placeholder"] = node.properties.href.replace("#placeholder-", "");
-          node.properties.href = undefined;
-        }
-      }
+      remarkPlugins: [remarkGfm, remarkPlaceholderLinks]
     };
   }, []);
 
   useEffect(() => {
-    decoratePlaceholderChips(containerRef.current);
-    const raf = requestAnimationFrame(() => decoratePlaceholderChips(containerRef.current));
-    return () => cancelAnimationFrame(raf);
+    return decoratePlaceholderChips(containerRef.current);
   }, [localValue, mode]);
 
   return (
@@ -243,34 +231,48 @@ export function RichMarkdownEditor({ label, value, onChange, placeholder }: Rich
         />
       </div>
       <style jsx global>{`
-        [data-color-mode="dark"] .markdown-body a.md-placeholder-chip,
-        [data-color-mode="dark"] .markdown-body span.md-placeholder-chip,
-        .markdown-body a.md-placeholder-chip,
-        .markdown-body span.md-placeholder-chip,
-        [data-md-editor-mode="edit"] .wmde-markdown-color .md-placeholder-chip,
-        .wmde-markdown-color .md-placeholder-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          padding: 0.15rem 0.55rem;
-          border-radius: 999px;
-          font-weight: 600;
-          background: rgba(59, 130, 246, 0.18);
-          color: #bfdbfe;
-          border: 1px solid rgba(59, 130, 246, 0.35);
+        [data-md-editor-mode] .wmde-markdown,
+        [data-md-editor-mode] .markdown-body,
+        [data-md-editor-mode] .wmde-markdown-color {
+          --md-link-color: var(--color-accent-fg, #58a6ff);
+        }
+        [data-md-editor-mode] .wmde-markdown a,
+        [data-md-editor-mode] .wmde-markdown a:visited,
+        [data-md-editor-mode] .markdown-body a,
+        [data-md-editor-mode] .markdown-body a:visited,
+        [data-md-editor-mode] .wmde-markdown-color a,
+        [data-md-editor-mode] .wmde-markdown-color a:visited {
+          color: var(--md-link-color, #58a6ff) !important;
           text-decoration: none;
+        }
+        [data-md-editor-mode] .wmde-markdown a:hover,
+        [data-md-editor-mode] .wmde-markdown a:focus-visible,
+        [data-md-editor-mode] .markdown-body a:hover,
+        [data-md-editor-mode] .markdown-body a:focus-visible,
+        [data-md-editor-mode] .wmde-markdown-color a:hover,
+        [data-md-editor-mode] .wmde-markdown-color a:focus-visible {
+          text-decoration: underline;
+        }
+        [data-md-editor-mode] .wmde-markdown .md-placeholder-link,
+        [data-md-editor-mode] .markdown-body .md-placeholder-link,
+        [data-md-editor-mode] .wmde-markdown-color .md-placeholder-link {
+          display: inline;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--md-link-color, #58a6ff) !important;
+          font-weight: inherit;
+          text-decoration: none;
+          cursor: default;
           pointer-events: none;
         }
-        .markdown-body a.md-placeholder-chip::before,
-        .markdown-body span.md-placeholder-chip::before {
-          content: attr(data-placeholder-key);
-          text-transform: uppercase;
-          font-size: 0.65em;
-          letter-spacing: 0.08em;
-          background: rgba(59, 130, 246, 0.35);
-          color: #1f2937;
-          padding: 0.05rem 0.4rem;
-          border-radius: 0.5rem;
+        [data-md-editor-mode] .wmde-markdown .md-placeholder-link:hover,
+        [data-md-editor-mode] .wmde-markdown .md-placeholder-link:focus-visible,
+        [data-md-editor-mode] .markdown-body .md-placeholder-link:hover,
+        [data-md-editor-mode] .markdown-body .md-placeholder-link:focus-visible,
+        [data-md-editor-mode] .wmde-markdown-color .md-placeholder-link:hover,
+        [data-md-editor-mode] .wmde-markdown-color .md-placeholder-link:focus-visible {
+          text-decoration: underline;
         }
       `}</style>
     </div>
