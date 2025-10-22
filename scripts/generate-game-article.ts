@@ -457,8 +457,7 @@ Write in clean markdown, no em-dashes, no speculation. The entire article should
 
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
-1. intro_md – Just 1 small paragraph. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend. Do not write same type of intro for every article. But all intros should feel friendly and simple. 
-2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
+1. intro_md – Just 1 small and detailed paragraph. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend. Do not start with generic statements like "If you love" or something like that. 
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences.
