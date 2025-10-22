@@ -447,7 +447,7 @@ Use the link placeholders below instead of raw URLs. Always wrap the exact ancho
 - [[discord_link|...]] → Discord server or channel names
 - [[twitter_link|...]] → Twitter/X handles or profiles
 - [[youtube_link|...]] → YouTube channels
-If a source does not mention a specific destination, simply skip the placeholder for that item.
+If our article mentioned the social media or roblox game page, include these placeholders for that. Link each placeholder only once in the article. 
 
 === SOURCES START ===
 ${sources}
@@ -457,7 +457,7 @@ Write in clean markdown, no em-dashes, no speculation. The entire article should
 
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
-1. intro_md – Just 1 small paragraph. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend.
+1. intro_md – Just 1 small paragraph. Start with something that hook the readers in simple on-point and grounded way. Introduce the ${gameName} in a line or two and tell users how these codes can be helpful in engaging, relatable, crisp and on-point way. Keep it grounded and talk like friend explaining things to a friend. Do not write same type of intro for every article. But all intros should feel friendly and simple. 
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
    - If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps.
    - If there are no requirements, write a line or teo before the steps, to give cue to the actual steps. 
