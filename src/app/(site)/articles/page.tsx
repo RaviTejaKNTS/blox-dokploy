@@ -8,7 +8,7 @@ import { markdownToPlainText } from "@/lib/markdown";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: `Articles | ${SITE_NAME}`,
+  title: "Articles & Guides",
   description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`
 };
 

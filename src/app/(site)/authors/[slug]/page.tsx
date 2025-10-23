@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     return {};
   }
 
-  const title = `${author.name} · ${SITE_NAME}`;
+  const title = `${author.name} Roblox Code Guides`;
   const description = markdownToPlain(author.bio_md) || SITE_DESCRIPTION;
   const canonical = `${SITE_URL}/authors/${author.slug}`;
   const avatar = authorAvatarUrl(author, 256);

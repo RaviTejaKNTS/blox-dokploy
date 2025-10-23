@@ -739,7 +739,7 @@ export default async function GamePage({ params }: Params) {
             <h2>Active {game.name} Codes</h2>
             {active.length > 0 ? (
               <p className="text-muted">
-                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. You can just click on the Copy button to copy these codes and use them on this Roblox game.
+                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. You can just click on the Copy button beside the following codes to copy and redeem them on the Roblox game.
               </p>
             ) : null}
           </div>

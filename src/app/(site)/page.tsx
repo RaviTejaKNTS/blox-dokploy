@@ -17,7 +17,7 @@ const LazyMoreGames = dynamic(() => import("@/components/MoreGames").then((mod) 
 
 export const revalidate = 30;
 
-const PAGE_TITLE = "Bloxodes - Check Latest Roblox Game Codes";
+const PAGE_TITLE = `${SITE_NAME} — Check Latest Roblox Game Codes`;
 const PAGE_DESCRIPTION =
   "Find the latest Roblox codes for all your favorite games in one place. Updated daily with active promo codes, rewards, and freebies to help you unlock items, boosts, and more.";
 

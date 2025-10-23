@@ -22,7 +22,7 @@ function buildMetadata(category: CategoryPageMetadata | null): Metadata {
     };
   }
   return {
-    title: `${category.name} Articles | ${SITE_NAME}`,
+    title: `${category.name} Articles`,
     description: category.description ?? undefined,
     robots: {
       index: false,

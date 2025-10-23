@@ -37,7 +37,7 @@ export const metadata = {
   generator: "Next.js",
   title: {
     default: `${SITE_NAME} — Active & Working Codes`,
-    template: `%s · ${SITE_NAME}`
+    template: "%s"
   },
   description: SITE_DESCRIPTION,
   keywords: [

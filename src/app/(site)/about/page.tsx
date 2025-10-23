@@ -7,20 +7,20 @@ const canonical = `${SITE_URL.replace(/\/$/, "")}/about`;
 const ogImage = `${SITE_URL}/og-image.png`;
 
 export const metadata: Metadata = {
-  title: `${title} | ${SITE_NAME}`,
+  title,
   description,
   alternates: { canonical },
   openGraph: {
     type: "website",
     url: canonical,
-    title: `${title} | ${SITE_NAME}`,
+    title,
     description,
     siteName: SITE_NAME,
     images: [ogImage]
   },
   twitter: {
     card: "summary_large_image",
-    title: `${title} | ${SITE_NAME}`,
+    title,
     description,
     images: [ogImage]
   }
@@ -136,4 +136,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
