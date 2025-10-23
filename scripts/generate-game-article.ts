@@ -477,7 +477,7 @@ Sections required:
      no bullet-points in this section at all. Just conversational paras
      Also suggest users to bookmark our page with ctrl + D on Windows (CMD + D on mac). Tell them that we will update the article with new working active codes as soon as they dropped.
    - ## What Rewards You Normally Get?
-     Bullet list or table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into the points or table to give cue to the audience.
+     Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into table to give cue to the audience.
    - ## How to Play ${gameName} and What It's All About
      200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story. Add a bit of personal experience or opinion in this section in a way that fits. Don't over emphasise on the opinion though. 
 4. meta_description – a single 150–160 character sentence that naturally summarizes the article for search engines. Mention ${gameName} codes and the value players get, keep it friendly, and do not use markdown, placeholders, or quotation marks.
