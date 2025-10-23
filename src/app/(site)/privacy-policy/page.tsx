@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
-const title = "Privacy Policy for Bloxodes.com";
+const title = "Privacy Policy";
 const description = "Comprehensive privacy policy for Bloxodes.com covering analytics, advertising, and your data rights.";
 const canonical = `${SITE_URL.replace(/\/$/, "")}/privacy-policy`;
 const ogImage = `${SITE_URL}/og-image.png`;
