@@ -739,7 +739,7 @@ export default async function GamePage({ params }: Params) {
             <h2>Active {game.name} Codes</h2>
             {active.length > 0 ? (
               <p className="text-muted">
-                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. Remember, these codes are case-sensitive, so copy/paste or enter them exactly as shown.
+                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. You can just click on the Copy button to copy these codes and use them on this Roblox game.
               </p>
             ) : null}
           </div>
