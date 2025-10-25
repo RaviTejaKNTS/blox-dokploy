@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { load } from "cheerio";
+import { chromium, Browser } from "playwright";
 
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -54,54 +54,26 @@ const AUTH_COOKIE =
   process.env.ROBLOSECURITY ??
   null;
 
+let sharedBrowser: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (!sharedBrowser) {
+    sharedBrowser = await chromium.launch({ headless: true });
+  }
+  return sharedBrowser;
+}
+
+async function closeBrowser() {
+  if (sharedBrowser) {
+    await sharedBrowser.close();
+    sharedBrowser = null;
+  }
+}
+
 function normalizeText(value?: string | null): string | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length ? normalized : null;
-}
-
-function extractGenreInfo(html: string): { genre: string | null; subGenre: string | null } {
-  const $ = load(html);
-  let genre: string | null = null;
-  let subGenre: string | null = null;
-
-  const statItems = $("ul.game-stat-container li.game-stat").length
-    ? $("ul.game-stat-container li.game-stat")
-    : $("li.game-stat");
-
-  statItems.each((_, element) => {
-    const labelNode =
-      $(element).find(".text-label").first().text() ||
-      $(element).find("p").first().text();
-    const valueNode =
-      $(element).find(".text-lead").first().text() ||
-      $(element).find(".font-caption-body").first().text() ||
-      $(element).find("p").eq(1).text();
-
-    const label = normalizeText(labelNode)?.toLowerCase();
-    const value = normalizeText(valueNode);
-
-    if (!label || !value) return;
-
-    if (label === "genre") {
-      genre = value;
-    } else if (label === "subgenre" || label === "sub-genre") {
-      subGenre = value;
-    }
-  });
-
-  return { genre, subGenre };
-}
-
-function extractMeta(html: string): { placeId: string | null; universeId: string | null } {
-  const $ = load(html);
-  const metaNode = $("#game-detail-meta-data");
-  if (!metaNode.length) {
-    return { placeId: null, universeId: null };
-  }
-  const placeId = metaNode.data("place-id") ? String(metaNode.data("place-id")) : null;
-  const universeId = metaNode.data("universe-id") ? String(metaNode.data("universe-id")) : null;
-  return { placeId, universeId };
 }
 
 function extractPlaceId(link: string): string | null {
@@ -144,23 +116,6 @@ async function fetchGenreFromApi(placeId: string): Promise<{ genre: string | nul
   return { genre, subGenre };
 }
 
-async function fetchRobloxPage(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": USER_AGENT,
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "accept-language": "en-US,en;q=0.9",
-      referer: "https://www.roblox.com/",
-      "cache-control": "no-cache",
-      ...(AUTH_COOKIE ? { cookie: `.ROBLOSECURITY=${AUTH_COOKIE}` } : {})
-    }
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-  }
-  return response.text();
-}
-
 async function fetchGenreFromUniverse(universeId: string): Promise<{ genre: string | null; subGenre: string | null }> {
   const endpoint = `https://games.roblox.com/v1/games?universeIds=${universeId}`;
   const response = await fetch(endpoint, {
@@ -183,6 +138,85 @@ async function fetchGenreFromUniverse(universeId: string): Promise<{ genre: stri
   return { genre, subGenre: null };
 }
 
+async function scrapeGamePage(
+  url: string
+): Promise<{ genre: string | null; subGenre: string | null; placeId: string | null; universeId: string | null }> {
+  const browser = await getBrowser();
+  const context = await browser.newContext({
+    userAgent: USER_AGENT,
+    viewport: { width: 1290, height: 720 },
+    javaScriptEnabled: true
+  });
+  await context.addInitScript({
+    content: `
+      (function() {
+        const globalAny = window;
+        if (!globalAny.__defProp) {
+          globalAny.__defProp = Object.defineProperty;
+        }
+        if (!globalAny.__name) {
+          globalAny.__name = function(target, value) {
+            if (globalAny.__defProp) {
+              globalAny.__defProp(target, "name", { value, configurable: true });
+            }
+            return target;
+          };
+        }
+      })();
+    `
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await page.waitForSelector(".game-stat-container", { timeout: 20000 }).catch(() => {});
+
+    const data = await page.evaluate(() => {
+      const __defProp = Object.defineProperty;
+      const __name = (target: any, value: string) => __defProp(target, "name", { value, configurable: true });
+      function normalize(value?: string | null) {
+        if (!value) return null;
+        return value.replace(/\s+/g, " ").trim();
+      }
+      const stats = Array.from(document.querySelectorAll("li.game-stat"));
+      let genre: string | null = null;
+      let subGenre: string | null = null;
+
+      for (const stat of stats) {
+        const label =
+          normalize(stat.querySelector(".text-label")?.textContent) ??
+          normalize(stat.querySelector("p")?.textContent);
+        const value =
+          normalize(stat.querySelector(".text-lead")?.textContent) ??
+          normalize(stat.querySelector(".font-caption-body")?.textContent) ??
+          normalize(stat.querySelector("p:nth-of-type(2)")?.textContent);
+        if (!label || !value) continue;
+        const lower = label.toLowerCase();
+        if (lower === "genre") {
+          genre = value;
+        } else if (lower === "subgenre" || lower === "sub-genre") {
+          subGenre = value;
+        }
+      }
+
+      const meta = document.querySelector("#game-detail-meta-data");
+      const placeId = meta?.getAttribute("data-place-id") ?? null;
+      const universeId = meta?.getAttribute("data-universe-id") ?? null;
+
+      return { genre, subGenre, placeId, universeId };
+    });
+
+    return {
+      genre: normalizeText(data.genre),
+      subGenre: normalizeText(data.subGenre),
+      placeId: data.placeId,
+      universeId: data.universeId
+    };
+  } finally {
+    await context.close();
+  }
+}
+
 async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameRecord): Promise<ScriptResult> {
   const slug = game.slug ?? game.id;
   if (!game.roblox_link) {
@@ -190,11 +224,12 @@ async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameR
   }
 
   try {
-    const html = await fetchRobloxPage(game.roblox_link);
-    let { genre, subGenre } = extractGenreInfo(html);
-    const meta = extractMeta(html);
-    const placeIdFromMeta = meta.placeId ?? extractPlaceId(game.roblox_link);
-    const universeId = meta.universeId;
+    const scraped = await scrapeGamePage(game.roblox_link);
+    let genre = scraped.genre;
+    let subGenre = scraped.subGenre;
+
+    const placeIdFromMeta = scraped.placeId ?? extractPlaceId(game.roblox_link);
+    const universeId = scraped.universeId ?? null;
 
     if ((!genre || !subGenre) && universeId) {
       try {
@@ -328,7 +363,12 @@ async function main() {
   console.log(`\nDone. Updated ${updated}, skipped ${results.length - updated - errors}, errors ${errors}.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main()
+  .then(async () => {
+    await closeBrowser();
+  })
+  .catch(async (error) => {
+    console.error(error);
+    await closeBrowser();
+    process.exit(1);
+  });

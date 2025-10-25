@@ -259,6 +259,13 @@ export function GameDrawer({
 
   const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
 
+  const gameNameForSearch = (nameValue?.trim() || game?.name || "").trim();
+  const buildSearchUrl = (domain: string) => {
+    const namePart = gameNameForSearch ? `${gameNameForSearch} codes` : "codes";
+    const query = `site:${domain} ${namePart}`;
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  };
+
   const requestClose = useCallback(() => {
     if (!confirmClose()) return;
     reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
@@ -855,7 +862,17 @@ export function GameDrawer({
                       </div>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div>
-                          <label className="text-sm font-semibold text-foreground">Primary source URL</label>
+                          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span>Primary source URL</span>
+                            <a
+                              href={buildSearchUrl("robloxden.com")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                            >
+                              Search robloxden.com
+                            </a>
+                          </label>
                           <div className="mt-1 flex gap-2">
                             <input
                               type="url"
@@ -867,7 +884,17 @@ export function GameDrawer({
                           </div>
                         </div>
                         <div>
-                          <label className="text-sm font-semibold text-foreground">Secondary source URL</label>
+                          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span>Secondary source URL</span>
+                            <a
+                              href={buildSearchUrl("beebom.com")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                            >
+                              Search beebom.com
+                            </a>
+                          </label>
                           <div className="mt-1 flex gap-2">
                             <input
                               type="url"
@@ -879,7 +906,17 @@ export function GameDrawer({
                           </div>
                         </div>
                         <div>
-                          <label className="text-sm font-semibold text-foreground">Tertiary source URL</label>
+                          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span>Tertiary source URL</span>
+                            <a
+                              href={buildSearchUrl("destructoid.com")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                            >
+                              Search destructoid.com
+                            </a>
+                          </label>
                           <div className="mt-1 flex gap-2">
                             <input
                               type="url"

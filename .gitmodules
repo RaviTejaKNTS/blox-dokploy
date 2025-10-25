@@ -1,0 +1,3 @@
+[submodule "Luna-Crawler"]
+	path = Luna-Crawler
+	url = https://github.com/Luna-BLox/Luna-Crawler.git
