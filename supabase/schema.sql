@@ -36,6 +36,10 @@ create table if not exists public.games (
   intro_md text,
   redeem_md text,
   description_md text,
+  linktext_md text,
+  genre text,
+  sub_genre text,
+  internal_links integer not null default 0,
   is_published boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

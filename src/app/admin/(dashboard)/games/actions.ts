@@ -29,6 +29,9 @@ const upsertGameSchema = z.object({
   intro_md: z.string().nullable().optional(),
   redeem_md: z.string().nullable().optional(),
   description_md: z.string().nullable().optional(),
+  linktext_md: z.string().nullable().optional(),
+  genre: z.string().nullable().optional(),
+  sub_genre: z.string().nullable().optional(),
   seo_title: z.string().nullable().optional(),
   seo_description: z.string().nullable().optional(),
   cover_image: z.string().nullable().optional()
@@ -68,6 +71,9 @@ export async function saveGame(form: FormData) {
       intro_md: raw.intro_md ? String(raw.intro_md) : null,
       redeem_md: raw.redeem_md ? String(raw.redeem_md) : null,
       description_md: raw.description_md ? String(raw.description_md) : null,
+      linktext_md: raw.linktext_md ? String(raw.linktext_md) : null,
+      genre: raw.genre ? String(raw.genre) : null,
+      sub_genre: raw.sub_genre ? String(raw.sub_genre) : null,
       seo_title: raw.seo_title ? String(raw.seo_title) : null,
       seo_description: raw.seo_description ? String(raw.seo_description) : null,
       cover_image: raw.cover_image ? String(raw.cover_image) : null
@@ -102,6 +108,9 @@ export async function saveGame(form: FormData) {
       intro_md: payload.intro_md,
       redeem_md: payload.redeem_md,
       description_md: payload.description_md,
+      linktext_md: payload.linktext_md,
+      genre: payload.genre,
+      sub_genre: payload.sub_genre,
       seo_title: payload.seo_title,
       seo_description: payload.seo_description,
       cover_image: payload.cover_image

@@ -30,9 +30,13 @@ export interface AdminGameSummary {
   intro_md: string | null;
   redeem_md: string | null;
   description_md: string | null;
+  linktext_md: string | null;
+  genre: string | null;
+  sub_genre: string | null;
   seo_title: string | null;
   seo_description: string | null;
   cover_image: string | null;
+  internal_links: number | null;
   expired_codes: string[];
   redeem_image_count: number;
   author: { id: string | null; name: string | null };
@@ -63,7 +67,8 @@ async function fetchAllGames(client: SupabaseClient) {
       .select(
         `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
          roblox_link, community_link, twitter_link, discord_link, youtube_link,
-         intro_md, redeem_md, description_md, seo_title, seo_description, cover_image, expired_codes,
+         intro_md, redeem_md, description_md, linktext_md, genre, sub_genre, seo_title, seo_description, cover_image, expired_codes,
+         internal_links,
          author:authors ( id, name )`
       )
       .order("updated_at", { ascending: false })
@@ -166,9 +171,13 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       intro_md: game.intro_md,
       redeem_md: game.redeem_md,
       description_md: game.description_md,
+      linktext_md: game.linktext_md,
+      genre: game.genre,
+      sub_genre: game.sub_genre,
       seo_title: game.seo_title,
       seo_description: game.seo_description,
       cover_image: game.cover_image,
+      internal_links: typeof game.internal_links === "number" ? game.internal_links : null,
       expired_codes: Array.isArray(game.expired_codes) ? game.expired_codes : [],
       redeem_image_count: redeemImageCount,
       author: (() => {

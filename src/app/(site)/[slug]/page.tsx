@@ -583,14 +583,16 @@ export default async function GamePage({ params }: Params) {
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
   const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
   const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
+  const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
 
-  const [introHtml, redeemHtml, descriptionHtml, authorBioHtml] = await Promise.all([
+  const [introHtml, redeemHtml, descriptionHtml, authorBioHtml, linktextHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
     descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
     author?.bio_md ? renderMarkdown(author.bio_md) : "",
+    linktextMarkdown ? renderMarkdown(linktextMarkdown) : "",
   ]);
 
   const canonicalUrl = `${SITE_URL}/${game.slug}`;
@@ -838,6 +840,15 @@ export default async function GamePage({ params }: Params) {
             <div
               className="prose dark:prose-invert max-w-none game-copy"
               dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)}
+            />
+          </section>
+        ) : null}
+
+        {linktextHtml ? (
+          <section className="mb-8" aria-label="Recommended Roblox games">
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(linktextHtml)}
             />
           </section>
         ) : null}

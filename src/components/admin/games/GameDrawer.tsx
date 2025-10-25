@@ -134,6 +134,9 @@ const formSchema = z.object({
   intro_md: z.string().optional(),
   redeem_md: z.string().optional(),
   description_md: z.string().optional(),
+  linktext_md: z.string().optional(),
+  genre: z.string().optional(),
+  sub_genre: z.string().optional(),
   seo_title: z.string().optional(),
   seo_description: z.string().optional(),
   cover_image: z.string().optional()
@@ -192,6 +195,9 @@ export function GameDrawer({
     intro_md: game?.intro_md ?? "",
     redeem_md: game?.redeem_md ?? "",
     description_md: game?.description_md ?? "",
+    linktext_md: game?.linktext_md ?? "",
+    genre: game?.genre ?? "",
+    sub_genre: game?.sub_genre ?? "",
     seo_title: game?.seo_title ?? "",
     seo_description: game?.seo_description ?? "",
     cover_image: game?.cover_image ?? ""
@@ -249,6 +255,7 @@ export function GameDrawer({
   const introValue = watch("intro_md");
   const redeemValue = watch("redeem_md");
   const descriptionValue = watch("description_md");
+  const linktextValue = watch("linktext_md");
 
   const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
 
@@ -532,6 +539,95 @@ export function GameDrawer({
     },
     [handleGalleryFiles]
   );
+
+  const metaFields = activeTab === "meta"
+    ? (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="text-sm font-semibold text-foreground">SEO title</label>
+            <input
+              type="text"
+              {...register("seo_title")}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-foreground">Cover image URL</label>
+            <input
+              type="url"
+              {...register("cover_image")}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              placeholder="https://"
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="text-sm font-semibold text-foreground">Genre</label>
+            <input
+              type="text"
+              {...register("genre")}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              placeholder="e.g., Fighting"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-foreground">Sub-genre</label>
+            <input
+              type="text"
+              {...register("sub_genre")}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+              placeholder="e.g., Anime Collectathon"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-foreground">Upload cover image</label>
+          <label
+            onDragOver={onImageDragOver}
+            onDragLeave={onImageDragLeave}
+            onDrop={onImageDrop}
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface px-4 py-6 text-center text-sm transition hover:border-accent hover:text-accent ${
+              isImageDragging ? "border-accent bg-accent/5" : ""
+            }`}
+          >
+            <input type="file" accept="image/*" className="hidden" onChange={onImageInputChange} />
+            <span className="font-semibold">
+              {imageUploading ? "Uploading…" : "Drag & Drop image"}
+            </span>
+            <span className="text-xs text-muted">or click to select an image file (max 10MB)</span>
+          </label>
+          {imageError ? <p className="text-xs text-red-400">{imageError}</p> : null}
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-foreground">SEO description</label>
+          <textarea
+            rows={4}
+            {...register("seo_description")}
+            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+        </div>
+        {watch("cover_image") && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted">Preview</p>
+            <img
+              src={watch("cover_image") ?? ""}
+              alt="Cover preview"
+              className="max-h-48 w-full rounded-lg border border-border/60 object-cover"
+            />
+          </div>
+        )}
+        {typeof game?.internal_links === "number" && (
+          <div className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">
+            <p className="font-semibold text-foreground">Internal links tracked</p>
+            <p className="text-2xl font-bold text-foreground">{game.internal_links}</p>
+            <p className="text-xs text-muted">Updated automatically when other pages reference this guide.</p>
+          </div>
+        )}
+      </div>
+    )
+    : null;
 
   const onSubmit = handleSubmit((values) => {
     const primarySource = values.source_url?.trim() || undefined;
@@ -984,6 +1080,16 @@ export function GameDrawer({
                         </label>
                         {galleryError ? <p className="text-xs text-red-400">{galleryError}</p> : null}
                       </div>
+                      <div className="space-y-2">
+                        <RichMarkdownEditor
+                          label="Interlink paragraph"
+                          value={linktextValue ?? ""}
+                          onChange={(value) => {
+                            if ((linktextValue ?? "") === value) return;
+                            setValue("linktext_md", value, { shouldDirty: true });
+                          }}
+                        />
+                      </div>
                       <RichMarkdownEditor
                         label="Description"
                         value={descriptionValue ?? ""}
@@ -995,65 +1101,7 @@ export function GameDrawer({
                     </div>
                   ) : null}
 
-                  {activeTab === "meta" ? (
-                    <div className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-semibold text-foreground">SEO title</label>
-                          <input
-                            type="text"
-                            {...register("seo_title")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-foreground">Cover image URL</label>
-                          <input
-                            type="url"
-                            {...register("cover_image")}
-                            className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            placeholder="https://"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-foreground">Upload cover image</label>
-                        <label
-                          onDragOver={onImageDragOver}
-                          onDragLeave={onImageDragLeave}
-                          onDrop={onImageDrop}
-                          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-surface px-4 py-6 text-center text-sm transition hover:border-accent hover:text-accent ${
-                            isImageDragging ? "border-accent bg-accent/5" : ""
-                          }`}
-                        >
-                          <input type="file" accept="image/*" className="hidden" onChange={onImageInputChange} />
-                          <span className="font-semibold">
-                            {imageUploading ? "Uploading…" : "Drag & Drop image"}
-                          </span>
-                          <span className="text-xs text-muted">or click to select an image file (max 10MB)</span>
-                        </label>
-                        {imageError ? <p className="text-xs text-red-400">{imageError}</p> : null}
-                      </div>
-                      <div>
-                        <label className="text-sm font-semibold text-foreground">SEO description</label>
-                        <textarea
-                          rows={4}
-                          {...register("seo_description")}
-                          className="mt-1 w-full rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                        />
-                      </div>
-                      {watch("cover_image") ? (
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted">Preview</p>
-                          <img
-                            src={watch("cover_image") ?? ""}
-                            alt="Cover preview"
-                            className="max-h-48 w-full rounded-lg border border-border/60 object-cover"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                  {metaFields}
 
                   {activeTab === "codes" ? (
                     <div className="space-y-6">

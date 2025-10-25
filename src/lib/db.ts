@@ -36,6 +36,10 @@ export type Game = {
   intro_md: string | null;
   redeem_md: string | null;
   description_md: string | null;
+  linktext_md: string | null;
+  genre: string | null;
+  sub_genre: string | null;
+  internal_links: number | null;
   is_published: boolean;
   created_at: string;
   updated_at: string;
