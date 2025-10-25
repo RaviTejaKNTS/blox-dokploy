@@ -4,7 +4,7 @@ export type ScrapedCode = {
   rewardsText?: string;
   levelRequirement?: number | null;
   isNew?: boolean;
-  provider?: "robloxden" | "beebom" | "progameguides";
+  provider?: "robloxden" | "beebom" | "progameguides" | "destructoid";
 };
 
 export type ScrapeResult = {

@@ -2,12 +2,14 @@ import { URL } from "node:url";
 import { scrapeRobloxdenPage } from "./robloxden";
 import { scrapeBeebomPage } from "./beebom";
 import { scrapeProGameGuidesPage } from "./progameguides";
+import { scrapeDestructoidPage } from "./destructoid";
 import type { ScrapeResult, ScrapedCode } from "./scraper-types";
 
 const SCRAPER_MAP = {
   robloxden: scrapeRobloxdenPage,
   beebom: scrapeBeebomPage,
   progameguides: scrapeProGameGuidesPage,
+  destructoid: scrapeDestructoidPage,
 } as const;
 
 type Provider = keyof typeof SCRAPER_MAP;
@@ -45,7 +47,7 @@ function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCo
   } else {
     if (!existingReward && incomingReward) {
       merged.rewardsText = incomingReward;
-      merged.provider = merged.provider ?? "beebom";
+      merged.provider = merged.provider ?? incoming.provider ?? "beebom";
     }
   }
 
@@ -95,6 +97,7 @@ export function detectProvider(url: string): Provider {
   if (host.endsWith("robloxden.com")) return "robloxden";
   if (host.endsWith("beebom.com")) return "beebom";
   if (host.endsWith("progameguides.com")) return "progameguides";
+  if (host.endsWith("destructoid.com")) return "destructoid";
   throw new Error(`Unsupported source host: ${host}`);
 }
 

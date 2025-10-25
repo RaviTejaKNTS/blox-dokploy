@@ -29,6 +29,22 @@ async function fetchCategoryBySlug(
   return (data as { id: string; slug: string; name: string; game_id: string | null } | null) ?? null;
 }
 
+async function fetchCategoriesByGameId(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ id: string; slug: string; name: string; game_id: string | null }[]> {
+  const { data, error } = await supabase
+    .from("article_categories")
+    .select("id, slug, name, game_id")
+    .eq("game_id", gameId);
+
+  if (error && !isNoRowError(error)) {
+    throw error;
+  }
+
+  return (data as { id: string; slug: string; name: string; game_id: string | null }[]) ?? [];
+}
+
 export interface AdminCategorySummary {
   id: string;
   name: string;
@@ -116,6 +132,24 @@ export async function ensureCategoryForGame(
     const legacy = await fetchCategoryBySlug(supabase, game.slug);
     if (legacy) {
       existing = legacy;
+    }
+  }
+
+  if (!existing) {
+    const categoriesForGame = await fetchCategoriesByGameId(supabase, game.id);
+    if (categoriesForGame.length) {
+      existing = categoriesForGame[0];
+      const duplicates = categoriesForGame.slice(1);
+      if (duplicates.length) {
+        const duplicateIds = duplicates.map((category) => category.id);
+        const { error } = await supabase
+          .from("article_categories")
+          .update({ game_id: null })
+          .in("id", duplicateIds);
+        if (error && !isNoRowError(error)) {
+          throw error;
+        }
+      }
     }
   }
 
