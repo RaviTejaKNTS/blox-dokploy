@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GameCard } from "@/components/GameCard";
 import type { GameWithCounts } from "@/lib/db";
 
@@ -9,39 +9,49 @@ type MoreGamesProps = {
     data: GameWithCounts;
     articleUpdatedAt: string | null;
   }>;
-  step: number;
 };
 
-export function MoreGames({ games, step }: MoreGamesProps) {
-  const [shown, setShown] = useState(step);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+const ROWS_PER_PAGE = 3;
+
+const BREAKPOINTS: Array<{ query: string; columns: number }> = [
+  { query: "(min-width: 1280px)", columns: 4 },
+  { query: "(min-width: 1024px)", columns: 3 },
+  { query: "(min-width: 640px)", columns: 2 },
+];
+
+function getCardsPerRow(): number {
+  if (typeof window === "undefined") {
+    return 4;
+  }
+  for (const bp of BREAKPOINTS) {
+    if (window.matchMedia(bp.query).matches) {
+      return bp.columns;
+    }
+  }
+  return 1;
+}
+
+export function MoreGames({ games }: MoreGamesProps) {
+  const [cardsPerRow, setCardsPerRow] = useState(getCardsPerRow);
+  const [rowsVisible, setRowsVisible] = useState(ROWS_PER_PAGE);
 
   useEffect(() => {
-    const element = sentinelRef.current;
-    if (!element) return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (!entry?.isIntersecting) return;
-        setShown((current) => Math.min(current + step, games.length));
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(element);
-
+    if (typeof window === "undefined") return;
+    const update = () => setCardsPerRow(getCardsPerRow());
+    update();
+    const media = BREAKPOINTS.map((bp) => window.matchMedia(bp.query));
+    media.forEach((mql) => mql.addEventListener("change", update));
     return () => {
-      observer.disconnect();
+      media.forEach((mql) => mql.removeEventListener("change", update));
     };
-  }, [games.length, step]);
+  }, []);
 
-  useEffect(() => {
-    setShown(step);
-  }, [games, step]);
+  const maxRows = Math.ceil(games.length / cardsPerRow);
+  const clampedRowsVisible = Math.min(rowsVisible, maxRows);
+  const visibleCount = Math.min(cardsPerRow * clampedRowsVisible, games.length);
 
-  const visible = useMemo(() => games.slice(0, shown), [games, shown]);
-  const hasMore = shown < games.length;
+  const visible = useMemo(() => games.slice(0, visibleCount), [games, visibleCount]);
+  const hasMore = clampedRowsVisible < maxRows;
 
   if (!games.length) {
     return null;
@@ -55,10 +65,14 @@ export function MoreGames({ games, step }: MoreGamesProps) {
         ))}
       </div>
       {hasMore ? (
-        <div ref={sentinelRef} className="flex justify-center py-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs text-muted">
-            Loading more games…
-          </span>
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setRowsVisible((rows) => Math.min(rows + ROWS_PER_PAGE, maxRows))}
+            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-5 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+          >
+            Load more games
+          </button>
         </div>
       ) : null}
     </div>

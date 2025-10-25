@@ -14,6 +14,7 @@ import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
+import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { monthYear } from "@/lib/date";
 import {
@@ -420,6 +421,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
         ) : null}
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+        <CodeBlockEnhancer />
       </article>
 
       <aside className="space-y-4">
@@ -883,6 +885,7 @@ export default async function GamePage({ params }: Params) {
         {howToData && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
         )}
+        <CodeBlockEnhancer />
       </article>
 
       {recommended.length > 0 ? (

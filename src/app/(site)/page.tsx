@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { formatDistanceToNow } from "date-fns";
-import { listGamesWithActiveCounts } from "@/lib/db";
+import { listGamesWithActiveCounts, listPublishedArticles } from "@/lib/db";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
+import { ArticleCard } from "@/components/ArticleCard";
 
 const INITIAL_FEATURED_COUNT = 12;
-const LOAD_STEP = 12;
 
 const LazyMoreGames = dynamic(() => import("@/components/MoreGames").then((mod) => mod.MoreGames), {
   ssr: false,
@@ -59,6 +59,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const games = await listGamesWithActiveCounts();
+  const articles = await listPublishedArticles(9);
   const sortedGames = [...games].sort((a, b) => {
     const aTime = new Date(a.content_updated_at ?? a.updated_at).getTime();
     const bTime = new Date(b.content_updated_at ?? b.updated_at).getTime();
@@ -138,8 +139,22 @@ export default async function HomePage() {
           ))}
         </div>
         {remainingGames.length ? (
-          <LazyMoreGames games={remainingGames} step={LOAD_STEP} />
+          <LazyMoreGames games={remainingGames} />
         ) : null}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Latest articles</h2>
+          <a href="/articles" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all articles →
+          </a>
+        </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+          {articles.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
       </section>
     </section>
   );
