@@ -11,6 +11,17 @@ import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categor
 import { supabaseAdmin } from "@/lib/supabase";
 import { listMediaEntries, deleteMediaObject } from "@/app/admin/(dashboard)/media/actions";
 import { normalizeGameSlug } from "@/lib/slug";
+import {
+  SOCIAL_LINK_FIELDS,
+  type SocialLinkType,
+  scrapeSocialLinksFromSources
+} from "@/lib/social-links";
+import {
+  extractPlaceId,
+  fetchGenreFromApi,
+  fetchGenreFromUniverse,
+  scrapeRobloxGameMetadata
+} from "@/lib/roblox/game-metadata";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -503,5 +514,163 @@ export async function refreshGameCodes(slug: string) {
     found: refreshResult.found,
     upserted: refreshResult.upserted,
     removed: refreshResult.removed
+  };
+}
+
+type SocialLinkColumn = "roblox_link" | "community_link" | "discord_link" | "twitter_link" | "youtube_link";
+
+const SOCIAL_LINK_COLUMN_MAP: Record<SocialLinkType, SocialLinkColumn> = {
+  roblox: "roblox_link",
+  community: "community_link",
+  discord: "discord_link",
+  twitter: "twitter_link",
+  youtube: "youtube_link"
+};
+
+export async function backfillGameSocialLinks(slug: string) {
+  const { supabase } = await requireAdminAction();
+  const { data: game, error } = await supabase
+    .from("games")
+    .select(
+      "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, discord_link, twitter_link, youtube_link"
+    )
+    .eq("slug", slug)
+    .single();
+
+  if (error || !game) {
+    return { success: false, error: error?.message ?? "Game not found." };
+  }
+
+  const sources = [game.source_url, game.source_url_2, game.source_url_3]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  if (!sources.length) {
+    return { success: false, error: "No sources configured for this game." };
+  }
+
+  const { links, errors } = await scrapeSocialLinksFromSources(sources);
+  const updates: Partial<Record<SocialLinkColumn, string>> = {};
+  const updatedFields: SocialLinkColumn[] = [];
+
+  for (const type of SOCIAL_LINK_FIELDS) {
+    const column = SOCIAL_LINK_COLUMN_MAP[type];
+    const nextValue = links[type];
+    if (!nextValue || game[column]) continue;
+    updates[column] = nextValue;
+    updatedFields.push(column);
+  }
+
+  if (!updatedFields.length) {
+    return { success: true, updatedFields: [], warnings: errors ?? [] };
+  }
+
+  const { error: updateError } = await supabase.from("games").update(updates).eq("id", game.id);
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  revalidatePath("/admin/games");
+  return { success: true, updatedFields, warnings: errors ?? [] };
+}
+
+export async function refreshRobloxGenres(slug: string) {
+  const { supabase } = await requireAdminAction();
+
+  type GenreRow = {
+    id: string;
+    slug: string;
+    name: string;
+    roblox_link: string | null;
+    community_link: string | null;
+    genre: string | null;
+    sub_genre: string | null;
+  };
+
+  const { data: game, error } = await supabase
+    .from("games")
+    .select("id, slug, name, roblox_link, community_link, genre, sub_genre")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !game) {
+    return { success: false, error: error?.message ?? "Game not found." };
+  }
+
+  if (!game.roblox_link) {
+    return { success: false, error: "Roblox link required to refresh metadata." };
+  }
+
+  const warnings: string[] = [];
+  let scraped;
+  try {
+    scraped = await scrapeRobloxGameMetadata(game.roblox_link);
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to scrape Roblox page." };
+  }
+
+  let genre = scraped.genre;
+  let subGenre = scraped.subGenre;
+  const communityLink = scraped.communityLink;
+  const placeIdFromMeta = scraped.placeId ?? extractPlaceId(game.roblox_link);
+  const universeId = scraped.universeId ?? null;
+
+  if ((!genre || !subGenre) && universeId) {
+    try {
+      const universeData = await fetchGenreFromUniverse(universeId);
+      genre = genre ?? universeData.genre;
+      subGenre = subGenre ?? universeData.subGenre;
+    } catch (err) {
+      warnings.push(`Universe API failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if ((!genre || !subGenre) && placeIdFromMeta) {
+    try {
+      const fallback = await fetchGenreFromApi(placeIdFromMeta);
+      genre = genre ?? fallback.genre;
+      subGenre = subGenre ?? fallback.subGenre;
+    } catch (err) {
+      warnings.push(`Place API failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  const updates: Partial<Pick<GenreRow, "genre" | "sub_genre" | "community_link">> = {};
+  const updatedFields: Array<keyof typeof updates> = [];
+
+  if (genre && genre !== game.genre) {
+    updates.genre = genre;
+    updatedFields.push("genre");
+  }
+  if (subGenre && subGenre !== game.sub_genre) {
+    updates.sub_genre = subGenre;
+    updatedFields.push("sub_genre");
+  }
+  if (!game.community_link && communityLink) {
+    updates.community_link = communityLink;
+    updatedFields.push("community_link");
+  }
+
+  if (!updatedFields.length) {
+    return { success: true, updatedFields: [], warnings };
+  }
+
+  const { error: updateError } = await supabase
+    .from("games")
+    .update(updates)
+    .eq("id", game.id);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  revalidatePath("/admin/games");
+  return {
+    success: true,
+    updatedFields,
+    warnings,
+    genre: updates.genre ?? game.genre ?? null,
+    subGenre: updates.sub_genre ?? game.sub_genre ?? null,
+    communityLink: updates.community_link ?? game.community_link ?? null
   };
 }

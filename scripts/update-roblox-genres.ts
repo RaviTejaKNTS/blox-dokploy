@@ -1,40 +1,21 @@
 import "dotenv/config";
 
-import { chromium, Browser } from "playwright";
-
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  extractPlaceId,
+  fetchGenreFromApi,
+  fetchGenreFromUniverse,
+  scrapeRobloxGameMetadata
+} from "@/lib/roblox/game-metadata";
 
 type GameRecord = {
   id: string;
   name: string;
   slug: string | null;
   roblox_link: string | null;
+  community_link: string | null;
   genre: string | null;
   sub_genre: string | null;
-};
-
-type RobloxPlaceDetails = {
-  placeId: number;
-  universeId: number;
-  name: string;
-  genre?: string | null;
-  genreDisplayName?: string | null;
-  subgenre?: string | null;
-  subgenreDisplayName?: string | null;
-};
-
-type RobloxUniverseDetails = {
-  id: number;
-  rootPlaceId: number;
-  name: string;
-  description: string;
-  creator: { id: number; name: string; type: string };
-  price: number | null;
-  allowedGearTypes: string[];
-  allowedGearCategories: string[];
-  isGenreEnforced: boolean;
-  genre?: string | null;
-  genreDisplayName?: string | null;
 };
 
 type ScriptResult = {
@@ -43,179 +24,10 @@ type ScriptResult = {
   status: "updated" | "skipped" | "error";
   genre?: string | null;
   subGenre?: string | null;
+  communityLink?: string | null;
+  communityLinkAdded?: boolean;
   error?: string;
 };
-
-const USER_AGENT =
-  process.env.ROBLOX_SCRAPER_UA ??
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-const AUTH_COOKIE =
-  process.env.ROBLOX_AUTH_COOKIE ??
-  process.env.ROBLOSECURITY ??
-  null;
-
-let sharedBrowser: Browser | null = null;
-
-async function getBrowser(): Promise<Browser> {
-  if (!sharedBrowser) {
-    sharedBrowser = await chromium.launch({ headless: true });
-  }
-  return sharedBrowser;
-}
-
-async function closeBrowser() {
-  if (sharedBrowser) {
-    await sharedBrowser.close();
-    sharedBrowser = null;
-  }
-}
-
-function normalizeText(value?: string | null): string | null {
-  if (!value) return null;
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized.length ? normalized : null;
-}
-
-function extractPlaceId(link: string): string | null {
-  try {
-    const url = new URL(link);
-    const pathSegments = url.pathname.split("/").filter(Boolean);
-    const gamesIndex = pathSegments.findIndex((segment) => segment === "games" || segment === "game");
-    if (gamesIndex !== -1 && pathSegments[gamesIndex + 1]) {
-      const candidate = pathSegments[gamesIndex + 1].replace(/[^0-9]/g, "");
-      return candidate || null;
-    }
-    const match = link.match(/placeId=(\d+)/i);
-    if (match) return match[1];
-  } catch {
-    /* noop */
-  }
-  return null;
-}
-
-async function fetchGenreFromApi(placeId: string): Promise<{ genre: string | null; subGenre: string | null }> {
-  const endpoint = `https://games.roblox.com/v1/games/multiget-place-details?placeIds=${placeId}`;
-  const response = await fetch(endpoint, {
-    headers: {
-      "user-agent": USER_AGENT,
-      accept: "application/json",
-      referer: "https://www.roblox.com/",
-      ...(AUTH_COOKIE ? { cookie: `.ROBLOSECURITY=${AUTH_COOKIE}` } : {})
-    }
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch metadata for place ${placeId}: ${response.status}`);
-  }
-  const payload = (await response.json()) as RobloxPlaceDetails[];
-  const entry = payload?.[0];
-  if (!entry) {
-    return { genre: null, subGenre: null };
-  }
-  const genre = normalizeText(entry.genreDisplayName || entry.genre || null);
-  const subGenre = normalizeText(entry.subgenreDisplayName || entry.subgenre || null);
-  return { genre, subGenre };
-}
-
-async function fetchGenreFromUniverse(universeId: string): Promise<{ genre: string | null; subGenre: string | null }> {
-  const endpoint = `https://games.roblox.com/v1/games?universeIds=${universeId}`;
-  const response = await fetch(endpoint, {
-    headers: {
-      "user-agent": USER_AGENT,
-      accept: "application/json",
-      referer: "https://www.roblox.com/",
-      ...(AUTH_COOKIE ? { cookie: `.ROBLOSECURITY=${AUTH_COOKIE}` } : {})
-    }
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch universe ${universeId}: ${response.status}`);
-  }
-  const payload = (await response.json()) as { data?: RobloxUniverseDetails[] };
-  const entry = payload?.data?.[0];
-  if (!entry) {
-    return { genre: null, subGenre: null };
-  }
-  const genre = normalizeText(entry.genreDisplayName || entry.genre || null);
-  return { genre, subGenre: null };
-}
-
-async function scrapeGamePage(
-  url: string
-): Promise<{ genre: string | null; subGenre: string | null; placeId: string | null; universeId: string | null }> {
-  const browser = await getBrowser();
-  const context = await browser.newContext({
-    userAgent: USER_AGENT,
-    viewport: { width: 1290, height: 720 },
-    javaScriptEnabled: true
-  });
-  await context.addInitScript({
-    content: `
-      (function() {
-        const globalAny = window;
-        if (!globalAny.__defProp) {
-          globalAny.__defProp = Object.defineProperty;
-        }
-        if (!globalAny.__name) {
-          globalAny.__name = function(target, value) {
-            if (globalAny.__defProp) {
-              globalAny.__defProp(target, "name", { value, configurable: true });
-            }
-            return target;
-          };
-        }
-      })();
-    `
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
-    await page.waitForTimeout(2000);
-    await page.waitForSelector(".game-stat-container", { timeout: 20000 }).catch(() => {});
-
-    const data = await page.evaluate(() => {
-      const __defProp = Object.defineProperty;
-      const __name = (target: any, value: string) => __defProp(target, "name", { value, configurable: true });
-      function normalize(value?: string | null) {
-        if (!value) return null;
-        return value.replace(/\s+/g, " ").trim();
-      }
-      const stats = Array.from(document.querySelectorAll("li.game-stat"));
-      let genre: string | null = null;
-      let subGenre: string | null = null;
-
-      for (const stat of stats) {
-        const label =
-          normalize(stat.querySelector(".text-label")?.textContent) ??
-          normalize(stat.querySelector("p")?.textContent);
-        const value =
-          normalize(stat.querySelector(".text-lead")?.textContent) ??
-          normalize(stat.querySelector(".font-caption-body")?.textContent) ??
-          normalize(stat.querySelector("p:nth-of-type(2)")?.textContent);
-        if (!label || !value) continue;
-        const lower = label.toLowerCase();
-        if (lower === "genre") {
-          genre = value;
-        } else if (lower === "subgenre" || lower === "sub-genre") {
-          subGenre = value;
-        }
-      }
-
-      const meta = document.querySelector("#game-detail-meta-data");
-      const placeId = meta?.getAttribute("data-place-id") ?? null;
-      const universeId = meta?.getAttribute("data-universe-id") ?? null;
-
-      return { genre, subGenre, placeId, universeId };
-    });
-
-    return {
-      genre: normalizeText(data.genre),
-      subGenre: normalizeText(data.subGenre),
-      placeId: data.placeId,
-      universeId: data.universeId
-    };
-  } finally {
-    await context.close();
-  }
-}
 
 async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameRecord): Promise<ScriptResult> {
   const slug = game.slug ?? game.id;
@@ -224,9 +36,10 @@ async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameR
   }
 
   try {
-    const scraped = await scrapeGamePage(game.roblox_link);
+    const scraped = await scrapeRobloxGameMetadata(game.roblox_link);
     let genre = scraped.genre;
     let subGenre = scraped.subGenre;
+    const communityLink = scraped.communityLink;
 
     const placeIdFromMeta = scraped.placeId ?? extractPlaceId(game.roblox_link);
     const universeId = scraped.universeId ?? null;
@@ -261,6 +74,9 @@ async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameR
     if (subGenre && subGenre !== game.sub_genre) {
       updates.sub_genre = subGenre;
     }
+    if (!game.community_link && communityLink) {
+      updates.community_link = communityLink;
+    }
 
     if (Object.keys(updates).length === 0) {
       return { slug: game.slug, name: game.name, status: "skipped", genre: game.genre, subGenre: game.sub_genre };
@@ -280,7 +96,9 @@ async function updateGameGenre(sb: ReturnType<typeof supabaseAdmin>, game: GameR
       name: game.name,
       status: "updated",
       genre: updates.genre ?? game.genre,
-      subGenre: updates.sub_genre ?? game.sub_genre
+      subGenre: updates.sub_genre ?? game.sub_genre,
+      communityLink: updates.community_link,
+      communityLinkAdded: Boolean(updates.community_link)
     };
   } catch (error) {
     return {
@@ -320,7 +138,7 @@ async function main() {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("games")
-    .select("id, name, slug, roblox_link, genre, sub_genre")
+    .select("id, name, slug, roblox_link, community_link, genre, sub_genre")
     .not("roblox_link", "is", null)
     .order("updated_at", { ascending: false });
 
@@ -348,7 +166,14 @@ async function main() {
     const result = await updateGameGenre(sb, game);
     results.push(result);
     if (result.status === "updated") {
-      console.log(`✓ ${game.name} → Genre: ${result.genre ?? "unchanged"}, Sub-genre: ${result.subGenre ?? "unchanged"}`);
+      const updates: string[] = [
+        `Genre: ${result.genre ?? "unchanged"}`,
+        `Sub-genre: ${result.subGenre ?? "unchanged"}`
+      ];
+      if (result.communityLinkAdded && result.communityLink) {
+        updates.push(`Community link set (${result.communityLink})`);
+      }
+      console.log(`✓ ${game.name} → ${updates.join(", ")}`);
     } else if (result.status === "skipped") {
       console.log(`• Skipped ${game.name} (no new data)`);
     } else {
@@ -363,12 +188,7 @@ async function main() {
   console.log(`\nDone. Updated ${updated}, skipped ${results.length - updated - errors}, errors ${errors}.`);
 }
 
-main()
-  .then(async () => {
-    await closeBrowser();
-  })
-  .catch(async (error) => {
-    console.error(error);
-    await closeBrowser();
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

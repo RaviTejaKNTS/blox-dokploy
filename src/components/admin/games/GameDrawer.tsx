@@ -26,7 +26,9 @@ import {
   deleteCode,
   refreshGameCodes,
   uploadGameImage,
-  deleteGameById
+  deleteGameById,
+  backfillGameSocialLinks,
+  refreshRobloxGenres
 } from "@/app/admin/(dashboard)/games/actions";
 import { listMediaEntries, uploadMedia, deleteMediaObject } from "@/app/admin/(dashboard)/media/actions";
 import type { MediaListing } from "@/app/admin/(dashboard)/media/page";
@@ -177,6 +179,9 @@ export function GameDrawer({
   const [galleryCopyMessage, setGalleryCopyMessage] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const [metaFlash, setMetaFlash] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [socialBackfillPending, setSocialBackfillPending] = useState(false);
+  const [genreRefreshPending, setGenreRefreshPending] = useState(false);
 
   const defaultValues = useMemo<FormValues>(() => ({
     id: game?.id,
@@ -223,6 +228,7 @@ export function GameDrawer({
     reset(defaultValues, { keepDirty: false, keepDirtyValues: false });
     setActiveTab("content");
     setStatusMessage(null);
+    setMetaFlash(null);
     setMarkdownError(null);
     setIsDragging(false);
     setGalleryImages([]);
@@ -235,6 +241,12 @@ export function GameDrawer({
     slugManuallyEditedRef.current = false;
     nameManuallyEditedRef.current = false;
   }, [defaultValues, reset, open]);
+
+  useEffect(() => {
+    setMetaFlash(null);
+    setSocialBackfillPending(false);
+    setGenreRefreshPending(false);
+  }, [game?.id]);
 
   useEffect(() => {
     if (!galleryCopyMessage) return;
@@ -256,6 +268,69 @@ export function GameDrawer({
   const redeemValue = watch("redeem_md");
   const descriptionValue = watch("description_md");
   const linktextValue = watch("linktext_md");
+  const disableMetaActions = !game?.slug;
+
+  const handleSocialBackfill = useCallback(() => {
+    if (!game?.slug || socialBackfillPending) return;
+    setMetaFlash(null);
+    setSocialBackfillPending(true);
+    backfillGameSocialLinks(game.slug)
+      .then((result) => {
+        if (!result?.success) {
+          setMetaFlash({ tone: "error", message: result?.error ?? "Failed to backfill social links." });
+          return;
+        }
+        const warningText =
+          result.warnings && result.warnings.length ? ` (Warnings: ${result.warnings.join("; ")})` : "";
+        if (result.updatedFields?.length) {
+          setMetaFlash({
+            tone: "success",
+            message: `Social links updated (${result.updatedFields.join(", ")})${warningText}`
+          });
+          onRefresh();
+        } else {
+          setMetaFlash({ tone: "success", message: `No new social links found.${warningText}` });
+        }
+      })
+      .catch((error) => {
+        setMetaFlash({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Failed to backfill social links."
+        });
+      })
+      .finally(() => setSocialBackfillPending(false));
+  }, [game?.slug, onRefresh, socialBackfillPending]);
+
+  const handleGenreRefresh = useCallback(() => {
+    if (!game?.slug || genreRefreshPending) return;
+    setMetaFlash(null);
+    setGenreRefreshPending(true);
+    refreshRobloxGenres(game.slug)
+      .then((result) => {
+        if (!result?.success) {
+          setMetaFlash({ tone: "error", message: result?.error ?? "Failed to refresh Roblox metadata." });
+          return;
+        }
+        const warningText =
+          result.warnings && result.warnings.length ? ` (Warnings: ${result.warnings.join("; ")})` : "";
+        if (result.updatedFields?.length) {
+          setMetaFlash({
+            tone: "success",
+            message: `Roblox metadata updated (${result.updatedFields.join(", ")})${warningText}`
+          });
+          onRefresh();
+        } else {
+          setMetaFlash({ tone: "success", message: `No new Roblox metadata found.${warningText}` });
+        }
+      })
+      .catch((error) => {
+        setMetaFlash({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Failed to refresh Roblox metadata."
+        });
+      })
+      .finally(() => setGenreRefreshPending(false));
+  }, [game?.slug, genreRefreshPending, onRefresh]);
 
   const confirmClose = useUnsavedChangesWarning(open && isDirty, "You have unsaved changes. Leave without saving?");
 
@@ -859,6 +934,42 @@ export function GameDrawer({
                             </option>
                           ))}
                         </select>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">Sources & social links</p>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={handleSocialBackfill}
+                              disabled={disableMetaActions || socialBackfillPending}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-border/30 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span className={socialBackfillPending ? "animate-spin" : ""}>↻</span>
+                              <span>{socialBackfillPending ? "Reloading links…" : "Reload social links"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleGenreRefresh}
+                              disabled={disableMetaActions || genreRefreshPending}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-border/30 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span className={genreRefreshPending ? "animate-spin" : ""}>↻</span>
+                              <span>{genreRefreshPending ? "Refreshing genres…" : "Refresh Roblox genres"}</span>
+                            </button>
+                          </div>
+                        </div>
+                        {metaFlash ? (
+                          <div
+                            className={`rounded-lg border px-3 py-2 text-xs ${
+                              metaFlash.tone === "success"
+                                ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                                : "border-red-400/60 bg-red-500/10 text-red-100"
+                            }`}
+                          >
+                            {metaFlash.message}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div>
