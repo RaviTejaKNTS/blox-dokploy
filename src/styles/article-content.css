@@ -85,9 +85,15 @@
   background: linear-gradient(90deg, rgba(var(--color-accent), 0.2), rgba(var(--color-accent-dark), 0.45));
 }
 
+
 .prose thead,
 .game-copy thead {
-  background: linear-gradient(120deg, rgba(var(--color-accent), 0.18), rgba(var(--color-accent-dark), 0.25));
+  background: rgb(var(--color-surface));
+}
+
+.dark .prose thead,
+.dark .game-copy thead {
+  background: rgb(var(--color-surface));
 }
 
 .prose thead th,
@@ -104,9 +110,9 @@
 
 .dark .prose thead th,
 .dark .game-copy thead th {
-  color: rgba(255, 255, 255, 0.85);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom-color: rgba(255, 255, 255, 0.15);
 }
 
 .prose tbody tr,
@@ -134,15 +140,40 @@
   border-bottom: 1px solid rgba(18, 22, 40, 0.12);
   line-height: 1.45;
   white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: manual;
   text-wrap: pretty;
 }
 
 .prose td > a,
 .game-copy td > a {
   word-break: break-word;
+}
+
+.table-col-flex {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  text-wrap: pretty;
+}
+
+.table-col-compact {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: manual;
+  text-wrap: balance;
+}
+
+@media (max-width: 900px) {
+  .table-col-compact {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
 }
 
 .dark .prose td,

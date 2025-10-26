@@ -52,7 +52,17 @@ const sanitizeOptions: IOptions = {
   allowedAttributes: {
     a: ["href", "title", "class", "target"],
     img: ["src", "alt", "title", "class", "width", "height", "align"],
-    table: ["class", "width", "height", "border", "cellpadding", "cellspacing", "align"],
+    table: [
+      "class",
+      "width",
+      "height",
+      "border",
+      "cellpadding",
+      "cellspacing",
+      "align",
+      "data-column-count",
+      "data-flex-columns"
+    ],
     th: ["class", "align"],
     td: ["class", "align"],
     ol: ["start", "value", "class"],
@@ -190,6 +200,69 @@ function adjustOrderedLists(html: string): string {
   return $.root().children().toArray().map((node) => $.html(node)).join("");
 }
 
+function cellHasDisplayableContent(cell: Cheerio<Element>): boolean {
+  const text = cell.text().replace(/\u00a0/g, " ").trim();
+  if (text.length > 0) {
+    return true;
+  }
+
+  if (cell.find("img, picture, svg, video, iframe, object, embed").length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function pruneEmptyTableSegments(table: Cheerio<Element>, $: CheerioAPI): void {
+  const rows = table.find("tr").toArray();
+  let maxColumns = 0;
+
+  rows.forEach((rowNode) => {
+    const cellCount = $(rowNode).children("th,td").length;
+    if (cellCount > maxColumns) {
+      maxColumns = cellCount;
+    }
+  });
+
+  if (maxColumns === 0) {
+    table.remove();
+    return;
+  }
+
+  const columnHasContent = Array.from({ length: maxColumns }, () => false);
+
+  rows.forEach((rowNode) => {
+    $(rowNode)
+      .children("th,td")
+      .each((colIndex, cellNode) => {
+        if (cellHasDisplayableContent($(cellNode))) {
+          columnHasContent[colIndex] = true;
+        }
+      });
+  });
+
+  for (let colIndex = columnHasContent.length - 1; colIndex >= 0; colIndex--) {
+    if (!columnHasContent[colIndex]) {
+      rows.forEach((rowNode) => {
+        const cells = $(rowNode).children("th,td");
+        const target = cells.eq(colIndex);
+        if (target.length) {
+          target.remove();
+        }
+      });
+    }
+  }
+
+  rows.forEach((rowNode) => {
+    const row = $(rowNode);
+    const cells = row.children("th,td");
+    const hasContent = cells.toArray().some((cellNode) => cellHasDisplayableContent($(cellNode)));
+    if (!hasContent) {
+      row.remove();
+    }
+  });
+}
+
 function wrapTables(html: string): string {
   if (!html.includes("<table")) {
     return html;
@@ -201,6 +274,102 @@ function wrapTables(html: string): string {
     const table = $(tableNode);
     if (table.parent().hasClass("table-scroll-inner")) {
       return;
+    }
+
+    pruneEmptyTableSegments(table, $);
+
+    const sanitizedRows = table.find("tr");
+    if (!sanitizedRows.length) {
+      table.remove();
+      return;
+    }
+
+    const firstRow = sanitizedRows.first();
+    let columnCount = firstRow.children("th,td").length;
+    const columnStats: Array<{ score: number; longestWord: number }> = [];
+
+    table.find("tr").each((_, rowNode) => {
+      const cells = $(rowNode).children("th,td");
+      cells.each((colIndex, cellNode) => {
+        const cell = $(cellNode);
+        const text = (cell.text() || "").replace(/\s+/g, " ").trim();
+        const normalizedLength = text.length;
+        const longestWord = text
+          ? text.split(/\s+/).reduce((max, word) => Math.max(max, word.length), 0)
+          : 0;
+
+        if (colIndex + 1 > columnCount) {
+          columnCount = colIndex + 1;
+        }
+
+        if (!columnStats[colIndex]) {
+          columnStats[colIndex] = { score: 0, longestWord: 0 };
+        }
+
+        columnStats[colIndex].score += normalizedLength;
+        columnStats[colIndex].longestWord = Math.max(columnStats[colIndex].longestWord, longestWord);
+
+        const baseClass = `table-col-${colIndex + 1}`;
+        if (!cell.hasClass(baseClass)) {
+          cell.addClass(baseClass);
+        }
+      });
+    });
+
+    if (columnCount > 0) {
+      table.attr("data-column-count", String(columnCount));
+    }
+
+    const scoredColumns = Array.from({ length: columnCount }, (_, index) => ({
+      index,
+      score: columnStats[index]?.score ?? 0,
+      longestWord: columnStats[index]?.longestWord ?? 0
+    }));
+
+    const wrapTarget = Math.max(1, Math.ceil(columnCount / 2));
+    const flexIndices = new Set<number>();
+
+    scoredColumns
+      .slice()
+      .sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return b.longestWord - a.longestWord;
+      })
+      .slice(0, wrapTarget)
+      .forEach((col) => flexIndices.add(col.index));
+
+    scoredColumns.forEach((col) => {
+      if (col.longestWord >= 16) {
+        flexIndices.add(col.index);
+      }
+    });
+
+    table.find("tr").each((_, rowNode) => {
+      $(rowNode)
+        .children("th,td")
+        .each((colIndex, cellNode) => {
+          const cell = $(cellNode);
+          const roleClass = flexIndices.has(colIndex) ? "table-col-flex" : "table-col-compact";
+          if (!cell.hasClass(roleClass)) {
+            cell.addClass(roleClass);
+          }
+        });
+    });
+
+    if (columnCount > 0) {
+      if (flexIndices.size) {
+        table.attr(
+          "data-flex-columns",
+          Array.from(flexIndices)
+            .sort((a, b) => a - b)
+            .map((index) => String(index + 1))
+            .join(" ")
+        );
+      } else {
+        table.removeAttr("data-flex-columns");
+      }
     }
 
     const inner = $('<div class="table-scroll-inner"></div>');
