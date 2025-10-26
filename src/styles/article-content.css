@@ -25,69 +25,174 @@
   }
 }
 
+.table-scroll-wrapper {
+  margin: 2.5rem 0;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(18, 22, 40, 0.18);
+  box-shadow: 0 25px 80px -60px rgba(4, 5, 14, 0.55);
+  background: transparent;
+  overflow: hidden;
+}
+
+.dark .table-scroll-wrapper {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 80px -60px rgba(0, 0, 0, 0.9);
+}
+
+.table-scroll-inner {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--color-accent-dark), 0.45) transparent;
+  padding-bottom: 0.35rem;
+}
+
+.table-scroll-inner::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-scroll-inner::-webkit-scrollbar-thumb {
+  background: rgba(var(--color-accent-dark), 0.45);
+  border-radius: 999px;
+}
+
 .prose table,
 .game-copy table {
+  display: table;
   width: 100%;
-  border-radius: var(--radius-lg);
-  border: 2px solid rgba(var(--color-accent-dark), 0.7);
-  border-collapse: collapse;
-  border-spacing: 0;
-  margin: 2rem 0;
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
-  text-align: left;
-  font-size: 0.98rem;
-  display: block;
   max-width: 100%;
-  overflow-x: auto;
+  min-width: 0;
+  border-radius: 0;
+  border: 0;
+  border-spacing: 0;
+  margin: 0;
+  background: rgba(var(--color-surface), 0.98);
+  box-shadow: none;
+  font-size: clamp(0.85rem, 0.8rem + 0.2vw, 0.97rem);
+  table-layout: auto;
+  position: relative;
+}
+
+.prose table::after,
+.game-copy table::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, rgba(var(--color-accent), 0.2), rgba(var(--color-accent-dark), 0.45));
 }
 
 .prose thead,
 .game-copy thead {
-  background: rgba(var(--color-accent), 0.18);
+  background: linear-gradient(120deg, rgba(var(--color-accent), 0.18), rgba(var(--color-accent-dark), 0.25));
 }
 
 .prose thead th,
 .game-copy thead th {
-  padding: 0.75rem 1.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  padding: clamp(0.65rem, 0.55rem + 0.35vw, 0.95rem) clamp(0.7rem, 0.6rem + 0.45vw, 1.35rem);
+  font-size: clamp(0.72rem, 0.68rem + 0.14vw, 0.8rem);
+  font-weight: 700;
+  letter-spacing: clamp(0.08em, 0.06em + 0.08vw, 0.18em);
   text-transform: uppercase;
-  color: rgba(var(--color-foreground), 0.92);
-  border-right: 1px solid rgba(var(--color-accent-dark), 0.5);
-  border-bottom: 2px solid rgba(var(--color-accent-dark), 0.6);
+  color: rgba(9, 10, 18, 0.85);
+  border-right: 1px solid rgba(9, 12, 22, 0.15);
+  border-bottom: 1px solid rgba(9, 12, 22, 0.2);
+}
+
+.dark .prose thead th,
+.dark .game-copy thead th {
+  color: rgba(255, 255, 255, 0.85);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 
 .prose tbody tr,
 .game-copy tbody tr {
-  background: rgb(var(--color-surface));
-  border-top: 1px solid rgba(var(--color-accent-dark), 0.45);
+  border-bottom: 1px solid rgba(18, 21, 36, 0.12);
+}
+
+.prose tbody tr:nth-child(odd),
+.game-copy tbody tr:nth-child(odd) {
+  background: rgba(var(--color-surface-muted), 0.45);
 }
 
 .prose tbody tr:nth-child(even),
 .game-copy tbody tr:nth-child(even) {
-  background: rgba(var(--color-surface-muted), 0.82);
+  background: rgba(var(--color-surface), 0.9);
 }
 
 .prose td,
-.game-copy td {
-  padding: 0.75rem 1.25rem;
-  color: rgba(var(--color-foreground), 0.92);
-  border-right: 1px solid rgba(var(--color-accent-dark), 0.45);
-  border-bottom: 1px solid rgba(var(--color-accent-dark), 0.45);
+.game-copy td,
+.prose th,
+.game-copy th {
+  padding: clamp(0.55rem, 0.45rem + 0.45vw, 1.1rem) clamp(0.65rem, 0.45rem + 0.7vw, 1.2rem);
+  color: rgba(var(--color-foreground), 0.95);
+  border-right: 1px solid rgba(18, 22, 40, 0.15);
+  border-bottom: 1px solid rgba(18, 22, 40, 0.12);
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  text-wrap: pretty;
 }
 
-.prose thead th:last-child,
-.game-copy thead th:last-child,
+.prose td > a,
+.game-copy td > a {
+  word-break: break-word;
+}
+
+.dark .prose td,
+.dark .game-copy td,
+.dark .prose th,
+.dark .game-copy th {
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 .prose td:last-child,
-.game-copy td:last-child {
+.game-copy td:last-child,
+.prose th:last-child,
+.game-copy th:last-child {
   border-right: none;
 }
 
 .prose tbody tr:last-child td,
 .game-copy tbody tr:last-child td {
   border-bottom: none;
+}
+
+.prose td img,
+.game-copy td img {
+  max-width: 100%;
+  height: auto;
+  max-height: 120px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 1px solid rgba(18, 22, 40, 0.1);
+  display: block;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.dark .prose td img,
+.dark .game-copy td img {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 768px) {
+  .prose table,
+  .game-copy table {
+    font-size: 0.92rem;
+  }
+  .prose td,
+  .game-copy td,
+  .prose th,
+  .game-copy th {
+    padding: 0.85rem 1rem;
+  }
 }
 
 .prose h1,
@@ -358,4 +463,30 @@
 .dark .prose,
 .dark .game-copy {
   color: rgb(var(--color-foreground));
+}
+.table-scroll-wrapper {
+  margin: 2.5rem 0;
+}
+
+.table-scroll-inner {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose table,
+.game-copy table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(18, 22, 40, 0.2);
+  border-spacing: 0;
+  margin: 0;
+  background: rgba(var(--color-surface), 0.98);
+  box-shadow: 0 25px 80px -60px rgba(4, 5, 14, 0.65);
+  font-size: clamp(0.85rem, 0.8rem + 0.2vw, 0.97rem);
+  overflow: hidden;
+  table-layout: auto;
+  position: relative;
 }

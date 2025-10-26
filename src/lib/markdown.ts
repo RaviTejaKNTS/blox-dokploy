@@ -190,6 +190,30 @@ function adjustOrderedLists(html: string): string {
   return $.root().children().toArray().map((node) => $.html(node)).join("");
 }
 
+function wrapTables(html: string): string {
+  if (!html.includes("<table")) {
+    return html;
+  }
+
+  const $ = load(html);
+
+  $("table").each((_, tableNode) => {
+    const table = $(tableNode);
+    if (table.parent().hasClass("table-scroll-inner")) {
+      return;
+    }
+
+    const inner = $('<div class="table-scroll-inner"></div>');
+    const wrapper = $('<div class="table-scroll-wrapper"></div>');
+
+    table.replaceWith(wrapper);
+    inner.append(table);
+    wrapper.append(inner);
+  });
+
+  return $.root().children().toArray().map((node) => $.html(node)).join("");
+}
+
 /**
  * Safely convert markdown to sanitized HTML
  */
@@ -200,9 +224,10 @@ export async function renderMarkdown(markdown: string): Promise<string> {
     // Convert markdown to HTML
     const html = await marked(markdown);
     const adjusted = typeof html === "string" ? adjustOrderedLists(html) : html;
+    const withTables = typeof adjusted === "string" ? wrapTables(adjusted) : adjusted;
 
     // Sanitize the HTML
-    return typeof adjusted === "string" ? sanitizeHtml(adjusted, sanitizeOptions) : "";
+    return typeof withTables === "string" ? sanitizeHtml(withTables, sanitizeOptions) : "";
   } catch (error) {
     console.error("Error rendering markdown:", error);
     return "";

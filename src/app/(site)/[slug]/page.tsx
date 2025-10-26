@@ -354,7 +354,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article itemScope itemType="https://schema.org/Article">
+      <article itemScope itemType="https://schema.org/Article" className="min-w-0">
         <meta itemProp="mainEntityOfPage" content={canonicalUrl} />
         <meta itemProp="datePublished" content={publishedIso} />
         <meta itemProp="dateModified" content={updatedIso} />
@@ -668,7 +668,7 @@ export default async function GamePage({ params }: Params) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article itemScope itemType="https://schema.org/Article">
+      <article itemScope itemType="https://schema.org/Article" className="min-w-0">
         <meta itemProp="mainEntityOfPage" content={canonicalUrl} />
         <meta itemProp="datePublished" content={publishedIso} />
         <meta itemProp="dateModified" content={updatedIso} />

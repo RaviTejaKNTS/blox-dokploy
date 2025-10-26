@@ -50,7 +50,9 @@ function enhanceCodeBlocks() {
 export function CodeBlockEnhancer() {
   useEffect(() => {
     enhanceCodeBlocks();
-    const observer = new MutationObserver(() => enhanceCodeBlocks());
+    const observer = new MutationObserver(() => {
+      enhanceCodeBlocks();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
