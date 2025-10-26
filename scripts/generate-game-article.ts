@@ -9,6 +9,14 @@ import sharp from "sharp";
 
 import { ensureCategoryForGame } from "@/lib/admin/categories";
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
+import { generateLinktextForGames } from "@/lib/linktext";
+import {
+  extractPlaceId,
+  fetchGenreFromApi,
+  fetchGenreFromUniverse,
+  scrapeRobloxGameMetadata
+} from "@/lib/roblox/game-metadata";
+import { scrapeSocialLinksFromSources, type SocialLinks as ScrapedSocialLinks } from "@/lib/social-links";
 import { normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -47,7 +55,7 @@ type LinkInfo = {
   label?: string;
 };
 
-type SocialLinks = {
+type PlaceholderLinks = {
   roblox_link?: LinkInfo;
   community_link?: LinkInfo;
   discord_link?: LinkInfo;
@@ -327,16 +335,6 @@ function extractAnchorLabel(anchor: HTMLAnchorElement | Element | null | undefin
   return cleaned;
 }
 
-function isTwitterProfile(url: URL): boolean {
-  const host = url.hostname.toLowerCase();
-  const path = url.pathname.toLowerCase();
-  if (!host.includes("twitter.com") && !host.includes("x.com")) return false;
-  if (path.startsWith("/intent") || path.startsWith("/share") || path.includes("/intent/")) return false;
-  const handle = path.split("/").filter(Boolean)[0] ?? "";
-  if (["beebomco", "beebom"].includes(handle)) return false;
-  return path.split("/").filter(Boolean).length >= 1;
-}
-
 function isRobloxExperienceUrl(raw: string): boolean {
   try {
     const url = new URL(raw);
@@ -386,53 +384,56 @@ async function fetchCommunityLinkFromRobloxExperience(gameUrl: string): Promise<
   return null;
 }
 
-async function extractSocialLinksFromBeebom(url: string): Promise<SocialLinks> {
-  const result: SocialLinks = {};
-
-  try {
-    const response = await fetchWithRetry(url);
-    const html = await response.text();
-    const dom = new JSDOM(html, { url });
-    const container = dom.window.document.querySelector(".beebom-single-content-container");
-
-    if (!container) {
-      console.warn("⚠️ Beebom content container not found for social link extraction.");
-      return result;
-    }
-
-    const anchors = Array.from(container.querySelectorAll<HTMLAnchorElement>("a[href]"));
-    for (const anchor of anchors) {
-      const resolved = resolveHref(anchor.getAttribute("href"), url);
-      const normalized = normalizeExternalLink(resolved);
-      if (!normalized) continue;
-      const label = extractAnchorLabel(anchor);
-
-      if (!result.roblox_link && isRobloxExperienceUrl(normalized)) {
-        result.roblox_link = { url: normalized, label };
-      } else if (!result.community_link && isRobloxCommunityUrl(normalized)) {
-        result.community_link = { url: normalized, label };
-      } else if (!result.discord_link && /(discord\.gg|discord\.com)/i.test(normalized)) {
-        result.discord_link = { url: normalized, label };
-      } else if (!result.twitter_link) {
-        try {
-          const parsed = new URL(normalized);
-          if (isTwitterProfile(parsed)) {
-            result.twitter_link = { url: parsed.toString(), label };
-          }
-        } catch {
-          /* ignore malformed links */
-        }
-      }
-
-      if (result.roblox_link && result.community_link && result.discord_link && result.twitter_link) {
-        break;
-      }
-    }
-  } catch (error) {
-    console.warn("⚠️ Failed to extract social links from Beebom:", error instanceof Error ? error.message : error);
+async function collectRobloxMetadata(robloxLink?: string | null) {
+  if (!robloxLink) {
+    return { genre: null, subGenre: null, communityLink: null };
   }
 
-  return result;
+  try {
+    const scraped = await scrapeRobloxGameMetadata(robloxLink);
+    let genre = scraped.genre;
+    let subGenre = scraped.subGenre;
+    let communityLink = scraped.communityLink;
+    const placeId = scraped.placeId ?? extractPlaceId(robloxLink);
+    const universeId = scraped.universeId ?? null;
+
+    if ((!genre || !subGenre) && universeId) {
+      try {
+        const universeData = await fetchGenreFromUniverse(universeId);
+        genre = genre ?? universeData.genre;
+        subGenre = subGenre ?? universeData.subGenre;
+      } catch (error) {
+        console.warn("⚠️ Failed to fetch universe metadata:", error instanceof Error ? error.message : error);
+      }
+    }
+
+    if ((!genre || !subGenre) && placeId) {
+      try {
+        const fallback = await fetchGenreFromApi(placeId);
+        genre = genre ?? fallback.genre;
+        subGenre = subGenre ?? fallback.subGenre;
+      } catch (error) {
+        console.warn("⚠️ Failed to fetch place metadata:", error instanceof Error ? error.message : error);
+      }
+    }
+
+    return { genre: genre ?? null, subGenre: subGenre ?? null, communityLink: communityLink ?? null };
+  } catch (error) {
+    console.warn("⚠️ Failed to scrape Roblox metadata:", error instanceof Error ? error.message : error);
+    return { genre: null, subGenre: null, communityLink: null };
+  }
+}
+
+function convertScrapedSocialLinks(links: ScrapedSocialLinks): PlaceholderLinks {
+  const toLinkInfo = (value?: string | null): LinkInfo | undefined =>
+    value ? { url: value } : undefined;
+  return {
+    roblox_link: toLinkInfo(links.roblox),
+    community_link: toLinkInfo(links.community),
+    discord_link: toLinkInfo(links.discord),
+    twitter_link: toLinkInfo(links.twitter),
+    youtube_link: toLinkInfo(links.youtube)
+  };
 }
 
 function buildArticlePrompt(gameName: string, sources: string) {
@@ -539,15 +540,15 @@ async function main() {
 
   const combinedSources = `${fullText}\n\n${snippetText}`;
 
-  const [robloxDenSource, beebomSource] = await Promise.all([
+  const [robloxDenSource, beebomSource, destructoidSource] = await Promise.all([
     findGameCodeArticle(gameName, "robloxden.com/game-codes"),
     findGameCodeArticle(gameName, "beebom.com"),
+    findGameCodeArticle(gameName, "destructoid.com")
   ]);
 
-  let socialLinks: SocialLinks = {};
-  if (beebomSource) {
-    socialLinks = await extractSocialLinksFromBeebom(beebomSource);
-  }
+  const sourceCandidates = [robloxDenSource, beebomSource, destructoidSource].filter(
+    (value): value is string => Boolean(value)
+  );
 
   if (robloxDenSource) {
     console.log(`🔗 Roblox Den source found: ${robloxDenSource}`);
@@ -560,6 +561,25 @@ async function main() {
   } else {
     console.log("⚠️ No matching Beebom codes article found.");
   }
+
+  if (destructoidSource) {
+    console.log(`🔗 Destructoid source found: ${destructoidSource}`);
+  } else {
+    console.log("⚠️ No matching Destructoid codes article found.");
+  }
+
+  let socialLinks: PlaceholderLinks = {};
+  if (sourceCandidates.length) {
+    const socialResult = await scrapeSocialLinksFromSources(sourceCandidates);
+    if (socialResult.errors.length) {
+      for (const errorMessage of socialResult.errors) {
+        console.warn(`⚠️ Social scrape error: ${errorMessage}`);
+      }
+    }
+    socialLinks = convertScrapedSocialLinks(socialResult.links);
+  }
+
+  let metadata = await collectRobloxMetadata(socialLinks.roblox_link?.url);
 
   console.log("🧠 Writing detailed article using GPT-4.1-mini...");
   const completion = await openai.chat.completions.create({
@@ -590,7 +610,7 @@ async function main() {
 
   const { data: existingGame, error: existingError } = await supabase
     .from("games")
-    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url")
+    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -604,6 +624,14 @@ async function main() {
   }
 
   const robloxExperienceLink = socialLinks.roblox_link?.url ?? existingGame?.roblox_link ?? undefined;
+  if ((!metadata.genre || !metadata.subGenre) && robloxExperienceLink && !socialLinks.roblox_link) {
+    metadata = await collectRobloxMetadata(robloxExperienceLink);
+  }
+
+  if (!socialLinks.community_link && metadata.communityLink) {
+    socialLinks.community_link = { url: metadata.communityLink };
+  }
+
   if (!socialLinks.community_link && robloxExperienceLink) {
     const scrapedCommunityLink = await fetchCommunityLinkFromRobloxExperience(robloxExperienceLink);
     if (scrapedCommunityLink) {
@@ -616,7 +644,7 @@ async function main() {
     }
   }
 
-  const defaultLabels: Record<keyof SocialLinks, string> = {
+  const defaultLabels: Record<keyof PlaceholderLinks, string> = {
     roblox_link: `${canonicalName} on Roblox`,
     community_link: `${canonicalName} Community`,
     discord_link: `${canonicalName} Discord`,
@@ -639,13 +667,17 @@ async function main() {
     return undefined;
   };
 
-  const resolvedLinks: SocialLinks = {
+  const resolvedLinks: PlaceholderLinks = {
     roblox_link: buildLink(socialLinks.roblox_link, existingGame?.roblox_link, defaultLabels.roblox_link),
     community_link: buildLink(socialLinks.community_link, existingGame?.community_link, defaultLabels.community_link),
     discord_link: buildLink(socialLinks.discord_link, existingGame?.discord_link, defaultLabels.discord_link),
     twitter_link: buildLink(socialLinks.twitter_link, existingGame?.twitter_link, defaultLabels.twitter_link),
     youtube_link: buildLink(socialLinks.youtube_link, existingGame?.youtube_link, defaultLabels.youtube_link),
   };
+
+  if (!resolvedLinks.community_link && metadata.communityLink) {
+    resolvedLinks.community_link = { url: metadata.communityLink, label: defaultLabels.community_link };
+  }
 
   const article = applyLinkPlaceholders(parsed, canonicalName, resolvedLinks);
 
@@ -665,11 +697,17 @@ async function main() {
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
   if (beebomSource) insertPayload.source_url_2 = beebomSource;
+  if (destructoidSource) insertPayload.source_url_3 = destructoidSource;
   if (resolvedLinks.roblox_link) insertPayload.roblox_link = resolvedLinks.roblox_link.url;
   if (resolvedLinks.community_link) insertPayload.community_link = resolvedLinks.community_link.url;
   if (resolvedLinks.discord_link) insertPayload.discord_link = resolvedLinks.discord_link.url;
   if (resolvedLinks.twitter_link) insertPayload.twitter_link = resolvedLinks.twitter_link.url;
   if (resolvedLinks.youtube_link) insertPayload.youtube_link = resolvedLinks.youtube_link.url;
+
+  const finalGenre = metadata.genre ?? existingGame?.genre ?? null;
+  const finalSubGenre = metadata.subGenre ?? existingGame?.sub_genre ?? null;
+  if (finalGenre) insertPayload.genre = finalGenre;
+  if (finalSubGenre) insertPayload.sub_genre = finalSubGenre;
 
   const upsert = await supabase
     .from("games")
@@ -692,6 +730,15 @@ async function main() {
         ensureError instanceof Error ? ensureError.message : ensureError
       );
     }
+  }
+
+  try {
+    await generateLinktextForGames(supabase, { slugs: [slug], overwrite: false, limit: 1 });
+  } catch (linktextError) {
+    console.warn(
+      "⚠️ Failed to update linktext:",
+      linktextError instanceof Error ? linktextError.message : linktextError
+    );
   }
 
   const coverSourceLink = resolvedLinks.roblox_link?.url ?? existingGame?.source_url ?? null;
@@ -739,19 +786,19 @@ async function refreshCodesForGame(slug: string) {
   );
 }
 
-function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links: SocialLinks): ProcessedArticle {
+function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links: PlaceholderLinks): ProcessedArticle {
   const displayName = sanitizeGameDisplayName(article.game_display_name, gameName);
   let intro = article.intro_md;
   let redeem = links.roblox_link ? ensureLaunchPlaceholder(article.redeem_md, displayName) : article.redeem_md;
   let description = article.description_md;
   const metaDescription = formatMetaDescription(article.meta_description, displayName);
 
-  const hasPlaceholder = (key: keyof SocialLinks) => {
+  const hasPlaceholder = (key: keyof PlaceholderLinks) => {
     const token = new RegExp(`\\[\\[${key}\\|`, "i");
     return token.test(intro) || token.test(redeem) || token.test(description);
   };
 
-  const defaultLabelForKey = (key: keyof SocialLinks): string => {
+  const defaultLabelForKey = (key: keyof PlaceholderLinks): string => {
     switch (key) {
       case "roblox_link":
         return `${displayName} on Roblox`;
@@ -768,7 +815,7 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     }
   };
 
-  const wrapWithRegex = (value: string, regex: RegExp, key: keyof SocialLinks, label: string) => {
+  const wrapWithRegex = (value: string, regex: RegExp, key: keyof PlaceholderLinks, label: string) => {
     const pattern = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : `${regex.flags}g`);
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(value)) !== null) {
@@ -785,7 +832,7 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     return { applied: false, value };
   };
 
-  const wrapWithKeyword = (value: string, keyword: string, key: keyof SocialLinks, label: string) => {
+  const wrapWithKeyword = (value: string, keyword: string, key: keyof PlaceholderLinks, label: string) => {
     const lower = value.toLowerCase();
     const target = keyword.toLowerCase();
     const index = lower.indexOf(target);
@@ -809,7 +856,7 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
   };
 
   const ensurePlaceholder = (
-    key: keyof SocialLinks,
+    key: keyof PlaceholderLinks,
     keywords: string[],
     regexes: RegExp[],
     buildFallback: (label: string) => string
