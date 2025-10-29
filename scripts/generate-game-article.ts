@@ -454,7 +454,7 @@ If we have mentioned the game's social media platform, we need to use the placeh
 ${sources}
 === SOURCES END ===
 
-Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above.
+Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above. Add some human randomness and sprinkles of minor opinions and bring that flow to the entire article talking about previous sections and make it feel like a story and keep it very casual and very human. 
 
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
