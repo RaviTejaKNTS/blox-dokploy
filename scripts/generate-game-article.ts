@@ -454,7 +454,7 @@ If we have mentioned the game's social media platform, we need to use the placeh
 ${sources}
 === SOURCES END ===
 
-Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above. Add some human randomness and sprinkles of minor opinions and bring that flow to the entire article talking about previous sections and make it feel like a story and keep it very casual and very human. 
+Write in clean markdown, no em-dashes, no speculation. The entire article should be between 600–800 words long in average. Keep the language simple, full sentences and like friend talking to another friend. When you need a link, use the placeholders above. Add some human randomness and sprinkles of minor opinions and bring that flow to the entire article talking about previous sections and make it feel like a story and keep it very casual and very human. Do not keywordstuff, write natually and when talking about game, no need to mention gamename everytime, just simply say "in the game" or "This game allows you". 
 
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
@@ -467,7 +467,7 @@ Sections required:
    - When you ask readers to join or follow a community, wrap the relevant words with [[community_link|...]].
    - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.
 3. description_md – include all these sections:
-   - ## Why Is My ${gameName} Code Not Working?
+   - ## Why Is My Code Not Working?
      Bullet list of real reasons from sources. Be very detailed and include all the reasons for why any code could fail. Before the bullet points, write at least a line or two to give cue to the actual points.
      Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.
    - ## Where to Find More ${gameName} Codes
