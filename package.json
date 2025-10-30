@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "ads:update": "tsx scripts/update-ads-txt.ts",
+    "prebuild": "npm run ads:update",
     "build": "next build",
     "start": "next start",
     "lint": "echo \"(lint intentionally omitted)\"",
