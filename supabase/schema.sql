@@ -84,6 +84,23 @@ create table if not exists public.game_generation_queue (
 create index if not exists idx_game_generation_queue_status_created
   on public.game_generation_queue (status, created_at);
 
+-- article generation queue table
+create table if not exists public.article_generation_queue (
+  id uuid primary key default uuid_generate_v4(),
+  article_title text not null,
+  category_id uuid references public.article_categories(id) on delete set null,
+  article_type text not null check (article_type in ('listicle','how_to','explainer','opinion','news')),
+  status text not null default 'pending' check (status in ('pending','completed','failed')),
+  attempts int not null default 0,
+  last_attempted_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_article_generation_queue_status_created
+  on public.article_generation_queue (status, created_at);
+
 
 -- admin users table
 create table if not exists public.admin_users (
@@ -164,6 +181,10 @@ drop trigger if exists trg_game_generation_queue_updated_at on public.game_gener
 create trigger trg_game_generation_queue_updated_at before update on public.game_generation_queue
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_article_generation_queue_updated_at on public.article_generation_queue;
+create trigger trg_article_generation_queue_updated_at before update on public.article_generation_queue
+for each row execute function public.set_updated_at();
+
 -- RLS
 alter table public.games enable row level security;
 alter table public.codes enable row level security;
@@ -172,6 +193,7 @@ alter table public.admin_users enable row level security;
 alter table public.article_categories enable row level security;
 alter table public.articles enable row level security;
 alter table public.game_generation_queue enable row level security;
+alter table public.article_generation_queue enable row level security;
 
 -- Policy: allow read of published games and their codes to anon
 drop policy if exists "read_published_games" on public.games;
@@ -254,6 +276,20 @@ create policy "admin_manage_article_categories" on public.article_categories
 
 drop policy if exists "admin_manage_game_generation_queue" on public.game_generation_queue;
 create policy "admin_manage_game_generation_queue" on public.game_generation_queue
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin_manage_article_generation_queue" on public.article_generation_queue;
+create policy "admin_manage_article_generation_queue" on public.article_generation_queue
   for all
   using (
     exists (

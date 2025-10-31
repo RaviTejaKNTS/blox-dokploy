@@ -38,7 +38,7 @@ const TARGET_SLUGS = Array.from(new Set([...ONLY_SLUGS, ...CLI_SLUGS]));
 
 function normalizeCodeForComparison(code: string | null | undefined): string | null {
   if (!code) return null;
-  return code.replace(/\s+/g, "").trim();
+  return code.replace(/\s+/g, "").trim().toUpperCase();
 }
 
 function sleep(ms: number) {

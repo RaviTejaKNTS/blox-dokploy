@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "echo \"(lint intentionally omitted)\"",
+    "generate:article": "tsx scripts/generate-article.ts",
+    "articles:queue": "tsx scripts/run-article-generation-queue.ts",
     "refresh:codes": "tsx scripts/update-codes.ts",
     "refresh:expired": "tsx scripts/update-expired.ts",
     "import:games": "tsx scripts/import-games.ts",

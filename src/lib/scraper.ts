@@ -15,7 +15,7 @@ const SCRAPER_MAP = {
 type Provider = keyof typeof SCRAPER_MAP;
 
 function normalizeCodeKey(code: string): string {
-  return code.replace(/\s+/g, "").trim();
+  return code.replace(/\s+/g, "").trim().toUpperCase();
 }
 
 const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
@@ -23,8 +23,22 @@ const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
   check: 1,
 };
 
+const PROVIDER_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
+  progameguides: 0,
+  destructoid: 1,
+  beebom: 2,
+  robloxden: 3,
+};
+
+function getProviderPriority(provider?: ScrapedCode["provider"]): number {
+  if (!provider) return -1;
+  return PROVIDER_PRIORITY[provider] ?? -1;
+}
+
 function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCode {
   const merged: ScrapedCode = { ...existing };
+  const incomingPriority = getProviderPriority(incoming.provider);
+  const existingPriority = getProviderPriority(existing.provider);
 
   if (STATUS_PRIORITY[incoming.status] > STATUS_PRIORITY[existing.status]) {
     merged.status = incoming.status;
@@ -39,15 +53,18 @@ function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCo
   const incomingReward = incoming.rewardsText?.trim();
   const existingReward = merged.rewardsText?.trim();
 
-  if (incoming.provider === "robloxden") {
+  if (incomingPriority > existingPriority) {
+    merged.code = incoming.code.trim();
+    merged.provider = incoming.provider;
     if (incomingReward) {
       merged.rewardsText = incomingReward;
     }
-    merged.provider = "robloxden";
   } else {
+    if (!merged.provider && incoming.provider) {
+      merged.provider = incoming.provider;
+    }
     if (!existingReward && incomingReward) {
       merged.rewardsText = incomingReward;
-      merged.provider = merged.provider ?? incoming.provider ?? "beebom";
     }
   }
 
