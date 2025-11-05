@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/styles/article-content.css";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "Contact Us";
@@ -48,7 +49,7 @@ export default function ContactPage() {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="prose dark:prose-invert max-w-none game-copy">
-        <header className="space-y-3">
+        <header>
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Contact Us: Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
             At Bloxodes.com, we aim to make it easy for you to reach out whenever you need. Since our website is built to be simple and
@@ -56,9 +57,9 @@ export default function ContactPage() {
           </p>
         </header>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How to Contact Us</h2>
-          <ul className="list-disc space-y-3 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>Email:</strong>{' '}
               <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>
@@ -78,10 +79,10 @@ export default function ContactPage() {
           </ul>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What You Can Contact Us For</h2>
           <p>You are welcome to email us regarding:</p>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>Reporting non-working or outdated Roblox codes.</li>
             <li>Suggestions for improving our coverage of Roblox games.</li>
             <li>Privacy questions or requests under GDPR, CCPA, India’s DPDP Act, or other laws.</li>
@@ -93,7 +94,7 @@ export default function ContactPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Response Time</h2>
           <p>
             We try to respond to all genuine messages within <strong>3–5 business days</strong>. Some requests, especially legal or
@@ -101,9 +102,9 @@ export default function ContactPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Important Notes</h2>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>Please do not send sensitive personal information (like passwords or payment details). We will never ask for them.</li>
             <li>
               For privacy and data rights requests, make sure you email us from the same address you used to contact us previously so we can
@@ -115,7 +116,7 @@ export default function ContactPage() {
           </ul>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Final Assurance</h2>
           <p>
             Your trust is important to us. Contacting us will always be straightforward, safe, and private. We handle every message with

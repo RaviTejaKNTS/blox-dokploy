@@ -71,12 +71,15 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
               />
             </div>
           </Link>
-          <nav className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-wide text-muted md:text-sm">
+          <nav className="flex flex-wrap items-center gap-5 text-xs uppercase tracking-wide text-muted md:text-sm">
             <Link href="/about" className="transition hover:text-foreground">
-              About
+              About Us
+            </Link>
+            <Link href="/how-we-gather-and-verify-codes" className="transition hover:text-foreground">
+              How We Verify Codes
             </Link>
             <Link href="/contact" className="transition hover:text-foreground">
-              Contact
+              Contact Us
             </Link>
             <Link href="/editorial-guidelines" className="transition hover:text-foreground">
               Editorial Guidelines

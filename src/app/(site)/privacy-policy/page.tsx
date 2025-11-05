@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/styles/article-content.css";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "Privacy Policy";
@@ -43,12 +44,12 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="prose dark:prose-invert max-w-none game-copy">
-        <header className="space-y-3">
+        <header>
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{title}</h1>
           <p className="text-base text-muted sm:text-lg">{description}</p>
         </header>
 
-        <section className="space-y-3">
+        <section>
           <p>
             <strong>Effective Date:</strong> October 3, 2025
             <br />
@@ -67,19 +68,19 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">1) What We Collect (and What We Don’t)</h2>
-          <div className="space-y-3">
+          <div>
             <div>
               <p className="font-medium">We do not:</p>
-              <ul className="list-disc space-y-1 pl-6">
+              <ul className="list-disc pl-6">
                 <li>Run user registrations, comments, forums, or newsletters.</li>
                 <li>Collect your name, postal address, phone number, or passwords.</li>
               </ul>
             </div>
             <div>
               <p className="font-medium">We may collect automatically (standard web/ads/analytics data):</p>
-              <ul className="list-disc space-y-1 pl-6">
+              <ul className="list-disc pl-6">
                 <li>
                   Network and device data your browser sends when loading pages: IP address, user-agent, referral URL, time stamps,
                   pages viewed, and basic device/OS/browser details.
@@ -101,7 +102,7 @@ export default function PrivacyPolicyPage() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">2) Analytics</h2>
           <p>
             We use Google Analytics 4 (GA4) to understand aggregated site usage (which pages are most read, approximate geographies,
@@ -117,13 +118,13 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">3) Advertising</h2>
           <p>
             We use Google AdSense (including Auto Ads) so we can offer content for free. AdSense places advertising code that may
             read/write cookies or similar identifiers and uses your device/network information to:
           </p>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>Deliver and measure ads;</li>
             <li>Limit how often you see an ad;</li>
             <li>Detect fraud and abuse.</li>
@@ -143,9 +144,9 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">4) Cookies &amp; Local Storage</h2>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>Essential site preferences:</strong> We store a simple theme preference (light/dark) in your browser’s local
               storage so the site looks the same on your next visit. This is not used to track you across sites.
@@ -158,9 +159,9 @@ export default function PrivacyPolicyPage() {
           <p>You can block or delete cookies via your browser settings. If you block non-essential cookies, some analytics and ad features may be limited.</p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">5) Legal Bases for Processing (GDPR/UK GDPR)</h2>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>Consent:</strong> for analytics and advertising cookies where required by law.
             </li>
@@ -174,10 +175,10 @@ export default function PrivacyPolicyPage() {
           </ul>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">6) Data Sharing</h2>
           <p>We do not sell your personal information. We share data only with service providers that help us run the site:</p>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>Google (Analytics/AdSense):</strong> acts as an independent controller for analytics and advertising.
             </li>
@@ -194,7 +195,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">7) International Transfers</h2>
           <p>
             Our providers may process data in multiple countries (e.g., U.S., EU). Where applicable, they rely on safeguards like Standard
@@ -203,9 +204,9 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">8) Retention</h2>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>Server/hosting logs (Netlify):</strong> kept for operational security and troubleshooting and deleted on a schedule
               determined by our host.
@@ -221,9 +222,9 @@ export default function PrivacyPolicyPage() {
           <p>When retention periods expire or data is no longer needed, we delete or de-identify it.</p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">9) Your Rights &amp; Choices</h2>
-          <ul className="list-disc space-y-1 pl-6">
+          <ul className="list-disc pl-6">
             <li>
               <strong>EEA/UK/Switzerland (GDPR/UK GDPR):</strong> Request access, correction, deletion, restriction, portability, or object
               to processing. Withdraw consent at any time. Lodge a complaint with your data protection authority.
@@ -244,7 +245,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">10) Children’s Privacy</h2>
           <p>
             Bloxodes is a general-audience site. We do not knowingly collect personal information from children under 13 (or a higher age
@@ -255,7 +256,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">11) Security</h2>
           <p>
             We use HTTPS across the site, rely on reputable cloud providers with strong security practices (Netlify, Google, Supabase),
@@ -264,7 +265,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">12) Third-Party Links</h2>
           <p>
             Our pages may link to third-party sites (e.g., Roblox, X/Twitter, Discord, Telegram). Those sites have their own privacy
@@ -272,12 +273,12 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">13) Changes to This Policy</h2>
           <p>We will update this page when our data practices or legal requirements change. The “Last Updated” date shows the latest revision.</p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">14) Contact</h2>
           <p>
             <strong>Email:</strong> <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>
@@ -290,7 +291,7 @@ export default function PrivacyPolicyPage() {
           <p>If you have privacy questions or want to exercise your rights, write to us and we’ll respond promptly.</p>
         </section>
 
-        <section className="space-y-3">
+        <section>
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Plain-English Summary</h2>
           <p>
             We don’t run accounts, comments, or newsletters. We measure traffic (GA4) and show ads (AdSense). Those services may place

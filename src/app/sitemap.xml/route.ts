@@ -32,6 +32,7 @@ export async function GET() {
 
   const staticRoutes: Array<{ path: string; changefreq: string; priority: string }> = [
     { path: "/about", changefreq: "monthly", priority: "0.6" },
+    { path: "/how-we-gather-and-verify-codes", changefreq: "monthly", priority: "0.6" },
     { path: "/contact", changefreq: "monthly", priority: "0.6" },
     { path: "/privacy-policy", changefreq: "yearly", priority: "0.5" },
     { path: "/editorial-guidelines", changefreq: "monthly", priority: "0.5" },
