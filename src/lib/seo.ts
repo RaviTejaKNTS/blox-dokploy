@@ -1,3 +1,5 @@
+import { collectAuthorSocials } from "./author-socials";
+
 const DEFAULT_SITE_URL = "https://bloxodes.com";
 
 export const SITE_URL = DEFAULT_SITE_URL;
@@ -172,21 +174,22 @@ export function authorJsonLd({
   description
 }: {
   siteUrl: string;
-  author: { name: string; slug: string; twitter?: string | null; youtube?: string | null; website?: string | null };
+  author: {
+    name: string;
+    slug: string;
+    twitter?: string | null;
+    youtube?: string | null;
+    website?: string | null;
+    facebook?: string | null;
+    linkedin?: string | null;
+    instagram?: string | null;
+    roblox?: string | null;
+    discord?: string | null;
+  };
   avatar?: string | null;
   description: string;
 }) {
-  const sameAs: string[] = [];
-  if (author.twitter) {
-    const twitter = author.twitter.startsWith("http") ? author.twitter : `https://twitter.com/${author.twitter.replace(/^@/, "")}`;
-    sameAs.push(twitter);
-  }
-  if (author.youtube) {
-    sameAs.push(author.youtube);
-  }
-  if (author.website) {
-    sameAs.push(author.website);
-  }
+  const sameAs = Array.from(new Set(collectAuthorSocials(author).map((link) => link.url)));
 
   return {
     "@context": "https://schema.org",

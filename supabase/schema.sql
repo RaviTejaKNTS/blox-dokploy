@@ -12,6 +12,11 @@ create table if not exists public.authors (
   twitter text,
   youtube text,
   website text,
+  facebook text,
+  linkedin text,
+  instagram text,
+  roblox text,
+  discord text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

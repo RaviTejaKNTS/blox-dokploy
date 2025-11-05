@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { marked } from "marked";
+import { AuthorSocialLinks } from "@/components/AuthorSocialLinks";
 import { GameCard } from "@/components/GameCard";
 import { authorAvatarUrl } from "@/lib/avatar";
 import {
@@ -18,25 +19,6 @@ import {
 export const revalidate = 0;
 
 type Params = { params: { slug: string } };
-
-function authorLinks(author: {
-  twitter?: string | null;
-  youtube?: string | null;
-  website?: string | null;
-}) {
-  const links: { label: string; href: string }[] = [];
-  if (author.twitter) {
-    const handle = author.twitter.startsWith("http") ? author.twitter : `https://twitter.com/${author.twitter.replace(/^@/, "")}`;
-    links.push({ label: "Twitter", href: handle });
-  }
-  if (author.youtube) {
-    links.push({ label: "YouTube", href: author.youtube });
-  }
-  if (author.website) {
-    links.push({ label: "Website", href: author.website });
-  }
-  return links;
-}
 
 function markdownToPlain(text?: string | null): string {
   if (!text) return "";
@@ -107,7 +89,6 @@ export default async function AuthorPage({ params }: Params) {
     })
   );
 
-  const links = authorLinks(author);
   const authoredGames = games.map((game) => ({
     game,
     articleUpdatedAt: game.content_updated_at ?? game.updated_at ?? null
@@ -138,21 +119,7 @@ export default async function AuthorPage({ params }: Params) {
             ) : (
               <p className="text-sm text-muted">{bioText}</p>
             )}
-            {links.length ? (
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                {links.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 transition hover:border-accent hover:text-accent"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            ) : null}
+            <AuthorSocialLinks author={author} />
           </div>
         </div>
       </header>

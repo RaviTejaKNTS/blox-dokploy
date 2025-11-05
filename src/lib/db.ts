@@ -12,6 +12,11 @@ export type Author = {
   twitter: string | null;
   youtube: string | null;
   website: string | null;
+  facebook: string | null;
+  linkedin: string | null;
+  instagram: string | null;
+  roblox: string | null;
+  discord: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -301,7 +306,7 @@ export async function getArticleCategoryBySlug(slug: string): Promise<(ArticleCa
 }
 
 function articleSelectFields() {
-  return `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,created_at,updated_at), category:article_categories(*, game:games(id,name,slug,is_published)))`;
+  return `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), category:article_categories(*, game:games(id,name,slug,is_published)))`;
 }
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {

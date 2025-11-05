@@ -26,6 +26,7 @@ import {
   listPublishedArticles,
   listPublishedArticlesByCategory,
   type ArticleWithRelations,
+  type Author,
   type Code
 } from "@/lib/db";
 import {
@@ -39,6 +40,7 @@ import {
   howToJsonLd
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
+import { collectAuthorSocials } from "@/lib/author-socials";
 
 export const revalidate = 30;
 
@@ -145,16 +147,6 @@ function extractHowToSteps(markdown?: string | null): string[] {
   return steps.slice(0, 10); // Limit to 10 steps
 }
 
-function normalizeTwitter(value?: string | null): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("http")) return trimmed;
-  const handle = trimmed.replace(/^@/, "");
-  if (!handle) return null;
-  return `https://twitter.com/${handle}`;
-}
-
 /**
  * Validates if a string is a valid HTTP/HTTPS URL
  */
@@ -191,20 +183,10 @@ function normalizeUrl(value?: string | null): string | null {
   return isValidUrl(trimmed) ? trimmed : null;
 }
 
-function collectAuthorSameAs(author?: { twitter?: string | null; youtube?: string | null; website?: string | null } | null): string[] {
+function collectAuthorSameAs(author?: Author | null): string[] {
   if (!author) return [];
-  const links: string[] = [];
-  const twitter = normalizeTwitter(author.twitter);
-  if (twitter) links.push(twitter);
-  if (author.youtube) {
-    const yt = normalizeUrl(author.youtube);
-    if (yt) links.push(yt);
-  }
-  if (author.website) {
-    const site = normalizeUrl(author.website);
-    if (site) links.push(site);
-  }
-  return Array.from(new Set(links));
+  const socials = collectAuthorSocials(author);
+  return Array.from(new Set(socials.map((link) => link.url)));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -642,7 +624,7 @@ export default async function GamePage({ params }: Params) {
   const updatedIso = new Date(lastContentUpdate).toISOString();
   const lastCheckedIso = new Date(lastChecked).toISOString();
   const authorBioPlain = author?.bio_md ? markdownToPlainText(author.bio_md) : null;
-  const authorSameAs = collectAuthorSameAs(author || undefined);
+  const authorSameAs = collectAuthorSameAs(author);
   const authorProfileUrl = author?.slug
     ? `${SITE_URL.replace(/\/$/, "")}/authors/${author.slug}`
     : undefined;

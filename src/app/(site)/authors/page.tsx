@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AuthorSocialLinks } from "@/components/AuthorSocialLinks";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { listAuthors } from "@/lib/db";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -110,6 +111,7 @@ export default async function AuthorsIndexPage() {
                     {author.name} helps keep Roblox code guides accurate and up to date.
                   </p>
                 )}
+                <AuthorSocialLinks author={author} size="sm" className="mt-2" />
                 <div className="mt-auto">
                   {author.slug ? (
                     <Link
