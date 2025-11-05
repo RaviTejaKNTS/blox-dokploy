@@ -24,10 +24,9 @@ export async function scrapeDestructoidPage(url: string): Promise<ScrapeResult> 
 
   const containers = $(".game-codes-container");
   const activeCodes: ScrapedCode[] = [];
-  const expiredCodes: string[] = [];
 
   if (!containers.length) {
-    return { codes: activeCodes, expiredCodes };
+    return { codes: activeCodes, expiredCodes: [] };
   }
 
   containers.each((_, container) => {
@@ -48,10 +47,7 @@ export async function scrapeDestructoidPage(url: string): Promise<ScrapeResult> 
       const descriptionText = $row.find(".description-text").first().text().trim();
       const { reward, isNew } = sanitizeReward(descriptionText);
 
-      if (isExpiredSection) {
-        expiredCodes.push(code);
-        return;
-      }
+      if (isExpiredSection) return;
 
       const entry: ScrapedCode = {
         code,
@@ -66,5 +62,5 @@ export async function scrapeDestructoidPage(url: string): Promise<ScrapeResult> 
     });
   });
 
-  return { codes: activeCodes, expiredCodes };
+  return { codes: activeCodes, expiredCodes: [] };
 }

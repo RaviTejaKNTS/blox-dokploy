@@ -162,7 +162,6 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
   // Typical item selector
   const items = $("#masonry .codes-list__item, .codes-list__item");
   const activeCodes: ScrapedCode[] = [];
-  const expiredCodes = new Set<string>();
 
   items.each((_, el) => {
     const $item = $(el);
@@ -170,10 +169,7 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
     if (!code) return;
 
     const status = extractStatus($item, $);
-    if (status === "expired") {
-      expiredCodes.add(code);
-      return;
-    }
+    if (status === "expired") return;
 
     const rewards = extractRewards($item, $);
     const level = extractLevel($item, $, rewards);
@@ -189,23 +185,8 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
     });
   });
 
-  // Backup expired list (optional): look for a dropdown of "problem/expired codes"
-  // We only add those not already in list
-  const seen = new Set(activeCodes.map((o) => o.code));
-  $("select option").each((_, opt) => {
-    const val = $(opt).attr("value") || $(opt).text();
-    const code = (val || "").toString().trim();
-    if (!code) return;
-    const lc = code.toLowerCase();
-    if (seen.has(code)) return;
-    if (lc.startsWith("select")) return;
-    // Assume dropdown contains problem/expired codes
-    expiredCodes.add(code);
-    seen.add(code);
-  });
-
   return {
     codes: activeCodes,
-    expiredCodes: Array.from(expiredCodes),
+    expiredCodes: [],
   };
 }

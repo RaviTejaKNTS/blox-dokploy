@@ -11,7 +11,6 @@
     "generate:article": "tsx scripts/generate-article.ts",
     "articles:queue": "tsx scripts/run-article-generation-queue.ts",
     "refresh:codes": "tsx scripts/update-codes.ts",
-    "refresh:expired": "tsx scripts/update-expired.ts",
     "import:games": "tsx scripts/import-games.ts",
     "post:codes": "tsx scripts/post-codes.ts",
     "post:online": "tsx scripts/post-online.ts",

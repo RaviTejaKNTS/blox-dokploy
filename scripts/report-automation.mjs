@@ -41,20 +41,20 @@ function buildSummaryLines(summary) {
     case 'refresh-codes': {
       const stats = summary.stats ?? {};
       lines.push('', 'Refresh Details:', `• Games processed: ${stats.processed ?? 0} (ok ${stats.success ?? 0}, skipped ${stats.skipped ?? 0}, failed ${stats.failed ?? 0})`);
-      lines.push(`• Codes scraped: ${stats.totalCodesFound ?? 0} | New: ${stats.totalNewCodes ?? 0} | Removed: ${stats.totalCodesRemoved ?? 0}`);
+      lines.push(`• Codes scraped: ${stats.totalCodesFound ?? 0} | New: ${stats.totalNewCodes ?? 0} | Expired: ${stats.totalCodesExpired ?? 0}`);
 
       const changed = Array.isArray(summary.successes)
-        ? summary.successes.filter((item) => (item.upserted ?? 0) || (item.removed ?? 0) || (item.newCodes ?? 0))
+        ? summary.successes.filter((item) => (item.upserted ?? 0) || (item.expired ?? 0) || (item.newCodes ?? 0))
         : [];
       if (changed.length) {
-        const sorted = changed.sort((a, b) => (b.newCodes ?? 0) - (a.newCodes ?? 0) || (b.upserted ?? 0) - (a.upserted ?? 0));
+        const sorted = changed.sort((a, b) => (b.newCodes ?? 0) - (a.newCodes ?? 0) || (b.expired ?? 0) - (a.expired ?? 0) || (b.upserted ?? 0) - (a.upserted ?? 0));
         const top = sorted.slice(0, 5);
         lines.push('• Games updated:');
         top.forEach((game) => {
           const newNote = game.newCodes ? ` +${game.newCodes} new` : '';
-          const removedNote = game.removed ? `, -${game.removed} removed` : '';
+          const expiredNote = game.expired ? `, +${game.expired} expired` : '';
           const totalNote = game.upserted ? `, ${game.upserted} total` : '';
-          lines.push(`   - ${game.name} (${game.slug})${newNote}${removedNote}${totalNote}`);
+          lines.push(`   - ${game.name} (${game.slug})${newNote}${expiredNote}${totalNote}`);
         });
         if (sorted.length > top.length) {
           lines.push(`   - … ${sorted.length - top.length} more games`);
@@ -66,26 +66,6 @@ function buildSummaryLines(summary) {
         summary.failures.slice(0, 5).forEach((failure) => {
           lines.push(`   - ${failure.slug ?? failure.name ?? 'Unknown'}: ${failure.error ?? 'Unknown error'}`);
         });
-      }
-      break;
-    }
-    case 'refresh-expired': {
-      const stats = summary.stats ?? {};
-      lines.push('', 'Expired Refresh:', `• Games processed: ${stats.processed ?? 0} (ok ${stats.success ?? 0}, skipped ${stats.skipped ?? 0}, failed ${stats.failed ?? 0})`);
-      lines.push(`• Expired codes tracked: ${stats.totalExpired ?? 0}`);
-
-      const successes = Array.isArray(summary.successes) ? summary.successes : [];
-      if (successes.length) {
-        const top = successes
-          .filter((item) => item.expired)
-          .sort((a, b) => (b.expired ?? 0) - (a.expired ?? 0))
-          .slice(0, 5);
-        if (top.length) {
-          lines.push('• Top expired updates:');
-          top.forEach((item) => {
-            lines.push(`   - ${item.name} (${item.slug}): ${item.expired ?? 0} entries`);
-          });
-        }
       }
       break;
     }

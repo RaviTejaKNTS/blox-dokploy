@@ -74,7 +74,6 @@ function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCo
 export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
   const map = new Map<string, ScrapedCode>();
   const order: string[] = [];
-  const expired = new Map<string, string>();
 
   for (const result of results) {
     for (const codeEntry of result.codes) {
@@ -94,19 +93,10 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
         map.set(normalizedCode, merged);
       }
     }
-    for (const expiredCode of result.expiredCodes) {
-      const normalizedCode = normalizeCodeKey(expiredCode);
-      if (normalizedCode && !expired.has(normalizedCode)) {
-        const sanitized = expiredCode.trim();
-        expired.set(normalizedCode, sanitized || normalizedCode);
-      }
-    }
   }
 
   const mergedCodes = order.map((key) => map.get(key)!).filter(Boolean);
-  const expiredCodes = Array.from(expired.values());
-
-  return { codes: mergedCodes, expiredCodes };
+  return { codes: mergedCodes, expiredCodes: [] };
 }
 
 export function detectProvider(url: string): Provider {

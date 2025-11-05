@@ -57,7 +57,7 @@ type ProcessResult = {
   status: "ok" | "skipped" | "error";
   found?: number;
   upserted?: number;
-  removed?: number;
+  expired?: number;
   newCodes?: number;
   error?: string;
 };
@@ -107,6 +107,15 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     }
   }
 
+  const normalizedExpiredMap = new Map<string, string>();
+  const existingExpiredArray = Array.isArray(game.expired_codes) ? game.expired_codes : [];
+  for (const code of existingExpiredArray) {
+    const normalized = normalizeCodeForComparison(code);
+    if (normalized) {
+      normalizedExpiredMap.set(normalized, code);
+    }
+  }
+
   const { data: existingRows, error: existingError } = await sb
     .from("codes")
     .select("code, status")
@@ -135,28 +144,67 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     upserted += 1;
   }
 
+  for (const normalized of incomingNormalized) {
+    normalizedExpiredMap.delete(normalized);
+  }
+
   const existingActiveOrCheck = (existingRows ?? []).filter(
     (row) => row.status === "active" || row.status === "check"
   );
 
-  const toDelete = existingActiveOrCheck
+  const toExpireEntries = existingActiveOrCheck
     .map((row) => {
       const normalized = normalizeCodeForComparison(row.code);
+      if (!normalized) return null;
       return { normalized, original: row.code };
     })
-    .filter((entry) => entry.normalized && !incomingNormalized.has(entry.normalized))
-    .map((entry) => entry.original)
-    .filter((code): code is string => Boolean(code));
+    .filter((entry): entry is { normalized: string; original: string } => {
+      if (!entry) return false;
+      return !incomingNormalized.has(entry.normalized);
+    });
 
-  if (toDelete.length) {
-    const { error: deleteError } = await sb
+  if (toExpireEntries.length) {
+    const codesToExpire = toExpireEntries.map((entry) => entry.original);
+    const { error: expireError } = await sb
       .from("codes")
-      .delete()
+      .update({
+        status: "expired",
+        is_new: false,
+        last_seen_at: new Date().toISOString(),
+      })
       .eq("game_id", game.id)
-      .in("code", toDelete);
+      .in("code", codesToExpire);
 
-    if (deleteError) {
-      throw new Error(`cleanup failed for ${game.slug}: ${deleteError.message}`);
+    if (expireError) {
+      throw new Error(`expiration update failed for ${game.slug}: ${expireError.message}`);
+    }
+
+    for (const entry of toExpireEntries) {
+      normalizedExpiredMap.set(entry.normalized, entry.original);
+    }
+  }
+
+  const updatedExpiredCodes = Array.from(normalizedExpiredMap.values());
+  let expiredArrayChanged = false;
+  if (updatedExpiredCodes.length !== existingExpiredArray.length) {
+    expiredArrayChanged = true;
+  } else {
+    for (let i = 0; i < updatedExpiredCodes.length; i += 1) {
+      if (updatedExpiredCodes[i] !== existingExpiredArray[i]) {
+        expiredArrayChanged = true;
+        break;
+      }
+    }
+  }
+
+  if (expiredArrayChanged) {
+    const { error: expiredUpdateError } = await sb
+      .from("games")
+      .update({ expired_codes: updatedExpiredCodes })
+      .eq("id", game.id);
+
+    if (expiredUpdateError) {
+      throw new Error(`failed to update expired_codes for ${game.slug}: ${expiredUpdateError.message}`);
     }
   }
 
@@ -166,7 +214,7 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     status: "ok",
     found: codes.length,
     upserted,
-    removed: toDelete.length,
+    expired: toExpireEntries.length,
     newCodes: newCodesCount,
   };
 }
@@ -194,7 +242,7 @@ async function main() {
     failed: 0,
     totalCodesFound: 0,
     totalCodesUpserted: 0,
-    totalCodesRemoved: 0,
+    totalCodesExpired: 0,
     totalNewCodes: 0,
   };
 
@@ -226,11 +274,11 @@ async function main() {
         stats.success += 1;
         stats.totalCodesFound += res.found ?? 0;
         stats.totalCodesUpserted += res.upserted ?? 0;
-        stats.totalCodesRemoved += res.removed ?? 0;
+        stats.totalCodesExpired += res.expired ?? 0;
         stats.totalNewCodes += res.newCodes ?? 0;
-        const removedNote = res.removed ? `, removed ${res.removed}` : "";
+        const expiredNote = res.expired ? `, expired ${res.expired}` : "";
         console.log(
-          `✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0}${removedNote})`
+          `✔ ${res.slug} — ${res.upserted ?? 0} codes upserted (found ${res.found ?? 0}${expiredNote})`
         );
         successDetails.push({
           slug: res.slug,
@@ -238,7 +286,7 @@ async function main() {
           status: "ok",
           found: res.found ?? 0,
           upserted: res.upserted ?? 0,
-          removed: res.removed ?? 0,
+          expired: res.expired ?? 0,
           newCodes: res.newCodes ?? 0,
         });
       } else if (res.status === "skipped") {
@@ -264,7 +312,7 @@ async function main() {
   console.log(`   Failed:    ${stats.failed}`);
   console.log(`   Codes found:    ${stats.totalCodesFound}`);
   console.log(`   Codes upserted: ${stats.totalCodesUpserted}`);
-  console.log(`   Codes removed:  ${stats.totalCodesRemoved}`);
+  console.log(`   Codes expired: ${stats.totalCodesExpired}`);
   console.log(`   New codes:      ${stats.totalNewCodes}`);
 
   if (stats.failed > 0) {
@@ -277,7 +325,7 @@ async function main() {
       type: "refresh-codes" as const,
       generatedAt: new Date().toISOString(),
       stats,
-      successes: successDetails.filter((detail) => detail.upserted || detail.removed || detail.newCodes),
+      successes: successDetails.filter((detail) => detail.upserted || detail.expired || detail.newCodes),
       skipped: skippedDetails,
       failures: failureDetails,
     };
