@@ -25,7 +25,8 @@ import {
   getArticleBySlug,
   listPublishedArticles,
   listPublishedArticlesByCategory,
-  type ArticleWithRelations
+  type ArticleWithRelations,
+  type Code
 } from "@/lib/db";
 import {
   SITE_DESCRIPTION,
@@ -51,6 +52,31 @@ function cleanRewardsText(text?: string | null): string | null {
   t = t.replace(/\s*(Active|Expired|Check)\s*$/i, "").trim();
   t = t.replace(/this code credits your account with/i, "This code gives you");
   return t || null;
+}
+
+const NEW_CODE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+
+function firstSeenTimestamp(code: Pick<Code, "first_seen_at">): number | null {
+  if (!code.first_seen_at) return null;
+  const time = new Date(code.first_seen_at).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function sortCodesByFirstSeenDesc<T extends Pick<Code, "first_seen_at">>(codes: T[]): T[] {
+  return [...codes].sort((a, b) => {
+    const aTime = firstSeenTimestamp(a);
+    const bTime = firstSeenTimestamp(b);
+    if (aTime === bTime) return 0;
+    if (aTime == null) return 1;
+    if (bTime == null) return -1;
+    return bTime - aTime;
+  });
+}
+
+function isCodeWithinNewThreshold(code: Pick<Code, "first_seen_at">, referenceMs: number): boolean {
+  const firstSeenMs = firstSeenTimestamp(code);
+  if (firstSeenMs == null) return false;
+  return referenceMs - firstSeenMs <= NEW_CODE_THRESHOLD_MS;
 }
 
 interface HowToStep {
@@ -512,6 +538,9 @@ export default async function GamePage({ params }: Params) {
   const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
   const active = codes.filter(c => c.status === "active");
   const needsCheck = codes.filter(c => c.status === "check");
+  const nowMs = Date.now();
+  const sortedActive = sortCodesByFirstSeenDesc(active);
+  const sortedNeedsCheck = sortCodesByFirstSeenDesc(needsCheck);
   const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
@@ -754,8 +783,9 @@ export default async function GamePage({ params }: Params) {
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {[...active].reverse().map(c => {
+              {sortedActive.map(c => {
                 const rewards = cleanRewardsText(c.rewards_text);
+                const isNew = isCodeWithinNewThreshold(c, nowMs);
                 return (
                   <article
                     key={c.id}
@@ -771,7 +801,7 @@ export default async function GamePage({ params }: Params) {
                             >
                               <span className="max-w-full break-words break-all leading-snug tracking-[0.08em]">{c.code}</span>
                             </code>
-                            {c.is_new ? (
+                            {isNew ? (
                               <span className="pointer-events-none absolute -top-2 -right-2 inline-flex items-center rounded-full bg-[#0f1121] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_18px_28px_-16px_rgba(72,92,255,0.55)] ring-2 ring-accent/25 rotate-2 md:-top-2 md:-right-2 dark:bg-white dark:text-accent">
                                 New
                               </span>
@@ -806,7 +836,7 @@ export default async function GamePage({ params }: Params) {
               </p>
             </div>
             <div className="flex flex-col gap-4">
-              {[...needsCheck].reverse().map(c => {
+              {sortedNeedsCheck.map(c => {
                 const rewards = cleanRewardsText(c.rewards_text);
                 return (
                   <article
