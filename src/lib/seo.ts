@@ -189,7 +189,18 @@ export function authorJsonLd({
   avatar?: string | null;
   description: string;
 }) {
-  const sameAs = Array.from(new Set(collectAuthorSocials(author).map((link) => link.url)));
+  const socialSource = {
+    website: author.website ?? null,
+    twitter: author.twitter ?? null,
+    youtube: author.youtube ?? null,
+    facebook: author.facebook ?? null,
+    linkedin: author.linkedin ?? null,
+    instagram: author.instagram ?? null,
+    roblox: author.roblox ?? null,
+    discord: author.discord ?? null
+  };
+
+  const sameAs = Array.from(new Set(collectAuthorSocials(socialSource).map((link) => link.url)));
 
   return {
     "@context": "https://schema.org",
