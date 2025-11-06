@@ -24,7 +24,7 @@ type CategoryRow = {
   slug: string;
 };
 
-type SearchEntry = {
+type SearchResult = {
   title: string;
   url: string;
   snippet?: string;
@@ -34,252 +34,155 @@ type SourceDocument = {
   title: string;
   url: string;
   content: string;
+  host: string;
+  isForum: boolean;
 };
 
-type GeneratedArticle = {
+type SourceSummary = {
+  title: string;
+  url: string;
+  key_points: string[];
+  tone: string;
+};
+
+type DraftArticle = {
   title: string;
   content_md: string;
   meta_description: string;
 };
 
-const AUTHOR_ID = "4fc99a58-83da-46f6-9621-7816e36b4088";
-const DESIRED_SOURCE_COUNT = 3;
-const SEARCH_RESULTS_PER_QUERY = 8;
-const MAX_SOURCES_TO_FETCH = 10;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
+const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_KEY;
+const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE || !GOOGLE_SEARCH_KEY || !GOOGLE_SEARCH_CX || !OPENAI_KEY) {
+  throw new Error("Missing environment variables. Check Supabase, Google Search, and OpenAI credentials.");
+}
+
+const AUTHOR_ID = process.env.ARTICLE_AUTHOR_ID ?? "4fc99a58-83da-46f6-9621-7816e36b4088";
+const MAX_RESULTS_PER_QUERY = 10;
+const MAX_SOURCES = 4;
+const MAX_FORUM_SOURCES = 1;
+const SOURCE_CHAR_LIMIT = 5500;
+const SUMMARY_MAX_TOKENS = 2000;
+const ARTICLE_MAX_TOKENS = 6000;
+
 const QUALITY_DOMAINS = [
   "roblox.com",
   "fandom.com",
   "pcgamesn.com",
   "pockettactics.com",
-  "gamerant.com",
   "polygon.com",
   "ign.com",
   "gamespot.com",
-  "rockpapershotgun.com",
+  "thegamer.com",
   "screenrant.com",
-  "sportskeeda.com",
   "dexerto.com",
-  "dotgg.gg",
-  "vg247.com",
-  "progameguides.com",
-  "destructoid.com",
   "beebom.com",
-  "techwiser.com",
+  "destructoid.com",
+  "progameguides.com",
   "game8.co",
-  "androidcentral.com",
-  "digitaltrends.com",
-  "wired.com",
-  "thegamer.com"
+  "sportskeeda.com",
+  "rockpapershotgun.com",
+  "pcgamer.com",
+  "in.ign.com",
+  "digitaltrends.com"
 ];
 
-const ARTICLE_TYPE_GUIDANCE: Record<QueueRow["article_type"], string> = {
-  listicle:
-    "Structure the article around a clearly numbered list. Each item should include a bolded subheading, a friendly explanation, and why it matters. Summaries and quick takeaways at the end help reinforce the value.",
+const ARTICLE_STYLE: Record<QueueRow["article_type"], string> = {
+  listicle: "Organise the article as a numbered list. Give each item a sharp sub-heading, explain why it matters, and close with a quick recap.",
   how_to:
-    "Lay out the steps in chronological order with detailed explanations, prerequisites, and troubleshooting tips. Wherever possible, use ordered lists, tables for controls, and clear callouts for important details.",
+    "Explain the process step by step. Include clear ordered lists, call out requirements, and add troubleshooting tips if sources cover them.",
   explainer:
-    "Break down complex ideas into approachable sections. Use subsections, comparisons to make the topic crystal clear while keeping the tone relaxed and conversational.",
+    "Break the topic into short, focused sections. Unpack terminology, compare mechanics when helpful, and keep the language friendly but precise.",
   opinion:
-    "Write in first person, weaving credible facts with personal perspective. Acknowledge opposing views, then explain your stance with anecdotes and evidence gathered from the sources.",
+    "Write in a conversational first-person voice anchored in facts. Acknowledge other viewpoints, explain yours with honest examples, and stay respectful.",
   news:
-    "Lead with the biggest update, then provide context, timelines, and quotes or references from the sources. Include a 'What this means' section that helps readers understand the impact."
+    "Lead with the headline update, add context from the sources, include timelines or quotes when they exist, and wrap with a 'Why it matters' section."
 };
 
-function normalizeTopic(value: string): string {
-  return value.replace(/\s+/g, " ").trim().toLowerCase();
-}
-
-const STOP_WORDS = new Set([
-  "the",
-  "this",
-  "that",
-  "with",
-  "from",
-  "here",
-  "there",
-  "have",
-  "about",
-  "when",
-  "where",
-  "which",
-  "would",
-  "could",
-  "should",
-  "these",
-  "those",
-  "into",
-  "after",
-  "before",
-  "their",
-  "while",
-  "being",
-  "using",
-  "around",
-  "among",
-  "through",
-  "under",
-  "over",
-  "again",
-  "still",
-  "every",
-  "therefore",
-  "however",
-  "because",
-  "toward",
-  "towards",
-  "having",
-  "within",
-  "amongst",
-  "between",
-  "without",
-  "across",
-  "along",
-  "among",
-  "against"
-]);
-
-function isSourceRelevant(docTitle: string, docContent: string, topic: string): boolean {
-  const normalizedTopic = normalizeTopic(topic);
-  if (!normalizedTopic) return false;
-
-  const titleLower = docTitle.toLowerCase();
-  if (titleLower.includes(normalizedTopic)) {
-    return true;
-  }
-
-  const contentLower = docContent.toLowerCase();
-  const topicWords = Array.from(
-    new Set(
-      normalizedTopic
-        .split(" ")
-        .filter((word) => word.length > 3 && !STOP_WORDS.has(word))
-    )
-  );
-  if (topicWords.length === 0) {
-    return contentLower.includes(normalizedTopic);
-  }
-
-  let matchCount = 0;
-  for (const word of topicWords) {
-    if (titleLower.includes(word) || contentLower.includes(word)) {
-      matchCount += 1;
-    }
-  }
-
-  const requiredMatches = Math.max(1, Math.ceil(topicWords.length * 0.8));
-  return matchCount >= requiredMatches;
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
 function parseArgs(): { queueId: string } {
   const args = process.argv.slice(2);
-  const queueIdIndex = args.indexOf("--queue-id");
-  if (queueIdIndex !== -1 && args[queueIdIndex + 1]) {
-    return { queueId: args[queueIdIndex + 1] };
+  const index = args.indexOf("--queue-id");
+  if (index >= 0 && args[index + 1]) {
+    return { queueId: args[index + 1] };
   }
-
-  const eqArg = args.find((arg) => arg.startsWith("--queue-id="));
-  if (eqArg) {
-    return { queueId: eqArg.split("=")[1] };
+  const inline = args.find((arg) => arg.startsWith("--queue-id="));
+  if (inline) {
+    return { queueId: inline.split("=")[1] };
   }
-
-  if (args[0]) {
+  if (args.length > 0) {
     return { queueId: args[0] };
   }
-
-  throw new Error("Please provide a queue id via --queue-id <uuid>.");
+  throw new Error("Usage: tsx scripts/generate-article.ts --queue-id <uuid>");
 }
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE!
-);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!
-});
-
-const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_KEY!;
-const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX!;
 
 async function fetchQueueEntry(queueId: string): Promise<QueueRow> {
   const { data, error } = await supabase
     .from("article_generation_queue")
-    .select("id, article_title, article_type, category_id, status, attempts, last_attempted_at, last_error")
+    .select("*")
     .eq("id", queueId)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(`Failed to load queue entry: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error("Queue entry not found.");
-  }
-
+  if (error) throw new Error(`Failed to load queue entry: ${error.message}`);
+  if (!data) throw new Error(`Queue entry ${queueId} not found.`);
   return data as QueueRow;
 }
 
 async function fetchCategory(categoryId: string | null): Promise<CategoryRow | null> {
-  if (!categoryId || categoryId.trim().toLowerCase() === "null") {
-    return null;
-  }
-
+  if (!categoryId) return null;
   const { data, error } = await supabase
     .from("article_categories")
     .select("id, name, slug")
     .eq("id", categoryId)
     .maybeSingle();
+  if (error) throw new Error(`Failed to load category ${categoryId}: ${error.message}`);
+  return (data as CategoryRow | null) ?? null;
+}
+
+async function updateQueueAttempt(queue: QueueRow): Promise<void> {
+  const { error } = await supabase
+    .from("article_generation_queue")
+    .update({
+      attempts: queue.attempts + 1,
+      last_attempted_at: new Date().toISOString()
+    })
+    .eq("id", queue.id);
+  if (error) {
+    console.warn("⚠️ Could not bump queue attempts:", error.message);
+  }
+}
+
+async function updateQueueStatus(queueId: string, status: "completed" | "failed", lastError?: string | null) {
+  const { error } = await supabase
+    .from("article_generation_queue")
+    .update({
+      status,
+      last_error: lastError ? lastError.slice(0, 500) : null,
+      last_attempted_at: new Date().toISOString()
+    })
+    .eq("id", queueId);
 
   if (error) {
-    throw new Error(`Failed to load category: ${error.message}`);
+    console.error("⚠️ Failed to update queue status:", error.message);
   }
-
-  if (!data) {
-    console.warn(`⚠️ Category ${categoryId} not found. Proceeding without assigning a category.`);
-    return null;
-  }
-
-  return data as CategoryRow;
 }
 
-function buildSearchQueries(title: string, articleType: QueueRow["article_type"]): string[] {
-  const sanitized = title.replace(/\s+/g, " ").trim();
-  const baseQueries = [
-    `"${sanitized}"`,
-    `"${sanitized}" Roblox`,
-    `"${sanitized}" release date`
-  ];
+async function googleSearch(query: string, limit: number): Promise<SearchResult[]> {
+  const endpoint = new URL("https://www.googleapis.com/customsearch/v1");
+  endpoint.searchParams.set("q", query);
+  endpoint.searchParams.set("num", String(limit));
+  endpoint.searchParams.set("key", GOOGLE_SEARCH_KEY!);
+  endpoint.searchParams.set("cx", GOOGLE_SEARCH_CX!);
 
-  switch (articleType) {
-    case "listicle":
-      baseQueries.push(`"${sanitized}" best tips`, `"${sanitized}" top features`);
-      break;
-    case "how_to":
-      baseQueries.push(`"how to" "${sanitized}"`, `"${sanitized}" guide step by step`);
-      break;
-    case "explainer":
-      baseQueries.push(`"${sanitized}" explained`, `"${sanitized}" overview`);
-      break;
-    case "opinion":
-      baseQueries.push(`"${sanitized}" review`, `"${sanitized}" impressions`);
-      break;
-    case "news":
-      baseQueries.push(`"${sanitized}" update news`, `"${sanitized}" announcement`);
-      break;
-    default:
-      break;
-  }
-
-  return Array.from(new Set(baseQueries));
-}
-
-async function googleSearch(query: string, limit = SEARCH_RESULTS_PER_QUERY): Promise<SearchEntry[]> {
-  console.log(`🔎 Searching Google for: ${query}`);
-  const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&num=${limit}&key=${GOOGLE_SEARCH_KEY}&cx=${GOOGLE_SEARCH_CX}`;
-
-  const response = await fetch(url);
+  const response = await fetch(endpoint);
   if (!response.ok) {
-    throw new Error(`Google Search failed (${response.status} ${response.statusText}) for query: ${query}`);
+    throw new Error(`Google search failed for "${query}" (${response.status} ${response.statusText})`);
   }
 
   const payload = (await response.json()) as {
@@ -297,58 +200,82 @@ async function googleSearch(query: string, limit = SEARCH_RESULTS_PER_QUERY): Pr
   );
 }
 
-function isPreferredDomain(host: string): boolean {
-  const normalized = host.replace(/^www\./i, "").toLowerCase();
-  return QUALITY_DOMAINS.some((domain) => normalized === domain || normalized.endsWith(`.${domain}`));
+function isHighQualityHost(hostname: string): boolean {
+  const base = hostname.replace(/^www\./i, "").toLowerCase();
+  return QUALITY_DOMAINS.some((domain) => base === domain || base.endsWith(`.${domain}`));
 }
 
-async function fetchArticleText(url: string): Promise<string | null> {
+function isForumHost(hostname: string): boolean {
+  const base = hostname.replace(/^www\./i, "").toLowerCase();
+  return (
+    base.includes("reddit.com") ||
+    base.includes("devforum.roblox.com") ||
+    base.includes("forum") ||
+    base.includes("stackexchange") ||
+    base.includes("quora.com")
+  );
+}
+
+async function fetchArticleContent(url: string): Promise<string | null> {
   try {
-    console.log(`🌐 Fetching source: ${url}`);
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+      },
+      redirect: "follow"
     });
 
-    if (!res.ok) {
-      console.warn(`Skipping ${url}: HTTP ${res.status}`);
+    if (!response.ok) {
+      console.warn(`   • Skipping ${url}: HTTP ${response.status}`);
       return null;
     }
 
-    const html = await res.text();
+    const html = await response.text();
     const dom = new JSDOM(html, { url });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
     if (!article?.textContent) {
-      console.warn(`Readability could not parse ${url}`);
+      console.warn(`   • Readability could not parse ${url}`);
       return null;
     }
 
-    return article.textContent.replace(/\s+/g, " ").trim();
+    const normalized = article.textContent.replace(/\s+/g, " ").trim();
+    if (normalized.length < 400) {
+      console.warn(`   • Content too short for ${url}`);
+      return null;
+    }
+
+    return normalized.slice(0, SOURCE_CHAR_LIMIT);
   } catch (error) {
-    console.warn(`Failed to fetch ${url}:`, error);
+    console.warn(`   • Failed to fetch ${url}:`, (error as Error).message);
     return null;
   }
 }
 
-async function gatherSourceDocuments(title: string, articleType: QueueRow["article_type"]): Promise<SourceDocument[]> {
-  const queries = buildSearchQueries(title, articleType);
-  const collected: SourceDocument[] = [];
+async function gatherSources(topic: string): Promise<SourceDocument[]> {
+  const primaryQuery = `${topic} Roblox`;
+  const fallbackQuery = `${topic} Roblox -site:reddit.com -site:devforum.roblox.com -site:quora.com -site:forum`;
+
   const seenHosts = new Set<string>();
   const seenUrls = new Set<string>();
-  const topic = title;
+  const collected: SourceDocument[] = [];
+  let forumCount = 0;
 
-  for (const query of queries) {
-    if (collected.length >= DESIRED_SOURCE_COUNT) break;
-    const results = await googleSearch(query, SEARCH_RESULTS_PER_QUERY);
-    console.log(`   ↳ ${results.length} results returned for query.`);
+  const queries: { label: string; query: string }[] = [
+    { label: "primary", query: primaryQuery },
+    { label: "fallback", query: fallbackQuery }
+  ];
+
+  for (const { label, query } of queries) {
+    if (collected.length >= MAX_SOURCES) break;
+    console.log(`🔎 search:${label} → ${query}`);
+    const results = await googleSearch(query, MAX_RESULTS_PER_QUERY);
 
     for (const result of results) {
-      if (collected.length >= MAX_SOURCES_TO_FETCH) break;
-
-      if (seenUrls.has(result.url)) continue;
+      if (collected.length >= MAX_SOURCES) break;
+      if (!result.url || seenUrls.has(result.url)) continue;
 
       let parsed: URL;
       try {
@@ -358,187 +285,213 @@ async function gatherSourceDocuments(title: string, articleType: QueueRow["artic
       }
 
       const host = parsed.hostname.toLowerCase();
-      if (seenHosts.has(host)) {
+      if (seenHosts.has(host)) continue;
+
+      const isForum = isForumHost(host);
+      if (isForum && forumCount >= MAX_FORUM_SOURCES) {
         continue;
       }
 
-      const preferred = isPreferredDomain(host);
-      if (!preferred && collected.length < DESIRED_SOURCE_COUNT) {
-        seenHosts.add(host);
-      } else if (!preferred) {
-        continue;
-      } else {
-        seenHosts.add(host);
-      }
-
-      const content = await fetchArticleText(result.url);
-      if (!content) {
+      const highQuality = isHighQualityHost(host);
+      if (!highQuality && !isForum && collected.length >= Math.floor(MAX_SOURCES / 2)) {
         continue;
       }
 
-      if (!isSourceRelevant(result.title, content, topic)) {
-        console.log(`   ⚠️ Skipping ${host} — content not focused on topic.`);
-        continue;
-      }
+      const content = await fetchArticleContent(result.url);
+      if (!content) continue;
 
+      seenHosts.add(host);
       seenUrls.add(result.url);
-      console.log(`   ✅ Accepted source from ${host}`);
       collected.push({
         title: result.title,
         url: result.url,
-        content
+        content,
+        host,
+        isForum
       });
 
-      if (collected.length >= DESIRED_SOURCE_COUNT) {
-        break;
+      if (isForum) {
+        forumCount += 1;
       }
-    }
-  }
 
-  if (collected.length < DESIRED_SOURCE_COUNT) {
-    console.log(`⚠️ Only collected ${collected.length} preferred sources; attempting broader search.`);
-
-    for (const query of queries) {
-      if (collected.length >= DESIRED_SOURCE_COUNT) break;
-      const results = await googleSearch(`${query} roblox game`, SEARCH_RESULTS_PER_QUERY);
-      console.log(`   ↳ Fallback search returned ${results.length} results.`);
-
-      for (const result of results) {
-        if (collected.length >= DESIRED_SOURCE_COUNT) break;
-
-        if (seenUrls.has(result.url)) continue;
-
-        let parsed: URL;
-        try {
-          parsed = new URL(result.url);
-        } catch {
-          continue;
-        }
-
-        const host = parsed.hostname.toLowerCase();
-        if (seenHosts.has(host)) continue;
-
-        const content = await fetchArticleText(result.url);
-        if (!content) continue;
-
-        if (!isSourceRelevant(result.title, content, topic)) {
-          console.log(`   ⚠️ Fallback skip ${host} — not aligned with topic.`);
-          continue;
-        }
-
-        seenHosts.add(host);
-        seenUrls.add(result.url);
-        console.log(`   ✅ (Fallback) accepted source from ${host}`);
-        collected.push({
-          title: result.title,
-          url: result.url,
-          content
-        });
-      }
+      console.log(`source_${collected.length}: ${host}${isForum ? " [forum]" : ""}`);
     }
   }
 
   if (collected.length === 0) {
-    throw new Error("No reliable sources were found for this topic.");
+    throw new Error("No useful sources found. Check the topic or Google configuration.");
   }
 
-  if (collected.length < DESIRED_SOURCE_COUNT) {
-    console.log(
-      `⚠️ Proceeding with ${collected.length} vetted source${collected.length === 1 ? "" : "s"} due to limited coverage.`
-    );
-  }
-
-  return collected.slice(0, DESIRED_SOURCE_COUNT);
+  return collected;
 }
 
-function buildPrompt(
-  queue: QueueRow,
-  category: CategoryRow | null,
-  sources: SourceDocument[]
-): string {
-  const sourceBlocks = sources
+async function summariseSources(topic: string, articleType: QueueRow["article_type"], sources: SourceDocument[]): Promise<SourceSummary[]> {
+  if (sources.length === 0) {
+    return [];
+  }
+
+  const excerptBlocks = sources
     .map(
-      (src, index) =>
-        `=== SOURCE ${index + 1} ===\nTitle: ${src.title}\nURL: ${src.url}\nCONTENT:\n${src.content}\n`
+      (source, index) =>
+        `=== SOURCE ${index + 1} ===\nTitle: ${source.title}\nURL: ${source.url}\nCONTENT:\n${source.content}\n`
     )
     .join("\n");
 
-  return `
-You are a seasoned Roblox journalist who writes in a warm, friendly tone—like a friend guiding another friend through the game.
+  const summaryPrompt = `
+You are a research assistant gathering notes for a Roblox article.
+Topic: "${topic}"
+Article type: ${articleType}
 
-Important context:
-- Original requested title (do NOT reuse verbatim): "${queue.article_title}"
-- Article type: ${queue.article_type}
-- Category: ${category ? category.name : "Unassigned"}
-
-Your job:
-1. Absorb every detail from the sources (they represent the top of Google's results, read them thoroughly).
-2. Produce a new, SEO-friendly title that is different from the requested title but still relevant and catchy.
-3. Write a comprehensive, reader-first article that brings every important detail together. Hook readers fast and keep a grounded, plain-english style—avoid generic greetings like “Hey there, fellow Roblox adventurers!”.
-4. When the topic benefits from tables, bullet points, or step-by-step guides, include them and make sure nothing is glossed over. Never skip data that appears in the sources.
-5. Keep the tone factual yet friendly. Light personal touches are okay only when they reinforce real information.
-6. Maintain clarity and usefulness; every paragraph should deliver value or concrete insight.
-
-Article type guidance:
-${ARTICLE_TYPE_GUIDANCE[queue.article_type]}
-
-Formatting rules:
-- Deliver the body in Markdown.
-- Make headings scannable, use subheadings generously, and keep paragraphs tight.
-- Any lists or tables mentioned in the sources should be reconstructed with full detail.
-- Cite sources inline in a natural way (e.g., “According to Polygon...”) but no need for footnotes.
-
-Output requirements:
-Return valid JSON with the following shape:
-{
-  "title": "SEO-friendly title here (different from the requested one)",
-  "content_md": "Full Markdown article here",
-  "meta_description": "150–160 character friendly summary that mentions the topic naturally."
-}
+Extract the most important facts, mechanics, dates, and quotes from each source without adding fluff.
+Return JSON with this format:
+[
+  {
+    "title": "...",
+    "url": "...",
+    "key_points": ["fact 1", "fact 2", ...],
+    "tone": "One short sentence describing the tone or approach of the source."
+  }
+]
+Include at least 3 bullet points per source. Keep key points concise and factual.
 
 SOURCES:
-${sourceBlocks}
+${excerptBlocks}
 `.trim();
-}
 
-async function callOpenAi(prompt: string): Promise<GeneratedArticle> {
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
-    temperature: 0.4,
-    max_tokens: 6000,
+    temperature: 0.2,
+    max_tokens: SUMMARY_MAX_TOKENS,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: "You are an experienced games journalist focused on Roblox coverage. You always return valid JSON."
+        content: "You summarise sources accurately and always return valid JSON with the requested structure."
       },
-      {
-        role: "user",
-        content: prompt
-      }
+      { role: "user", content: summaryPrompt }
     ]
   });
 
-  const raw = completion.choices[0].message?.content ?? "";
+  const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
-
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`Model response was not valid JSON:\n${raw}\n${(error as Error).message}`);
+    throw new Error(`Failed to parse source summary JSON: ${(error as Error).message}\n${raw}`);
   }
 
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    typeof (parsed as any).title !== "string" ||
-    typeof (parsed as any).content_md !== "string" ||
-    typeof (parsed as any).meta_description !== "string"
-  ) {
-    throw new Error(`Model response missing fields:\n${raw}`);
+  if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
+    console.warn(`summaries_skipped reason="${String((parsed as any).error)}"`);
+    return [];
   }
 
-  return parsed as GeneratedArticle;
+  let entries: unknown;
+  if (Array.isArray(parsed)) {
+    entries = parsed;
+  } else if (parsed && typeof parsed === "object") {
+    const maybeSources = (parsed as any).sources ?? (parsed as any).result;
+    if (Array.isArray(maybeSources)) {
+      entries = maybeSources;
+    } else if ((parsed as any).title || (parsed as any).key_points) {
+      entries = [parsed];
+    }
+  }
+
+  if (!Array.isArray(entries)) {
+    throw new Error(`Source summary response is not an array:\n${raw}`);
+  }
+
+  return (entries as any[]).map((entry) => ({
+    title: String(entry?.title ?? ""),
+    url: String(entry?.url ?? ""),
+    key_points: Array.isArray(entry?.key_points)
+      ? entry.key_points.map((point: unknown) => String(point))
+      : [],
+    tone: String(entry?.tone ?? "")
+  }));
+}
+
+function buildArticlePrompt(
+  queue: QueueRow,
+  category: CategoryRow | null,
+  blogSources: SourceDocument[],
+  forumSummaries: SourceSummary[]
+): string {
+  const blogBlock = blogSources
+    .map(
+      (source, index) =>
+        `BLOG SOURCE ${index + 1} — ${source.title}\nURL: ${source.url}\nHOST: ${source.host}\nCONTENT:\n${source.content}\n`
+    )
+    .join("\n");
+
+  const forumBlock = forumSummaries
+    .map(
+      (summary, index) =>
+        `FORUM SOURCE ${index + 1} — ${summary.title}\nURL: ${summary.url}\nTone: ${summary.tone}\nKey points:\n${summary.key_points
+          .map((point) => `- ${point}`)
+          .join("\n")}\n`
+    )
+    .join("\n");
+
+  return `
+You are an experienced Roblox journalist. Write in simple English that feels like a friendly conversation, yet stays professional and SEO-aware. Cover the topic in depth, keep the flow like a story from start to finish, and leave no key detail behind. Be concise—say everything needed in as few words as possible. Start the article with a hook pulled straight from the research (a standout stat, a sharp question, a player scenario); never open with generic lines like "Roblox is a massive platform" or "Roblox is a huge online game." Keep momentum throughout so every section leads naturally into the next. When explaining steps, use numbered lists; use bullet lists and tables wherever they make information clearer. Always give context for facts and transitions. Keep the structure easy to scan with purposeful headings, and add a sentence or two before any list or table so readers understand what comes next. Do not mention or reference the source names or URLs—retell the information in your own words.
+
+Requested topic: "${queue.article_title}"
+Article type: ${queue.article_type}
+Category: ${category ? category.name : "Unassigned"}
+
+Article style guidance: ${ARTICLE_STYLE[queue.article_type]}
+
+Use the material below. Cite sources naturally in the prose (e.g., "Beebom explains..."). Blend overlapping facts, clarify differences, and keep the narrative smooth.
+
+BLOG ARTICLES:
+${blogBlock || "None"}
+
+FORUM NOTES:
+${forumBlock || "None"}
+
+Return JSON with:
+{
+  "title": "SEO-friendly H1 (different from the request)",
+  "content_md": "Full Markdown article",
+  "meta_description": "150-160 character summary"
+}
+`.trim();
+}
+
+async function draftArticle(prompt: string): Promise<DraftArticle> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1",
+    temperature: 0.45,
+    max_tokens: ARTICLE_MAX_TOKENS,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "You are an experienced Roblox journalist. You always return valid JSON with title, content_md, and meta_description."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Article draft was not valid JSON: ${(error as Error).message}\n${raw}`);
+  }
+
+  const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
+  if (!title || !content_md || !meta_description) {
+    throw new Error("Article draft missing required fields.");
+  }
+
+  return {
+    title: title.trim(),
+    content_md: content_md.trim(),
+    meta_description: meta_description.trim()
+  };
 }
 
 async function ensureUniqueSlug(base: string): Promise<string> {
@@ -546,26 +499,15 @@ async function ensureUniqueSlug(base: string): Promise<string> {
   let counter = 2;
 
   while (true) {
-    const { data, error } = await supabase
-      .from("articles")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(`Failed to check slug uniqueness: ${error.message}`);
-    }
-
-    if (!data) {
-      return slug;
-    }
-
+    const { data, error } = await supabase.from("articles").select("id").eq("slug", slug).maybeSingle();
+    if (error) throw new Error(`Slug check failed: ${error.message}`);
+    if (!data) return slug;
     slug = `${base}-${counter}`;
     counter += 1;
   }
 }
 
-function computeWordCount(markdown: string): number {
+function estimateWordCount(markdown: string): number {
   const text = markdown
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`[^`]*`/g, " ")
@@ -576,36 +518,30 @@ function computeWordCount(markdown: string): number {
   return text.split(" ").length;
 }
 
-async function insertArticle(
-  generated: GeneratedArticle,
-  category: CategoryRow | null,
-  queue: QueueRow
-): Promise<string> {
-  const requestedTitle = queue.article_title.trim().toLowerCase();
-  let finalTitle = generated.title.trim();
+async function insertArticleDraft(article: DraftArticle, queue: QueueRow, category: CategoryRow | null): Promise<string> {
+  const requested = queue.article_title.trim().toLowerCase();
+  let finalTitle = article.title;
 
   if (!finalTitle) {
     throw new Error("Generated article title is empty.");
   }
-
-  if (finalTitle.toLowerCase() === requestedTitle) {
-    finalTitle = `${finalTitle} – A Fresh Perspective`;
+  if (finalTitle.toLowerCase() === requested) {
+    finalTitle = `${finalTitle} – Updated Insights`;
   }
 
-  const slugBase = slugify(finalTitle);
-  const slug = await ensureUniqueSlug(slugBase);
-  const wordCount = computeWordCount(generated.content_md);
+  const slug = await ensureUniqueSlug(slugify(finalTitle));
+  const wordCount = estimateWordCount(article.content_md);
 
   const { data, error } = await supabase
     .from("articles")
     .insert({
       title: finalTitle,
       slug,
-      content_md: generated.content_md,
+      content_md: article.content_md,
       category_id: category ? category.id : null,
       author_id: AUTHOR_ID,
       is_published: false,
-      meta_description: generated.meta_description,
+      meta_description: article.meta_description,
       word_count: wordCount
     })
     .select("id")
@@ -615,28 +551,7 @@ async function insertArticle(
     throw new Error(`Failed to insert article: ${error.message}`);
   }
 
-  if (!data) {
-    throw new Error("Article insertion returned no data.");
-  }
-
-  return data.id as string;
-}
-
-async function updateQueueStatus(id: string, status: "completed" | "failed", message?: string | null) {
-  const payload: Record<string, unknown> = {
-    status,
-    last_attempted_at: new Date().toISOString(),
-    last_error: message ? message.slice(0, 500) : null
-  };
-
-  const { error } = await supabase
-    .from("article_generation_queue")
-    .update(payload)
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(`Failed to update queue status: ${error.message}`);
-  }
+  return data?.id as string;
 }
 
 async function main() {
@@ -644,44 +559,47 @@ async function main() {
   let queueEntry: QueueRow | null = null;
 
   try {
-    console.log(`📥 Starting article generation for queue id ${queueId}`);
+    console.log(`queue ${queueId} start`);
     queueEntry = await fetchQueueEntry(queueId);
 
     if (queueEntry.status !== "pending") {
       throw new Error(`Queue entry is ${queueEntry.status}; expected pending.`);
     }
 
-    console.log(`   • Requested topic: ${queueEntry.article_title}`);
-    console.log(`   • Article type: ${queueEntry.article_type}`);
+    await updateQueueAttempt(queueEntry);
+
     const category = await fetchCategory(queueEntry.category_id);
-    if (category) {
-      console.log(`   • Category: ${category.name}`);
+    console.log(`topic: ${queueEntry.article_title}`);
+    console.log(`type: ${queueEntry.article_type}`);
+    console.log(`category: ${category ? category.name : "Unassigned"}`);
+
+    const sources = await gatherSources(queueEntry.article_title);
+    console.log(`sources_collected=${sources.length}`);
+
+    const forumSources = sources.filter((source) => source.isForum);
+    const blogSources = sources.filter((source) => !source.isForum);
+    const summaries = await summariseSources(queueEntry.article_title, queueEntry.article_type, forumSources);
+    if (summaries.length) {
+      console.log("summaries_ready");
     }
-    const sources = await gatherSourceDocuments(queueEntry.article_title, queueEntry.article_type);
-    console.log(`📚 Collected ${sources.length} source documents.`);
-    const prompt = buildPrompt(queueEntry, category, sources);
 
-    const generated = await callOpenAi(prompt);
-    console.log(`✍️  Model returned content with length ${generated.content_md.length} characters.`);
+    const prompt = buildArticlePrompt(queueEntry, category, blogSources, summaries);
+    const draft = await draftArticle(prompt);
+    console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
-    if (!generated.content_md || generated.content_md.trim().length < 200) {
-      throw new Error("Generated content appears empty or too short.");
+    if (draft.content_md.length < 400) {
+      throw new Error("Generated article is too short.");
     }
 
-  console.log("📝 Inserting article into Supabase …");
-  await insertArticle(generated, category, queueEntry);
-  await updateQueueStatus(queueEntry.id, "completed", null);
+    await insertArticleDraft(draft, queueEntry, category);
+    await updateQueueStatus(queueEntry.id, "completed");
 
-  console.log(`✅ Article generated and stored for queue item "${queueEntry.article_title}".`);
-} catch (error) {
+    console.log("article_saved status=draft");
+  } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`❌ Article generation failed: ${message}`);
+    console.error("❌ Article generation failed:", message);
     if (queueEntry) {
-      try {
-        await updateQueueStatus(queueEntry.id, "failed", message);
-      } catch (updateError) {
-        console.error("⚠️ Failed to update queue status after error:", updateError);
-      }
+      await updateQueueStatus(queueEntry.id, "failed", message);
     }
     process.exitCode = 1;
   }
