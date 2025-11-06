@@ -1,11 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { syncGameCodesFromSources } from "@/lib/admin/game-import";
-
-function normalizeCodeForComparison(code: string | null | undefined): string | null {
-  if (!code) return null;
-  return code.replace(/\s+/g, "").trim();
-}
+import { normalizeCodeKey } from "@/lib/code-normalization";
 
 type GameWithSources = {
   id: string;
@@ -51,14 +47,14 @@ export async function refreshGameCodesWithSupabase(
 
   const incomingNormalized = new Set(
     (syncResult.codes ?? [])
-      .map((entry) => normalizeCodeForComparison(entry.code))
+      .map((entry) => normalizeCodeKey(entry.code))
       .filter((value): value is string => Boolean(value))
   );
 
   const toDelete = (existingRows ?? [])
     .filter((row) => row.status === "active" || row.status === "check")
     .map((row) => ({
-      normalized: normalizeCodeForComparison(row.code),
+      normalized: normalizeCodeKey(row.code),
       original: row.code,
     }))
     .filter((entry) => entry.normalized && !incomingNormalized.has(entry.normalized))

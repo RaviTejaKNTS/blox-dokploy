@@ -59,6 +59,7 @@ create table if not exists public.codes (
   rewards_text text,
   level_requirement int,
   is_new boolean,
+  provider_priority int not null default 0,
   posted_online boolean not null default false,
   first_seen_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now(),
@@ -71,6 +72,7 @@ create index if not exists idx_codes_status_game on public.codes (status, game_i
 create index if not exists idx_games_published on public.games (is_published);
 create index if not exists idx_games_published_name on public.games (is_published, name);
 create index if not exists idx_games_author_published on public.games (author_id, is_published);
+create unique index if not exists idx_codes_game_code_upper on public.codes (game_id, upper(code));
 CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
 
 
@@ -333,17 +335,61 @@ create or replace function public.upsert_code(
   p_status text,
   p_rewards_text text,
   p_level_requirement int,
-  p_is_new boolean
+  p_is_new boolean,
+  p_provider_priority int default 0
 ) returns void as $$
+declare
+  v_code text;
+  v_existing_id uuid;
 begin
-  insert into public.codes (game_id, code, status, rewards_text, level_requirement, is_new)
-  values (p_game_id, p_code, p_status, p_rewards_text, p_level_requirement, p_is_new)
-  on conflict (game_id, code) do update
-    set status = excluded.status,
-        rewards_text = excluded.rewards_text,
-        level_requirement = excluded.level_requirement,
-        is_new = excluded.is_new,
-        last_seen_at = now();
+  v_code := nullif(btrim(p_code), '');
+  if v_code is null then
+    return;
+  end if;
+
+  select id
+  into v_existing_id
+  from public.codes
+  where game_id = p_game_id
+    and upper(code) = upper(v_code)
+  limit 1;
+
+  if v_existing_id is null then
+    begin
+      insert into public.codes (game_id, code, status, rewards_text, level_requirement, is_new, provider_priority)
+      values (p_game_id, v_code, p_status, p_rewards_text, p_level_requirement, p_is_new, p_provider_priority)
+      on conflict (game_id, code) do update
+        set status = excluded.status,
+            rewards_text = excluded.rewards_text,
+            level_requirement = excluded.level_requirement,
+            is_new = excluded.is_new,
+            provider_priority = excluded.provider_priority,
+            last_seen_at = now(),
+            code = excluded.code;
+    exception
+      when unique_violation then
+        update public.codes
+        set code = v_code,
+            status = p_status,
+            rewards_text = p_rewards_text,
+            level_requirement = p_level_requirement,
+            is_new = p_is_new,
+            provider_priority = p_provider_priority,
+            last_seen_at = now()
+        where game_id = p_game_id
+          and upper(code) = upper(v_code);
+    end;
+  else
+    update public.codes
+    set code = v_code,
+        status = p_status,
+        rewards_text = p_rewards_text,
+        level_requirement = p_level_requirement,
+        is_new = p_is_new,
+        provider_priority = p_provider_priority,
+        last_seen_at = now()
+    where id = v_existing_id;
+  end if;
 end;
 $$ language plpgsql;
 alter table public.codes

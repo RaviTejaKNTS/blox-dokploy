@@ -5,6 +5,7 @@ export type ScrapedCode = {
   levelRequirement?: number | null;
   isNew?: boolean;
   provider?: "robloxden" | "beebom" | "progameguides" | "destructoid";
+  providerPriority?: number;
 };
 
 export type ScrapeResult = {

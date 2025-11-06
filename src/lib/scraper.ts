@@ -35,36 +35,83 @@ function getProviderPriority(provider?: ScrapedCode["provider"]): number {
   return PROVIDER_PRIORITY[provider] ?? -1;
 }
 
-function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCode {
-  const merged: ScrapedCode = { ...existing };
-  const incomingPriority = getProviderPriority(incoming.provider);
-  const existingPriority = getProviderPriority(existing.provider);
+const CODE_DISPLAY_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
+  progameguides: 1,
+  destructoid: 2,
+  robloxden: 3,
+  beebom: 4,
+};
 
-  if (STATUS_PRIORITY[incoming.status] > STATUS_PRIORITY[existing.status]) {
-    merged.status = incoming.status;
+export function getCodeDisplayPriority(provider?: ScrapedCode["provider"]): number {
+  if (!provider) return 0;
+  return CODE_DISPLAY_PRIORITY[provider] ?? 0;
+}
+
+const REWARD_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
+  progameguides: 0,
+  destructoid: 1,
+  beebom: 2,
+  robloxden: 3,
+};
+
+function getRewardPriority(provider?: ScrapedCode["provider"]): number {
+  if (!provider) return -1;
+  return REWARD_PRIORITY[provider] ?? -1;
+}
+
+type AggregatedEntry = {
+  data: ScrapedCode;
+  codePriority: number;
+  rewardPriority: number;
+};
+
+function mergeCodeEntry(existing: AggregatedEntry, incoming: ScrapedCode): AggregatedEntry {
+  const merged = { ...existing };
+  const result = merged.data;
+
+  const incomingStatusPriority = STATUS_PRIORITY[incoming.status];
+  const existingStatusPriority = STATUS_PRIORITY[result.status];
+  if (incomingStatusPriority > existingStatusPriority) {
+    result.status = incoming.status;
   }
 
-  if (incoming.levelRequirement != null && merged.levelRequirement == null) {
-    merged.levelRequirement = incoming.levelRequirement;
+  if (incoming.levelRequirement != null && result.levelRequirement == null) {
+    result.levelRequirement = incoming.levelRequirement;
   }
 
-  merged.isNew = Boolean(existing.isNew || incoming.isNew);
+  result.isNew = Boolean(result.isNew || incoming.isNew);
+
+  const incomingProviderPriority = getProviderPriority(incoming.provider);
+  const existingProviderPriority = getProviderPriority(result.provider);
+  if (incomingProviderPriority > existingProviderPriority) {
+    result.provider = incoming.provider;
+  } else if (!result.provider && incoming.provider) {
+    result.provider = incoming.provider;
+  }
 
   const incomingReward = incoming.rewardsText?.trim();
-  const existingReward = merged.rewardsText?.trim();
+  if (incomingReward) {
+    const incomingRewardPriority = getRewardPriority(incoming.provider);
+    if (
+      incomingRewardPriority > merged.rewardPriority ||
+      !result.rewardsText?.trim()
+    ) {
+      result.rewardsText = incomingReward;
+      merged.rewardPriority = incomingRewardPriority;
+    }
+  }
 
-  if (incomingPriority > existingPriority) {
-    merged.code = incoming.code.trim();
-    merged.provider = incoming.provider;
-    if (incomingReward) {
-      merged.rewardsText = incomingReward;
-    }
+  const incomingCodePriority = getCodeDisplayPriority(incoming.provider);
+  if (incomingCodePriority > merged.codePriority) {
+    result.code = incoming.code.trim();
+    merged.codePriority = incomingCodePriority;
+    result.providerPriority = incomingCodePriority;
   } else {
-    if (!merged.provider && incoming.provider) {
-      merged.provider = incoming.provider;
-    }
-    if (!existingReward && incomingReward) {
-      merged.rewardsText = incomingReward;
+    const existingPriority = result.providerPriority ?? merged.codePriority;
+    if (incomingCodePriority > existingPriority) {
+      result.providerPriority = incomingCodePriority;
+    } else if (result.providerPriority == null) {
+      result.providerPriority = existingPriority;
     }
   }
 
@@ -72,7 +119,7 @@ function mergeCodeEntry(existing: ScrapedCode, incoming: ScrapedCode): ScrapedCo
 }
 
 export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
-  const map = new Map<string, ScrapedCode>();
+  const map = new Map<string, AggregatedEntry>();
   const order: string[] = [];
 
   for (const result of results) {
@@ -83,9 +130,14 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
       if (!existing) {
         const sanitizedCode = codeEntry.code.trim();
         map.set(normalizedCode, {
-          ...codeEntry,
-          code: sanitizedCode,
-          rewardsText: codeEntry.rewardsText?.trim() || undefined,
+          data: {
+            ...codeEntry,
+            code: sanitizedCode,
+            rewardsText: codeEntry.rewardsText?.trim() || undefined,
+            providerPriority: getCodeDisplayPriority(codeEntry.provider),
+          },
+          codePriority: getCodeDisplayPriority(codeEntry.provider),
+          rewardPriority: getRewardPriority(codeEntry.provider),
         });
         order.push(normalizedCode);
       } else {
@@ -95,7 +147,9 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
     }
   }
 
-  const mergedCodes = order.map((key) => map.get(key)!).filter(Boolean);
+  const mergedCodes = order
+    .map((key) => map.get(key)?.data)
+    .filter((entry): entry is ScrapedCode => Boolean(entry));
   return { codes: mergedCodes, expiredCodes: [] };
 }
 

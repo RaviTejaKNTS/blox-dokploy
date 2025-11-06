@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
+import { sanitizeCodeDisplay, normalizeCodeKey } from "@/lib/code-normalization";
 
 const PAGE_SIZE = Number(process.env.REFRESH_PAGE_SIZE ?? 500);
 const CONCURRENCY = Math.max(1, Number(process.env.REFRESH_CONCURRENCY ?? 5));
@@ -35,11 +36,6 @@ function collectSlugsFromArgs(): string[] {
 
 const CLI_SLUGS = collectSlugsFromArgs();
 const TARGET_SLUGS = Array.from(new Set([...ONLY_SLUGS, ...CLI_SLUGS]));
-
-function normalizeCodeForComparison(code: string | null | undefined): string | null {
-  if (!code) return null;
-  return code.replace(/\s+/g, "").trim().toUpperCase();
-}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -96,45 +92,91 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
   }
 
   const { codes } = await scrapeSources(sourceUrls);
-
-  const newCodesCount = codes.filter((c) => Boolean(c.isNew)).length;
+  let newCodesCount = 0;
 
   const incomingNormalized = new Set<string>();
   for (const c of codes) {
-    const normalized = normalizeCodeForComparison(c.code);
-    if (normalized) {
-      incomingNormalized.add(normalized);
+    const displayCode = sanitizeCodeDisplay(c.code);
+    if (!displayCode) {
+      continue;
+    }
+    const normalized = normalizeCodeKey(displayCode);
+    if (!normalized) continue;
+    incomingNormalized.add(normalized);
+    c.code = displayCode;
+    if (c.isNew) {
+      newCodesCount += 1;
     }
   }
 
   const normalizedExpiredMap = new Map<string, string>();
   const existingExpiredArray = Array.isArray(game.expired_codes) ? game.expired_codes : [];
   for (const code of existingExpiredArray) {
-    const normalized = normalizeCodeForComparison(code);
+    const displayCode = sanitizeCodeDisplay(code);
+    if (!displayCode) continue;
+    const normalized = normalizeCodeKey(displayCode);
     if (normalized) {
-      normalizedExpiredMap.set(normalized, code);
+      normalizedExpiredMap.set(normalized, displayCode);
     }
   }
 
   const { data: existingRows, error: existingError } = await sb
     .from("codes")
-    .select("code, status")
+    .select("code, status, provider_priority")
     .eq("game_id", game.id);
 
   if (existingError) {
     throw new Error(`failed to load existing codes for ${game.slug}: ${existingError.message}`);
   }
 
+  const existingNormalizedMap = new Map<string, { code: string; providerPriority: number }>();
+  for (const row of existingRows ?? []) {
+    const existingCode = sanitizeCodeDisplay(row.code);
+    if (!existingCode) continue;
+    const normalized = normalizeCodeKey(existingCode);
+    if (!normalized) continue;
+    const providerPriority = Number(row.provider_priority ?? 0);
+    if (existingNormalizedMap.has(normalized)) {
+      const current = existingNormalizedMap.get(normalized)!;
+      if (current.providerPriority >= providerPriority) {
+        continue;
+      }
+    }
+    existingNormalizedMap.set(normalized, { code: existingCode, providerPriority });
+  }
+
   let upserted = 0;
 
   for (const c of codes) {
+    const displayCode = sanitizeCodeDisplay(c.code);
+    if (!displayCode) {
+      continue;
+    }
+    const normalized = normalizeCodeKey(displayCode);
+    if (!normalized) {
+      continue;
+    }
+    const providerPriority = Number(c.providerPriority ?? 0);
+
+    // Skip if a code with the same normalized value already exists for this game
+    const existingEntry = existingNormalizedMap.get(normalized);
+    if (existingEntry) {
+      if (
+        existingEntry.providerPriority > providerPriority ||
+        (existingEntry.providerPriority === providerPriority && existingEntry.code === displayCode)
+      ) {
+        continue;
+      }
+    }
+
     const { error } = await sb.rpc("upsert_code", {
       p_game_id: game.id,
-      p_code: c.code,
+      p_code: displayCode,
       p_status: c.status,
       p_rewards_text: c.rewardsText ?? null,
       p_level_requirement: c.levelRequirement ?? null,
       p_is_new: c.isNew ?? false,
+      p_provider_priority: providerPriority,
     });
 
     if (error) {
@@ -142,6 +184,7 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     }
 
     upserted += 1;
+    existingNormalizedMap.set(normalized, { code: displayCode, providerPriority });
   }
 
   for (const normalized of incomingNormalized) {
@@ -154,9 +197,11 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
 
   const toExpireEntries = existingActiveOrCheck
     .map((row) => {
-      const normalized = normalizeCodeForComparison(row.code);
+      const displayCode = sanitizeCodeDisplay(row.code);
+      if (!displayCode) return null;
+      const normalized = normalizeCodeKey(displayCode);
       if (!normalized) return null;
-      return { normalized, original: row.code };
+      return { normalized, original: displayCode };
     })
     .filter((entry): entry is { normalized: string; original: string } => {
       if (!entry) return false;

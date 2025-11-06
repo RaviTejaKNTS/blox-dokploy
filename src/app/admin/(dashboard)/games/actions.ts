@@ -22,6 +22,7 @@ import {
   fetchGenreFromUniverse,
   scrapeRobloxGameMetadata
 } from "@/lib/roblox/game-metadata";
+import { sanitizeCodeDisplay } from "@/lib/code-normalization";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -234,13 +235,19 @@ export async function upsertGameCode(form: FormData) {
 
   const { supabase } = await requireAdminAction();
 
+  const sanitizedCode = sanitizeCodeDisplay(payload.code);
+  if (!sanitizedCode) {
+    throw new Error("Code cannot be empty after normalization");
+  }
+
   const { error } = await supabase.rpc("upsert_code", {
     p_game_id: payload.game_id,
-    p_code: payload.code,
+    p_code: sanitizedCode,
     p_status: payload.status,
     p_rewards_text: payload.rewards_text,
     p_level_requirement: payload.level_requirement,
-    p_is_new: payload.is_new ?? false
+    p_is_new: payload.is_new ?? false,
+    p_provider_priority: 100 // manual entries override source casing
   });
 
   if (error) throw error;

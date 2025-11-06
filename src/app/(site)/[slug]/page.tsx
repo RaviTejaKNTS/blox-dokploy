@@ -147,6 +147,56 @@ function extractHowToSteps(markdown?: string | null): string[] {
   return steps.slice(0, 10); // Limit to 10 steps
 }
 
+interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+function extractFaqEntries(markdown?: string | null): FaqEntry[] {
+  if (!markdown) return [];
+
+  const lines = markdown.split(/\r?\n/);
+  const entries: FaqEntry[] = [];
+  let currentQuestion: string | null = null;
+  let answerLines: string[] = [];
+
+  function pushCurrent() {
+    if (!currentQuestion) return;
+    const question = markdownToPlainText(currentQuestion).trim();
+    const answer = markdownToPlainText(answerLines.join("\n")).trim();
+    if (question && answer) {
+      entries.push({ question, answer });
+    }
+    currentQuestion = null;
+    answerLines = [];
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const headingMatch = line.match(/^##\s+(.+)$/);
+    if (headingMatch) {
+      pushCurrent();
+      currentQuestion = headingMatch[1].trim();
+      continue;
+    }
+
+    if (!currentQuestion) {
+      continue;
+    }
+
+    if (/^#\s+/.test(line)) {
+      pushCurrent();
+      continue;
+    }
+
+    answerLines.push(rawLine);
+  }
+
+  pushCurrent();
+
+  return entries.slice(0, 8);
+}
+
 /**
  * Validates if a string is a valid HTTP/HTTPS URL
  */
@@ -421,8 +471,11 @@ async function renderArticlePage(article: ArticleWithRelations) {
           </div>
         </header>
 
-        <section className="prose dark:prose-invert max-w-none game-copy" id="article-body" itemProp="articleBody">
-          <div dangerouslySetInnerHTML={processedArticleHtml} />
+        <section id="article-body" itemProp="articleBody">
+          <div
+            className="prose dark:prose-invert max-w-none game-copy"
+            dangerouslySetInnerHTML={processedArticleHtml}
+          />
         </section>
 
         {article.author ? (
@@ -600,6 +653,7 @@ export default async function GamePage({ params }: Params) {
   const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
+  const faqEntries = extractFaqEntries(descriptionMarkdown);
 
   const [introHtml, redeemHtml, descriptionHtml, authorBioHtml, linktextHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
@@ -636,12 +690,15 @@ export default async function GamePage({ params }: Params) {
         sameAs: authorSameAs.length ? authorSameAs : null
       }
     : null;
-  const breadcrumbData = JSON.stringify(
-    breadcrumbJsonLd([
-      { name: "Home", url: SITE_URL },
-      { name: `${game.name} Codes`, url: canonicalUrl }
-    ])
-  );
+  const siteBaseUrl = SITE_URL.replace(/\/$/, "");
+  const breadcrumbs = [
+    { name: "Home", url: SITE_URL },
+    ...(game.category
+      ? [{ name: game.category.name, url: `${siteBaseUrl}/articles/category/${game.category.slug}` }]
+      : []),
+    { name: `${game.name} Codes`, url: canonicalUrl }
+  ];
+  const breadcrumbData = JSON.stringify(breadcrumbJsonLd(breadcrumbs));
   const videoGameData = JSON.stringify(
     gameJsonLd({ siteUrl: SITE_URL, game: { name: game.name, slug: game.slug, image: coverImage } })
   );
@@ -676,6 +733,20 @@ export default async function GamePage({ params }: Params) {
           steps: redeemSteps
         })
       )
+    : null;
+  const faqData = faqEntries.length
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqEntries.map((entry) => ({
+          "@type": "Question",
+          name: entry.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: entry.answer
+          }
+        }))
+      })
     : null;
 
   return (
@@ -902,6 +973,9 @@ export default async function GamePage({ params }: Params) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: webPageData }} />
         {howToData && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
+        )}
+        {faqData && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqData }} />
         )}
         <CodeBlockEnhancer />
       </article>

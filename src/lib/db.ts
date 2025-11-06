@@ -50,7 +50,17 @@ export type Game = {
   updated_at: string;
 };
 
-export type GameWithAuthor = Game & { author: Author | null };
+export type GameCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+};
+
+export type GameWithAuthor = Game & {
+  author: Author | null;
+  category: GameCategory | null;
+};
 
 export type ArticleCategory = {
   id: string;
@@ -424,6 +434,18 @@ export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null
       (data as any).author = fallback;
     }
   }
+
+  const { data: category, error: categoryError } = await sb
+    .from("article_categories")
+    .select("id, name, slug, description")
+    .eq("game_id", data.id)
+    .maybeSingle();
+
+  if (categoryError && categoryError.code !== "PGRST116") {
+    throw categoryError;
+  }
+
+  (data as any).category = category ?? null;
 
   return data as GameWithAuthor;
 }
