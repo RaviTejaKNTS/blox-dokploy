@@ -713,7 +713,7 @@ function buildArticlePrompt(gameName: string, sources: string) {
   return `
 You are a professional Roblox journalist.
 Use ONLY the information from these trusted sources below to write an accurate, detailed, and structured article.
-Do NOT invent or guess anything. If something isn't in the sources, skip it.
+Do NOT invent or guess anything. If something isn't in the sources, skip it. Do not mention or reference the source names or URLs—retell the information in your own words. Sprinkle in personal commentary or first-hand style insights only when they add clear value or show how a player might react to the info, but keep the focus on delivering facts.
 
 Use the link placeholders below instead of raw URLs. Always wrap the exact anchor text in the placeholder format [[placeholder_key|Anchor Text]] and never output the actual URL.
 - [[roblox_link|...]] → official Roblox experience page
