@@ -250,11 +250,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       if (!latest || code.first_seen_at > latest) return code.first_seen_at;
       return latest;
     }, null);
+    const activeCount = codes.filter((code) => code.status === "active").length;
     const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
       ? latestCodeFirstSeen
       : game.updated_at;
     const when = monthYear();
-    const title = game.seo_title || `${game.name} Codes (${when})`;
+    const title = game.seo_title || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
     const descriptionRaw =
       game.seo_description ||
       `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
