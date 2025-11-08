@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { downloadCSV } from "@/lib/csv";
 import type { AdminAuthorOption, AdminGameSummary } from "@/lib/admin/games";
-import { GameDrawer } from "./GameDrawer";
 import { refreshGameCodes } from "@/app/admin/(dashboard)/games/actions";
 
 const columns = [
@@ -64,8 +63,6 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<AdminGameSummary | null>(null);
   const [flash, setFlash] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [refreshingSlug, setRefreshingSlug] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -98,6 +95,25 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   const totalCount = initialGames.length;
   const filteredCount = filtered.length;
 
+  const publishedCount = useMemo(
+    () => initialGames.filter((game) => game.is_published).length,
+    [initialGames]
+  );
+  const draftCount = Math.max(totalCount - publishedCount, 0);
+  const updatedTodayCount = useMemo(() => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return initialGames.filter((game) => {
+      const updatedAt = new Date(game.updated_at);
+      return !Number.isNaN(updatedAt.getTime()) && updatedAt >= startOfDay;
+    }).length;
+  }, [initialGames]);
+  const totalActiveCodes = useMemo(
+    () => initialGames.reduce((total, game) => total + (game.counts.active ?? 0), 0),
+    [initialGames]
+  );
+  const averageActiveCodes = totalCount > 0 ? Math.round(totalActiveCodes / totalCount) : 0;
+
   const visibleColumnCount = useMemo(() => {
     return columns.reduce((total, column) => (visibility[column.key] ? total + 1 : total), 1); // +1 for actions column
   }, [visibility]);
@@ -118,13 +134,11 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
   }
 
   function openNewGame() {
-    setSelectedGame(null);
-    setDrawerOpen(true);
+    router.push("/admin/games/manage/new");
   }
 
   function openExistingGame(game: AdminGameSummary) {
-    setSelectedGame(game);
-    setDrawerOpen(true);
+    router.push(`/admin/games/manage/${game.id}`);
   }
 
   function handleRefreshCodes(slug: string) {
@@ -157,8 +171,31 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs font-semibold text-muted">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Published games</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{publishedCount}</p>
+          <p className="mt-1 text-xs text-muted">Live on the site</p>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Drafts</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{draftCount}</p>
+          <p className="mt-1 text-xs text-muted">Ready for review</p>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Updated today</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{updatedTodayCount}</p>
+          <p className="mt-1 text-xs text-muted">Freshly maintained</p>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Avg. active codes</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{averageActiveCodes}</p>
+          <p className="mt-1 text-xs text-muted">Across {totalCount} games</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-surface/80 p-4 shadow-soft">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-4 py-2 text-xs font-semibold text-muted">
           Showing {filteredCount} of {totalCount} games
         </span>
         <input
@@ -166,12 +203,12 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
           placeholder="Search games…"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="w-full max-w-xs rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="w-full max-w-xs rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All statuses</option>
           <option value="published">Published</option>
@@ -180,7 +217,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         <select
           value={authorFilter}
           onChange={(event) => setAuthorFilter(event.target.value)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All authors</option>
           {authors.map((author) => (
@@ -192,7 +229,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         <select
           value={redeemImageFilter}
           onChange={(event) => setRedeemImageFilter(event.target.value as typeof redeemImageFilter)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All redeem images</option>
           <option value="nonzero">With images</option>
@@ -201,19 +238,19 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         <button
           type="button"
           onClick={handleExportCsv}
-          className="rounded-lg border border-border/60 bg-surface px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border/40 hover:bg-surface-muted"
+          className="rounded-lg border border-border/60 bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border/40 hover:bg-surface"
         >
           Export CSV
         </button>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="sort-key">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="games-sort-key">
             Sort
           </label>
           <select
-            id="sort-key"
+            id="games-sort-key"
             value={sortKey}
             onChange={(event) => setSortKey(event.target.value as typeof sortKey)}
-            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             <option value="updated_at">Updated date</option>
             <option value="created_at">Created date</option>
@@ -221,7 +258,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
           <select
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
-            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
@@ -230,13 +267,13 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         <button
           type="button"
           onClick={openNewGame}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark"
+          className="ml-auto rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark"
         >
           New Game
         </button>
       </div>
 
-      <details className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">
+      <details className="rounded-2xl border border-border/60 bg-surface/80 p-4 text-sm text-muted shadow-soft">
         <summary className="cursor-pointer list-none font-semibold text-foreground">Toggle columns</summary>
         <div className="mt-3 flex flex-wrap gap-4">
           {columns.map((column) => (
@@ -257,7 +294,7 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         </div>
       </details>
 
-      <div className="overflow-x-auto rounded-lg border border-border/60">
+      <div className="overflow-x-auto rounded-2xl border border-border/60 bg-surface/80 shadow-soft">
         {flash ? (
           <div
             className={`mx-4 mt-4 rounded-lg border px-4 py-2 text-sm ${
@@ -363,13 +400,6 @@ export function GamesClient({ initialGames, authors }: GamesClientProps) {
         </table>
       </div>
 
-      <GameDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onRefresh={() => router.refresh()}
-        game={selectedGame}
-        authors={authors}
-      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const roleResolved = role !== undefined;
   const displayEmail = email || "Unknown";
   const showLoading = loading && !session;
+  const fullWidthLayout = pathname?.startsWith("/admin/articles/write");
 
   useEffect(() => {
     if (loading || !roleResolved) return;
@@ -124,7 +125,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
       </header>
-      <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-6xl flex-col gap-8 px-6 py-10">
+      <main
+        className={clsx(
+          "mx-auto flex min-h-[calc(100vh-80px)] w-full flex-col gap-8 px-6 py-10",
+          fullWidthLayout ? "max-w-none" : "max-w-6xl"
+        )}
+      >
         {children}
       </main>
     </div>

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { AdminArticleSummary, AdminArticleCategoryOption } from "@/lib/admin/articles";
 import type { AdminAuthorOption } from "@/lib/admin/games";
-import { ArticleDrawer } from "./ArticleDrawer";
 
 const columns = [
   { key: "title", label: "Title" },
@@ -62,8 +61,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
   const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedArticle, setSelectedArticle] = useState<AdminArticleSummary | null>(null);
 
   const filtered = useMemo(() => {
     const filteredArticles = initialArticles.filter((article) => {
@@ -82,20 +79,49 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
 
   const totalCount = initialArticles.length;
   const filteredCount = filtered.length;
+  const publishedCount = useMemo(
+    () => initialArticles.filter((article) => article.is_published).length,
+    [initialArticles]
+  );
+  const draftCount = totalCount - publishedCount;
+  const totalWordCount = useMemo(
+    () =>
+      initialArticles.reduce((sum, article) => {
+        return sum + (article.word_count ?? 0);
+      }, 0),
+    [initialArticles]
+  );
+  const averageWordCount = totalCount > 0 ? Math.round(totalWordCount / totalCount) : 0;
 
   function openNewArticle() {
-    setSelectedArticle(null);
-    setDrawerOpen(true);
+    router.push("/admin/articles/write/new");
   }
 
   function openExistingArticle(article: AdminArticleSummary) {
-    setSelectedArticle(article);
-    setDrawerOpen(true);
+    router.push(`/admin/articles/write/${article.id}`);
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Published</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{publishedCount}</p>
+          <p className="mt-1 text-xs text-muted">Live on site</p>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Drafts</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{draftCount}</p>
+          <p className="mt-1 text-xs text-muted">Waiting to publish</p>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-surface/80 p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-muted">Avg. word count</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{averageWordCount}</p>
+          <p className="mt-1 text-xs text-muted">Across {totalCount} articles</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-surface/80 p-4 shadow-soft">
         <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-4 py-2 text-xs font-semibold text-muted">
           Showing {filteredCount} of {totalCount} articles
         </span>
@@ -104,12 +130,12 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
           placeholder="Search articles…"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="w-full max-w-xs rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="w-full max-w-xs rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All statuses</option>
           <option value="published">Published</option>
@@ -118,7 +144,7 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
         <select
           value={authorFilter}
           onChange={(event) => setAuthorFilter(event.target.value)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All authors</option>
           {authors.map((author) => (
@@ -130,7 +156,7 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
         <select
           value={categoryFilter}
           onChange={(event) => setCategoryFilter(event.target.value)}
-          className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           <option value="all">All categories</option>
           {categories.map((category) => (
@@ -139,13 +165,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={openNewArticle}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark"
-        >
-          New Article
-        </button>
         <div className="flex items-center gap-2">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="articles-sort-key">
             Sort
@@ -154,7 +173,7 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
             id="articles-sort-key"
             value={sortKey}
             onChange={(event) => setSortKey(event.target.value as typeof sortKey)}
-            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             <option value="updated_at">Updated date</option>
             <option value="created_at">Created date</option>
@@ -162,12 +181,19 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
           <select
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
-            className="rounded-lg border border-border/60 bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
           </select>
         </div>
+        <button
+          type="button"
+          onClick={openNewArticle}
+          className="ml-auto rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark"
+        >
+          New Article
+        </button>
       </div>
 
       <details className="rounded-lg border border-border/60 bg-surface px-4 py-3 text-sm text-muted">
@@ -273,15 +299,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
           </tbody>
         </table>
       </div>
-
-      <ArticleDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onRefresh={() => router.refresh()}
-        article={selectedArticle}
-        authors={authors}
-        categories={categories}
-      />
     </div>
   );
 }

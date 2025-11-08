@@ -41,6 +41,24 @@ function normalizeRelation<T extends { id: string; name: string } | null | undef
   };
 }
 
+function mapArticleRow(article: Record<string, any>): AdminArticleSummary {
+  return {
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    content_md: article.content_md ?? "",
+    cover_image: article.cover_image ?? null,
+    is_published: Boolean(article.is_published),
+    published_at: article.published_at ?? null,
+    created_at: article.created_at,
+    updated_at: article.updated_at,
+    word_count: article.word_count ?? null,
+    meta_description: article.meta_description ?? null,
+    author: normalizeRelation(article.author as { id: string; name: string } | null | undefined),
+    category: normalizeRelation(article.category as { id: string; name: string } | null | undefined)
+  };
+}
+
 export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminArticleSummary[]> {
   const { data, error } = await client
     .from("articles")
@@ -56,21 +74,7 @@ export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminA
 
   const rows = (data ?? []) as Array<Record<string, any>>;
 
-  return rows.map((article) => ({
-    id: article.id,
-    title: article.title,
-    slug: article.slug,
-    content_md: article.content_md ?? "",
-    cover_image: article.cover_image ?? null,
-    is_published: Boolean(article.is_published),
-    published_at: article.published_at ?? null,
-    created_at: article.created_at,
-    updated_at: article.updated_at,
-    word_count: article.word_count ?? null,
-    meta_description: article.meta_description ?? null,
-    author: normalizeRelation(article.author as { id: string; name: string } | null | undefined),
-    category: normalizeRelation(article.category as { id: string; name: string } | null | undefined)
-  }));
+  return rows.map((article) => mapArticleRow(article));
 }
 
 export async function fetchAdminArticleCategories(client: SupabaseClient): Promise<AdminArticleCategoryOption[]> {
@@ -85,4 +89,22 @@ export async function fetchAdminArticleCategories(client: SupabaseClient): Promi
     id: category.id,
     name: category.name
   }));
+}
+
+export async function fetchAdminArticleById(client: SupabaseClient, id: string): Promise<AdminArticleSummary | null> {
+  const { data, error } = await client
+    .from("articles")
+    .select(
+      `id, title, slug, content_md, cover_image, is_published, published_at, created_at, updated_at,
+       word_count, meta_description,
+       author:authors ( id, name ),
+       category:article_categories ( id, name )`
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return mapArticleRow(data as Record<string, any>);
 }

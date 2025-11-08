@@ -107,13 +107,14 @@ export async function saveArticle(formData: FormData) {
   };
 
   let categorySlug: string | null = null;
+  let articleId: string | null = payload.id ?? null;
 
   if (payload.id) {
     const { data, error } = await supabase
       .from('articles')
       .update(record)
       .eq('id', payload.id)
-      .select('slug, category:article_categories(id, slug)')
+      .select('id, slug, category:article_categories(id, slug)')
       .maybeSingle();
 
     if (error) throw error;
@@ -121,17 +122,23 @@ export async function saveArticle(formData: FormData) {
     if (relatedCategorySlug) {
       categorySlug = relatedCategorySlug;
     }
+    if (data?.id) {
+      articleId = data.id as string;
+    }
   } else {
     const { data, error } = await supabase
       .from('articles')
       .insert(record)
-      .select('slug, category:article_categories(id, slug)')
+      .select('id, slug, category:article_categories(id, slug)')
       .maybeSingle();
 
     if (error) throw error;
     const relatedCategorySlug = extractCategorySlug(data?.category);
     if (relatedCategorySlug) {
       categorySlug = relatedCategorySlug;
+    }
+    if (data?.id) {
+      articleId = data.id as string;
     }
   }
 
@@ -142,7 +149,7 @@ export async function saveArticle(formData: FormData) {
     revalidatePath(`/articles/category/${categorySlug}`);
   }
 
-  return { success: true };
+  return { success: true, id: articleId, slug: normalizedSlug };
 }
 
 export async function deleteArticle(formData: FormData) {
@@ -190,7 +197,12 @@ export async function uploadArticleAsset(formData: FormData) {
   }
 
   const slugRaw = formData.get("slug");
+  const modeRaw = formData.get("mode");
   const slug = typeof slugRaw === "string" && slugRaw.trim().length ? slugRaw.trim().toLowerCase() : "uploads";
+  const mode = typeof modeRaw === "string" && modeRaw.trim().length ? modeRaw.trim().toLowerCase() : "gallery";
+  const isCoverImage = mode === "cover";
+  const targetWidth = isCoverImage ? 1800 : 1200;
+  const quality = isCoverImage ? 88 : 82;
   const safeSlug = slug.replace(/[^a-z0-9-]+/g, "-") || "uploads";
 
   const timestamp = Date.now();
@@ -200,22 +212,26 @@ export async function uploadArticleAsset(formData: FormData) {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/(^-|-$)/g, "");
-  const baseName = sanitizedName.replace(/\.[^.]+$/, "") || `image-${timestamp}`;
+  const defaultBaseName = sanitizedName.replace(/\.[^.]+$/, "") || `image-${timestamp}`;
+  const baseName = isCoverImage ? `${safeSlug || "article"}-cover` : defaultBaseName;
 
   let buffer = Buffer.from(await file.arrayBuffer());
-  let finalExtension = (sanitizedName.includes(".") ? sanitizedName.split(".").pop() : "bin")!.toLowerCase();
 
   try {
-    buffer = await sharp(buffer)
-      .webp({ quality: 90, effort: 4 })
-      .toBuffer();
-    finalExtension = "webp";
+    let processor = sharp(buffer).rotate();
+    const metadata = await processor.metadata();
+
+    if (metadata.width && metadata.width > targetWidth) {
+      processor = processor.resize({ width: targetWidth, withoutEnlargement: true });
+    }
+
+    buffer = await processor.webp({ quality, effort: 4 }).toBuffer();
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Image processing failed" };
   }
 
   const supabase = supabaseAdmin();
-  const path = `articles/${safeSlug}/${baseName}-${timestamp}.${finalExtension}`;
+  const path = `articles/${safeSlug}/${baseName}-${mode}-${timestamp}.webp`;
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, {
     contentType: "image/webp",

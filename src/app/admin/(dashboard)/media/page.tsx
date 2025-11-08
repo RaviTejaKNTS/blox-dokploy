@@ -28,6 +28,7 @@ export type MediaFileEntry = {
   size: number;
   updated_at: string | null;
   public_url: string;
+  mimetype: string | null;
 };
 
 export type MediaListing = {
@@ -56,6 +57,10 @@ function mapListing(
       continue;
     }
 
+    if (item.name === ".keep") {
+      continue;
+    }
+
     const { data: publicData } = supabase.storage.from(BUCKET!).getPublicUrl(entryPath);
     const publicUrl = publicData?.publicUrl ?? "";
 
@@ -64,7 +69,8 @@ function mapListing(
       path: entryPath,
       size: item.metadata?.size ?? 0,
       updated_at: item.updated_at ?? item.created_at ?? null,
-      public_url: publicUrl
+      public_url: publicUrl,
+      mimetype: item.metadata?.mimetype ?? null
     });
   }
 

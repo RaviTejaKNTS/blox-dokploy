@@ -208,6 +208,7 @@ export async function saveGame(form: FormData) {
     }
     return {
       success: true,
+      id: game.id,
       slug: game.slug,
       codesFound: syncResult.codesFound,
       codesUpserted: syncResult.codesUpserted,
