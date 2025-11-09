@@ -4,6 +4,7 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 const nextConfig = {
   poweredByHeader: false,
+  staticPageGenerationTimeout: 120,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.roblox.com" },

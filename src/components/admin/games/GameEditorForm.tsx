@@ -216,6 +216,8 @@ export function GameEditorForm({
   const viewUrl = game?.slug ? `/${game.slug}` : null;
   const lastUpdatedLabel = game ? `Last updated ${new Date(game.updated_at).toLocaleString()}` : "New game";
 
+  const confirmLeave = useUnsavedChangesWarning(isDirty, "You have unsaved changes. Leave without saving?");
+
   const handleBackClick = useCallback(() => {
     if (!confirmLeave()) return;
     router.push("/admin/games");
@@ -330,8 +332,6 @@ export function GameEditorForm({
       })
       .finally(() => setGenreRefreshPending(false));
   }, [game?.slug, genreRefreshPending, router]);
-
-  const confirmLeave = useUnsavedChangesWarning(isDirty, "You have unsaved changes. Leave without saving?");
 
   const gameNameForSearch = (nameValue?.trim() || game?.name || "").trim();
   const buildSearchUrl = (domain: string) => {
@@ -628,6 +628,31 @@ export function GameEditorForm({
       </a>
     );
   }, []);
+
+  const handleDeleteGame = useCallback(() => {
+    if (!game?.id) return;
+    const confirmed = window.confirm(`Delete game "${game.name}"? This will remove all associated codes.`);
+    if (!confirmed) return;
+    setDeleteStatus(null);
+    setDeletePending(true);
+    startTransition(async () => {
+      try {
+        const result = await deleteGameById(game.id);
+        if (!result?.success) {
+          setDeleteStatus(result?.error ?? "Failed to delete game.");
+          return;
+        }
+        setDeleteStatus("Game deleted.");
+        router.refresh();
+        resetAfterSave();
+        router.push("/admin/games");
+      } catch (error) {
+        setDeleteStatus(error instanceof Error ? error.message : "Failed to delete game.");
+      } finally {
+        setDeletePending(false);
+      }
+    });
+  }, [game, resetAfterSave, router, startTransition]);
 
   const metaFields = activeTab === "meta"
     ? (
@@ -999,31 +1024,6 @@ export function GameEditorForm({
   const activeCodes = game?.codes.active ?? [];
   const checkCodes = game?.codes.check ?? [];
   const expiredCodes = game?.codes.expired ?? [];
-
-  const handleDeleteGame = useCallback(() => {
-    if (!game?.id) return;
-    const confirmed = window.confirm(`Delete game "${game.name}"? This will remove all associated codes.`);
-    if (!confirmed) return;
-    setDeleteStatus(null);
-    setDeletePending(true);
-    startTransition(async () => {
-      try {
-        const result = await deleteGameById(game.id);
-        if (!result?.success) {
-          setDeleteStatus(result?.error ?? "Failed to delete game.");
-          return;
-        }
-        setDeleteStatus("Game deleted.");
-        router.refresh();
-        resetAfterSave();
-        router.push("/admin/games");
-      } catch (error) {
-        setDeleteStatus(error instanceof Error ? error.message : "Failed to delete game.");
-      } finally {
-        setDeletePending(false);
-      }
-    });
-  }, [game, resetAfterSave, router, startTransition]);
 
   return (
     <div className="space-y-6 pb-16">
