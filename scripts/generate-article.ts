@@ -7,15 +7,19 @@ import { createClient } from "@supabase/supabase-js";
 
 import { slugify } from "@/lib/slug";
 
+const ARTICLE_TYPES = ["listicle", "how_to", "explainer", "opinion", "news"] as const;
+type ArticleType = (typeof ARTICLE_TYPES)[number];
+
 type QueueRow = {
   id: string;
-  article_title: string;
-  article_type: "listicle" | "how_to" | "explainer" | "opinion" | "news";
+  article_title: string | null;
+  article_type: ArticleType | null;
   category_id: string | null;
   status: "pending" | "completed" | "failed";
   attempts: number;
   last_attempted_at: string | null;
   last_error: string | null;
+  sources: string | null;
 };
 
 type CategoryRow = {
@@ -91,7 +95,7 @@ const QUALITY_DOMAINS = [
   "digitaltrends.com"
 ];
 
-const ARTICLE_STYLE: Record<QueueRow["article_type"], string> = {
+const ARTICLE_STYLE: Record<ArticleType, string> = {
   listicle: "Organise the article as a numbered list. Give each item a sharp sub-heading, explain why it matters, and close with a quick recap.",
   how_to:
     "Explain the process step by step. Include clear ordered lists, call out requirements, and add troubleshooting tips if sources cover them.",
@@ -102,6 +106,8 @@ const ARTICLE_STYLE: Record<QueueRow["article_type"], string> = {
   news:
     "Lead with the headline update, add context from the sources, include timelines or quotes when they exist, and wrap with a 'Why it matters' section."
 };
+
+const DEFAULT_ARTICLE_TYPE: ArticleType = "explainer";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
@@ -120,6 +126,14 @@ function parseArgs(): { queueId: string } {
     return { queueId: args[0] };
   }
   throw new Error("Usage: tsx scripts/generate-article.ts --queue-id <uuid>");
+}
+
+function isArticleType(value: unknown): value is ArticleType {
+  return typeof value === "string" && ARTICLE_TYPES.includes(value as ArticleType);
+}
+
+function resolveArticleType(value: QueueRow["article_type"]): ArticleType {
+  return isArticleType(value) ? value : DEFAULT_ARTICLE_TYPE;
 }
 
 async function fetchQueueEntry(queueId: string): Promise<QueueRow> {
@@ -216,7 +230,12 @@ function isForumHost(hostname: string): boolean {
   );
 }
 
-async function fetchArticleContent(url: string): Promise<string | null> {
+type ParsedArticle = {
+  content: string;
+  title: string | null;
+};
+
+async function fetchArticleContent(url: string): Promise<ParsedArticle | null> {
   try {
     const response = await fetch(url, {
       headers: {
@@ -247,7 +266,12 @@ async function fetchArticleContent(url: string): Promise<string | null> {
       return null;
     }
 
-    return normalized.slice(0, SOURCE_CHAR_LIMIT);
+    const derivedTitle = article.title?.trim() || dom.window.document.title?.trim() || null;
+
+    return {
+      content: normalized.slice(0, SOURCE_CHAR_LIMIT),
+      title: derivedTitle
+    };
   } catch (error) {
     console.warn(`   • Failed to fetch ${url}:`, (error as Error).message);
     return null;
@@ -297,15 +321,15 @@ async function gatherSources(topic: string): Promise<SourceDocument[]> {
         continue;
       }
 
-      const content = await fetchArticleContent(result.url);
-      if (!content) continue;
+      const parsedContent = await fetchArticleContent(result.url);
+      if (!parsedContent) continue;
 
       seenHosts.add(host);
       seenUrls.add(result.url);
       collected.push({
-        title: result.title,
+        title: result.title || parsedContent.title || result.url,
         url: result.url,
-        content,
+        content: parsedContent.content,
         host,
         isForum
       });
@@ -325,7 +349,75 @@ async function gatherSources(topic: string): Promise<SourceDocument[]> {
   return collected;
 }
 
-async function summariseSources(topic: string, articleType: QueueRow["article_type"], sources: SourceDocument[]): Promise<SourceSummary[]> {
+function parseManualSourceList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,\n]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function normaliseSourceUrl(raw: string): URL | null {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    return new URL(trimmed);
+  } catch {
+    console.warn(`   • Skipping invalid source URL: ${raw}`);
+    return null;
+  }
+}
+
+async function fetchManualSources(urls: string[]): Promise<SourceDocument[]> {
+  const collected: SourceDocument[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const raw of urls) {
+    const parsedUrl = normaliseSourceUrl(raw);
+    if (!parsedUrl) continue;
+
+    const normalized = parsedUrl.toString();
+    if (seenUrls.has(normalized)) continue;
+
+    const parsedContent = await fetchArticleContent(normalized);
+    if (!parsedContent) continue;
+
+    const host = parsedUrl.hostname.toLowerCase();
+    collected.push({
+      title: parsedContent.title || parsedUrl.hostname || normalized,
+      url: normalized,
+      content: parsedContent.content,
+      host,
+      isForum: isForumHost(host)
+    });
+
+    seenUrls.add(normalized);
+
+    if (collected.length >= MAX_SOURCES) {
+      break;
+    }
+  }
+
+  return collected;
+}
+
+function resolveTopic(articleTitle: string | null, manualSources: SourceDocument[]): string {
+  const trimmed = articleTitle?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+
+  const manualTitleSource = manualSources.find((source) => source.title.trim().length > 0);
+  if (manualTitleSource) {
+    return manualTitleSource.title.trim();
+  }
+
+  throw new Error("Queue entry must include an article title or at least one valid source URL.");
+}
+
+async function summariseSources(topic: string, articleType: ArticleType, sources: SourceDocument[]): Promise<SourceSummary[]> {
   if (sources.length === 0) {
     return [];
   }
@@ -412,7 +504,8 @@ ${excerptBlocks}
 }
 
 function buildArticlePrompt(
-  queue: QueueRow,
+  topic: string,
+  articleType: ArticleType,
   category: CategoryRow | null,
   blogSources: SourceDocument[],
   forumSummaries: SourceSummary[]
@@ -436,11 +529,11 @@ function buildArticlePrompt(
   return `
 You are an experienced Roblox journalist. Write in simple English that feels like a friendly conversation, yet stays professional and SEO-aware. Cover the topic in depth, keep the flow like a story from start to finish, and leave no key detail behind. Be concise—say everything needed in as few words as possible. Open with a short hook paragraph (no heading) pulled straight from the research (a standout stat, a sharp question, a player scenario); never start with generic lines like "Roblox is a massive platform" or "Roblox is a huge online game." Keep momentum throughout so every section leads naturally into the next. Use only H2 headings, and H3s only when absolutely necessary—skip H4 entirely and rely on a small set of purposeful headings that push the narrative forward. Before any list or table, add a sentence or two to cue the reader. When explaining steps, write in conversational sentences using numbered lists (not key/value snippets). Keep the structure easy to scan, avoid clutter, and weave in first-hand style commentary only when it clearly adds insight or builds trust. Do not mention or reference the source names or URLs—retell the information in your own words.
 
-Requested topic: "${queue.article_title}"
-Article type: ${queue.article_type}
+Requested topic: "${topic}"
+Article type: ${articleType}
 Category: ${category ? category.name : "Unassigned"}
 
-Article style guidance: ${ARTICLE_STYLE[queue.article_type]}
+Article style guidance: ${ARTICLE_STYLE[articleType]}
 
 Use the material below. Cite sources naturally in the prose (e.g., "Beebom explains..."). Blend overlapping facts, clarify differences, and keep the narrative smooth.
 
@@ -518,14 +611,19 @@ function estimateWordCount(markdown: string): number {
   return text.split(" ").length;
 }
 
-async function insertArticleDraft(article: DraftArticle, queue: QueueRow, category: CategoryRow | null): Promise<string> {
-  const requested = queue.article_title.trim().toLowerCase();
+async function insertArticleDraft(
+  article: DraftArticle,
+  queue: QueueRow,
+  category: CategoryRow | null,
+  requestedTopic: string
+): Promise<string> {
+  const topic = (queue.article_title?.trim() || requestedTopic.trim()).toLowerCase();
   let finalTitle = article.title;
 
   if (!finalTitle) {
     throw new Error("Generated article title is empty.");
   }
-  if (finalTitle.toLowerCase() === requested) {
+  if (finalTitle.toLowerCase() === topic) {
     finalTitle = `${finalTitle} – Updated Insights`;
   }
 
@@ -569,21 +667,39 @@ async function main() {
     await updateQueueAttempt(queueEntry);
 
     const category = await fetchCategory(queueEntry.category_id);
-    console.log(`topic: ${queueEntry.article_title}`);
-    console.log(`type: ${queueEntry.article_type}`);
+
+    const manualSourceUrls = parseManualSourceList(queueEntry.sources);
+    if (manualSourceUrls.length) {
+      console.log(`manual_source_urls=${manualSourceUrls.length}`);
+    }
+
+    const manualSources = manualSourceUrls.length ? await fetchManualSources(manualSourceUrls) : [];
+    if (manualSources.length) {
+      console.log(`manual_sources_collected=${manualSources.length}`);
+    } else if (manualSourceUrls.length > 0) {
+      console.warn("⚠️ Manual sources provided but none could be fetched.");
+    }
+
+    const articleType = resolveArticleType(queueEntry.article_type);
+    const topic = resolveTopic(queueEntry.article_title, manualSources);
+
+    console.log(`topic: ${topic}`);
+    console.log(`type: ${articleType}`);
     console.log(`category: ${category ? category.name : "Unassigned"}`);
 
-    const sources = await gatherSources(queueEntry.article_title);
-    console.log(`sources_collected=${sources.length}`);
+    const sources = manualSources.length > 0 ? manualSources : await gatherSources(topic);
+    console.log(
+      `sources_collected=${sources.length} source_mode=${manualSources.length > 0 ? "manual" : "search"}`
+    );
 
     const forumSources = sources.filter((source) => source.isForum);
     const blogSources = sources.filter((source) => !source.isForum);
-    const summaries = await summariseSources(queueEntry.article_title, queueEntry.article_type, forumSources);
+    const summaries = await summariseSources(topic, articleType, forumSources);
     if (summaries.length) {
       console.log("summaries_ready");
     }
 
-    const prompt = buildArticlePrompt(queueEntry, category, blogSources, summaries);
+    const prompt = buildArticlePrompt(topic, articleType, category, blogSources, summaries);
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
@@ -591,7 +707,7 @@ async function main() {
       throw new Error("Generated article is too short.");
     }
 
-    await insertArticleDraft(draft, queueEntry, category);
+    await insertArticleDraft(draft, queueEntry, category, topic);
     await updateQueueStatus(queueEntry.id, "completed");
 
     console.log("article_saved status=draft");

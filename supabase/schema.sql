@@ -94,9 +94,10 @@ create index if not exists idx_game_generation_queue_status_created
 -- article generation queue table
 create table if not exists public.article_generation_queue (
   id uuid primary key default uuid_generate_v4(),
-  article_title text not null,
+  article_title text,
   category_id uuid references public.article_categories(id) on delete set null,
-  article_type text not null check (article_type in ('listicle','how_to','explainer','opinion','news')),
+  article_type text check (article_type in ('listicle','how_to','explainer','opinion','news')),
+  sources text,
   status text not null default 'pending' check (status in ('pending','completed','failed')),
   attempts int not null default 0,
   last_attempted_at timestamptz,

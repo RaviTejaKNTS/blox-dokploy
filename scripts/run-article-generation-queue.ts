@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 
 type QueueRow = {
   id: string;
-  article_title: string;
+  article_title: string | null;
   status: string;
   attempts?: number;
   last_attempted_at: string | null;
@@ -98,15 +98,16 @@ async function markFailed(id: string, message: string) {
 }
 
 async function processQueueItem(entry: QueueRow) {
-  console.log(`📰 Processing article queue item ${entry.article_title} (${entry.id})`);
+  const label = entry.article_title?.trim() || "Untitled article";
+  console.log(`📰 Processing article queue item ${label} (${entry.id})`);
   await markAttempt(entry.id, entry.attempts ?? 0);
 
   try {
     await runGenerator(entry.id);
-    console.log(`✅ Article generated for queue item ${entry.article_title}`);
+    console.log(`✅ Article generated for queue item ${label}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`❌ Failed to generate article for queue item ${entry.article_title}: ${message}`);
+    console.error(`❌ Failed to generate article for queue item ${label}: ${message}`);
     await markFailed(entry.id, message);
   }
 }
