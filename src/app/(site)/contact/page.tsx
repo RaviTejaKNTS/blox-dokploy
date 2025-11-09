@@ -48,8 +48,8 @@ export default function ContactPage() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="prose dark:prose-invert max-w-none game-copy">
-        <header>
+      <article className="prose dark:prose-invert max-w-none game-copy space-y-10">
+        <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Contact Us: Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
             At Bloxodes.com, we aim to make it easy for you to reach out whenever you need. Since our website is built to be simple and
@@ -57,7 +57,7 @@ export default function ContactPage() {
           </p>
         </header>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How to Contact Us</h2>
           <ul className="list-disc pl-6">
             <li>
@@ -79,7 +79,7 @@ export default function ContactPage() {
           </ul>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What You Can Contact Us For</h2>
           <p>You are welcome to email us regarding:</p>
           <ul className="list-disc pl-6">
@@ -94,7 +94,7 @@ export default function ContactPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Response Time</h2>
           <p>
             We try to respond to all genuine messages within <strong>3–5 business days</strong>. Some requests, especially legal or
@@ -102,7 +102,7 @@ export default function ContactPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Important Notes</h2>
           <ul className="list-disc pl-6">
             <li>Please do not send sensitive personal information (like passwords or payment details). We will never ask for them.</li>
@@ -116,7 +116,7 @@ export default function ContactPage() {
           </ul>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Final Assurance</h2>
           <p>
             Your trust is important to us. Contacting us will always be straightforward, safe, and private. We handle every message with

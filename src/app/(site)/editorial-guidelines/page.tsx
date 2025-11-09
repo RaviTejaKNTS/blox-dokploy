@@ -43,8 +43,8 @@ export default function EditorialGuidelinesPage() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="prose dark:prose-invert max-w-none game-copy">
-        <header>
+      <article className="prose dark:prose-invert max-w-none game-copy space-y-10">
+        <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Editorial Guidelines of Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
             Effective Date: October 3, 2025 · Last Updated: October 3, 2025
@@ -56,7 +56,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </header>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Accuracy and Verification</h2>
           <p>
             We understand that Roblox players rely on our site to find working codes that provide in-game rewards. For this reason, accuracy
@@ -71,7 +71,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Transparency With Readers</h2>
           <p>
             We are transparent in how we create content. Every codes page displays a <strong>“Last Updated”</strong> date so readers know
@@ -84,7 +84,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Independence</h2>
           <p>
             Bloxodes.com operates independently and is not affiliated with Roblox Corporation or any specific game developers. We do not
@@ -97,7 +97,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Content Standards</h2>
           <p>
             Our content is written for Roblox players of all ages, so clarity is essential. We use simple and direct language so that both
@@ -116,7 +116,7 @@ export default function EditorialGuidelinesPage() {
           <p>This consistency helps readers quickly find what they are looking for without confusion.</p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Regular Updates</h2>
           <p>
             Roblox codes change frequently, and players expect us to stay ahead. To meet this expectation, our editors use both manual checks
@@ -125,7 +125,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Reader Engagement</h2>
           <p>
             While we do not have comments or forums on Bloxodes.com, we value our readers’ input. Players can always reach us at{' '}
@@ -136,7 +136,7 @@ export default function EditorialGuidelinesPage() {
           <p>We also encourage users to include details when contacting us, such as the game name and the specific code, to speed up our verification process.</p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Ethics and Safety</h2>
           <p>
             We hold ourselves accountable to strong ethical standards. All content on Bloxodes.com is created with safety in mind. We never
@@ -150,7 +150,7 @@ export default function EditorialGuidelinesPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Final Commitment</h2>
           <p>
             Bloxodes.com exists to serve Roblox players by providing accurate, transparent, and safe information. Our editorial guidelines

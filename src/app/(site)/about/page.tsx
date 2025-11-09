@@ -43,8 +43,8 @@ export default function AboutPage() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="prose dark:prose-invert max-w-none game-copy">
-        <header>
+      <article className="prose dark:prose-invert max-w-none game-copy space-y-10">
+        <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">About Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
             Bloxodes.com was created with a simple purpose: to help Roblox players find the latest working codes for their favorite games
@@ -53,7 +53,7 @@ export default function AboutPage() {
           </p>
         </header>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Who We Are</h2>
           <p>
             We are an independent project run by a small team of editors and developers who love Roblox and gaming communities. Our focus is
@@ -71,7 +71,7 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What We Do</h2>
           <p>At Bloxodes.com, we:</p>
           <ul className="list-disc pl-6">
@@ -84,7 +84,7 @@ export default function AboutPage() {
           <p>Our content is written in plain, easy-to-understand language so players of all ages can benefit from it.</p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How We Work</h2>
           <p>
             Our site uses a combination of automation and editorial review. Automated tools help us detect when new codes are released, while
@@ -101,7 +101,7 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Independence and Trust</h2>
           <p>
             Bloxodes.com is a <strong>fan-made project</strong>. We do not sell codes, ask for your Roblox login, or promise rewards beyond
@@ -110,7 +110,7 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Our Commitment</h2>
           <p>We aim to be more than just another codes site. Our goal is to build a platform that:</p>
           <ul className="list-disc pl-6">
@@ -121,7 +121,7 @@ export default function AboutPage() {
           </ul>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Final Word</h2>
           <p>
             Bloxodes.com is here to make your Roblox experience more rewarding and less frustrating. By providing verified codes,

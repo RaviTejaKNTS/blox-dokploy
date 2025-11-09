@@ -43,8 +43,8 @@ export default function DisclaimerPage() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="prose dark:prose-invert max-w-none game-copy">
-        <header>
+      <article className="prose dark:prose-invert max-w-none game-copy space-y-10">
+        <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Disclaimer from Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">Effective Date: October 3, 2025 · Last Updated: October 3, 2025</p>
           <p className="text-base text-muted sm:text-lg">
@@ -54,7 +54,7 @@ export default function DisclaimerPage() {
           </p>
         </header>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">General Information Only</h2>
           <p>
             The content on Bloxodes.com is provided for <strong>general informational purposes only</strong>. While we do our best to keep
@@ -64,7 +64,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">No Affiliation With Roblox</h2>
           <p>
             Bloxodes.com is an <strong>independent website</strong>. We are not affiliated with, endorsed by, or sponsored by Roblox
@@ -73,7 +73,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Accuracy and Updates</h2>
           <p>
             We verify codes and content from reliable sources such as official developer channels, Discord servers, and social media
@@ -82,7 +82,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">No Professional Advice</h2>
           <p>
             The content on Bloxodes.com should not be interpreted as professional, legal, financial, or technical advice. It is purely
@@ -91,7 +91,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">User Responsibility</h2>
           <p>
             By using Bloxodes.com, you agree that you are responsible for how you use the information provided. This includes verifying codes
@@ -100,7 +100,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">External Links</h2>
           <p>
             Our site may contain links to third-party websites (for example, official developer Discords or social media). These links are
@@ -109,7 +109,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Limitation of Liability</h2>
           <p>
             To the maximum extent permitted by law, Bloxodes.com and its team are not liable for any damages, losses, or issues that may
@@ -123,7 +123,7 @@ export default function DisclaimerPage() {
           </ul>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Contact</h2>
           <p>
             If you have questions or concerns regarding this Disclaimer, please contact us at:
@@ -138,7 +138,7 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
-        <section>
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Summary</h2>
           <p>
             Bloxodes.com is a fan-made, independent platform providing Roblox code information as a convenience to players. We do our best to
