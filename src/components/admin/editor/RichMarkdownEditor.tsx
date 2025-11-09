@@ -236,8 +236,8 @@ function serializeInline(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) {
     return escapeMarkdownText(normalizeWhitespace(node.nodeValue ?? ""));
   }
-  if (node.nodeType !== Node.ELEMENT_NODE) return "";
-  const element = node as HTMLElement;
+  if (!(node instanceof HTMLElement)) return "";
+  const element = node;
   if (isPlaceholderElement(element)) {
     const key = element.dataset.placeholderKey ?? "";
     const label = element.dataset.placeholderLabel ?? element.textContent ?? "";
