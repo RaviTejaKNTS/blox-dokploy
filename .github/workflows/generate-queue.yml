@@ -2,7 +2,7 @@ name: Queue Article Generation
 
 on:
   schedule:
-    - cron: "0 0,8,16 * * *"
+    - cron: "0 */2 * * *" # every 2 hours (times vary due to random delay below)
   workflow_dispatch:
     inputs:
       limit:
@@ -30,6 +30,12 @@ jobs:
         with:
           node-version: 20
           cache: "npm"
+
+      - name: Random human-like delay (0–45 min)
+        run: |
+          DELAY=$((RANDOM % 2700))
+          echo "Sleeping for $DELAY seconds to vary run time..."
+          sleep "$DELAY"
 
       - name: Install dependencies
         run: npm ci
