@@ -287,7 +287,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <p>
             For any extension-specific privacy questions, contact us at{" "}
-            <a href="mailto:support@bloxodes.com">support@bloxodes.com</a>.
+            <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>.
           </p>
         </section>
 
