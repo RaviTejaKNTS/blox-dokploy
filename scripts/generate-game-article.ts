@@ -464,13 +464,6 @@ const SECTION_TITLE_VARIANTS: Record<SectionType, Array<(gameName: string) => st
     (gameName) => `## What Rewards You Get From ${gameName}`,
     () => "## What Rewards You Get From These Codes",
     () => "## Rewards You Get From These Codes"
-  ],
-  howToPlay: [
-    () => "## How to Play and What It's All About",
-    (gameName) => `## Here's What ${gameName} Is All About`,
-    () => "## How To Play This Game",
-    (gameName) => `## How to Play ${gameName}`,
-    (gameName) => `## Here's How to Play ${gameName}`
   ]
 };
 
@@ -510,166 +503,151 @@ const PROMPT_TEMPLATES: {
   // Template 1: Challenge-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Start by talking about a specific challenge or difficult aspect of ${gameName} that players face. Explain how this makes the game engaging but also frustrating at times. Then smoothly transition to how codes help overcome these challenges and make progress easier. Keep it relatable and grounded.`,
+      `Start by talking about a specific challenge or difficult aspect of ${gameName} that players face. Explain how this makes the game engaging but also frustrating at times. Then smoothly transition to how codes help overcome these challenges and make progress easier. Keep it relatable and grounded. No generic statements like "These codes give you free rewards" Be very detailed and every sentence should be game specific that drives the info forward. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
       whereVariant: 0,
-      rewardsVariant: 0,
-      howVariant: 1
+      rewardsVariant: 0
     })
   },
   // Template 2: Rewards-first intro
   {
     introGuidance: (gameName: string) =>
-      `Start directly with what codes give players - list out 2-3 specific rewards like coins, boosts, or items. Then introduce ${gameName} briefly and explain why these rewards matter in the game. Make it punchy and benefit-focused.`,
+      `Start directly with what codes give players - list out 2-3 specific rewards like coins, boosts, or items (The ones that are specific to the game). Then introduce ${gameName} briefly and explain why these rewards matter in the game. Make it punchy and benefit-focused. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
       whereVariant: 2,
-      rewardsVariant: 2,
-      howVariant: 2
+      rewardsVariant: 2
     })
   },
   // Template 3: Grind-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Talk about the grind in ${gameName} - how much time and effort progression normally takes. Be honest about it. Then explain how codes can speed things up and make the experience more enjoyable. Keep it conversational.`,
+      `Talk about the grind in ${gameName} - how much time and effort progression normally takes. Be honest about it. Then explain how codes can speed things up and make the experience more enjoyable. Keep it conversational. Sprinkle some first-hand experience but only in a way that tells the needed info. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
       whereVariant: 3,
-      rewardsVariant: 1,
-      howVariant: 0
+      rewardsVariant: 1
     })
   },
   // Template 4: Community-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Start by mentioning how popular ${gameName} is in the Roblox community. Talk about what makes it stand out. Then naturally lead into how codes are a big part of the community experience and help players stay competitive.`,
+      `Give clean details of what this game is all about. Narrative should flow like a story. Talk about what makes it stand out. Then naturally lead into how codes are a big part of the community experience and help players stay competitive. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
       whereVariant: 1,
-      rewardsVariant: 3,
-      howVariant: 3
+      rewardsVariant: 3
     })
   },
   // Template 5: New player intro
   {
     introGuidance: (gameName: string) =>
-      `Write as if talking to someone who just discovered ${gameName}. Briefly explain what the game is about in one sentence, then immediately tell them about codes and why they should use them from the start. Make it welcoming and helpful.`,
+      `Write as if talking to someone who just discovered ${gameName}. Briefly explain what the game is about in one sentence, then immediately tell them about codes and why they should use them from the start. Make it welcoming and helpful. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 4,
       whereVariant: 4,
-      rewardsVariant: 4,
-      howVariant: 4
+      rewardsVariant: 4
     })
   },
   // Template 6: Update-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Mention that ${gameName} gets regular updates and new content. Talk about how codes often come with these updates and help players access new features or items. Then explain why staying on top of codes matters.`,
+      ` Mention how often the ${gameName} get new codes. Talk about how codes often come with these updates and help players access new features or items. Then explain why staying on top of codes matters. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
       whereVariant: 2,
-      rewardsVariant: 1,
-      howVariant: 2
+      rewardsVariant: 1
     })
   },
   // Template 7: Competitive angle intro
   {
     introGuidance: (gameName: string) =>
-      `Talk about the competitive or strategic elements in ${gameName}. Explain how codes give players an edge or help them keep up with others. Make it about staying relevant in the game.`,
+      `Talk about the competitive or strategic elements in ${gameName}. Explain how codes give players an edge or help them keep up with others. Make it about staying relevant in the game. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
       whereVariant: 0,
-      rewardsVariant: 2,
-      howVariant: 0
+      rewardsVariant: 2
     })
   },
   // Template 8: Time-saver intro
   {
     introGuidance: (gameName: string) =>
-      `Start with how ${gameName} can be time-consuming. Talk about players who want to enjoy the game without spending hours grinding. Then position codes as the solution for efficient progression.`,
+      `Start with how ${gameName} can be time-consuming. Talk about players who want to enjoy the game without spending hours grinding. Then position codes as the solution for efficient progression. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
       whereVariant: 1,
-      rewardsVariant: 0,
-      howVariant: 4
+      rewardsVariant: 0
     })
   },
   // Template 9: Excitement-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Open with enthusiasm about ${gameName} and what makes it fun. Keep it energetic but genuine. Then talk about how codes add to the excitement by giving free stuff and helping players try new things.`,
+      `Open with enthusiasm about ${gameName} and what makes it fun. Keep it energetic but genuine. Then talk about how codes add to the excitement by giving free stuff and helping players try new things. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
       whereVariant: 3,
-      rewardsVariant: 3,
-      howVariant: 1
+      rewardsVariant: 3
     })
   },
   // Template 10: Problem-solution intro
   {
     introGuidance: (gameName: string) =>
-      `Identify a common problem or frustration players have in ${gameName} (like slow progress, expensive items, etc.). Then present codes as a practical solution. Be direct and helpful.`,
+      `Identify a common problem or frustration players have in ${gameName} (like slow progress, expensive items, etc.). Then present codes as a practical solution. Be direct and helpful. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
       whereVariant: 4,
-      rewardsVariant: 2,
-      howVariant: 0
+      rewardsVariant: 2
     })
   },
   // Template 11: Genre-focused intro
   {
     introGuidance: (gameName: string) =>
-      `Start by talking about the genre or style of ${gameName} (if sources mention it). Explain what type of player would enjoy it. Then connect codes to enhancing that specific gameplay experience.`,
+      `Start by talking about the genre or style of ${gameName} (if sources mention it). Explain what type of player would enjoy it. Then connect codes to enhancing that specific gameplay experience. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
       whereVariant: 2,
-      rewardsVariant: 4,
-      howVariant: 3
+      rewardsVariant: 4
     })
   },
   // Template 12: Free-to-play angle intro
   {
     introGuidance: (gameName: string) =>
-      `Emphasize that ${gameName} is free to play on Roblox. Talk about how codes make it even better by giving free rewards without spending Robux. Make it about getting the most value.`,
+      `Emphasize that ${gameName} is free to play on Roblox. Talk about how codes make it even better by giving free rewards without spending Robux. Make it about getting the most value. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
       whereVariant: 0,
-      rewardsVariant: 1,
-      howVariant: 0
+      rewardsVariant: 1
     })
   },
   // Template 13: Social proof intro
   {
     introGuidance: (gameName: string) =>
-      `Mention player counts, popularity, or what the community is saying about ${gameName} (only if in sources). Talk about why so many people are playing it. Then explain how codes help both new and experienced players.`,
+      `Mention player counts, popularity, or what the community is saying about ${gameName} (only if in sources). Talk about why so many people are playing it. Then explain how codes help both new and experienced players. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
       whereVariant: 1,
-      rewardsVariant: 2,
-      howVariant: 1
+      rewardsVariant: 2
     })
   },
   // Template 14: Seasonal/Event intro
   {
     introGuidance: (gameName: string) =>
-      `If sources mention any events or seasonal content in ${gameName}, start with that. Otherwise, talk about how the game keeps things fresh. Then explain how codes often tie into special events and limited-time rewards.`,
+      `If sources mention any events or seasonal content in ${gameName}, start with that. Otherwise, talk about how the game keeps things fresh. Then explain how codes often tie into special events and limited-time rewards. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 4,
       whereVariant: 3,
-      rewardsVariant: 0,
-      howVariant: 2
+      rewardsVariant: 0
     })
   },
   // Template 15: Direct and simple intro
   {
     introGuidance: (gameName: string) =>
-      `Keep it simple and direct. Introduce ${gameName} in one sentence. Say what codes do in one sentence. Explain why players should care in one sentence. Then wrap up the intro. No fluff, just clear information.`,
+      `Keep it simple and direct. Introduce ${gameName} in one sentence. Say what codes do in one sentence. Explain why players should care in one sentence. Then wrap up the intro. No fluff, just clear information. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
       whereVariant: 4,
-      rewardsVariant: 4,
-      howVariant: 4
+      rewardsVariant: 4
     })
   }
 ];
@@ -687,26 +665,20 @@ function buildArticlePrompt(gameName: string, sources: string) {
     switch (section.type) {
       case "codeNotWorking":
         return `   - ${heading}
-     Bullet list of real reasons from sources. Be very detailed and include all the reasons for why any code could fail. Before the bullet points, write at least a line or two to give cue to the actual points.
+     Bullet list of real reasons from sources. Keep it very simple, easy to scan, no generic and obvious solutions need to be included. Include all the needed info and reasons that user might be facing the issue. 
+     Before the bullet points, write at least a line or two to give cue to the actual points.
      Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.`;
       case "whereToFind":
         return `   - ${heading}
-     1–2 paragraphs. Use the sources to locate the official Roblox page plus any verified social channels (Discord, Twitter/X, Trello, Roblox Group, etc.).
+     1–2 short and on-point conversational paragraphs. Use the sources to locate the official Roblox page plus any verified social channels (Discord, Twitter/X, Trello, Roblox Group, etc.).
      Mention each channel by exact name (Discord server title, channel names, Twitter @handle, Roblox group title, etc.) and explain what players can find there.
      Wrap Roblox mentions with [[roblox_link|...]], Discord mentions with [[discord_link|...]], Twitter/X mentions with [[twitter_link|...]], community links with [[community_link|...]], and YouTube mentions with [[youtube_link|...]]. Make sure the anchor text is the real channel or profile name (e.g. [[discord_link|Tower Defense Discord]]).
      If a source clearly references a Discord, Twitter/X, or community link, you must include the corresponding placeholder in this section. If the source does not mention that channel, do not invent it.
-     No bullet-points in this section at all. Just conversational paras.
+     No bullet-points in this section at all. Just conversational paras. Write in as less words as possible, keep it short, info rich and to the point. However write full sentences that feels like friend explaining things to another friend. 
      Also suggest users to bookmark our page with ctrl + D on Windows (CMD + D on mac). Tell them that we will update the article with new working active codes as soon as they dropped.`;
       case "rewardsOverview":
         return `   - ${heading}
      Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into table to give cue to the audience.`;
-      case "howToPlay":
-        return `   - ${heading}
-     200–300 words explaining the game and how codes benefit players. Talk like a friend explaining the game to another friend and explain everything like a story. Add a bit of personal experience or opinion in this section in a way that fits. Don't over emphasise on the opinion though.`;
-      default:
-        // Custom sections - provide general guidance
-        return `   - ${heading}
-     Write 100-200 words for this section based on information from the sources. Keep the tone conversational and helpful. Add relevant details that enhance the article without repeating content from other sections. If sources don't have enough info for this section, you can skip it.`;
     }
   }).join('\n');
 
@@ -732,7 +704,7 @@ Write in clean markdown, no em-dashes, no speculation. The entire article should
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
 
-1. intro_md – Just 4-6 lines of detailed and cleanly explained intro. 
+1. intro_md – Just 3-5 lines of detailed and cleanly explained intro. Write in simple engish, easy to understand style. Give clean context to users to follow. No generic statements that are obvious. Dig deep and hold the crux and be very specific talking about that partcular game. Every sentence should tell something more to the user. 
    ${template.introGuidance(gameName)}
 
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
