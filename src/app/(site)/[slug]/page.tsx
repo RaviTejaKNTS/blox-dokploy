@@ -805,7 +805,7 @@ export default async function GamePage({ params }: Params) {
             </div>
             <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-accent/40 bg-accent/10 px-4 py-4 font-medium text-accent">
               <time dateTime={lastCheckedIso}>
-                Last checked for new {game.name} codes on{' '}
+                Last checked for new codes on{' '}
                 <span className="font-semibold text-foreground">{lastCheckedFormatted}</span>
                 {lastCheckedRelativeLabel ? <span>{' '}({lastCheckedRelativeLabel})</span> : null}
               </time>
@@ -827,7 +827,7 @@ export default async function GamePage({ params }: Params) {
             <h2>Active {game.name} Codes</h2>
             {active.length > 0 ? (
               <p className="text-muted">
-                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use in {game.name}. You can just click on the Copy button beside the following codes to copy and redeem them on the Roblox game.
+                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use.
               </p>
             ) : null}
           </div>
