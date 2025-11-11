@@ -703,7 +703,7 @@ Write in clean markdown, no em-dashes, no speculation. The entire article should
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
 
-1. intro_md – Just 2-4 lines of detailed and cleanly explained intro. Write in simple engish, easy to understand style. Give clean context to users to follow. No generic statements that are obvious. Dig deep and hold the crux and be very specific talking about that partcular game. Every sentence should tell something more to the user. 
+1. intro_md – Just 3-4 lines of detailed and cleanly explained intro. Write in simple engish, easy to understand style. Give clean context to users to follow. No generic statements that are obvious. Dig deep and hold the crux and be very specific talking about that partcular game. Every sentence should tell something more to the user. 
    ${template.introGuidance(gameName)}
 
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
