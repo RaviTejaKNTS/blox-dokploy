@@ -827,24 +827,7 @@ export default async function GamePage({ params }: Params) {
             <h2>Active {game.name} Codes</h2>
             {active.length > 0 ? (
               <p className="text-muted">
-                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use. Last updated by  <span>
-                    Authored by {author.slug ? (
-                      <Link
-                        href={`/authors/${author.slug}`}
-                        className="font-semibold text-foreground transition hover:text-accent"
-                        itemProp="name"
-                      >
-                        {author.name}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-foreground" itemProp="name">{author.name}</span>
-                    )}
-                  </span> on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
-                </div>
-              ) : (
-                <span className="font-semibold text-foreground" itemProp="author">
-                  Published by {SITE_NAME}
-                </span> on 
+                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use.
               </p>
             ) : null}
           </div>
