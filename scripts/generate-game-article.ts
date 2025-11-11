@@ -436,7 +436,7 @@ function convertScrapedSocialLinks(links: ScrapedSocialLinks): PlaceholderLinks 
   };
 }
 
-type SectionType = "codeNotWorking" | "whereToFind" | "rewardsOverview" | "howToPlay";
+type SectionType = "codeNotWorking" | "whereToFind" | "rewardsOverview";
 
 type SectionConfig = {
   type: SectionType;
@@ -490,8 +490,7 @@ function standardSections({
   return [
     { type: "codeNotWorking", variant: codeVariant },
     { type: "whereToFind", variant: whereVariant },
-    { type: "rewardsOverview", variant: rewardsVariant },
-    { type: "howToPlay", variant: howVariant }
+    { type: "rewardsOverview", variant: rewardsVariant }
   ];
 }
 
