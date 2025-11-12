@@ -664,7 +664,8 @@ function buildArticlePrompt(gameName: string, sources: string) {
     switch (section.type) {
       case "codeNotWorking":
         return `   - ${heading}
-     Bullet list of real reasons from sources. Keep it very simple, easy to scan, no generic and obvious solutions need to be included. Include all the needed info and reasons that user might be facing the issue. 
+     Bullet list of real reasons from sources. Keep it very simple, easy to scan, no generic and obvious solutions need to be included. Include all the needed info and reasons that user might be facing the issue.
+     when mentioning expired codes as a reason, tell users that the code might have been recenly expired and our will verify and remove those codes. 
      Before the bullet points, write at least a line or two to give cue to the actual points.
      Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.`;
       case "whereToFind":
@@ -674,7 +675,8 @@ function buildArticlePrompt(gameName: string, sources: string) {
      Wrap Roblox mentions with [[roblox_link|...]], Discord mentions with [[discord_link|...]], Twitter/X mentions with [[twitter_link|...]], community links with [[community_link|...]], and YouTube mentions with [[youtube_link|...]]. Make sure the anchor text is the real channel or profile name (e.g. [[discord_link|Tower Defense Discord]]).
      If a source clearly references a Discord, Twitter/X, or community link, you must include the corresponding placeholder in this section. If the source does not mention that channel, do not invent it.
      No bullet-points in this section at all. Just conversational paras. Write in as less words as possible, keep it short, info rich and to the point. However write full sentences that feels like friend explaining things to another friend. 
-     Also suggest users to bookmark our page with ctrl + D on Windows (CMD + D on mac). Tell them that we will update the article with new working active codes as soon as they dropped.`;
+     
+     In next para, Also suggest users to bookmark our page and tell them our system checks these sources for active and expired codes, and out team will verify these codes and update them on this page as soon as the code drops.`;
       case "rewardsOverview":
         return `   - ${heading}
      Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into table to give cue to the audience.`;
