@@ -20,7 +20,8 @@
     "links:backfill": "tsx scripts/backfill-social-links.ts",
     "linktext:generate": "tsx scripts/backfill-linktext.ts",
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
-    "genres:update": "tsx scripts/update-roblox-genres.ts"
+    "genres:update": "tsx scripts/update-roblox-genres.ts",
+    "collect:universes": "tsx scripts/collect-roblox-universes.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
