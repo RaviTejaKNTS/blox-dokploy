@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { AnyNode } from "cheerio";
 
 export type SocialLinkType = "roblox" | "community" | "discord" | "twitter" | "youtube";
 
@@ -142,7 +143,7 @@ function isBlockedTwitter(url: URL): boolean {
 
 function extractLinksFromAnchors(
   $: cheerio.CheerioAPI,
-  root: cheerio.Cheerio<cheerio.Element>,
+  root: cheerio.Cheerio<AnyNode>,
   baseUrl: string
 ): SocialLinks {
   const result: SocialLinks = {};
@@ -167,7 +168,7 @@ function extractLinksFromAnchors(
 function selectArticleContainer(
   $: cheerio.CheerioAPI,
   selectors: string[]
-): cheerio.Cheerio<cheerio.Element> | null {
+): cheerio.Cheerio<AnyNode> | null {
   for (const selector of selectors) {
     const candidate = $(selector).first();
     if (candidate.length) {
