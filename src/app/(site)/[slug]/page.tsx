@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { FaTelegramPlane } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
+import { SiGooglechrome } from "react-icons/si";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { AuthorCard } from "@/components/AuthorCard";
@@ -1010,6 +1011,18 @@ export default async function GamePage({ params }: Params) {
                   X (Twitter)
                 </span>
                 <span className="text-xs text-muted">@bloxodes</span>
+              </Link>
+              <Link
+                href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc?authuser=0&hl=en"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <SiGooglechrome className="h-4 w-4" aria-hidden />
+                  Chrome Extension
+                </span>
+                <span className="text-xs text-muted">Add to Chrome</span>
               </Link>
             </div>
           </section>

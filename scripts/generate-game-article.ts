@@ -25,6 +25,31 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE!
 );
 
+let cachedAuthorIds: string[] | null = null;
+
+async function pickAuthorId(): Promise<string | null> {
+  if (!cachedAuthorIds) {
+    const { data, error } = await supabase.from("authors").select("id");
+    if (error) {
+      console.warn("⚠️ Unable to load authors:", error.message);
+      cachedAuthorIds = [];
+    } else {
+      cachedAuthorIds = (data ?? [])
+        .map((author) => author.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+    }
+  }
+
+  if (!cachedAuthorIds || cachedAuthorIds.length === 0) {
+    console.warn("⚠️ No authors available; skipping author assignment.");
+    return null;
+  }
+
+  const authorIds = cachedAuthorIds;
+  const index = Math.floor(Math.random() * authorIds.length);
+  return authorIds[index] ?? null;
+}
+
 const GOOGLE_SEARCH_KEY = process.env.GOOGLE_SEARCH_KEY!;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX!;
 
@@ -848,7 +873,9 @@ async function main() {
 
   const { data: existingGame, error: existingError } = await supabase
     .from("games")
-    .select("id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre")
+    .select(
+      "id, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre"
+    )
     .eq("slug", slug)
     .maybeSingle();
 
@@ -932,6 +959,11 @@ async function main() {
     seo_description: article.meta_description,
     is_published: true,
   };
+
+  const authorId = existingGame?.author_id ?? (await pickAuthorId());
+  if (authorId) {
+    insertPayload.author_id = authorId;
+  }
 
   if (robloxDenSource) insertPayload.source_url = robloxDenSource;
   if (beebomSource) insertPayload.source_url_2 = beebomSource;

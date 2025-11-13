@@ -26,6 +26,9 @@ const PROVIDER_RANK: Record<Provider, number> = {
 };
 
 const USER_AGENT = "Mozilla/5.0 (compatible; RobloxCodesSocialBot/1.0)";
+const TWITTER_HANDLE_BLOCKLIST = new Set(["ishanxxi", "sanmaysays"]);
+const EXCLUDED_CONTAINER_SELECTOR =
+  "aside, header, footer, .author, .author-box, .author-card, .post-author, .byline, .post-share, .social-share, .article-share, .sidebar, .related-articles";
 
 const TRACKING_PARAMS = [
   "utm_source",
@@ -127,6 +130,16 @@ async function fetchHtml(url: string): Promise<cheerio.CheerioAPI> {
   return cheerio.load(html);
 }
 
+function isBlockedTwitter(url: URL): boolean {
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "twitter.com" && host !== "x.com") {
+    return false;
+  }
+  const [handle] = url.pathname.split("/").filter(Boolean);
+  if (!handle) return false;
+  return TWITTER_HANDLE_BLOCKLIST.has(handle.toLowerCase());
+}
+
 function extractLinksFromAnchors(
   $: cheerio.CheerioAPI,
   root: cheerio.Cheerio<cheerio.Element>,
@@ -134,9 +147,14 @@ function extractLinksFromAnchors(
 ): SocialLinks {
   const result: SocialLinks = {};
   root.find("a[href]").each((_, element) => {
-    const href = $(element).attr("href");
+    const anchor = $(element);
+    if (anchor.closest(EXCLUDED_CONTAINER_SELECTOR).length > 0) {
+      return;
+    }
+    const href = anchor.attr("href");
     const normalized = normalizeAbsoluteUrl(href, baseUrl);
     if (!normalized) return;
+    if (isBlockedTwitter(normalized)) return;
     const type = classifyLink(normalized);
     if (!type) return;
     if (!result[type]) {
@@ -146,29 +164,43 @@ function extractLinksFromAnchors(
   return result;
 }
 
+function selectArticleContainer(
+  $: cheerio.CheerioAPI,
+  selectors: string[]
+): cheerio.Cheerio<cheerio.Element> | null {
+  for (const selector of selectors) {
+    const candidate = $(selector).first();
+    if (candidate.length) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 async function scrapeRobloxdenLinks(url: string): Promise<SocialLinks> {
   const $ = await fetchHtml(url);
-  const sidebar = $(".section__side").first();
-  if (!sidebar.length) {
+  const container =
+    selectArticleContainer($, [
+      ".section__main article",
+      ".section__main .section__body",
+      ".article__content",
+      ".section__body"
+    ]) ?? null;
+  if (!container) {
     return {};
   }
-  const links: SocialLinks = {};
-  sidebar.find("a[href]").each((_, element) => {
-    const href = $(element).attr("href");
-    const normalized = normalizeAbsoluteUrl(href, url);
-    if (!normalized) return;
-    const type = classifyLink(normalized);
-    if (type === "roblox" && !links.roblox) {
-      links.roblox = normalized.toString();
-    }
-  });
-  return links;
+  return extractLinksFromAnchors($, container, url);
 }
 
 async function scrapeBeebomLinks(url: string): Promise<SocialLinks> {
   const $ = await fetchHtml(url);
-  const container = $(".beebom-single-content.entry-content.highlight");
-  if (!container.length) {
+  const container =
+    selectArticleContainer($, [
+      ".beebom-single-content.entry-content.highlight",
+      ".entry-content",
+      "article .content-area"
+    ]) ?? null;
+  if (!container) {
     return {};
   }
   return extractLinksFromAnchors($, container, url);
@@ -176,8 +208,13 @@ async function scrapeBeebomLinks(url: string): Promise<SocialLinks> {
 
 async function scrapeDestructoidLinks(url: string): Promise<SocialLinks> {
   const $ = await fetchHtml(url);
-  const container = $(".wp-block-gamurs-article-content");
-  if (!container.length) {
+  const container =
+    selectArticleContainer($, [
+      ".wp-block-gamurs-article-content",
+      "article .wp-block-post-content",
+      ".article__body"
+    ]) ?? null;
+  if (!container) {
     return {};
   }
   return extractLinksFromAnchors($, container, url);
