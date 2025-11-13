@@ -247,7 +247,7 @@ async function loadUniverses(limit: number) {
     .from("roblox_games")
     .select("universe_id, root_place_id, last_seen_in_sort, updated_at, name")
     .not("root_place_id", "is", null)
-    .order("last_seen_in_sort", { ascending: false, nullsLast: true });
+    .order("last_seen_in_sort", { ascending: false });
 
   if (limit > 0) {
     query = query.limit(limit);
@@ -405,8 +405,8 @@ function normalizeThumbnailEntries(thumbnails: ThumbnailResponse["data"]) {
     number,
     Array<{
       url: string;
-      state: string | undefined;
-      type: string | undefined;
+      state?: string;
+      type?: string;
       raw: Record<string, unknown>;
     }>
   >();
