@@ -177,6 +177,20 @@ create table if not exists public.roblox_place_servers (
 create index if not exists idx_roblox_place_servers_place on public.roblox_place_servers (place_id, fetched_at desc);
 create index if not exists idx_roblox_place_servers_universe on public.roblox_place_servers (universe_id, fetched_at desc);
 
+create table if not exists public.roblox_game_stats (
+  id uuid primary key default uuid_generate_v4(),
+  universe_id bigint not null references public.roblox_games(universe_id) on delete cascade,
+  playing bigint,
+  visits bigint,
+  favorites bigint,
+  likes bigint,
+  dislikes bigint,
+  stats jsonb not null default '{}'::jsonb,
+  recorded_at timestamptz not null default now()
+);
+
+create index if not exists idx_roblox_game_stats_universe on public.roblox_game_stats (universe_id, recorded_at desc);
+
 drop trigger if exists trg_roblox_games_updated_at on public.roblox_games;
 create trigger trg_roblox_games_updated_at before update on public.roblox_games
 for each row execute function public.set_updated_at();
@@ -190,3 +204,4 @@ alter table public.roblox_sort_definitions enable row level security;
 alter table public.roblox_sort_entries enable row level security;
 alter table public.roblox_search_snapshots enable row level security;
 alter table public.roblox_place_servers enable row level security;
+alter table public.roblox_game_stats enable row level security;

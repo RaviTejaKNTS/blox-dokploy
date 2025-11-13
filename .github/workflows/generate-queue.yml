@@ -8,7 +8,7 @@ on:
       limit:
         description: "Number of games to process"
         required: false
-        default: "1"
+        default: "0"
 
 jobs:
   run-queue:
