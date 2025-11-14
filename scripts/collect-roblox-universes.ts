@@ -3,6 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { slugify } from "@/lib/slug";
 
 const EXPLORE_BASE = "https://apis.roblox.com/explore-api/v1";
 const DEVICE = process.env.ROBLOX_DEVICE ?? "computer";
@@ -244,6 +245,14 @@ type FetchResult = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const todayIsoDate = () => new Date().toISOString().slice(0, 10);
+
+function toSlug(value?: string | null): string | null {
+  if (!value) return null;
+  const slug = slugify(value);
+  return slug || null;
+}
+
 async function fetchJson(url: string, label: string): Promise<any> {
   const res = await fetch(url, { headers: { "user-agent": "BloxodesExploreBot/1.0" } });
   if (!res.ok) {
@@ -354,9 +363,10 @@ async function collectSortContent(
     const games = extractGames(payload);
     if (!games.length) break;
 
-    const upsertGamesPayload: any[] = [];
+    const upsertUniversesPayload: any[] = [];
     const sortEntriesPayload: any[] = [];
     const now = new Date().toISOString();
+    const statDate = todayIsoDate();
 
     games.forEach((game, index) => {
       const universeId = toNumber(game.universeId);
@@ -382,21 +392,30 @@ async function collectSortContent(
       const thumbnails = normalizeThumbnails(game);
       const iconUrl = thumbnails.find((thumb) => thumb.type === "Icon")?.url ?? thumbnails[0]?.url ?? null;
 
-      upsertGamesPayload.push({
+      const baseName = game.displayName ?? game.name ?? null;
+      const isAllGenre =
+        typeof game.genre === "string" && game.genre.toLowerCase().includes("all")
+          ? true
+          : false;
+
+      upsertUniversesPayload.push({
         universe_id: universeId,
         root_place_id: rootPlaceId,
         name: game.name ?? game.displayName ?? `Universe ${universeId}`,
         display_name: game.displayName ?? null,
+        slug: toSlug(baseName),
         description: typeof game.description === "string" ? game.description : null,
+        description_source: typeof game.description === "string" ? "explore" : null,
         creator_id: toNumber(game.creatorId),
         creator_name: game.creatorName ?? null,
         creator_type: game.creatorType ?? null,
         creator_has_verified_badge: Boolean(game.creatorHasVerifiedBadge ?? game.hasVerifiedBadge ?? false),
         genre: game.genre ?? null,
-        source_name: sort.title ?? sort.displayName ?? sortId,
-        source_session_id: sessionId,
+        genre_l1: game.genre ?? null,
+        genre_l2: null,
+        is_all_genre: isAllGenre,
         price: toNumber(game.price ?? game.accessPrice),
-        voice_enabled: Boolean(game.voiceEnabled ?? false),
+        voice_chat_enabled: Boolean(game.voiceEnabled ?? false),
         server_size: toNumber(game.serverSize) ?? null,
         max_players: toNumber(game.maxPlayers) ?? null,
         playing: stats.playing ?? null,
@@ -404,12 +423,19 @@ async function collectSortContent(
         favorites: stats.favorites ?? null,
         likes: stats.votes.up ?? null,
         dislikes: stats.votes.down ?? null,
-        age_recommendation: game.ageRecommendation ?? null,
         is_sponsored: Boolean(game.isSponsored ?? false),
-        has_verified_badge: Boolean(game.hasVerifiedBadge ?? false),
+        age_rating: game.ageRecommendation ?? null,
         icon_url: iconUrl,
         thumbnail_urls: thumbnails,
-        stats,
+        social_links: {},
+        raw_metadata: {
+          source: "explore",
+          sort_id: sortId,
+          sort_title: sort.title ?? sort.displayName ?? sortId,
+          rank,
+          device: DEVICE,
+          country: COUNTRY
+        },
         raw_details: game,
         last_seen_in_sort: now
       });
@@ -429,23 +455,24 @@ async function collectSortContent(
       });
     });
 
-    if (upsertGamesPayload.length) {
-      const { error } = await sb.from("roblox_games").upsert(upsertGamesPayload, { onConflict: "universe_id" });
+    if (upsertUniversesPayload.length) {
+      const { error } = await sb.from("roblox_universes").upsert(upsertUniversesPayload, {
+        onConflict: "universe_id"
+      });
       if (error) {
-        throw new Error(`Failed to upsert roblox_games: ${error.message}`);
+        throw new Error(`Failed to upsert roblox_universes: ${error.message}`);
       }
     }
 
     if (sortEntriesPayload.length) {
-      const { error } = await sb.from("roblox_sort_entries").insert(sortEntriesPayload).select("id");
+      const { error } = await sb.from("roblox_universe_sort_entries").insert(sortEntriesPayload).select("id");
       if (error && !error.message.includes("duplicate key")) {
         throw new Error(`Failed to insert sort entries: ${error.message}`);
       }
     }
 
-    const statsSnapshots = upsertGamesPayload
+    const statsSnapshots = upsertUniversesPayload
       .map((payload) => {
-        const stats = payload.stats ?? {};
         if (
           payload.playing == null &&
           payload.visits == null &&
@@ -457,19 +484,28 @@ async function collectSortContent(
         }
         return {
           universe_id: payload.universe_id,
+          stat_date: statDate,
           playing: payload.playing ?? null,
           visits: payload.visits ?? null,
           favorites: payload.favorites ?? null,
           likes: payload.likes ?? null,
           dislikes: payload.dislikes ?? null,
-          stats,
+          snapshot: {
+            playing: payload.playing ?? null,
+            visits: payload.visits ?? null,
+            favorites: payload.favorites ?? null,
+            likes: payload.likes ?? null,
+            dislikes: payload.dislikes ?? null
+          },
           recorded_at: now
         };
       })
       .filter((value): value is Required<typeof value> => Boolean(value));
 
     if (statsSnapshots.length) {
-      const { error } = await sb.from("roblox_game_stats").insert(statsSnapshots);
+      const { error } = await sb.from("roblox_universe_stats_daily").upsert(statsSnapshots, {
+        onConflict: "universe_id,stat_date"
+      });
       if (error) {
         throw new Error(`Failed to insert stats snapshots: ${error.message}`);
       }
@@ -512,7 +548,7 @@ async function run(): Promise<FetchResult> {
   console.log(`📋 Retrieved ${sorts.length} sorts (including ${extraSorts.length} extras).`);
 
   const { data: runRecord, error: runError } = await sb
-    .from("roblox_sort_runs")
+    .from("roblox_universe_sort_runs")
     .insert({
       session_id: sessionId,
       device: DEVICE,
@@ -540,7 +576,7 @@ async function run(): Promise<FetchResult> {
       experiments: sort.experiments ?? {},
       last_seen_at: runStartedAt
     };
-    const { error: definitionError } = await sb.from("roblox_sort_definitions").upsert(definitionPayload, {
+    const { error: definitionError } = await sb.from("roblox_universe_sort_definitions").upsert(definitionPayload, {
       onConflict: "sort_id"
     });
     if (definitionError) {
