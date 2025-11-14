@@ -31,6 +31,7 @@ create table if not exists public.games (
   source_url_2 text,
   source_url_3 text,
   roblox_link text,
+  universe_id bigint references public.roblox_universes(universe_id),
   community_link text,
   discord_link text,
   twitter_link text,
@@ -367,12 +368,14 @@ create table if not exists public.article_categories (
   slug text not null unique,
   description text,
   game_id uuid references public.games(id) on delete set null,
+  universe_id bigint references public.roblox_universes(universe_id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists idx_article_categories_slug on public.article_categories (lower(slug));
 create index if not exists idx_article_categories_game on public.article_categories (game_id);
+create index if not exists idx_article_categories_universe on public.article_categories (universe_id);
 
 -- articles table
 create table if not exists public.articles (
@@ -383,6 +386,7 @@ create table if not exists public.articles (
   cover_image text,
   author_id uuid references public.authors(id) on delete set null,
   category_id uuid references public.article_categories(id) on delete set null,
+  universe_id bigint references public.roblox_universes(universe_id),
   is_published boolean not null default false,
   published_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
@@ -395,6 +399,9 @@ create index if not exists idx_articles_published on public.articles (is_publish
 create index if not exists idx_articles_slug on public.articles (lower(slug));
 create index if not exists idx_articles_category on public.articles (category_id, is_published);
 create index if not exists idx_articles_author on public.articles (author_id, is_published);
+create index if not exists idx_articles_universe on public.articles (universe_id);
+
+create index if not exists idx_games_universe_id on public.games (universe_id);
 
 -- trigger to update updated_at
 create or replace function public.set_updated_at() returns trigger as $$

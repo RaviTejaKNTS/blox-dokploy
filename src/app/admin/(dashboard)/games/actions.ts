@@ -23,6 +23,7 @@ import {
   scrapeRobloxGameMetadata
 } from "@/lib/roblox/game-metadata";
 import { sanitizeCodeDisplay } from "@/lib/code-normalization";
+import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 
 const upsertGameSchema = z.object({
   id: z.string().uuid().optional(),
@@ -125,8 +126,21 @@ export async function saveGame(form: FormData) {
       sub_genre: payload.sub_genre,
       seo_title: payload.seo_title,
       seo_description: payload.seo_description,
-      cover_image: payload.cover_image
+      cover_image: payload.cover_image,
+      universe_id: null as number | null
     };
+
+    if (record.roblox_link) {
+      try {
+        const ensuredUniverse = await ensureUniverseForRobloxLink(supabase, record.roblox_link);
+        record.universe_id = ensuredUniverse.universeId ?? null;
+      } catch (err) {
+        console.warn(
+          "⚠️ Failed to ensure Roblox universe for game:",
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
 
     type GameRecord = {
       id: string;
@@ -141,6 +155,7 @@ export async function saveGame(form: FormData) {
       discord_link: string | null;
       youtube_link: string | null;
       is_published: boolean | null;
+      universe_id: number | null;
     };
 
     let game: GameRecord | null = null;
@@ -151,7 +166,7 @@ export async function saveGame(form: FormData) {
         .update(record)
         .eq("id", payload.id)
         .select(
-          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published"
+          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published, universe_id"
         )
         .single();
 
@@ -164,7 +179,7 @@ export async function saveGame(form: FormData) {
         .from("games")
         .insert(record)
         .select(
-          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published"
+          "id, slug, name, source_url, source_url_2, source_url_3, roblox_link, community_link, twitter_link, discord_link, youtube_link, is_published, universe_id"
         )
         .single();
 
@@ -181,7 +196,8 @@ export async function saveGame(form: FormData) {
     const categorySync = await ensureGameCategory(supabase, {
       id: game.id,
       slug: game.slug,
-      name: game.name
+      name: game.name,
+      universe_id: game.universe_id ?? null
     });
 
     const syncResult = await syncGameCodesFromSources(supabase, game.id, [

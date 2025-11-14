@@ -16,6 +16,7 @@ import {
   fetchGenreFromUniverse,
   scrapeRobloxGameMetadata
 } from "@/lib/roblox/game-metadata";
+import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 import { scrapeSocialLinksFromSources, type SocialLinks as ScrapedSocialLinks } from "@/lib/social-links";
 import { normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
@@ -874,7 +875,7 @@ async function main() {
   const { data: existingGame, error: existingError } = await supabase
     .from("games")
     .select(
-      "id, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre"
+      "id, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -979,6 +980,24 @@ async function main() {
   if (finalGenre) insertPayload.genre = finalGenre;
   if (finalSubGenre) insertPayload.sub_genre = finalSubGenre;
 
+  let resolvedUniverseId = (existingGame?.universe_id as number | null | undefined) ?? null;
+  if (resolvedLinks.roblox_link?.url) {
+    try {
+      const ensuredUniverse = await ensureUniverseForRobloxLink(supabase, resolvedLinks.roblox_link.url);
+      if (ensuredUniverse.universeId) {
+        resolvedUniverseId = ensuredUniverse.universeId;
+      }
+    } catch (error) {
+      console.warn(
+        "⚠️ Failed to ensure Roblox universe:",
+        error instanceof Error ? error.message : error
+      );
+    }
+  }
+  if (resolvedUniverseId != null) {
+    insertPayload.universe_id = resolvedUniverseId;
+  }
+
   const upsert = await supabase
     .from("games")
     .upsert(insertPayload, { onConflict: "slug" })
@@ -993,7 +1012,7 @@ async function main() {
     console.warn(`⚠️ Unable to determine game id for "${name}". Skipping category sync.`);
   } else {
     try {
-      await ensureCategoryForGame(supabase, { id: gameId, slug, name });
+      await ensureCategoryForGame(supabase, { id: gameId, slug, name, universe_id: resolvedUniverseId });
     } catch (ensureError) {
       console.warn(
         `⚠️ Failed to ensure category for "${name}":`,

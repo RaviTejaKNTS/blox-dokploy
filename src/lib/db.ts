@@ -278,7 +278,7 @@ export async function listArticleCategories(autoEnsureGameCategories = true): Pr
   if (autoEnsureGameCategories) {
     const { data: games, error: gamesError } = await sb
       .from('games')
-      .select('id,name,slug,is_published')
+      .select('id,name,slug,is_published,universe_id')
       .order('name', { ascending: true });
     if (gamesError) throw gamesError;
     for (const game of games ?? []) {
@@ -286,7 +286,8 @@ export async function listArticleCategories(autoEnsureGameCategories = true): Pr
       await ensureCategoryForGame(sb, {
         id: game.id,
         slug: game.slug,
-        name: game.name
+        name: game.name,
+        universe_id: game.universe_id ?? null
       });
     }
 

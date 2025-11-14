@@ -5,6 +5,7 @@ type GameInfo = {
   id: string;
   slug: string;
   name: string;
+  universe_id?: number | null;
 };
 
 function isNoRowError(error: { code?: string } | null | undefined) {
@@ -14,11 +15,11 @@ function isNoRowError(error: { code?: string } | null | undefined) {
 async function fetchCategoryBySlug(
   supabase: SupabaseClient,
   slug: string
-): Promise<{ id: string; slug: string; name: string; game_id: string | null } | null> {
+): Promise<{ id: string; slug: string; name: string; game_id: string | null; universe_id: number | null } | null> {
   if (!slug) return null;
   const { data, error } = await supabase
     .from("article_categories")
-    .select("id, slug, name, game_id")
+    .select("id, slug, name, game_id, universe_id")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -26,23 +27,23 @@ async function fetchCategoryBySlug(
     throw error;
   }
 
-  return (data as { id: string; slug: string; name: string; game_id: string | null } | null) ?? null;
+  return (data as { id: string; slug: string; name: string; game_id: string | null; universe_id: number | null } | null) ?? null;
 }
 
 async function fetchCategoriesByGameId(
   supabase: SupabaseClient,
   gameId: string
-): Promise<{ id: string; slug: string; name: string; game_id: string | null }[]> {
+): Promise<{ id: string; slug: string; name: string; game_id: string | null; universe_id: number | null }[]> {
   const { data, error } = await supabase
     .from("article_categories")
-    .select("id, slug, name, game_id")
+    .select("id, slug, name, game_id, universe_id")
     .eq("game_id", gameId);
 
   if (error && !isNoRowError(error)) {
     throw error;
   }
 
-  return (data as { id: string; slug: string; name: string; game_id: string | null }[]) ?? [];
+  return (data as { id: string; slug: string; name: string; game_id: string | null; universe_id: number | null }[]) ?? [];
 }
 
 export interface AdminCategorySummary {
@@ -159,7 +160,8 @@ export async function ensureCategoryForGame(
       .insert({
         name: game.name,
         slug: desiredSlug,
-        game_id: game.id
+        game_id: game.id,
+        universe_id: game.universe_id ?? null
       })
       .select("slug")
       .maybeSingle();
@@ -186,6 +188,9 @@ export async function ensureCategoryForGame(
   }
   if (existing.game_id !== game.id) {
     updates.game_id = game.id;
+  }
+  if ((existing as any).universe_id !== (game.universe_id ?? null)) {
+    updates.universe_id = game.universe_id ?? null;
   }
 
   if (Object.keys(updates).length === 0) {

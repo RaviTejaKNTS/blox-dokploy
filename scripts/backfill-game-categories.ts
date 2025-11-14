@@ -8,6 +8,7 @@ type GameRecord = {
   id: string;
   name: string | null;
   slug: string | null;
+  universe_id: number | null;
 };
 
 async function main() {
@@ -15,7 +16,7 @@ async function main() {
 
   const { data: games, error } = await sb
     .from("games")
-    .select("id, name, slug")
+    .select("id, name, slug, universe_id")
     .order("name", { ascending: true });
 
   if (error) {
@@ -44,7 +45,8 @@ async function main() {
     const { slug, previousSlug } = await ensureCategoryForGame(sb, {
       id: game.id,
       name: game.name ?? expectedSlug,
-      slug: game.slug ?? expectedSlug
+      slug: game.slug ?? expectedSlug,
+      universe_id: game.universe_id ?? null
     });
 
     ensuredCount += 1;

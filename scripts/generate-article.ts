@@ -26,6 +26,7 @@ type CategoryRow = {
   id: string;
   name: string;
   slug: string;
+  universe_id: number | null;
 };
 
 type SearchResult = {
@@ -152,7 +153,7 @@ async function fetchCategory(categoryId: string | null): Promise<CategoryRow | n
   if (!categoryId) return null;
   const { data, error } = await supabase
     .from("article_categories")
-    .select("id, name, slug")
+    .select("id, name, slug, universe_id")
     .eq("id", categoryId)
     .maybeSingle();
   if (error) throw new Error(`Failed to load category ${categoryId}: ${error.message}`);
@@ -637,6 +638,7 @@ async function insertArticleDraft(
       slug,
       content_md: article.content_md,
       category_id: category ? category.id : null,
+      universe_id: category?.universe_id ?? null,
       author_id: AUTHOR_ID,
       is_published: false,
       meta_description: article.meta_description,

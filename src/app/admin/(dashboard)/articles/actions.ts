@@ -103,8 +103,30 @@ export async function saveArticle(formData: FormData) {
     is_published: payload.is_published ?? false,
     published_at: publishedAtValue,
     word_count: wordCount,
-    meta_description: payload.meta_description
+    meta_description: payload.meta_description,
+    universe_id: null as number | null
   };
+
+  if (record.category_id) {
+    const { data: categoryRow, error: categoryError } = await supabase
+      .from("article_categories")
+      .select("universe_id, game_id")
+      .eq("id", record.category_id)
+      .maybeSingle();
+    if (categoryError) throw categoryError;
+    const categoryUniverse = (categoryRow?.universe_id as number | null | undefined) ?? null;
+    if (categoryUniverse != null) {
+      record.universe_id = categoryUniverse;
+    } else if (categoryRow?.game_id) {
+      const { data: gameRow, error: gameError } = await supabase
+        .from("games")
+        .select("universe_id")
+        .eq("id", categoryRow.game_id as string)
+        .maybeSingle();
+      if (gameError) throw gameError;
+      record.universe_id = (gameRow?.universe_id as number | null | undefined) ?? null;
+    }
+  }
 
   let categorySlug: string | null = null;
   let articleId: string | null = payload.id ?? null;
