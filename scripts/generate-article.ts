@@ -14,19 +14,11 @@ type QueueRow = {
   id: string;
   article_title: string | null;
   article_type: ArticleType | null;
-  category_id: string | null;
   status: "pending" | "completed" | "failed";
   attempts: number;
   last_attempted_at: string | null;
   last_error: string | null;
   sources: string | null;
-};
-
-type CategoryRow = {
-  id: string;
-  name: string;
-  slug: string;
-  universe_id: number | null;
 };
 
 type SearchResult = {
@@ -147,17 +139,6 @@ async function fetchQueueEntry(queueId: string): Promise<QueueRow> {
   if (error) throw new Error(`Failed to load queue entry: ${error.message}`);
   if (!data) throw new Error(`Queue entry ${queueId} not found.`);
   return data as QueueRow;
-}
-
-async function fetchCategory(categoryId: string | null): Promise<CategoryRow | null> {
-  if (!categoryId) return null;
-  const { data, error } = await supabase
-    .from("article_categories")
-    .select("id, name, slug, universe_id")
-    .eq("id", categoryId)
-    .maybeSingle();
-  if (error) throw new Error(`Failed to load category ${categoryId}: ${error.message}`);
-  return (data as CategoryRow | null) ?? null;
 }
 
 async function updateQueueAttempt(queue: QueueRow): Promise<void> {
@@ -507,7 +488,6 @@ ${excerptBlocks}
 function buildArticlePrompt(
   topic: string,
   articleType: ArticleType,
-  category: CategoryRow | null,
   blogSources: SourceDocument[],
   forumSummaries: SourceSummary[]
 ): string {
@@ -532,7 +512,6 @@ You are an experienced Roblox journalist. Write in simple English that feels lik
 
 Requested topic: "${topic}"
 Article type: ${articleType}
-Category: ${category ? category.name : "Unassigned"}
 
 Article style guidance: ${ARTICLE_STYLE[articleType]}
 
@@ -615,7 +594,6 @@ function estimateWordCount(markdown: string): number {
 async function insertArticleDraft(
   article: DraftArticle,
   queue: QueueRow,
-  category: CategoryRow | null,
   requestedTopic: string
 ): Promise<string> {
   const topic = (queue.article_title?.trim() || requestedTopic.trim()).toLowerCase();
@@ -637,8 +615,6 @@ async function insertArticleDraft(
       title: finalTitle,
       slug,
       content_md: article.content_md,
-      category_id: category ? category.id : null,
-      universe_id: category?.universe_id ?? null,
       author_id: AUTHOR_ID,
       is_published: false,
       meta_description: article.meta_description,
@@ -668,8 +644,6 @@ async function main() {
 
     await updateQueueAttempt(queueEntry);
 
-    const category = await fetchCategory(queueEntry.category_id);
-
     const manualSourceUrls = parseManualSourceList(queueEntry.sources);
     if (manualSourceUrls.length) {
       console.log(`manual_source_urls=${manualSourceUrls.length}`);
@@ -687,8 +661,6 @@ async function main() {
 
     console.log(`topic: ${topic}`);
     console.log(`type: ${articleType}`);
-    console.log(`category: ${category ? category.name : "Unassigned"}`);
-
     const sources = manualSources.length > 0 ? manualSources : await gatherSources(topic);
     console.log(
       `sources_collected=${sources.length} source_mode=${manualSources.length > 0 ? "manual" : "search"}`
@@ -701,7 +673,7 @@ async function main() {
       console.log("summaries_ready");
     }
 
-    const prompt = buildArticlePrompt(topic, articleType, category, blogSources, summaries);
+    const prompt = buildArticlePrompt(topic, articleType, blogSources, summaries);
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
@@ -709,7 +681,7 @@ async function main() {
       throw new Error("Generated article is too short.");
     }
 
-    await insertArticleDraft(draft, queueEntry, category, topic);
+    await insertArticleDraft(draft, queueEntry, topic);
     await updateQueueStatus(queueEntry.id, "completed");
 
     console.log("article_saved status=draft");

@@ -7,7 +7,6 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import sharp from "sharp";
 
-import { ensureCategoryForGame } from "@/lib/admin/categories";
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
 import { generateLinktextForGames } from "@/lib/linktext";
 import {
@@ -731,7 +730,7 @@ Write in clean markdown, no em-dashes, no speculation. Keep the language simple,
 Sections required:
 0. game_display_name – return the official game name exactly as written in the sources (respect capitalization, punctuation, and spacing). Never invent a new name.
 
-1. intro_md – Just 3-4 lines of detailed and cleanly explained intro. Write in simple engish, easy to understand style. Give clean context to users to follow. No generic statements that are obvious. Dig deep and hold the crux and be very specific talking about that partcular game. Every sentence should tell something more to the user. 
+1. intro_md – Just 3-4 lines of detailed and cleanly explained intro. Write in simple engish, easy to understand style. Give clean context to users to follow. No generic statements that are obvious. Dig deep and hold the crux and be very specific talking about that partcular game. Every sentence should tell something more to the user. Again, no generic statements like "${gameName} is a Roblox game, where" or "If you love" or "This game is perfect for" or "${gameName} is ideal for" or "This game is great for" or "This game is amazing for" or "This game is ideal for players who" or "This game is perfect for those who". Write unconvertional, random, just dont any sort template style, but stick to the facts and keep it conversational and human. 
    ${template.introGuidance(gameName)}
 
 2. redeem_md – "## How to Redeem ${gameName} Codes" with numbered steps.
@@ -1007,19 +1006,6 @@ async function main() {
   if (upsert.error) throw upsert.error;
   const gameId = upsert.data?.id ?? existingGame?.id;
   console.log(`✅ "${name}" saved successfully (${slug})`);
-
-  if (!gameId) {
-    console.warn(`⚠️ Unable to determine game id for "${name}". Skipping category sync.`);
-  } else {
-    try {
-      await ensureCategoryForGame(supabase, { id: gameId, slug, name, universe_id: resolvedUniverseId });
-    } catch (ensureError) {
-      console.warn(
-        `⚠️ Failed to ensure category for "${name}":`,
-        ensureError instanceof Error ? ensureError.message : ensureError
-      );
-    }
-  }
 
   try {
     await generateLinktextForGames(supabase, { slugs: [slug], overwrite: false, limit: 1 });

@@ -4,14 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import type { AdminArticleSummary, AdminArticleCategoryOption } from "@/lib/admin/articles";
+import type { AdminArticleSummary } from "@/lib/admin/articles";
 import type { AdminAuthorOption } from "@/lib/admin/games";
 
 const columns = [
   { key: "title", label: "Title" },
   { key: "slug", label: "Slug" },
   { key: "author", label: "Author" },
-  { key: "category", label: "Category" },
   { key: "status", label: "Status" },
   { key: "updated", label: "Last Update" },
   { key: "published", label: "Published" }
@@ -25,7 +24,6 @@ const defaultVisibility: ColumnVisibility = {
   title: true,
   slug: true,
   author: true,
-  category: true,
   status: true,
   updated: true,
   published: true
@@ -34,7 +32,6 @@ const defaultVisibility: ColumnVisibility = {
 interface ArticlesClientProps {
   initialArticles: AdminArticleSummary[];
   authors: AdminAuthorOption[];
-  categories: AdminArticleCategoryOption[];
 }
 
 function sortArticles(
@@ -52,12 +49,11 @@ function sortArticles(
   });
 }
 
-export function ArticlesClient({ initialArticles, authors, categories }: ArticlesClientProps) {
+export function ArticlesClient({ initialArticles, authors }: ArticlesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("published");
   const [authorFilter, setAuthorFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<"updated_at" | "created_at">("updated_at");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [visibility, setVisibility] = useState<ColumnVisibility>(defaultVisibility);
@@ -71,11 +67,10 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
       const matchesStatus =
         statusFilter === "all" ? true : statusFilter === "published" ? article.is_published : !article.is_published;
       const matchesAuthor = authorFilter === "all" ? true : article.author.id === authorFilter;
-      const matchesCategory = categoryFilter === "all" ? true : article.category.id === categoryFilter;
-      return matchesSearch && matchesStatus && matchesAuthor && matchesCategory;
+      return matchesSearch && matchesStatus && matchesAuthor;
     });
     return sortArticles(filteredArticles, sortKey, sortOrder);
-  }, [initialArticles, search, statusFilter, authorFilter, categoryFilter, sortKey, sortOrder]);
+  }, [initialArticles, search, statusFilter, authorFilter, sortKey, sortOrder]);
 
   const totalCount = initialArticles.length;
   const filteredCount = filtered.length;
@@ -153,18 +148,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
             </option>
           ))}
         </select>
-        <select
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-        >
-          <option value="all">All categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
         <div className="flex items-center gap-2">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="articles-sort-key">
             Sort
@@ -224,7 +207,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
               {visibility.title ? <th className="px-4 py-3 text-left">Title</th> : null}
               {visibility.slug ? <th className="px-4 py-3 text-left">Slug</th> : null}
               {visibility.author ? <th className="px-4 py-3 text-left">Author</th> : null}
-              {visibility.category ? <th className="px-4 py-3 text-left">Category</th> : null}
               {visibility.status ? <th className="px-4 py-3 text-left">Status</th> : null}
               {visibility.updated ? <th className="px-4 py-3 text-left">Last update</th> : null}
               {visibility.published ? <th className="px-4 py-3 text-left">Published</th> : null}
@@ -254,7 +236,6 @@ export function ArticlesClient({ initialArticles, authors, categories }: Article
                   </td>
                 ) : null}
                 {visibility.author ? <td className="px-4 py-3">{article.author.name ?? "—"}</td> : null}
-                {visibility.category ? <td className="px-4 py-3">{article.category.name ?? "—"}</td> : null}
                 {visibility.status ? (
                   <td className="px-4 py-3">
                     <span

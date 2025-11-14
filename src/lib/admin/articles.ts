@@ -13,12 +13,6 @@ export interface AdminArticleSummary {
   word_count: number | null;
   meta_description: string | null;
   author: { id: string | null; name: string | null };
-  category: { id: string | null; name: string | null };
-}
-
-export interface AdminArticleCategoryOption {
-  id: string;
-  name: string;
 }
 
 function normalizeRelation<T extends { id: string; name: string } | null | undefined>(relation: T | T[]): {
@@ -54,8 +48,7 @@ function mapArticleRow(article: Record<string, any>): AdminArticleSummary {
     updated_at: article.updated_at,
     word_count: article.word_count ?? null,
     meta_description: article.meta_description ?? null,
-    author: normalizeRelation(article.author as { id: string; name: string } | null | undefined),
-    category: normalizeRelation(article.category as { id: string; name: string } | null | undefined)
+    author: normalizeRelation(article.author as { id: string; name: string } | null | undefined)
   };
 }
 
@@ -65,8 +58,7 @@ export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminA
     .select(
       `id, title, slug, content_md, cover_image, is_published, published_at, created_at, updated_at,
        word_count, meta_description,
-       author:authors ( id, name ),
-       category:article_categories ( id, name )`
+       author:authors ( id, name )`
     )
     .order("updated_at", { ascending: false });
 
@@ -77,28 +69,13 @@ export async function fetchAdminArticles(client: SupabaseClient): Promise<AdminA
   return rows.map((article) => mapArticleRow(article));
 }
 
-export async function fetchAdminArticleCategories(client: SupabaseClient): Promise<AdminArticleCategoryOption[]> {
-  const { data, error } = await client
-    .from("article_categories")
-    .select("id, name")
-    .order("name", { ascending: true });
-
-  if (error) throw error;
-
-  return (data ?? []).map((category) => ({
-    id: category.id,
-    name: category.name
-  }));
-}
-
 export async function fetchAdminArticleById(client: SupabaseClient, id: string): Promise<AdminArticleSummary | null> {
   const { data, error } = await client
     .from("articles")
     .select(
       `id, title, slug, content_md, cover_image, is_published, published_at, created_at, updated_at,
        word_count, meta_description,
-       author:authors ( id, name ),
-       category:article_categories ( id, name )`
+       author:authors ( id, name )`
     )
     .eq("id", id)
     .maybeSingle();

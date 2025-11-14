@@ -7,7 +7,6 @@ import { Buffer } from "node:buffer";
 import sharp from "sharp";
 import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
-import { ensureCategoryForGame as ensureGameCategory } from "@/lib/admin/categories";
 import { supabaseAdmin } from "@/lib/supabase";
 import { listMediaEntries, deleteMediaObject } from "@/app/admin/(dashboard)/media/actions";
 import { normalizeGameSlug } from "@/lib/slug";
@@ -193,13 +192,6 @@ export async function saveGame(form: FormData) {
       return { success: false, error: "Game record was not returned." };
     }
 
-    const categorySync = await ensureGameCategory(supabase, {
-      id: game.id,
-      slug: game.slug,
-      name: game.name,
-      universe_id: game.universe_id ?? null
-    });
-
     const syncResult = await syncGameCodesFromSources(supabase, game.id, [
       game.source_url,
       game.source_url_2,
@@ -207,21 +199,7 @@ export async function saveGame(form: FormData) {
     ]);
 
     revalidatePath("/admin/games");
-    revalidatePath("/admin/article-categories");
     revalidatePath("/articles");
-    const categorySlugs = new Set<string>();
-    if (game.slug) {
-      categorySlugs.add(game.slug);
-    }
-    if (categorySync.slug) {
-      categorySlugs.add(categorySync.slug);
-    }
-    if (categorySync.previousSlug) {
-      categorySlugs.add(categorySync.previousSlug);
-    }
-    for (const slug of categorySlugs) {
-      revalidatePath(`/articles/category/${slug}`);
-    }
     return {
       success: true,
       id: game.id,
@@ -328,29 +306,6 @@ export async function deleteGameById(id: string) {
     return { success: false, error: "Game not found" };
   }
 
-  type CategoryRow = { slug: string | null };
-  const { data: categoryRowsRaw, error: categoryQueryError } = await supabase
-    .from("article_categories")
-    .select("slug")
-    .eq("game_id", id);
-
-  const categoryRows = categoryRowsRaw as CategoryRow[] | null;
-
-  if (categoryQueryError) {
-    return { success: false, error: categoryQueryError.message };
-  }
-
-  if ((categoryRows?.length ?? 0) > 0) {
-    const { error: categoryDeleteError } = await supabase
-      .from("article_categories")
-      .delete()
-      .eq("game_id", id);
-
-    if (categoryDeleteError) {
-      return { success: false, error: categoryDeleteError.message };
-    }
-  }
-
   const { error: gameDeleteError } = await supabase.from("games").delete().eq("id", id);
 
   if (gameDeleteError) {
@@ -358,15 +313,7 @@ export async function deleteGameById(id: string) {
   }
 
   revalidatePath("/admin/games");
-  revalidatePath("/admin/article-categories");
   revalidatePath("/articles");
-
-  const categorySlugs = new Set<string>();
-  for (const row of categoryRows ?? []) {
-    if (row?.slug) {
-      categorySlugs.add(row.slug);
-    }
-  }
 
   if (game.slug) {
     const bucket = process.env.SUPABASE_MEDIA_BUCKET;
@@ -398,10 +345,6 @@ export async function deleteGameById(id: string) {
     }
     categorySlugs.add(game.slug);
     revalidatePath(`/${game.slug}`);
-  }
-
-  for (const slug of categorySlugs) {
-    revalidatePath(`/articles/category/${slug}`);
   }
 
   return { success: true };

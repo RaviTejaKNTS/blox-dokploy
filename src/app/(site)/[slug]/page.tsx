@@ -25,7 +25,6 @@ import {
   listGamesWithActiveCounts,
   getArticleBySlug,
   listPublishedArticles,
-  listPublishedArticlesByCategory,
   type ArticleWithRelations,
   type Author,
   type Code
@@ -335,8 +334,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
         images: [coverImage],
         publishedTime: new Date(article.published_at).toISOString(),
         modifiedTime: new Date(article.updated_at).toISOString(),
-        authors: article.author ? [article.author.name] : undefined,
-        section: article.category?.name ?? undefined
+        authors: article.author ? [article.author.name] : undefined
       },
       twitter: {
         card: "summary_large_image",
@@ -358,19 +356,15 @@ async function renderArticlePage(article: ArticleWithRelations) {
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : null;
   const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
-  const [articleHtml, authorBioHtml, categoryArticles, latestArticles] = await Promise.all([
+  const [articleHtml, authorBioHtml, latestArticles] = await Promise.all([
     renderMarkdown(article.content_md),
     article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
-    article.category?.slug ? listPublishedArticlesByCategory(article.category.slug, 6) : Promise.resolve([]),
     listPublishedArticles(6)
   ]);
 
-  const sameCategoryArticles = (categoryArticles ?? []).filter((entry) => entry.id !== article.id);
   const fallbackArticles = (latestArticles ?? []).filter((entry) => entry.id !== article.id);
-  const relatedArticles = (sameCategoryArticles.length ? sameCategoryArticles : fallbackArticles).slice(0, 5);
-  const relatedHeading = sameCategoryArticles.length && article.category
-    ? `More in ${article.category.name}`
-    : "Latest articles";
+  const relatedArticles = fallbackArticles.slice(0, 5);
+  const relatedHeading = relatedArticles.length ? "Latest articles" : null;
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
   const publishedDate = new Date(article.published_at);
   const updatedDate = new Date(article.updated_at);
@@ -407,7 +401,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
           url: article.author.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : undefined
         }
       : undefined,
-    articleSection: article.category?.name ?? undefined
+    articleSection: undefined
   };
 
   const processedArticleHtml = processHtmlLinks(articleHtml);
@@ -493,14 +487,9 @@ async function renderArticlePage(article: ArticleWithRelations) {
           <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
         </section>
 
-        {article.category && relatedArticles.length ? (
+        {relatedArticles.length ? (
           <section className="panel space-y-3 px-4 py-5">
-            <h3 className="text-lg font-semibold text-foreground">
-              Check more articles on{' '}
-              <Link href={`/articles/category/${article.category.slug}`} className="text-accent underline-offset-2 hover:underline">
-                {article.category.name}
-              </Link>
-            </h3>
+            {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
             <div className="space-y-4">
               {relatedArticles.slice(0, 5).map((item) => (
                 <article
@@ -695,9 +684,6 @@ export default async function GamePage({ params }: Params) {
   const siteBaseUrl = SITE_URL.replace(/\/$/, "");
   const breadcrumbs = [
     { name: "Home", url: SITE_URL },
-    ...(game.category
-      ? [{ name: game.category.name, url: `${siteBaseUrl}/articles/category/${game.category.slug}` }]
-      : []),
     { name: `${game.name} Codes`, url: canonicalUrl }
   ];
   const breadcrumbData = JSON.stringify(breadcrumbJsonLd(breadcrumbs));

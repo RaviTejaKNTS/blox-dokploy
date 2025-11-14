@@ -335,7 +335,6 @@ create index if not exists idx_game_generation_queue_status_created
 create table if not exists public.article_generation_queue (
   id uuid primary key default uuid_generate_v4(),
   article_title text,
-  category_id uuid references public.article_categories(id) on delete set null,
   article_type text check (article_type in ('listicle','how_to','explainer','opinion','news')),
   sources text,
   status text not null default 'pending' check (status in ('pending','completed','failed')),
@@ -360,23 +359,6 @@ create table if not exists public.admin_users (
 
 create index if not exists idx_admin_users_role on public.admin_users (role);
 
-
--- article categories table
-create table if not exists public.article_categories (
-  id uuid primary key default uuid_generate_v4(),
-  name text not null,
-  slug text not null unique,
-  description text,
-  game_id uuid references public.games(id) on delete set null,
-  universe_id bigint references public.roblox_universes(universe_id),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists idx_article_categories_slug on public.article_categories (lower(slug));
-create index if not exists idx_article_categories_game on public.article_categories (game_id);
-create index if not exists idx_article_categories_universe on public.article_categories (universe_id);
-
 -- articles table
 create table if not exists public.articles (
   id uuid primary key default uuid_generate_v4(),
@@ -385,7 +367,6 @@ create table if not exists public.articles (
   content_md text not null,
   cover_image text,
   author_id uuid references public.authors(id) on delete set null,
-  category_id uuid references public.article_categories(id) on delete set null,
   universe_id bigint references public.roblox_universes(universe_id),
   is_published boolean not null default false,
   published_at timestamptz not null default now(),
@@ -397,7 +378,6 @@ create table if not exists public.articles (
 
 create index if not exists idx_articles_published on public.articles (is_published);
 create index if not exists idx_articles_slug on public.articles (lower(slug));
-create index if not exists idx_articles_category on public.articles (category_id, is_published);
 create index if not exists idx_articles_author on public.articles (author_id, is_published);
 create index if not exists idx_articles_universe on public.articles (universe_id);
 
@@ -423,10 +403,6 @@ drop trigger if exists trg_admin_users_updated_at on public.admin_users;
 create trigger trg_admin_users_updated_at before update on public.admin_users
 for each row execute function public.set_updated_at();
 
-drop trigger if exists trg_article_categories_updated_at on public.article_categories;
-create trigger trg_article_categories_updated_at before update on public.article_categories
-for each row execute function public.set_updated_at();
-
 drop trigger if exists trg_articles_updated_at on public.articles;
 create trigger trg_articles_updated_at before update on public.articles
 for each row execute function public.set_updated_at();
@@ -448,7 +424,6 @@ alter table public.games enable row level security;
 alter table public.codes enable row level security;
 alter table public.authors enable row level security;
 alter table public.admin_users enable row level security;
-alter table public.article_categories enable row level security;
 alter table public.articles enable row level security;
 alter table public.game_generation_queue enable row level security;
 alter table public.article_generation_queue enable row level security;
@@ -525,24 +500,6 @@ create policy "admin_manage_authors" on public.authors
 drop policy if exists "admin_read_self" on public.admin_users;
 create policy "admin_read_self" on public.admin_users
   for select using (auth.uid() = user_id);
-
-drop policy if exists "read_article_categories" on public.article_categories;
-create policy "read_article_categories" on public.article_categories
-  for select using (true);
-
-drop policy if exists "admin_manage_article_categories" on public.article_categories;
-create policy "admin_manage_article_categories" on public.article_categories
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
 
 drop policy if exists "admin_manage_game_generation_queue" on public.game_generation_queue;
 create policy "admin_manage_game_generation_queue" on public.game_generation_queue

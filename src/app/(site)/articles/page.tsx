@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { listArticleCategories, listPublishedArticles } from "@/lib/db";
+import { listPublishedArticles } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
 import { markdownToPlainText } from "@/lib/markdown";
 
@@ -13,10 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ArticlesIndexPage() {
-  const [articles, categories] = await Promise.all([
-    listPublishedArticles(40),
-    listArticleCategories()
-  ]);
+  const articles = await listPublishedArticles(40);
 
   return (
     <div className="space-y-10">
@@ -28,25 +25,6 @@ export default async function ArticlesIndexPage() {
         </p>
       </header>
 
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-foreground">Categories</h2>
-        {categories.length === 0 ? (
-          <p className="text-sm text-muted">No categories yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/articles/category/${category.slug}`}
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-1 text-sm text-foreground transition hover:border-accent hover:text-accent"
-              >
-                {category.name}
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
       <section className="space-y-6">
         <h2 className="text-xl font-semibold text-foreground">Latest posts</h2>
         {articles.length === 0 ? (
@@ -54,7 +32,6 @@ export default async function ArticlesIndexPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
             {articles.map((article) => {
-              const categoryName = article.category?.name;
               const published = new Date(article.published_at);
               const publishedLabel = published.toLocaleDateString('en-US', {
                 month: 'long',
@@ -80,7 +57,6 @@ export default async function ArticlesIndexPage() {
                   ) : null}
                   <div className="flex flex-1 flex-col gap-4 p-6">
                     <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
-                      {categoryName ? <span>{categoryName}</span> : null}
                       <span>{publishedLabel}</span>
                     </div>
                     <h3 className="text-2xl font-semibold text-foreground">

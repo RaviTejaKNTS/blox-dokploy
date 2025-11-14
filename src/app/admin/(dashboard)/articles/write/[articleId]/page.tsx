@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase";
-import { fetchAdminArticleById, fetchAdminArticleCategories } from "@/lib/admin/articles";
+import { fetchAdminArticleById } from "@/lib/admin/articles";
 import { fetchAdminAuthors } from "@/lib/admin/games";
 import { ArticleEditorForm } from "@/components/admin/articles/ArticleEditorForm";
 
@@ -19,13 +19,10 @@ export default async function ArticleEditorPage({ params }: ArticleEditorPagePro
   const supabase = supabaseAdmin();
   const articleId = params.articleId;
 
-  const [authors, categories] = await Promise.all([
-    fetchAdminAuthors(supabase),
-    fetchAdminArticleCategories(supabase)
-  ]);
+  const authors = await fetchAdminAuthors(supabase);
 
   if (articleId === "new") {
-    return <ArticleEditorForm article={null} authors={authors} categories={categories} />;
+    return <ArticleEditorForm article={null} authors={authors} />;
   }
 
   const article = await fetchAdminArticleById(supabase, articleId);
@@ -33,5 +30,5 @@ export default async function ArticleEditorPage({ params }: ArticleEditorPagePro
     notFound();
   }
 
-  return <ArticleEditorForm article={article} authors={authors} categories={categories} />;
+  return <ArticleEditorForm article={article} authors={authors} />;
 }

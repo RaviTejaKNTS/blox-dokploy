@@ -15,7 +15,6 @@ const articleSchema = z.object({
   content_md: z.string().min(1),
   cover_image: z.string().url().nullable().optional(),
   author_id: z.string().uuid().nullable().optional(),
-  category_id: z.string().uuid().nullable().optional(),
   is_published: z.boolean().optional(),
   published_at: z.string().datetime().nullable().optional(),
   meta_description: z.string().nullable().optional()
@@ -30,24 +29,6 @@ function calculateWordCount(markdown: string): number {
   return words.length;
 }
 
-function extractCategorySlug(category: unknown): string | null {
-  if (Array.isArray(category)) {
-    const first = category[0];
-    if (first && typeof first === "object" && "slug" in first) {
-      const slugValue = (first as { slug?: unknown }).slug;
-      return typeof slugValue === "string" ? slugValue : null;
-    }
-    return null;
-  }
-
-  if (category && typeof category === "object" && "slug" in category) {
-    const slugValue = (category as { slug?: unknown }).slug;
-    return typeof slugValue === "string" ? slugValue : null;
-  }
-
-  return null;
-}
-
 export async function saveArticle(formData: FormData) {
   const raw = formDataToObject(formData);
 
@@ -58,7 +39,6 @@ export async function saveArticle(formData: FormData) {
     content_md: String(raw.content_md ?? ""),
     cover_image: raw.cover_image ? String(raw.cover_image) : null,
     author_id: raw.author_id ? String(raw.author_id) : null,
-    category_id: raw.category_id ? String(raw.category_id) : null,
     is_published: raw.is_published === "on" || raw.is_published === "true",
     published_at: raw.published_at ? String(raw.published_at) : null,
     meta_description: raw.meta_description ? String(raw.meta_description) : null
@@ -99,7 +79,6 @@ export async function saveArticle(formData: FormData) {
     content_md: payload.content_md,
     cover_image: payload.cover_image,
     author_id: payload.author_id ?? null,
-    category_id: payload.category_id ?? null,
     is_published: payload.is_published ?? false,
     published_at: publishedAtValue,
     word_count: wordCount,
@@ -107,28 +86,6 @@ export async function saveArticle(formData: FormData) {
     universe_id: null as number | null
   };
 
-  if (record.category_id) {
-    const { data: categoryRow, error: categoryError } = await supabase
-      .from("article_categories")
-      .select("universe_id, game_id")
-      .eq("id", record.category_id)
-      .maybeSingle();
-    if (categoryError) throw categoryError;
-    const categoryUniverse = (categoryRow?.universe_id as number | null | undefined) ?? null;
-    if (categoryUniverse != null) {
-      record.universe_id = categoryUniverse;
-    } else if (categoryRow?.game_id) {
-      const { data: gameRow, error: gameError } = await supabase
-        .from("games")
-        .select("universe_id")
-        .eq("id", categoryRow.game_id as string)
-        .maybeSingle();
-      if (gameError) throw gameError;
-      record.universe_id = (gameRow?.universe_id as number | null | undefined) ?? null;
-    }
-  }
-
-  let categorySlug: string | null = null;
   let articleId: string | null = payload.id ?? null;
 
   if (payload.id) {
@@ -136,14 +93,10 @@ export async function saveArticle(formData: FormData) {
       .from('articles')
       .update(record)
       .eq('id', payload.id)
-      .select('id, slug, category:article_categories(id, slug)')
+      .select('id, slug')
       .maybeSingle();
 
     if (error) throw error;
-    const relatedCategorySlug = extractCategorySlug(data?.category);
-    if (relatedCategorySlug) {
-      categorySlug = relatedCategorySlug;
-    }
     if (data?.id) {
       articleId = data.id as string;
     }
@@ -151,14 +104,10 @@ export async function saveArticle(formData: FormData) {
     const { data, error } = await supabase
       .from('articles')
       .insert(record)
-      .select('id, slug, category:article_categories(id, slug)')
+      .select('id, slug')
       .maybeSingle();
 
     if (error) throw error;
-    const relatedCategorySlug = extractCategorySlug(data?.category);
-    if (relatedCategorySlug) {
-      categorySlug = relatedCategorySlug;
-    }
     if (data?.id) {
       articleId = data.id as string;
     }
@@ -167,10 +116,6 @@ export async function saveArticle(formData: FormData) {
   revalidatePath('/admin/articles');
   revalidatePath('/articles');
   revalidatePath(`/${normalizedSlug}`);
-  if (categorySlug) {
-    revalidatePath(`/articles/category/${categorySlug}`);
-  }
-
   return { success: true, id: articleId, slug: normalizedSlug };
 }
 
@@ -185,7 +130,7 @@ export async function deleteArticle(formData: FormData) {
     .from('articles')
     .delete()
     .eq('id', id)
-    .select('slug, category:article_categories(slug)')
+    .select('slug')
     .maybeSingle();
 
   if (error) throw error;
@@ -195,11 +140,6 @@ export async function deleteArticle(formData: FormData) {
   if (data?.slug) {
     revalidatePath(`/${data.slug}`);
   }
-  const relatedCategorySlug = extractCategorySlug(data?.category);
-  if (relatedCategorySlug) {
-    revalidatePath(`/articles/category/${relatedCategorySlug}`);
-  }
-
   return { success: true };
 }
 

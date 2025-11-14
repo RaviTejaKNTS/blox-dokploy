@@ -17,7 +17,6 @@
     "generate": "tsx scripts/generate-game-article.ts",
     "backfill:universes": "tsx scripts/backfill-game-universes.ts",
     "generate:queue": "tsx scripts/run-generation-queue.ts",
-    "backfill:categories": "tsx scripts/backfill-game-categories.ts",
     "links:backfill": "tsx scripts/backfill-social-links.ts",
     "linktext:generate": "tsx scripts/backfill-linktext.ts",
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",

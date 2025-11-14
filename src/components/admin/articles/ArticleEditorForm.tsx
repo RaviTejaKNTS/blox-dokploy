@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { AdminArticleSummary, AdminArticleCategoryOption } from "@/lib/admin/articles";
+import type { AdminArticleSummary } from "@/lib/admin/articles";
 import type { AdminAuthorOption } from "@/lib/admin/games";
 import { RichMarkdownEditor } from "@/components/admin/editor/RichMarkdownEditor";
 import { ScopedMediaManager } from "@/components/admin/media/ScopedMediaManager";
@@ -25,7 +25,6 @@ const formSchema = z.object({
     .optional()
     .or(z.literal("")),
   author_id: z.string().optional(),
-  category_id: z.string().optional(),
   meta_description: z.string().optional(),
   is_published: z.boolean().optional()
 });
@@ -35,7 +34,6 @@ type FormValues = z.infer<typeof formSchema>;
 interface ArticleEditorFormProps {
   article: AdminArticleSummary | null;
   authors: AdminAuthorOption[];
-  categories: AdminArticleCategoryOption[];
 }
 
 type StatusMessage = { tone: "success" | "error"; text: string } | null;
@@ -50,7 +48,7 @@ function extractError(value: unknown): string | null {
   return null;
 }
 
-export function ArticleEditorForm({ article, authors, categories }: ArticleEditorFormProps) {
+export function ArticleEditorForm({ article, authors }: ArticleEditorFormProps) {
   const router = useRouter();
   const [statusMessage, setStatusMessage] = useState<StatusMessage>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
@@ -73,7 +71,6 @@ export function ArticleEditorForm({ article, authors, categories }: ArticleEdito
     content_md: article?.content_md ?? "",
     cover_image: article?.cover_image ?? "",
     author_id: article?.author.id ?? "",
-    category_id: article?.category.id ?? "",
     meta_description: article?.meta_description ?? "",
     is_published: article?.is_published ?? false
   }), [article]);
@@ -684,23 +681,6 @@ export function ArticleEditorForm({ article, authors, categories }: ArticleEdito
                   {authors.map((authorOption) => (
                     <option key={authorOption.id} value={authorOption.id}>
                       {authorOption.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground" htmlFor="article-category">
-                  Category
-                </label>
-                <select
-                  id="article-category"
-                  {...register("category_id")}
-                  className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                >
-                  <option value="">No category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
                     </option>
                   ))}
                 </select>

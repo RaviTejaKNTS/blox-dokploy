@@ -4,7 +4,6 @@ import path from "node:path";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { computeGameDetails, syncGameCodesFromSources } from "@/lib/admin/game-import";
-import { ensureCategoryForGame } from "@/lib/admin/categories";
 
 export type ImportPayload = {
   sourceUrl: string;
@@ -21,8 +20,6 @@ type ImportResult = {
   publish: boolean;
   codesFound: number;
   codesUpserted: number;
-  categorySlug: string | null;
-  previousCategorySlug: string | null;
 };
 
 type ParsedEntries = {
@@ -269,12 +266,6 @@ async function importSingleGame(
     throw new Error(upsertError?.message ?? "Upsert failed");
   }
 
-  const categorySync = await ensureCategoryForGame(sb, {
-    id: game.id,
-    slug: game.slug,
-    name: game.name,
-  });
-
   const syncResult = await syncGameCodesFromSources(sb, game.id, [
     game.source_url,
     game.source_url_2,
@@ -290,9 +281,7 @@ async function importSingleGame(
     name: game.name,
     publish: Boolean(game.is_published),
     codesFound: syncResult.codesFound,
-    codesUpserted: syncResult.codesUpserted,
-    categorySlug: categorySync.slug ?? game.slug,
-    previousCategorySlug: categorySync.previousSlug ?? null,
+    codesUpserted: syncResult.codesUpserted
   };
 }
 
@@ -332,15 +321,8 @@ async function main() {
         stats.success += 1;
         stats.totalCodesFound += result.codesFound;
         stats.totalCodesUpserted += result.codesUpserted;
-        const hasSlugChange =
-          result.previousCategorySlug && result.previousCategorySlug !== result.categorySlug;
-        const categoryNote = hasSlugChange
-          ? `category ${result.previousCategorySlug}→${result.categorySlug}`
-          : result.categorySlug
-            ? `category ${result.categorySlug}`
-            : "no category";
         console.log(
-          `✔ ${result.slug} (${result.publish ? "published" : "draft"}) — ${result.codesUpserted} codes upserted (found ${result.codesFound}); ${categoryNote}`,
+          `✔ ${result.slug} (${result.publish ? "published" : "draft"}) — ${result.codesUpserted} codes upserted (found ${result.codesFound})`,
         );
       } catch (err: any) {
         stats.failed += 1;

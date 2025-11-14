@@ -13,8 +13,6 @@ type GameRow = {
   universe_id: number | null;
 };
 
-type CategoryRow = { id: string };
-
 function parseArgs() {
   const args = process.argv.slice(2);
   const options: { all: boolean } = { all: false };
@@ -36,33 +34,6 @@ Options:
   return options;
 }
 
-async function updateCategoriesAndArticles(
-  supabase = supabaseAdmin(),
-  gameId: string,
-  universeId: number
-) {
-  const { data: categories, error: categoryError } = await supabase
-    .from("article_categories")
-    .select("id")
-    .eq("game_id", gameId);
-  if (categoryError) {
-    throw new Error(`Failed to load categories for game ${gameId}: ${categoryError.message}`);
-  }
-
-  await supabase
-    .from("article_categories")
-    .update({ universe_id: universeId })
-    .eq("game_id", gameId);
-
-  const categoryIds = (categories as CategoryRow[] | null)?.map((row) => row.id) ?? [];
-  if (categoryIds.length) {
-    await supabase
-      .from("articles")
-      .update({ universe_id: universeId })
-      .in("category_id", categoryIds);
-  }
-}
-
 async function processGames() {
   const options = parseArgs();
   const supabase = supabaseAdmin();
@@ -74,11 +45,12 @@ async function processGames() {
     let query = supabase
       .from("games")
       .select("id, name, slug, roblox_link, universe_id")
-      .order("updated_at", { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
+      .order("updated_at", { ascending: true });
 
-    if (!options.all) {
-      query = query.is("universe_id", null);
+    if (options.all) {
+      query = query.range(offset, offset + PAGE_SIZE - 1);
+    } else {
+      query = query.is("universe_id", null).limit(PAGE_SIZE);
     }
 
     const { data, error } = await query;
@@ -117,8 +89,6 @@ async function processGames() {
           throw new Error(updateError.message);
         }
 
-        await updateCategoriesAndArticles(supabase, game.id, ensured.universeId);
-
         totalUpdated += 1;
         console.log(`✅ ${game.slug} → universe ${ensured.universeId}`);
       } catch (err) {
@@ -129,9 +99,11 @@ async function processGames() {
       }
     }
 
-    offset += games.length;
-    if (games.length < PAGE_SIZE) {
-      break;
+    if (options.all) {
+      offset += games.length;
+      if (games.length < PAGE_SIZE) {
+        break;
+      }
     }
   }
 

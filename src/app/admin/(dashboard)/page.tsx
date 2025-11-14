@@ -33,7 +33,6 @@ export default async function AdminHomePage() {
   const [
     totalArticles,
     publishedArticles,
-    categoriesCount,
     gamesCount,
     latestArticlesResult,
     gamesPublishedCount,
@@ -42,7 +41,6 @@ export default async function AdminHomePage() {
   ] = await Promise.all([
     supabase.from("articles").select("id", { count: "exact", head: true }),
     supabase.from("articles").select("id", { count: "exact", head: true }).eq("is_published", true),
-    supabase.from("article_categories").select("id", { count: "exact", head: true }),
     supabase.from("games").select("id", { count: "exact", head: true }),
     supabase
       .from("articles")
@@ -60,7 +58,6 @@ export default async function AdminHomePage() {
 
   if (totalArticles.error) throw totalArticles.error;
   if (publishedArticles.error) throw publishedArticles.error;
-  if (categoriesCount.error) throw categoriesCount.error;
   if (gamesCount.error) throw gamesCount.error;
   if (latestArticlesResult.error) throw latestArticlesResult.error;
   if (gamesPublishedCount.error) throw gamesPublishedCount.error;
@@ -70,7 +67,6 @@ export default async function AdminHomePage() {
   const articlesTotal = totalArticles.count ?? 0;
   const publishedTotal = publishedArticles.count ?? 0;
   const draftTotal = Math.max(articlesTotal - publishedTotal, 0);
-  const categoriesTotal = categoriesCount.count ?? 0;
   const gamesTotal = gamesCount.count ?? 0;
   const latestArticles = latestArticlesResult.data ?? [];
   const gamesPublishedTotal = gamesPublishedCount.count ?? 0;
@@ -277,22 +273,11 @@ export default async function AdminHomePage() {
               Manage media library
             </Link>
             <Link
-              href="/admin/article-categories"
-              className="rounded-lg border border-border/60 bg-background px-4 py-3 font-semibold text-foreground transition hover:border-border/30 hover:bg-surface"
-            >
-              Organize article categories
-            </Link>
-            <Link
               href="/admin/games"
               className="rounded-lg border border-border/60 bg-background px-4 py-3 font-semibold text-foreground transition hover:border-border/30 hover:bg-surface"
             >
               Sync game codes
             </Link>
-            <div className="rounded-lg border border-border/60 bg-background/40 px-4 py-3 text-xs text-muted">
-              <p className="font-semibold text-foreground">Categories tracked</p>
-              <p className="text-sm">{categoriesTotal}</p>
-              <p className="mt-2">Keep topics tidy to power the on-site navigation and SEO hubs.</p>
-            </div>
             <div className="rounded-lg border border-border/60 bg-background/40 px-4 py-3 text-xs text-muted">
               <p className="font-semibold text-foreground">Game insights</p>
               <ul className="mt-2 space-y-1">

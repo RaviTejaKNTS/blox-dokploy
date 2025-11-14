@@ -10,7 +10,6 @@ import { useAdminSession } from "@/hooks/use-admin-session";
 const adminNavItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/games", label: "Games" },
-  { href: "/admin/article-categories", label: "Categories" },
   { href: "/admin/articles", label: "Articles" },
   { href: "/admin/media", label: "Media" }
 ];

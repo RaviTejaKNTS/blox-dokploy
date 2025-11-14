@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { fetchAdminArticles, fetchAdminArticleCategories } from "@/lib/admin/articles";
+import { fetchAdminArticles } from "@/lib/admin/articles";
 import { fetchAdminAuthors } from "@/lib/admin/games";
 import { ArticlesClient } from "@/components/admin/articles/ArticlesClient";
 
@@ -9,10 +9,9 @@ export const metadata = {
 
 export default async function AdminArticlesPage() {
   const supabase = supabaseAdmin();
-  const [articles, authors, categories] = await Promise.all([
+  const [articles, authors] = await Promise.all([
     fetchAdminArticles(supabase),
-    fetchAdminAuthors(supabase),
-    fetchAdminArticleCategories(supabase)
+    fetchAdminAuthors(supabase)
   ]);
 
   return (
@@ -24,7 +23,7 @@ export default async function AdminArticlesPage() {
         </p>
       </header>
 
-      <ArticlesClient initialArticles={articles} authors={authors} categories={categories} />
+      <ArticlesClient initialArticles={articles} authors={authors} />
     </div>
   );
 }
