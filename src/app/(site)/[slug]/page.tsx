@@ -387,21 +387,24 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: article.title,
-    datePublished: publishedDate.toISOString(),
-    dateModified: updatedDate.toISOString(),
-    mainEntityOfPage: canonicalUrl,
+    '@type': 'WebPage',
+    name: article.title,
+    url: canonicalUrl,
     description: descriptionPlain,
+    datePublished: publishedIso,
+    dateModified: updatedIso,
     image: coverImage ?? `${SITE_URL}/og-image.png`,
     author: article.author
       ? {
           '@type': 'Person',
           name: article.author.name,
-          url: article.author.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : undefined
+          url: authorProfileUrl ?? undefined,
+          sameAs: authorSameAs.length ? authorSameAs : undefined
         }
-      : undefined,
-    articleSection: undefined
+      : {
+          '@type': 'Organization',
+          name: SITE_NAME
+        }
   };
 
   const processedArticleHtml = processHtmlLinks(articleHtml);
@@ -409,13 +412,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article itemScope itemType="https://schema.org/Article" className="min-w-0">
-        <meta itemProp="mainEntityOfPage" content={canonicalUrl} />
-        <meta itemProp="datePublished" content={publishedIso} />
-        <meta itemProp="dateModified" content={updatedIso} />
-        <meta itemProp="description" content={descriptionPlain} />
-        <meta itemProp="image" content={coverImage ?? `${SITE_URL}/og-image.png`} />
-        {!article.author ? <meta itemProp="author" content={SITE_NAME} /> : null}
+      <article className="min-w-0">
         <header className="mb-6">
           <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
             {article.title}
@@ -722,11 +719,12 @@ export default async function GamePage({ params }: Params) {
         })
       )
     : null;
-  const faqData = faqEntries.length
+  const codesFaqEntries = extractFaqEntries(descriptionMarkdown);
+  const codesFaqData = codesFaqEntries.length
     ? JSON.stringify({
         "@context": "https://schema.org",
         "@type": "FAQPage",
-        mainEntity: faqEntries.map((entry) => ({
+        mainEntity: codesFaqEntries.map((entry) => ({
           "@type": "Question",
           name: entry.question,
           acceptedAnswer: {
@@ -962,8 +960,8 @@ export default async function GamePage({ params }: Params) {
         {howToData && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
         )}
-        {faqData && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqData }} />
+        {codesFaqData && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: codesFaqData }} />
         )}
         <CodeBlockEnhancer />
       </article>

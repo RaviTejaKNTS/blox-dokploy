@@ -288,6 +288,7 @@ export async function deleteCode(form: FormData) {
 
 export async function deleteGameById(id: string) {
   const { supabase } = await requireAdminAction();
+  const revalidateSlugs = new Set<string>();
 
   type GameSlugRow = { slug: string | null };
   const { data: gameRaw, error: gameError } = await supabase
@@ -343,9 +344,12 @@ export async function deleteGameById(id: string) {
         console.error("Failed to clean up media for game", game.slug, error);
       }
     }
-    categorySlugs.add(game.slug);
-    revalidatePath(`/${game.slug}`);
+    if (game.slug) {
+      revalidateSlugs.add(game.slug);
+    }
   }
+
+  revalidateSlugs.forEach((slug) => revalidatePath(`/${slug}`));
 
   return { success: true };
 }
