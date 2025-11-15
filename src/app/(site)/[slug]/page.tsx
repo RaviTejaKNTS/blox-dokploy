@@ -193,9 +193,11 @@ function extractUniverseSocialLinks(raw: unknown): UniverseSocialLink[] {
     if (!Array.isArray(value)) continue;
     for (const entry of value) {
       if (!entry || typeof entry !== "object") continue;
-      const url = typeof (entry as Record<string, unknown>).url === "string" ? (entry as Record<string, unknown>).url.trim() : "";
+      const record = entry as Record<string, unknown>;
+      const rawUrl = record.url;
+      const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
       if (!url) continue;
-      const title = typeof (entry as Record<string, unknown>).title === "string" ? (entry as Record<string, unknown>).title : null;
+      const title = typeof record.title === "string" ? record.title : null;
       entries.push({
         platform,
         url,
