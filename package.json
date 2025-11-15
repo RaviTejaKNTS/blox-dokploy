@@ -22,7 +22,8 @@
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
     "genres:update": "tsx scripts/update-roblox-genres.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
-    "enrich:universes": "tsx scripts/enrich-roblox-universes.ts"
+    "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
+    "lists:refresh": "tsx scripts/refresh-game-lists.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

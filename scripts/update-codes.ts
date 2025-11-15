@@ -102,7 +102,9 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     }
     const normalized = normalizeCodeKey(displayCode);
     if (!normalized) continue;
-    incomingNormalized.add(normalized);
+    if (c.status === "active") {
+      incomingNormalized.add(normalized);
+    }
     c.code = displayCode;
     if (c.isNew) {
       newCodesCount += 1;
@@ -169,10 +171,11 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
       }
     }
 
+    const status = c.status === "check" ? "expired" : c.status;
     const { error } = await sb.rpc("upsert_code", {
       p_game_id: game.id,
       p_code: displayCode,
-      p_status: c.status,
+      p_status: status,
       p_rewards_text: c.rewardsText ?? null,
       p_level_requirement: c.levelRequirement ?? null,
       p_is_new: c.isNew ?? false,
@@ -191,9 +194,37 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     normalizedExpiredMap.delete(normalized);
   }
 
-  const existingActiveOrCheck = (existingRows ?? []).filter(
-    (row) => row.status === "active" || row.status === "check"
-  );
+  const existingCheckRows = (existingRows ?? []).filter((row) => row.status === "check");
+  if (existingCheckRows.length) {
+    const codesToMove = existingCheckRows
+      .map((row) => sanitizeCodeDisplay(row.code))
+      .filter((code): code is string => Boolean(code));
+
+    if (codesToMove.length) {
+      const { error: moveError } = await sb
+        .from("codes")
+        .update({
+          status: "expired",
+          is_new: false,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq("game_id", game.id)
+        .in("code", codesToMove);
+
+      if (moveError) {
+        throw new Error(`failed to convert check codes to expired for ${game.slug}: ${moveError.message}`);
+      }
+
+      for (const code of codesToMove) {
+        const normalized = normalizeCodeKey(code);
+        if (normalized) {
+          normalizedExpiredMap.set(normalized, code);
+        }
+      }
+    }
+  }
+
+  const existingActiveOrCheck = (existingRows ?? []).filter((row) => row.status === "active");
 
   const toExpireEntries = existingActiveOrCheck
     .map((row) => {

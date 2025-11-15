@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
-import { FaTelegramPlane } from "react-icons/fa";
+import type { IconType } from "react-icons";
+import { FaFacebook, FaTelegramPlane, FaTwitch, FaUsers, FaYoutube, FaDiscord } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
-import { SiGooglechrome } from "react-icons/si";
+import { SiGooglechrome, SiGuilded, SiRoblox } from "react-icons/si";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
-import { AuthorCard } from "@/components/AuthorCard";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
 import { logger } from "@/lib/logger";
@@ -17,14 +17,13 @@ import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
 import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { EzoicAdSlot } from "@/components/EzoicAdSlot";
-import { authorAvatarUrl } from "@/lib/avatar";
 import { monthYear } from "@/lib/date";
 import {
   getGameBySlug,
   listCodesForGame,
   listGamesWithActiveCounts,
   getArticleBySlug,
-  type Author,
+  getRobloxUniverseById,
   type Code
 } from "@/lib/db";
 import {
@@ -38,7 +37,6 @@ import {
   howToJsonLd
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
-import { collectAuthorSocials } from "@/lib/author-socials";
 import { extractHowToSteps } from "@/lib/how-to";
 
 export const revalidate = 30;
@@ -166,10 +164,82 @@ function normalizeUrl(value?: string | null): string | null {
   return isValidUrl(trimmed) ? trimmed : null;
 }
 
-function collectAuthorSameAs(author?: Author | null): string[] {
-  if (!author) return [];
-  const socials = collectAuthorSocials(author);
-  return Array.from(new Set(socials.map((link) => link.url)));
+type UniverseSocialLink = {
+  platform: string;
+  url: string;
+  title?: string | null;
+};
+
+const UNIVERSE_SOCIAL_META: Record<string, { label: string; icon: IconType }> = {
+  twitter: { label: "Twitter / X", icon: RiTwitterXLine },
+  youtube: { label: "YouTube", icon: FaYoutube },
+  discord: { label: "Discord", icon: FaDiscord },
+  twitch: { label: "Twitch", icon: FaTwitch },
+  facebook: { label: "Facebook", icon: FaFacebook },
+  roblox_group: { label: "Roblox Group", icon: SiRoblox },
+  guilded: { label: "Guilded", icon: SiGuilded }
+};
+
+const DEFAULT_SOCIAL_META: { label: string; icon: IconType } = {
+  label: "Website",
+  icon: SiGooglechrome
+};
+
+function extractUniverseSocialLinks(raw: unknown): UniverseSocialLink[] {
+  if (!raw || typeof raw !== "object") return [];
+  const record = raw as Record<string, unknown>;
+  const entries: UniverseSocialLink[] = [];
+  for (const [platform, value] of Object.entries(record)) {
+    if (!Array.isArray(value)) continue;
+    for (const entry of value) {
+      if (!entry || typeof entry !== "object") continue;
+      const url = typeof (entry as Record<string, unknown>).url === "string" ? (entry as Record<string, unknown>).url.trim() : "";
+      if (!url) continue;
+      const title = typeof (entry as Record<string, unknown>).title === "string" ? (entry as Record<string, unknown>).title : null;
+      entries.push({
+        platform,
+        url,
+        title
+      });
+    }
+  }
+  return entries;
+}
+
+function extractHandleFromUrl(platform: string, url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").map((part) => part.trim()).filter(Boolean);
+    let handle = segments.length ? segments[segments.length - 1] : parsed.hostname;
+    if (!handle) return null;
+    if (handle.includes("?")) {
+      handle = handle.split("?")[0];
+    }
+    handle = handle.replace(/\/+$/, "");
+    if (!handle) return null;
+    if (platform === "twitter") {
+      handle = handle.replace(/^@/, "");
+      return handle ? `@${handle}` : null;
+    }
+    if (platform === "youtube" && handle.startsWith("@")) {
+      return handle;
+    }
+    return handle;
+  } catch {
+    return null;
+  }
+}
+
+function formatSocialLabel(platform: string, link: UniverseSocialLink, creatorName?: string | null): string {
+  if (platform === "roblox_group") {
+    return creatorName ? `${creatorName} Roblox Community` : "Roblox Community";
+  }
+  if (platform === "discord") {
+    return "Discord";
+  }
+  const handle = extractHandleFromUrl(platform, link.url);
+  if (handle) return handle;
+  return link.title?.trim() || UNIVERSE_SOCIAL_META[platform]?.label || DEFAULT_SOCIAL_META.label;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -204,10 +274,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     : `${SITE_URL}/og-image.png`;
   const publishedTime = new Date(game.created_at).toISOString();
   const modifiedTime = new Date(lastContentUpdate).toISOString();
-  const authorUrl = game.author?.slug
-    ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
-    : undefined;
-  const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
   const otherMeta: Record<string, string> = {};
   return {
     title,
@@ -221,7 +287,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     ],
     category: "Gaming",
     alternates: { canonical: canonicalUrl },
-    authors,
+    authors: [{ name: SITE_NAME, url: SITE_URL }],
     publisher: SITE_NAME,
     openGraph: {
       type: "article",
@@ -233,7 +299,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       publishedTime,
       modifiedTime,
       locale: "en_US",
-      authors: authors?.map((author) => author.name) ?? [SITE_NAME]
+      authors: [SITE_NAME]
     },
     twitter: {
       card: "summary_large_image",
@@ -252,7 +318,7 @@ async function fetchGameData(slug: string) {
     const game = await getGameBySlug(slug);
     if (!game || !game.is_published) return { error: 'NOT_FOUND' as const };
 
-    const [codes, allGames] = await Promise.all([
+    const [codes, allGames, universe] = await Promise.all([
       listCodesForGame(game.id).catch(error => {
         logger.error('Failed to fetch codes for game', { 
           gameId: game.id,
@@ -265,10 +331,19 @@ async function fetchGameData(slug: string) {
           error: error instanceof Error ? error.message : String(error)
         });
         return [];
-      })
+      }),
+      game.universe_id
+        ? getRobloxUniverseById(game.universe_id).catch(error => {
+            logger.error("Failed to fetch roblox universe", {
+              universeId: game.universe_id,
+              error: error instanceof Error ? error.message : String(error)
+            });
+            return null;
+          })
+        : Promise.resolve(null)
     ]);
 
-    return { game, codes, allGames };
+    return { game, codes, allGames, universe };
   } catch (error) {
     logger.error('Failed to fetch game data', {
       slug,
@@ -294,14 +369,10 @@ export default async function GamePage({ params }: Params) {
     throw new Error('Failed to load game data. Please try again later.');
   }
   
-  const { game, codes, allGames } = result;
-  const author = game.author;
-  const authorAvatar = author ? authorAvatarUrl(author, 72) : null;
+  const { game, codes, allGames, universe } = result;
   const active = codes.filter(c => c.status === "active");
-  const needsCheck = codes.filter(c => c.status === "check");
   const nowMs = Date.now();
   const sortedActive = sortCodesByFirstSeenDesc(active);
-  const sortedNeedsCheck = sortCodesByFirstSeenDesc(needsCheck);
   const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
@@ -365,6 +436,9 @@ export default async function GamePage({ params }: Params) {
     }
   })();
 
+  const universeDeveloperName = universe?.creator_name ? universe.creator_name.trim() : null;
+  const universeSocialLinks = extractUniverseSocialLinks(universe?.social_links ?? null);
+
   const linkMap = {
     roblox_link: normalizeUrl(game.roblox_link) ?? normalizeUrl(game.source_url),
     community_link: normalizeUrl(game.community_link),
@@ -375,17 +449,13 @@ export default async function GamePage({ params }: Params) {
 
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
   const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
-  const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
   const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
-  const faqEntries = extractFaqEntries(descriptionMarkdown);
 
-  const [introHtml, redeemHtml, descriptionHtml, authorBioHtml, linktextHtml] = await Promise.all([
+  const [introHtml, redeemHtml, linktextHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
-    descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
-    author?.bio_md ? renderMarkdown(author.bio_md) : "",
     linktextMarkdown ? renderMarkdown(linktextMarkdown) : "",
   ]);
 
@@ -403,19 +473,6 @@ export default async function GamePage({ params }: Params) {
   const publishedIso = new Date(game.created_at).toISOString();
   const updatedIso = new Date(lastContentUpdate).toISOString();
   const lastCheckedIso = new Date(lastChecked).toISOString();
-  const authorBioPlain = author?.bio_md ? markdownToPlainText(author.bio_md) : null;
-  const authorSameAs = collectAuthorSameAs(author);
-  const authorProfileUrl = author?.slug
-    ? `${SITE_URL.replace(/\/$/, "")}/authors/${author.slug}`
-    : undefined;
-  const structuredAuthor = author
-    ? {
-        name: author.name,
-        url: authorProfileUrl || null,
-        description: authorBioPlain,
-        sameAs: authorSameAs.length ? authorSameAs : null
-      }
-    : null;
   const siteBaseUrl = SITE_URL.replace(/\/$/, "");
   const breadcrumbs = [
     { name: "Home", url: SITE_URL },
@@ -449,7 +506,7 @@ export default async function GamePage({ params }: Params) {
       title: `${game.name} Codes (${monthYear()})`,
       description: metaDescription,
       image: coverImage,
-      author: structuredAuthor,
+      author: null,
       publishedAt: publishedIso,
       updatedAt: updatedIso
     })
@@ -463,31 +520,11 @@ export default async function GamePage({ params }: Params) {
         })
       )
     : null;
-  const codesFaqEntries = extractFaqEntries(descriptionMarkdown);
-  const codesFaqData = codesFaqEntries.length
-    ? JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: codesFaqEntries.map((entry) => ({
-          "@type": "Question",
-          name: entry.question,
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: entry.answer
-          }
-        }))
-      })
-    : null;
+  const codesFaqData = null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article itemScope itemType="https://schema.org/Article" className="min-w-0">
-        <meta itemProp="mainEntityOfPage" content={canonicalUrl} />
-        <meta itemProp="datePublished" content={publishedIso} />
-        <meta itemProp="dateModified" content={updatedIso} />
-        <meta itemProp="description" content={metaDescription} />
-        <meta itemProp="image" content={coverImage} />
-        {!author ? <meta itemProp="author" content={SITE_NAME} /> : null}
+      <article className="min-w-0">
         <nav aria-label="Breadcrumb" className="mb-4 text-xs uppercase tracking-[0.25em] text-muted">
           <ol className="flex flex-wrap items-center gap-2">
             {breadcrumbNavItems.map((item, index) => (
@@ -510,39 +547,9 @@ export default async function GamePage({ params }: Params) {
           </h1>
           <div className="mt-4 flex flex-col gap-3 text-sm text-muted">
             <div className="flex flex-wrap items-center gap-2">
-              {author ? (
-                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
-                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
-                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
-                  {authorSameAs.map((url) => (
-                    <link key={url} itemProp="sameAs" href={url} />
-                  ))}
-                  <img
-                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
-                    alt={author.name}
-                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <span>
-                    Authored by {author.slug ? (
-                      <Link
-                        href={`/authors/${author.slug}`}
-                        className="font-semibold text-foreground transition hover:text-accent"
-                        itemProp="name"
-                      >
-                        {author.name}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-foreground" itemProp="name">{author.name}</span>
-                    )}
-                  </span>
-                </div>
-              ) : (
-                <span className="font-semibold text-foreground" itemProp="author">
-                  Published by {SITE_NAME}
-                </span>
-              )}
+              <span className="text-foreground">
+                Maintained by <span className="font-semibold text-foreground">Bloxodes Team</span>
+              </span>
               <span aria-hidden="true">•</span>
               <span className="text-foreground/80">
                 Updated on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
@@ -577,9 +584,7 @@ export default async function GamePage({ params }: Params) {
             ) : null}
           </div>
           {active.length === 0 ? (
-            <p className="text-muted">
-              We haven't confirmed any working codes right now{needsCheck.length ? ", but try the unverified ones below." : ". Check back soon."}
-            </p>
+            <p className="text-muted">We haven't confirmed any working codes right now. Check back soon.</p>
           ) : (
             <div className="flex flex-col gap-4">
               {sortedActive.map(c => {
@@ -625,48 +630,6 @@ export default async function GamePage({ params }: Params) {
           )}
         </section>
 
-        {needsCheck.length > 0 ? (
-          <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="needs-check">
-            <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
-              <h2>Likely Expired Codes</h2>
-              <p>
-                These codes might have just expired and may not work. However, we haven’t verified them ourselves yet. 
-                To be sure, try redeeming them in {game.name} yourself.
-              </p>
-            </div>
-            <div className="flex flex-col gap-4">
-              {sortedNeedsCheck.map(c => {
-                const rewards = cleanRewardsText(c.rewards_text);
-                return (
-                  <article
-                    key={c.id}
-                    className="rounded-[var(--radius-sm)] border border-amber-200/70 bg-surface px-5 py-4 shadow-soft"
-                  >
-                    <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
-                      <div className="basis-full flex flex-col gap-3 md:basis-auto">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <code className="inline-flex max-w-full flex-wrap items-center justify-start gap-2 rounded-full bg-surface-muted px-4 py-2 text-left text-sm font-semibold leading-tight text-foreground shadow-soft whitespace-normal break-words break-all min-w-0">
-                            <span className="max-w-full break-words break-all leading-snug tracking-[0.08em]">{c.code}</span>
-                          </code>
-                          <CopyCodeButton code={c.code} />
-                          {c.level_requirement != null ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/80 bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900 dark:border-amber-400/70 dark:bg-amber-500/10 dark:text-amber-100">
-                              Level {c.level_requirement}+
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="basis-full rounded-[var(--radius-sm)] bg-surface-muted/60 pl-0 pr-4 py-3 text-sm leading-relaxed text-foreground/90 md:basis-auto md:rounded-none md:border-l md:border-border/40 md:bg-transparent md:px-0 md:py-0 md:pl-6">
-                        {rewards ? rewards : <span className="text-muted">No reward listed</span>}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
             <div
@@ -675,16 +638,6 @@ export default async function GamePage({ params }: Params) {
             />
           </section>
         ) : null}
-
-        {linktextHtml ? (
-          <section className="mb-8" aria-label="Recommended Roblox games">
-            <div
-              className="prose dark:prose-invert max-w-none game-copy"
-              dangerouslySetInnerHTML={processHtmlLinks(linktextHtml)}
-            />
-          </section>
-        ) : null}
-
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="expired-codes">
           <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
             <h2>Expired {game.name} Codes</h2>
@@ -695,23 +648,78 @@ export default async function GamePage({ params }: Params) {
           {expired.length === 0 ? null : <ExpiredCodes codes={expired} />}
         </section>
 
+        {universe ? (
+          <section className="mb-8 space-y-4" id={`more-${game.slug}-codes`}>
+            <div className="prose dark:prose-invert max-w-none game-copy">
+              <h2>How to Get New Codes Fast</h2>
+              <p>New codes are posted here by the developers:</p>
+            </div>
+            {universeSocialLinks.length ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {universeSocialLinks.map((link) => {
+                  const url = normalizeUrl(link.url);
+                  if (!url) return null;
+                  const meta = UNIVERSE_SOCIAL_META[link.platform] ?? DEFAULT_SOCIAL_META;
+                  const Icon = meta.icon;
+                  return (
+                    <a
+                      key={`${link.platform}-${url}`}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
+                      <span>{formatSocialLabel(link.platform, link, universeDeveloperName)}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted">We haven&apos;t found any official social media links yet.</p>
+            )}
+
+            <div className="prose dark:prose-invert max-w-none game-copy">
+              <p>
+                We keep track of these sources and update this page as soon as new codes drop. Bookmark this page or follow our channels to get the codes right away.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="https://t.me/bloxodes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+              >
+                <FaTelegramPlane className="h-4 w-4" aria-hidden />
+                <span>@bloxodes</span>
+              </a>
+              <a
+                href="https://twitter.com/bloxodes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+              >
+                <RiTwitterXLine className="h-4 w-4" aria-hidden />
+                <span>@bloxodes</span>
+              </a>
+              <a
+                href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+              >
+                <SiGooglechrome className="h-4 w-4" aria-hidden />
+                <span>Install Chrome Extension</span>
+              </a>
+            </div>
+          </section>
+        ) : null}
+
         <div className="mb-8">
           {/* Ezoic - incontent_5 - incontent_5 */}
           <EzoicAdSlot placeholderId={115} />
         </div>
-
-        <section className="mb-10" id="description" itemProp="articleBody">
-          {descriptionHtml ? (
-            <div
-              className="prose dark:prose-invert max-w-none game-copy"
-              dangerouslySetInnerHTML={processHtmlLinks(descriptionHtml)}
-            />
-          ) : (
-            <p className="text-muted">This section will explain the game and how to redeem codes.</p>
-          )}
-        </section>
-
-        {author ? <AuthorCard author={author} bioHtml={processHtmlLinks(authorBioHtml)} /> : null}
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: videoGameData }} />

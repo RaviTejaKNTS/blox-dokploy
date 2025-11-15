@@ -41,6 +41,7 @@ export type Game = {
   redeem_md: string | null;
   description_md: string | null;
   linktext_md: string | null;
+  universe_id: number | null;
   genre: string | null;
   sub_genre: string | null;
   internal_links: number | null;
@@ -51,6 +52,14 @@ export type Game = {
 
 export type GameWithAuthor = Game & {
   author: Author | null;
+};
+
+export type RobloxUniverseInfo = {
+  universe_id: number;
+  name: string | null;
+  display_name: string | null;
+  creator_name: string | null;
+  social_links: Record<string, unknown> | null;
 };
 
 export type Article = {
@@ -79,6 +88,66 @@ export type UniverseSummary = {
 export type ArticleWithRelations = Article & {
   author: Author | null;
   universe: UniverseSummary | null;
+};
+
+export type ListUniverseDetails = {
+  universe_id: number;
+  root_place_id: number | null;
+  name: string;
+  display_name: string | null;
+  slug: string | null;
+  icon_url: string | null;
+  playing: number | null;
+  visits: number | null;
+  favorites: number | null;
+  likes: number | null;
+  dislikes: number | null;
+  age_rating: string | null;
+  desktop_enabled: boolean | null;
+  mobile_enabled: boolean | null;
+  tablet_enabled: boolean | null;
+  console_enabled: boolean | null;
+  vr_enabled: boolean | null;
+  updated_at: string | null;
+  description: string | null;
+};
+
+export type GameList = {
+  id: string;
+  slug: string;
+  title: string;
+  hero_md: string | null;
+  intro_md: string | null;
+  outro_md: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  cover_image: string | null;
+  list_type: "sql" | "manual" | "hybrid";
+  filter_config: Record<string, unknown> | null;
+  limit_count: number;
+  is_published: boolean;
+  refreshed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameListEntry = {
+  list_id: string;
+  universe_id: number;
+  game_id: string | null;
+  rank: number;
+  metric_value: number | null;
+  reason: string | null;
+  extra: Record<string, unknown> | null;
+};
+
+type GamePreview = Pick<Game, "id" | "slug" | "name" | "universe_id"> & {
+  active_count?: number | null;
+};
+
+export type GameListUniverseEntry = GameListEntry & {
+  universe: ListUniverseDetails;
+  game: GamePreview | null;
 };
 
 export type Code = {
@@ -130,7 +199,7 @@ export async function getAuthorBySlug(slug: string): Promise<Author | null> {
   return (data as Author) || null;
 }
 
-type GameSummaryFields = Pick<Game, "id" | "name" | "slug" | "cover_image" | "created_at" | "updated_at">;
+type GameSummaryFields = Pick<Game, "id" | "name" | "slug" | "cover_image" | "created_at" | "updated_at" | "universe_id">;
 
 export type GameWithCounts = GameSummaryFields & {
   active_count: number;
@@ -205,30 +274,12 @@ async function fetchActiveCodeStats(
   return { counts, latestFirstSeenMap };
 }
 
-export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
-  const sb = supabaseAdmin();
-  const { data: games, error: gamesError } = await sb
-    .from("games")
-    .select("id,name,slug,cover_image,created_at,updated_at")
-    .eq("is_published", true)
-    .order("updated_at", { ascending: false });
-  if (gamesError) throw gamesError;
-
-  const gameList = (games ?? []) as GameSummaryFields[];
-  if (gameList.length === 0) {
-    return [];
-  }
-  const gameIds = gameList.map((g) => g.id);
-
-  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
-
-  const toTimestamp = (value: string | null | undefined): number => {
-    if (!value) return 0;
-    const ts = new Date(value).getTime();
-    return Number.isNaN(ts) ? 0 : ts;
-  };
-
-  const withCounts = gameList.map<GameWithCounts>((g) => {
+function buildGamesWithActiveCounts(
+  gameList: GameSummaryFields[],
+  counts: Map<string, number>,
+  latestFirstSeenMap: Map<string, string | null>
+): GameWithCounts[] {
+  return gameList.map<GameWithCounts>((g) => {
     const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
     const updatedAtTime = Date.parse(g.updated_at ?? "");
     const latestFirstSeenTime = latestFirstSeen ? Date.parse(latestFirstSeen) : NaN;
@@ -248,6 +299,32 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
       content_updated_at: contentUpdatedAt ?? g.updated_at ?? null
     };
   });
+}
+
+export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
+  const sb = supabaseAdmin();
+  const { data: games, error: gamesError } = await sb
+    .from("games")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
+    .eq("is_published", true)
+    .order("updated_at", { ascending: false });
+  if (gamesError) throw gamesError;
+
+  const gameList = (games ?? []) as GameSummaryFields[];
+  if (gameList.length === 0) {
+    return [];
+  }
+  const gameIds = gameList.map((g) => g.id);
+
+  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
+
+  const toTimestamp = (value: string | null | undefined): number => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
+  const withCounts = buildGamesWithActiveCounts(gameList, counts, latestFirstSeenMap);
 
   return withCounts
     .sort((a, b) => {
@@ -255,6 +332,118 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
       const bTime = toTimestamp(b.latest_code_first_seen_at ?? b.updated_at);
       return bTime - aTime;
     });
+}
+
+export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promise<GameWithCounts[]> {
+  if (!gameIds.length) {
+    return [];
+  }
+
+  const uniqueIds = Array.from(new Set(gameIds));
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("games")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
+    .eq("is_published", true)
+    .in("id", uniqueIds);
+  if (error) throw error;
+
+  const gameList = (data ?? []) as GameSummaryFields[];
+  if (!gameList.length) {
+    return [];
+  }
+
+  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, uniqueIds);
+  const withCounts = buildGamesWithActiveCounts(gameList, counts, latestFirstSeenMap);
+  const map = new Map(withCounts.map((game) => [game.id, game]));
+
+  return gameIds.map((id) => map.get(id)).filter((game): game is GameWithCounts => Boolean(game));
+}
+
+export async function listPublishedGameLists(): Promise<GameList[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("game_lists")
+    .select("*")
+    .eq("is_published", true)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as GameList[];
+}
+
+export async function getGameListMetadata(slug: string): Promise<GameList | null> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("game_lists")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as GameList) ?? null;
+}
+
+export async function getGameListBySlug(
+  slug: string
+): Promise<{ list: GameList; entries: GameListUniverseEntry[] } | null> {
+  const sb = supabaseAdmin();
+  const { data: listData, error: listError } = await sb
+    .from("game_lists")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+  if (listError) throw listError;
+  if (!listData) return null;
+  const list = listData as GameList;
+
+  const { data: entriesData, error: entriesError } = await sb
+    .from("game_list_entries")
+    .select("list_id,universe_id,game_id,rank,metric_value,reason,extra")
+    .eq("list_id", list.id)
+    .order("rank", { ascending: true });
+  if (entriesError) throw entriesError;
+  const entries = (entriesData ?? []) as GameListEntry[];
+
+  if (!entries.length) {
+    return { list, entries: [] };
+  }
+
+  const universeIds = entries.map((entry) => entry.universe_id);
+  const { data: universeData, error: universeError } = await sb
+    .from("roblox_universes")
+    .select(
+      "universe_id,root_place_id,name,display_name,slug,icon_url,playing,visits,favorites,likes,dislikes,age_rating,desktop_enabled,mobile_enabled,tablet_enabled,console_enabled,vr_enabled,updated_at,description"
+    )
+    .in("universe_id", universeIds);
+  if (universeError) throw universeError;
+  const universeMap = new Map<number, ListUniverseDetails>(
+    (universeData ?? []).map((row) => [row.universe_id, row as ListUniverseDetails])
+  );
+
+  const gameIds = entries.map((entry) => entry.game_id).filter((id): id is string => Boolean(id));
+  let gameMap = new Map<string, GamePreview>();
+  if (gameIds.length) {
+    const gamesWithCounts = await listGamesWithActiveCountsForIds(gameIds);
+    gameMap = new Map(gamesWithCounts.map((game) => [game.id, game]));
+  }
+
+  const combined = entries
+    .map<GameListUniverseEntry | null>((entry) => {
+      const universe = universeMap.get(entry.universe_id);
+      if (!universe) {
+        return null;
+      }
+      const game = entry.game_id ? gameMap.get(entry.game_id) ?? null : null;
+      return {
+        ...entry,
+        universe,
+        game
+      };
+    })
+    .filter((value): value is GameListUniverseEntry => Boolean(value));
+
+  return { list, entries: combined };
 }
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
@@ -292,7 +481,7 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
   const sb = supabaseAdmin();
   const { data: games, error: gamesError } = await sb
     .from("games")
-    .select("id,name,slug,cover_image,created_at,updated_at")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
     .eq("is_published", true)
     .eq("author_id", authorId)
     .order("name", { ascending: true });
@@ -350,6 +539,18 @@ export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null
   }
 
   return data as GameWithAuthor;
+}
+
+export async function getRobloxUniverseById(universeId: number): Promise<RobloxUniverseInfo | null> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("roblox_universes")
+    .select("universe_id, name, display_name, creator_name, social_links")
+    .eq("universe_id", universeId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as RobloxUniverseInfo) || null;
 }
 
 export async function listCodesForGame(gameId: string): Promise<Code[]> {

@@ -1,8 +1,6 @@
 name: Queue Article Generation
 
 on:
-  schedule:
-    - cron: "0 */2 * * *" # every 2 hours (times vary due to random delay below)
   workflow_dispatch:
     inputs:
       limit:
