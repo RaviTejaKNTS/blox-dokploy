@@ -110,7 +110,6 @@ export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
                   key={label}
                   className={`h-4 w-4 ${enabled ? "text-accent" : "text-border"}`}
                   aria-label={label}
-                  role="img"
                 />
               ))}
             </div>
