@@ -73,7 +73,7 @@ export async function GET() {
   for (const article of articles || []) {
     if (!article?.slug) continue;
     pages.push({
-      loc: `${origin}/${article.slug}`,
+      loc: `${origin}/articles/${article.slug}`,
       changefreq: "weekly",
       priority: "0.8",
       lastmod: article.updated_at ? new Date(article.updated_at).toISOString() : undefined

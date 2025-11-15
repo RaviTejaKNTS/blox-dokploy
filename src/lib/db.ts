@@ -60,6 +60,7 @@ export type Article = {
   content_md: string;
   cover_image: string | null;
   author_id: string | null;
+  universe_id: number | null;
   is_published: boolean;
   published_at: string;
   created_at: string;
@@ -68,8 +69,16 @@ export type Article = {
   meta_description: string | null;
 };
 
+export type UniverseSummary = {
+  universe_id: number;
+  slug: string | null;
+  display_name: string | null;
+  name: string | null;
+};
+
 export type ArticleWithRelations = Article & {
   author: Author | null;
+  universe: UniverseSummary | null;
 };
 
 export type Code = {
@@ -107,7 +116,7 @@ export async function listAuthors(): Promise<Author[]> {
 }
 
 function articleSelectFields() {
-  return `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at))`;
+  return `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id,slug,display_name,name)`;
 }
 
 export async function getAuthorBySlug(slug: string): Promise<Author | null> {

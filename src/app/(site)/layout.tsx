@@ -9,28 +9,37 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/95 backdrop-blur">
-        <div className="container flex items-center justify-between gap-6 py-4">
-          <a href="/" className="flex items-end gap-3">
-            <Image
-              src="/Bloxodes-dark.png"
-              alt="Bloxodes"
-              width={948}
-              height={319}
-              priority
-              className="hidden h-9 w-auto dark:block"
-            />
-            <Image
-              src="/Bloxodes-light.png"
-              alt="Bloxodes"
-              width={948}
-              height={319}
-              loading="lazy"
-              fetchPriority="low"
-              className="block h-9 w-auto dark:hidden"
-            />
-            <span className="mb-[2px] text-xs font-sans text-muted-foreground">for Roblox Codes</span>
-          </a>
-          <div className="flex items-center gap-2">
+        <div className="container flex flex-wrap items-center justify-between gap-6 py-4">
+          <div className="flex flex-1 flex-wrap items-end gap-10">
+            <a href="/" className="flex items-end gap-3">
+              <Image
+                src="/Bloxodes-dark.png"
+                alt="Bloxodes"
+                width={948}
+                height={319}
+                priority
+                className="hidden h-9 w-auto dark:block"
+              />
+              <Image
+                src="/Bloxodes-light.png"
+                alt="Bloxodes"
+                width={948}
+                height={319}
+                loading="lazy"
+                fetchPriority="low"
+                className="block h-9 w-auto dark:hidden"
+              />
+            </a>
+            <nav className="flex items-center gap-6 text-sm font-semibold text-muted">
+              <Link href="/articles" className="transition hover:text-foreground">
+                Articles
+              </Link>
+              <Link href="/codes" className="transition hover:text-foreground">
+                Codes
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               data-search-trigger

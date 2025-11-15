@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
 import { listPublishedArticles } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
-import { markdownToPlainText } from "@/lib/markdown";
+import { ArticleCard } from "@/components/ArticleCard";
 
 export const revalidate = 300;
 
@@ -30,53 +28,10 @@ export default async function ArticlesIndexPage() {
         {articles.length === 0 ? (
           <p className="text-sm text-muted">Articles will appear here after publication.</p>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {articles.map((article) => {
-              const published = new Date(article.published_at);
-              const publishedLabel = published.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              });
-
-              return (
-                <article
-                  key={article.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-surface/70 shadow-soft transition hover:border-accent"
-                >
-                  {article.cover_image ? (
-                    <div className="relative h-48 w-full overflow-hidden border-b border-border/60">
-                      <Image
-                        src={article.cover_image}
-                        alt={article.title}
-                        fill
-                        className="object-cover transition duration-500 group-hover:scale-[1.02]"
-                        sizes="(min-width: 768px) 50vw, 100vw"
-                      />
-                    </div>
-                  ) : null}
-                  <div className="flex flex-1 flex-col gap-4 p-6">
-                    <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
-                      <span>{publishedLabel}</span>
-                    </div>
-                    <h3 className="text-2xl font-semibold text-foreground">
-                      <Link href={`/${article.slug}`} className="hover:text-accent">
-                        {article.title}
-                      </Link>
-                    </h3>
-                    <p className="line-clamp-3 text-sm text-muted">
-                      {(article.meta_description ?? markdownToPlainText(article.content_md).slice(0, 160)) || SITE_DESCRIPTION}
-                    </p>
-                    <div className="mt-auto flex items-center justify-between text-xs text-muted">
-                      <span>{Math.max(1, Math.ceil(((article.word_count ?? 0) || 0) / 200))} min read</span>
-                      <Link href={`/${article.slug}`} className="text-accent underline-offset-2 hover:underline">
-                        Read article
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            {articles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
           </div>
         )}
       </section>

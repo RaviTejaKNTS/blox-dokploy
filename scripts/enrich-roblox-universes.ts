@@ -220,6 +220,17 @@ function toSlug(value?: string | null): string | null {
   return slug || null;
 }
 
+function sanitizeDisplayName(value?: string | null): string | null {
+  if (!value) return null;
+  let result = value.replace(/[\[\{\(][^\]\}\)]*[\]\}\)]/g, " ");
+  result = result.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/gu, " ");
+  // Drop embedded version strings like "v3.2.7"
+  result = result.replace(/\bv\d+(?:\.\d+){1,3}\b/gi, " ");
+  result = result.replace(/[^A-Za-z0-9\s]/g, " ");
+  result = result.replace(/\s+/g, " ").trim();
+  return result.length ? result : null;
+}
+
 async function fetchJson(url: string, label: string) {
   const res = await fetch(url, { headers: { "user-agent": "BloxodesUniverseEnricher/1.0" } });
   if (!res.ok) {
@@ -701,6 +712,20 @@ function mapGameDetail(
     social_links: metadata?.socialLinks ?? {}
   };
 
+  const displaySource =
+    (payload.display_name as string | null) ??
+    (payload.name as string | null) ??
+    `Universe ${game.id}`;
+  const sanitizedDisplay = sanitizeDisplayName(displaySource);
+  payload.display_name = sanitizedDisplay ?? displaySource;
+  const slugSource =
+    sanitizedDisplay ?? (payload.name as string | null) ?? `universe-${game.id}`;
+  const safeSlug =
+    toSlug(slugSource) ??
+    toSlug((payload.name as string | null) ?? `universe-${game.id}`) ??
+    `universe-${game.id}`;
+  payload.slug = safeSlug;
+
   return payload as UniverseUpsertRecord;
 }
 
@@ -710,8 +735,20 @@ function mergeWithExistingValues(
 ): UniverseUpsertRecord {
   if (!existing) return incoming;
   const record = incoming as Record<string, unknown>;
+  const lockedFields = new Set(["display_name", "slug"]);
   for (const key of Object.keys(record)) {
     if (key === "universe_id") continue;
+    if (lockedFields.has(key)) {
+      const existingValue = existing[key];
+      const hasValue =
+        existingValue !== null &&
+        existingValue !== undefined &&
+        (typeof existingValue !== "string" || existingValue.trim().length > 0);
+      if (hasValue) {
+        record[key] = existingValue;
+        continue;
+      }
+    }
     const value = record[key];
     if ((value === null || value === undefined) && existing[key] !== undefined) {
       record[key] = existing[key];

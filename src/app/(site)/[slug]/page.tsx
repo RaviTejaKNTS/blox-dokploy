@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FaTelegramPlane } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
 import { SiGooglechrome } from "react-icons/si";
@@ -24,8 +24,6 @@ import {
   listCodesForGame,
   listGamesWithActiveCounts,
   getArticleBySlug,
-  listPublishedArticles,
-  type ArticleWithRelations,
   type Author,
   type Code
 } from "@/lib/db";
@@ -41,6 +39,7 @@ import {
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { collectAuthorSocials } from "@/lib/author-socials";
+import { extractHowToSteps } from "@/lib/how-to";
 
 export const revalidate = 30;
 
@@ -79,72 +78,6 @@ function isCodeWithinNewThreshold(code: Pick<Code, "first_seen_at">, referenceMs
   const firstSeenMs = firstSeenTimestamp(code);
   if (firstSeenMs == null) return false;
   return referenceMs - firstSeenMs <= NEW_CODE_THRESHOLD_MS;
-}
-
-interface HowToStep {
-  text: string;
-  image?: string;
-}
-
-function extractHowToSteps(markdown?: string | null): string[] {
-  if (!markdown) return [];
-  
-  const lines = markdown.split(/\r?\n/);
-  const steps: string[] = [];
-  let currentStep: string | null = null;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Skip empty lines
-    if (!line) continue;
-    
-    // Check for H2 heading (## )
-    const headingMatch = line.match(/^##\s+(.+)$/);
-    if (headingMatch) {
-      // If we have a current step, add it before starting a new section
-      if (currentStep) {
-        steps.push(currentStep);
-        currentStep = null;
-      }
-      continue;
-    }
-    
-    // Check for numbered list items (1., 2., etc.)
-    const stepMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
-    if (stepMatch) {
-      // If we have a current step, add it before starting a new one
-      if (currentStep) {
-        steps.push(currentStep);
-      }
-      currentStep = stepMatch[2];
-      continue;
-    }
-    
-    // Check for images in the current line
-    const imageMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-    if (imageMatch) {
-      // If we have an image and a current step, we can associate it
-      // For now, we'll just add it to the current step text
-      // In a more advanced implementation, we could return an array of objects with text and image
-      if (currentStep) {
-        currentStep += ` [Image: ${imageMatch[1] || 'Step illustration'}]`;
-      }
-      continue;
-    }
-    
-    // If we have a current step and this is a continuation line, append it
-    if (currentStep && line.match(/^[^#\d\-*+]/)) {
-      currentStep += ' ' + line.replace(/^\s*[-*+]\s*/, '').trim();
-    }
-  }
-  
-  // Add the last step if there is one
-  if (currentStep) {
-    steps.push(currentStep);
-  }
-  
-  return steps.slice(0, 10); // Limit to 10 steps
 }
 
 interface FaqEntry {
@@ -243,270 +176,75 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const slug = params.slug;
   const game = await getGameBySlug(slug);
 
-  if (game && game.is_published) {
-    const codes = await listCodesForGame(game.id);
-    const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
-      if (!code.first_seen_at) return latest;
-      if (!latest || code.first_seen_at > latest) return code.first_seen_at;
-      return latest;
-    }, null);
-    const activeCount = codes.filter((code) => code.status === "active").length;
-    const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
-      ? latestCodeFirstSeen
-      : game.updated_at;
-    const when = monthYear();
-    const title = game.seo_title || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
-    const descriptionRaw =
-      game.seo_description ||
-      `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
-    const description = descriptionRaw?.trim() || SITE_DESCRIPTION;
-    const canonicalUrl = `${SITE_URL}/${game.slug}`;
-    const coverImage = game.cover_image?.startsWith("http")
-      ? game.cover_image
-      : game.cover_image
-      ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
-      : `${SITE_URL}/og-image.png`;
-    const publishedTime = new Date(game.created_at).toISOString();
-    const modifiedTime = new Date(lastContentUpdate).toISOString();
-    const authorUrl = game.author?.slug
-      ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
-      : undefined;
-    const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
-    const otherMeta: Record<string, string> = {};
-    return {
+  if (!game || !game.is_published) {
+    return {};
+  }
+
+  const codes = await listCodesForGame(game.id);
+  const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
+    if (!code.first_seen_at) return latest;
+    if (!latest || code.first_seen_at > latest) return code.first_seen_at;
+    return latest;
+  }, null);
+  const activeCount = codes.filter((code) => code.status === "active").length;
+  const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
+    ? latestCodeFirstSeen
+    : game.updated_at;
+  const when = monthYear();
+  const title = game.seo_title || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
+  const descriptionRaw =
+    game.seo_description ||
+    `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
+  const description = descriptionRaw?.trim() || SITE_DESCRIPTION;
+  const canonicalUrl = `${SITE_URL}/${game.slug}`;
+  const coverImage = game.cover_image?.startsWith("http")
+    ? game.cover_image
+    : game.cover_image
+    ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
+    : `${SITE_URL}/og-image.png`;
+  const publishedTime = new Date(game.created_at).toISOString();
+  const modifiedTime = new Date(lastContentUpdate).toISOString();
+  const authorUrl = game.author?.slug
+    ? `${SITE_URL.replace(/\/$/, "")}/authors/${game.author.slug}`
+    : undefined;
+  const authors = game.author ? [{ name: game.author.name, url: authorUrl }] : undefined;
+  const otherMeta: Record<string, string> = {};
+  return {
+    title,
+    description,
+    keywords: [
+      `${game.name} codes`,
+      "Roblox codes",
+      "Roblox promo codes",
+      "gaming rewards",
+      "Bloxodes"
+    ],
+    category: "Gaming",
+    alternates: { canonical: canonicalUrl },
+    authors,
+    publisher: SITE_NAME,
+    openGraph: {
+      type: "article",
       title,
       description,
-      keywords: [
-        `${game.name} codes`,
-        "Roblox codes",
-        "Roblox promo codes",
-        "gaming rewards",
-        "Bloxodes"
-      ],
-      category: "Gaming",
-      alternates: { canonical: canonicalUrl },
-      authors,
-      publisher: SITE_NAME,
-      openGraph: {
-        type: "article",
-        title,
-        description,
-        url: canonicalUrl,
-        siteName: SITE_NAME,
-        images: [coverImage],
-        publishedTime,
-        modifiedTime,
-        locale: "en_US",
-        authors: authors?.map((author) => author.name) ?? [SITE_NAME]
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-        creator: "@bloxodes",
-        site: "@bloxodes",
-        images: [coverImage]
-      },
-      ...(Object.keys(otherMeta).length ? { other: otherMeta } : {})
-    };
-  }
-
-  const article = await getArticleBySlug(slug);
-  if (article) {
-    const canonicalUrl = `${SITE_URL}/${article.slug}`;
-    const coverImage = article.cover_image?.startsWith("http")
-      ? article.cover_image
-      : article.cover_image
-      ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
-      : `${SITE_URL}/og-image.png`;
-    const description = (article.meta_description || markdownToPlainText(article.content_md)).trim();
-
-    return {
-      title: article.title,
+      url: canonicalUrl,
+      siteName: SITE_NAME,
+      images: [coverImage],
+      publishedTime,
+      modifiedTime,
+      locale: "en_US",
+      authors: authors?.map((author) => author.name) ?? [SITE_NAME]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
       description,
-      alternates: { canonical: canonicalUrl },
-      openGraph: {
-        type: "article",
-        url: canonicalUrl,
-        title: article.title,
-        description,
-        siteName: SITE_NAME,
-        images: [coverImage],
-        publishedTime: new Date(article.published_at).toISOString(),
-        modifiedTime: new Date(article.updated_at).toISOString(),
-        authors: article.author ? [article.author.name] : undefined
-      },
-      twitter: {
-        card: "summary_large_image",
-        title: article.title,
-        description,
-        images: [coverImage]
-      }
-    };
-  }
-
-  return {};
-}
-
-async function renderArticlePage(article: ArticleWithRelations) {
-  const canonicalUrl = `${SITE_URL}/${article.slug}`;
-  const coverImage = article.cover_image?.startsWith("http")
-    ? article.cover_image
-    : article.cover_image
-    ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
-    : null;
-  const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
-  const [articleHtml, authorBioHtml, latestArticles] = await Promise.all([
-    renderMarkdown(article.content_md),
-    article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
-    listPublishedArticles(6)
-  ]);
-
-  const fallbackArticles = (latestArticles ?? []).filter((entry) => entry.id !== article.id);
-  const relatedArticles = fallbackArticles.slice(0, 5);
-  const relatedHeading = relatedArticles.length ? "Latest articles" : null;
-  const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
-  const publishedDate = new Date(article.published_at);
-  const updatedDate = new Date(article.updated_at);
-  const formattedPublished = publishedDate.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric"
-  });
-  const formattedUpdated = updatedDate.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric"
-  });
-  const updatedRelativeLabel = formatDistanceToNow(updatedDate, { addSuffix: true });
-  const publishedIso = publishedDate.toISOString();
-  const updatedIso = updatedDate.toISOString();
-  const authorProfileUrl = article.author?.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : null;
-  const authorSameAs = collectAuthorSameAs(article.author);
-  const authorBioPlain = article.author?.bio_md ? markdownToPlainText(article.author.bio_md) : null;
-
-  const structuredData = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: article.title,
-    url: canonicalUrl,
-    description: descriptionPlain,
-    datePublished: publishedIso,
-    dateModified: updatedIso,
-    image: coverImage ?? `${SITE_URL}/og-image.png`,
-    author: article.author
-      ? {
-          '@type': 'Person',
-          name: article.author.name,
-          url: authorProfileUrl ?? undefined,
-          sameAs: authorSameAs.length ? authorSameAs : undefined
-        }
-      : {
-          '@type': 'Organization',
-          name: SITE_NAME
-        }
+      creator: "@bloxodes",
+      site: "@bloxodes",
+      images: [coverImage]
+    },
+    ...(Object.keys(otherMeta).length ? { other: otherMeta } : {})
   };
-
-  const processedArticleHtml = processHtmlLinks(articleHtml);
-  const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
-
-  return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
-      <article className="min-w-0">
-        <header className="mb-6">
-          <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
-            {article.title}
-          </h1>
-          <div className="mt-4 flex flex-col gap-3 text-sm text-muted">
-            <div className="flex flex-wrap items-center gap-2">
-              {article.author ? (
-                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
-                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
-                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
-                  {authorSameAs.map((url) => (
-                    <link key={url} itemProp="sameAs" href={url} />
-                  ))}
-                  <img
-                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
-                    alt={article.author.name}
-                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <span>
-                    Authored by {article.author.slug ? (
-                      <Link
-                        href={`/authors/${article.author.slug}`}
-                        className="font-semibold text-foreground transition hover:text-accent"
-                        itemProp="name"
-                      >
-                        {article.author.name}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-foreground" itemProp="name">
-                        {article.author.name}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              ) : (
-                <span className="font-semibold text-foreground" itemProp="author">
-                  Published by {SITE_NAME}
-                </span>
-              )}
-              <span aria-hidden="true">•</span>
-              <span className="text-foreground/80">
-                Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
-                {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
-              </span>
-            </div>
-            {/* Removed published timestamp row for articles */}
-          </div>
-        </header>
-
-        <section id="article-body" itemProp="articleBody">
-          <div
-            className="prose dark:prose-invert max-w-none game-copy"
-            dangerouslySetInnerHTML={processedArticleHtml}
-          />
-        </section>
-
-        {article.author ? (
-          <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
-        ) : null}
-
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-        <CodeBlockEnhancer />
-      </article>
-
-      <aside className="space-y-4">
-        <section className="space-y-3">
-          <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
-        </section>
-
-        {relatedArticles.length ? (
-          <section className="panel space-y-3 px-4 py-5">
-            {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
-            <div className="space-y-4">
-              {relatedArticles.slice(0, 5).map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-[var(--radius-sm)] border border-border/60 bg-surface px-4 py-3"
-                >
-                  <Link href={`/${item.slug}`} className="text-sm font-semibold text-foreground transition hover:text-accent">
-                    {item.title}
-                  </Link>
-                  <div className="mt-1 text-xs text-muted">
-                    {new Date(item.published_at).toLocaleDateString('en-US')}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
-      </aside>
-    </div>
-  );
 }
 
 async function fetchGameData(slug: string) {
@@ -546,7 +284,7 @@ export default async function GamePage({ params }: Params) {
   if (result.error === 'NOT_FOUND') {
     const article = await getArticleBySlug(params.slug);
     if (article) {
-      return renderArticlePage(article);
+      redirect(`/articles/${article.slug}`);
     }
     notFound();
   }
@@ -681,9 +419,15 @@ export default async function GamePage({ params }: Params) {
   const siteBaseUrl = SITE_URL.replace(/\/$/, "");
   const breadcrumbs = [
     { name: "Home", url: SITE_URL },
-    { name: `${game.name} Codes`, url: canonicalUrl }
+    { name: game.name ?? "Roblox", url: canonicalUrl },
+    { name: "Codes", url: `${canonicalUrl}#codes` }
   ];
   const breadcrumbData = JSON.stringify(breadcrumbJsonLd(breadcrumbs));
+  const breadcrumbNavItems = [
+    { label: "Home", href: "/" },
+    { label: game.name ?? "Roblox", href: null },
+    { label: "Codes", href: `${canonicalUrl}#active-codes` }
+  ];
   const videoGameData = JSON.stringify(
     gameJsonLd({ siteUrl: SITE_URL, game: { name: game.name, slug: game.slug, image: coverImage } })
   );
@@ -714,7 +458,7 @@ export default async function GamePage({ params }: Params) {
     ? JSON.stringify(
         howToJsonLd({
           siteUrl: SITE_URL,
-          game: { name: game.name, slug: game.slug },
+          subject: { name: game.name, slug: game.slug },
           steps: redeemSteps
         })
       )
@@ -744,6 +488,22 @@ export default async function GamePage({ params }: Params) {
         <meta itemProp="description" content={metaDescription} />
         <meta itemProp="image" content={coverImage} />
         {!author ? <meta itemProp="author" content={SITE_NAME} /> : null}
+        <nav aria-label="Breadcrumb" className="mb-4 text-xs uppercase tracking-[0.25em] text-muted">
+          <ol className="flex flex-wrap items-center gap-2">
+            {breadcrumbNavItems.map((item, index) => (
+              <li key={`${item.label}-${index}`} className="flex items-center gap-2">
+                {item.href ? (
+                  <Link href={item.href} className="font-semibold text-muted transition hover:text-accent">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-foreground/80">{item.label}</span>
+                )}
+                {index < breadcrumbNavItems.length - 1 ? <span className="text-muted/60">&gt;</span> : null}
+              </li>
+            ))}
+          </ol>
+        </nav>
         <header className="mb-6">
           <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
             {game.name} Codes ({monthYear()})

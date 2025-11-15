@@ -276,23 +276,29 @@ export function webPageJsonLd({
 
 export function howToJsonLd({
   siteUrl,
-  game,
+  subject,
   steps,
-  images = []
+  images = [],
+  title,
+  description
 }: {
   siteUrl: string;
-  game: { name: string; slug: string };
+  subject: { name: string; slug: string };
   steps: string[];
   images?: string[];
+  title?: string;
+  description?: string;
 }) {
   if (!steps.length) return null;
   
-  const canonical = `${siteUrl.replace(/\/$/, '')}/${game.slug.replace(/^\//, '')}`;
+  const canonical = `${siteUrl.replace(/\/$/, '')}/${subject.slug.replace(/^\//, '')}`;
   const normalizedImages = images
     .map((src) =>
       src.startsWith('http') ? src : `${siteUrl.replace(/\/$/, '')}/${src.replace(/^\//, '')}`
     )
     .slice(0, 3);
+  const resolvedTitle = title ?? `How to redeem ${subject.name} codes`;
+  const resolvedDescription = description ?? `Step-by-step guide to redeem codes in ${subject.name}.`;
 
   // Process steps to extract images and clean up text
   const processedSteps = steps.map(step => {
@@ -323,8 +329,8 @@ export function howToJsonLd({
   return {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    "name": `How to redeem ${game.name} codes`,
-    "description": `Step-by-step guide to redeem codes in ${game.name}.`,
+    "name": resolvedTitle,
+    "description": resolvedDescription,
     "url": canonical,
     ...(normalizedImages.length ? { image: normalizedImages } : {}),
     "step": processedSteps.map((step, index) => ({

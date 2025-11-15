@@ -1,0 +1,296 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { formatDistanceToNow } from "date-fns";
+import "@/styles/article-content.css";
+import { AuthorCard } from "@/components/AuthorCard";
+import { SocialShare } from "@/components/SocialShare";
+import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
+import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
+import { processHtmlLinks } from "@/lib/link-utils";
+import { authorAvatarUrl } from "@/lib/avatar";
+import { collectAuthorSocials } from "@/lib/author-socials";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+  breadcrumbJsonLd,
+  howToJsonLd
+} from "@/lib/seo";
+import {
+  getArticleBySlug,
+  listPublishedArticles,
+  type ArticleWithRelations,
+  type Author
+} from "@/lib/db";
+import { extractHowToSteps } from "@/lib/how-to";
+
+export const revalidate = 30;
+
+type Params = { params: { slug: string } };
+
+function collectAuthorSameAs(author?: Author | null): string[] {
+  if (!author) return [];
+  const socials = collectAuthorSocials(author);
+  return Array.from(new Set(socials.map((link) => link.url)));
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const article = await getArticleBySlug(params.slug);
+  if (!article) return {};
+
+  const canonicalUrl = `${SITE_URL}/articles/${article.slug}`;
+  const coverImage = article.cover_image?.startsWith("http")
+    ? article.cover_image
+    : article.cover_image
+    ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
+    : `${SITE_URL}/og-image.png`;
+  const description = (article.meta_description || markdownToPlainText(article.content_md)).trim() || SITE_DESCRIPTION;
+  const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
+
+  return {
+    title: article.title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    category: universeName ?? "Gaming",
+    openGraph: {
+      type: "article",
+      url: canonicalUrl,
+      title: article.title,
+      description,
+      siteName: SITE_NAME,
+      images: [coverImage],
+      publishedTime: new Date(article.published_at).toISOString(),
+      modifiedTime: new Date(article.updated_at).toISOString(),
+      authors: article.author ? [article.author.name] : undefined
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description,
+      images: [coverImage]
+    }
+  };
+}
+
+export default async function ArticlePage({ params }: Params) {
+  const article = await getArticleBySlug(params.slug);
+  if (!article) {
+    notFound();
+  }
+  return renderArticlePage(article);
+}
+
+async function renderArticlePage(article: ArticleWithRelations) {
+  const canonicalUrl = `${SITE_URL}/articles/${article.slug}`;
+  const coverImage = article.cover_image?.startsWith("http")
+    ? article.cover_image
+    : article.cover_image
+    ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
+    : null;
+  const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
+  const [articleHtml, authorBioHtml, latestArticles] = await Promise.all([
+    renderMarkdown(article.content_md),
+    article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
+    listPublishedArticles(6)
+  ]);
+
+  const fallbackArticles = (latestArticles ?? []).filter((entry) => entry.id !== article.id);
+  const relatedArticles = fallbackArticles.slice(0, 5);
+  const relatedHeading = relatedArticles.length ? "Latest articles" : null;
+  const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
+  const publishedDate = new Date(article.published_at);
+  const updatedDate = new Date(article.updated_at);
+  const formattedUpdated = updatedDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+  const updatedRelativeLabel = formatDistanceToNow(updatedDate, { addSuffix: true });
+  const publishedIso = publishedDate.toISOString();
+  const updatedIso = updatedDate.toISOString();
+  const authorProfileUrl = article.author?.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${article.author.slug}` : null;
+  const authorSameAs = collectAuthorSameAs(article.author);
+  const authorBioPlain = article.author?.bio_md ? markdownToPlainText(article.author.bio_md) : null;
+  const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
+  const fallbackUniverse = universeName ?? "Roblox";
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: fallbackUniverse, href: null },
+    { label: "Articles", href: "/articles" }
+  ];
+  const breadcrumbData = JSON.stringify(
+    breadcrumbJsonLd([
+      { name: "Home", url: SITE_URL },
+      { name: fallbackUniverse, url: `${SITE_URL}/articles` },
+      { name: "Articles", url: `${SITE_URL}/articles` }
+    ])
+  );
+  const howToSteps = extractHowToSteps(article.content_md);
+  const articleHowToData = howToSteps.length
+    ? JSON.stringify(
+        howToJsonLd({
+          siteUrl: SITE_URL,
+          subject: { name: article.title, slug: `articles/${article.slug}` },
+          steps: howToSteps,
+          title: article.title,
+          description: `Step-by-step guide derived from "${article.title}".`
+        })
+      )
+    : null;
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    mainEntityOfPage: canonicalUrl,
+    headline: article.title,
+    articleSection: universeName ?? undefined,
+    description: descriptionPlain,
+    datePublished: publishedIso,
+    dateModified: updatedIso,
+    image: coverImage ?? `${SITE_URL}/og-image.png`,
+    author: article.author
+      ? {
+          '@type': 'Person',
+          name: article.author.name,
+          url: authorProfileUrl ?? undefined,
+          sameAs: authorSameAs.length ? authorSameAs : undefined
+        }
+      : {
+          '@type': 'Organization',
+          name: SITE_NAME
+        },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/Bloxodes-dark.png`
+      }
+    }
+  };
+
+  const processedArticleHtml = processHtmlLinks(articleHtml);
+  const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
+      <article className="min-w-0">
+        <header className="mb-6 space-y-3">
+          <nav aria-label="Breadcrumb" className="text-xs uppercase tracking-[0.25em] text-muted">
+            <ol className="flex flex-wrap items-center gap-2">
+              {breadcrumbItems.map((item, index) => (
+                <li key={`${item.label}-${index}`} className="flex items-center gap-2">
+                  {item.href ? (
+                    <Link href={item.href} className="font-semibold text-muted transition hover:text-accent">
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-foreground/80">{item.label}</span>
+                  )}
+                  {index < breadcrumbItems.length - 1 ? <span className="text-muted/60">&gt;</span> : null}
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
+            {article.title}
+          </h1>
+          <div className="flex flex-col gap-3 text-sm text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              {article.author ? (
+                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
+                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
+                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
+                  {authorSameAs.map((url) => (
+                    <link key={url} itemProp="sameAs" href={url} />
+                  ))}
+                  <img
+                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
+                    alt={article.author.name}
+                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span>
+                    Authored by {article.author.slug ? (
+                      <Link
+                        href={`/authors/${article.author.slug}`}
+                        className="font-semibold text-foreground transition hover:text-accent"
+                        itemProp="name"
+                      >
+                        {article.author.name}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-foreground" itemProp="name">
+                        {article.author.name}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-semibold text-foreground" itemProp="author">
+                  Published by {SITE_NAME}
+                </span>
+              )}
+              <span aria-hidden="true">•</span>
+              <span className="text-foreground/80">
+                Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+                {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <section id="article-body" itemProp="articleBody">
+          <div
+            className="prose dark:prose-invert max-w-none game-copy"
+            dangerouslySetInnerHTML={processedArticleHtml}
+          />
+        </section>
+
+        {article.author ? (
+          <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
+        ) : null}
+
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+        {articleHowToData ? (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleHowToData }} />
+        ) : null}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
+        <CodeBlockEnhancer />
+      </article>
+
+      <aside className="space-y-4">
+        <section className="space-y-3">
+          <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
+        </section>
+
+        {relatedArticles.length ? (
+          <section className="panel space-y-3 px-4 py-5">
+            {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
+            <div className="space-y-4">
+              {relatedArticles.slice(0, 5).map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-[var(--radius-sm)] border border-border/60 bg-surface px-4 py-3"
+                >
+                  <Link
+                    href={`/articles/${item.slug}`}
+                    className="text-sm font-semibold text-foreground transition hover:text-accent"
+                  >
+                    {item.title}
+                  </Link>
+                  <div className="mt-1 text-xs text-muted">
+                    {new Date(item.published_at).toLocaleDateString("en-US")}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </aside>
+    </div>
+  );
+}

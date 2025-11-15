@@ -1,6 +1,23 @@
 import * as cheerio from "cheerio";
 import type { ScrapedCode, ScrapeResult } from "./scraper-types";
 
+function isAdRow($item: cheerio.Cheerio<cheerio.Element>, $: cheerio.CheerioAPI): boolean {
+  const adClassSelectors = [".table__ad-placement-row", ".codes-list__ad", ".codes-list__promo"];
+  for (const sel of adClassSelectors) {
+    if ($item.is(sel) || $item.find(sel).length > 0) {
+      return true;
+    }
+  }
+
+  const adAttributes = ["data-native-campaign", "data-native-widget", "data-native-ad", "data-ad-slot"];
+  for (const attr of adAttributes) {
+    if ($item.attr(attr) != null) return true;
+    if ($item.find(`[${attr}]`).length > 0) return true;
+  }
+
+  return false;
+}
+
 function extractCode($item: cheerio.Cheerio<cheerio.Element>, $: cheerio.CheerioAPI): string | null {
   // Primary: contenteditable container
   const primary = $item.find(".codes-list__copy-container [contenteditable]").first().text().trim();
@@ -165,6 +182,7 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
 
   items.each((_, el) => {
     const $item = $(el);
+    if (isAdRow($item, $)) return;
     const code = extractCode($item, $);
     if (!code) return;
 

@@ -17,7 +17,7 @@ import {
 } from "@/lib/roblox/game-metadata";
 import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 import { scrapeSocialLinksFromSources, type SocialLinks as ScrapedSocialLinks } from "@/lib/social-links";
-import { normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
+import { appendCodesSuffix, normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const supabase = createClient(
@@ -86,6 +86,24 @@ type PlaceholderLinks = {
   discord_link?: LinkInfo;
   twitter_link?: LinkInfo;
   youtube_link?: LinkInfo;
+};
+
+type ExistingGameRecord = {
+  id: string;
+  slug: string;
+  author_id: string | null;
+  is_published: boolean;
+  roblox_link: string | null;
+  community_link: string | null;
+  discord_link: string | null;
+  twitter_link: string | null;
+  youtube_link: string | null;
+  source_url: string | null;
+  source_url_2: string | null;
+  source_url_3: string | null;
+  genre: string | null;
+  sub_genre: string | null;
+  universe_id: number | null;
 };
 
 function isArticleResponse(value: unknown): value is ArticleResponse {
@@ -871,16 +889,17 @@ async function main() {
   const canonicalName = sanitizeGameDisplayName(parsed.game_display_name, gameName);
   let slug = normalizeGameSlug(canonicalName, gameName);
 
-  const { data: existingGame, error: existingError } = await supabase
-    .from("games")
-    .select(
-      "id, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
-    )
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (existingError) {
-    throw existingError;
+  let existingGame: ExistingGameRecord | null = null;
+  {
+    const { data, error } = await supabase
+      .from("games")
+      .select(
+        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
+      )
+      .eq("slug", slug)
+      .maybeSingle();
+    if (error) throw error;
+    existingGame = (data as ExistingGameRecord | null) ?? null;
   }
 
   if (existingGame?.is_published) {
@@ -997,9 +1016,50 @@ async function main() {
     insertPayload.universe_id = resolvedUniverseId;
   }
 
+  let derivedUniverseSlug: string | null = null;
+  if (resolvedUniverseId != null) {
+    const { data: universeRow, error: universeError } = await supabase
+      .from("roblox_universes")
+      .select("slug")
+      .eq("universe_id", resolvedUniverseId)
+      .maybeSingle();
+    if (universeError) {
+      console.warn(
+        "⚠️ Failed to load universe slug:",
+        universeError instanceof Error ? universeError.message : universeError
+      );
+    } else {
+      derivedUniverseSlug = (universeRow?.slug as string | null) ?? null;
+    }
+  }
+
+  let finalSlug = slug;
+  if (derivedUniverseSlug) {
+    finalSlug = appendCodesSuffix(derivedUniverseSlug);
+  }
+
+  if (!existingGame && finalSlug !== slug) {
+    const { data: altGame, error: altError } = await supabase
+      .from("games")
+      .select(
+        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
+      )
+      .eq("slug", finalSlug)
+      .maybeSingle();
+    if (altError) throw altError;
+    existingGame = (altGame as ExistingGameRecord | null) ?? null;
+  }
+
+  slug = finalSlug;
+  insertPayload.slug = finalSlug;
+
+  if (existingGame?.id) {
+    insertPayload.id = existingGame.id;
+  }
+
   const upsert = await supabase
     .from("games")
-    .upsert(insertPayload, { onConflict: "slug" })
+    .upsert(insertPayload, { onConflict: existingGame?.id ? "id" : "slug" })
     .select("id")
     .maybeSingle();
 
