@@ -23,7 +23,9 @@
     "genres:update": "tsx scripts/update-roblox-genres.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
-    "lists:refresh": "tsx scripts/refresh-game-lists.ts"
+    "lists:refresh": "tsx scripts/refresh-game-lists.ts",
+    "update:playing": "tsx scripts/update-universe-playing.ts",
+    "update:stats": "tsx scripts/update-universe-stats.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
