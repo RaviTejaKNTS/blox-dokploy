@@ -191,7 +191,7 @@ function buildCreatorSocialLink(universe?: {
   creator_id: number | null;
   creator_type: string | null;
   creator_name: string | null;
-}): SocialLinkButton | null {
+} | null): SocialLinkButton | null {
   if (!universe) return null;
   const { creator_id: creatorId, creator_type: creatorTypeRaw, creator_name: creatorNameRaw } = universe;
   if (creatorId == null) return null;
