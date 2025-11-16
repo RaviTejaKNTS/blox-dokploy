@@ -734,10 +734,12 @@ function mergeWithExistingValues(
   existing?: UniverseDbRow | null
 ): UniverseUpsertRecord {
   if (!existing) return incoming;
-  const record = incoming as Record<string, unknown>;
   const lockedFields = new Set(["display_name", "slug"]);
-  for (const key of Object.keys(record)) {
+  const merged: Record<string, unknown> = { ...existing };
+
+  for (const [key, value] of Object.entries(incoming)) {
     if (key === "universe_id") continue;
+
     if (lockedFields.has(key)) {
       const existingValue = existing[key];
       const hasValue =
@@ -745,16 +747,18 @@ function mergeWithExistingValues(
         existingValue !== undefined &&
         (typeof existingValue !== "string" || existingValue.trim().length > 0);
       if (hasValue) {
-        record[key] = existingValue;
-        continue;
+        continue; // keep existing display_name/slug if set
       }
     }
-    const value = record[key];
-    if ((value === null || value === undefined) && existing[key] !== undefined) {
-      record[key] = existing[key];
+
+    if (value === null || value === undefined) {
+      continue; // do not overwrite existing with null/undefined
     }
+
+    merged[key] = value;
   }
-  return incoming;
+
+  return merged as UniverseUpsertRecord;
 }
 
 function normalizeThumbnailEntries(thumbnails: ThumbnailResponse["data"]) {
@@ -1104,25 +1108,71 @@ async function processBatch(
       .select("*")
       .in("universe_id", ids);
     if (existingError) throw existingError;
-    const existingArray = (existingRows as UniverseDbRow[] | null) ?? [];
-    existingMap = new Map(existingArray.map((row) => [row.universe_id, row]));
-  }
+  const existingArray = (existingRows as UniverseDbRow[] | null) ?? [];
+  existingMap = new Map(existingArray.map((row) => [row.universe_id, row]));
+}
 
-  const mergedPayload = upsertPayload.map((payload) =>
-    mergeWithExistingValues(payload, existingMap.get(payload.universe_id))
-  );
+const mergedPayload = upsertPayload.map((payload) =>
+  mergeWithExistingValues(payload, existingMap.get(payload.universe_id))
+);
 
+if (mergedPayload.length) {
+  const { error } = await supabase.from("roblox_universes").upsert(mergedPayload, { onConflict: "universe_id" });
+  if (error) throw error;
+}
+
+const processedUniverseIds = mergedPayload.map((payload) => payload.universe_id);
+
+  // Insert daily stats with non-null fields only (do not overwrite existing rows for the day)
   if (mergedPayload.length) {
-    const { error } = await supabase.from("roblox_universes").upsert(mergedPayload, { onConflict: "universe_id" });
-    if (error) throw error;
+    const today = new Date().toISOString().slice(0, 10);
+    const idsForStats = processedUniverseIds;
+    const { data: existingStats, error: statsError } = await supabase
+      .from("roblox_universe_stats_daily")
+      .select("universe_id")
+      .eq("stat_date", today)
+      .in("universe_id", idsForStats);
+    if (statsError) throw statsError;
+    const existingStatsSet = new Set<number>((existingStats ?? []).map((row: any) => row.universe_id));
+
+    const statRows = mergedPayload
+      .filter((p) => !existingStatsSet.has(p.universe_id))
+      .map((p) => {
+        const snapshot: Record<string, unknown> = {};
+        const apply = (key: "playing" | "visits" | "favorites" | "likes" | "dislikes", value: unknown) => {
+          if (value === null || value === undefined) return;
+          snapshot[key] = value;
+        };
+        apply("playing", p.playing);
+        apply("visits", p.visits);
+        apply("favorites", p.favorites);
+        apply("likes", p.likes);
+        apply("dislikes", p.dislikes);
+        return {
+          universe_id: p.universe_id,
+          stat_date: today,
+          playing: (snapshot.playing as number | null) ?? null,
+          visits: (snapshot.visits as number | null) ?? null,
+          favorites: (snapshot.favorites as number | null) ?? null,
+          likes: (snapshot.likes as number | null) ?? null,
+          dislikes: (snapshot.dislikes as number | null) ?? null,
+          snapshot
+        };
+      })
+      .filter((row) => Object.keys(row.snapshot).length > 0);
+
+    if (statRows.length) {
+      const { error: statInsertError } = await supabase
+        .from("roblox_universe_stats_daily")
+        .insert(statRows, { ignoreDuplicates: true });
+      if (statInsertError) throw statInsertError;
+    }
   }
 
-  const processedUniverseIds = mergedPayload.map((payload) => payload.universe_id);
-
-  const [icons, thumbs] = await Promise.all([
-    fetchGameIcons(processedUniverseIds),
-    fetchGameThumbnails(processedUniverseIds)
-  ]);
+const [icons, thumbs] = await Promise.all([
+  fetchGameIcons(processedUniverseIds),
+  fetchGameThumbnails(processedUniverseIds)
+]);
   const mediaStats = await upsertMedia(supabase, processedUniverseIds, icons, thumbs);
 
   const attachments = await processAttachments(supabase, processedUniverseIds);
