@@ -3,13 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { FiUsers, FiEye, FiStar, FiThumbsUp, FiClock, FiMonitor, FiSmartphone, FiTablet, FiTv, FiShield, FiHash } from "react-icons/fi";
 import { TbAugmentedReality } from "react-icons/tb";
-import type { GameListUniverseEntry, ListUniverseDetails } from "@/lib/db";
+import type { GameListUniverseEntry, ListUniverseDetails, UniverseListBadge } from "@/lib/db";
+import { FaCrown, FaMedal, FaTrophy } from "react-icons/fa";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 
 const numberFormatter = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 type GameListItemProps = {
-  entry: GameListUniverseEntry;
+  entry: GameListUniverseEntry & { badges?: UniverseListBadge[] };
   rank: number;
   metricLabel?: string | null;
 };
@@ -71,9 +72,9 @@ function universeTitle(universe: ListUniverseDetails): string {
 }
 
 function formatAgeRating(value: string | null | undefined): string {
-  if (!value) return "Not specified";
+  if (!value) return "";
   const normalized = value.toUpperCase();
-  if (normalized === "AGE_RATING_UNSPECIFIED") return "Not specified";
+  if (normalized === "AGE_RATING_UNSPECIFIED") return "";
   const match = normalized.match(/AGE_RATING_(\d+)_PLUS/);
   if (match) {
     return `${match[1]}+`;
@@ -86,15 +87,26 @@ function robloxUniverseUrl(universe: ListUniverseDetails): string {
   return `https://www.roblox.com/games/${placeId}`;
 }
 
+const BADGE_ICONS = [FaCrown, FaTrophy, FaMedal];
+function badgeIconForRank(rank: number) {
+  if (rank === 1) return FaCrown;
+  if (rank === 2) return FaTrophy;
+  if (rank === 3) return FaMedal;
+  return FaMedal;
+}
+
 export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
   const { universe, game } = entry;
   const coverImage = universe.icon_url || "/og-image.png";
   const ageRating = formatAgeRating(universe.age_rating);
   const updatedLabel = formatUpdatedLabel(universe.updated_at);
-  const metricChip = entry.metric_value != null ? `${formatNumber(entry.metric_value)}${metricLabel ? ` ${metricLabel}` : ""}` : null;
-  const primaryHref = game?.slug ? `/${game.slug}` : robloxUniverseUrl(universe);
+  const primaryHref = robloxUniverseUrl(universe);
   const activeCodesValue =
     typeof game?.active_count === "number" ? game.active_count.toLocaleString() : "—";
+  const activeCodesHref = game?.slug ? `/${game.slug}` : null;
+  const badges = (entry as any).badges as UniverseListBadge[] | undefined;
+  const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);
+  const gameDescription = universe.game_description_md || universe.description;
 
   return (
     <article className="rounded-[var(--radius-xl)] border border-border/60 bg-surface/80 p-5 shadow-soft transition hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]">
@@ -113,7 +125,25 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
             </p>
           </div>
         </div>
-        {metricChip ? <span className="rounded-full bg-border/20 px-3 py-1 text-xs font-semibold text-foreground">{metricChip}</span> : null}
+        {visibleBadges?.length ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {visibleBadges.slice(0, 3).map((badge) => {
+              const Icon = badgeIconForRank(badge.rank);
+              const label = `#${badge.rank} on ${badge.list_title}`;
+              return (
+                <Link
+                  key={`${badge.list_id}-${badge.rank}`}
+                  href={`/lists/${badge.list_slug}`}
+                  prefetch={false}
+                  className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                >
+                  <Icon className="h-4 w-4 text-accent" aria-hidden />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 space-y-5">
@@ -150,19 +180,27 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-muted">
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1">
-                <FiShield className="h-3 w-3" />
-                {ageRating}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1">
-                <FiHash className="h-3 w-3" />
-                {activeCodesValue} active codes
-              </span>
+              {ageRating ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1">
+                  <FiShield className="h-3 w-3" />
+                  {ageRating}
+                </span>
+              ) : null}
+              {Number(game?.active_count ?? 0) > 0 && activeCodesHref ? (
+                <Link
+                  href={activeCodesHref}
+                  prefetch={false}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1 transition hover:border-accent hover:text-accent"
+                >
+                  <FiHash className="h-3 w-3" />
+                  {activeCodesValue} active codes
+                </Link>
+              ) : null}
             </div>
 
-            {universe.description ? (
+            {gameDescription ? (
               <p className="text-sm text-muted" suppressHydrationWarning>
-                {universe.description}
+                {gameDescription}
               </p>
             ) : null}
           </div>

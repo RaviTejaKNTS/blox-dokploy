@@ -3,13 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { FiClock, FiMonitor, FiSmartphone, FiTablet, FiTv, FiShield, FiHash, FiUsers, FiEye, FiStar, FiThumbsUp } from "react-icons/fi";
 import { TbAugmentedReality } from "react-icons/tb";
-import type { GameListUniverseEntry, ListUniverseDetails } from "@/lib/db";
+import type { GameListUniverseEntry, ListUniverseDetails, UniverseListBadge } from "@/lib/db";
 import { formatUpdatedLabel } from "@/lib/updated-label";
+import { FaCrown, FaMedal, FaTrophy } from "react-icons/fa";
 
 const numberFormatter = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 type SmallGameListItemProps = {
-  entry: GameListUniverseEntry;
+  entry: GameListUniverseEntry & { badges?: UniverseListBadge[] };
   rank: number;
   metricLabel?: string | null;
 };
@@ -33,9 +34,9 @@ function universeTitle(universe: ListUniverseDetails): string {
 }
 
 function formatAgeRating(value: string | null | undefined): string {
-  if (!value) return "Not specified";
+  if (!value) return "";
   const normalized = value.toUpperCase();
-  if (normalized === "AGE_RATING_UNSPECIFIED") return "Not specified";
+  if (normalized === "AGE_RATING_UNSPECIFIED") return "";
   const match = normalized.match(/AGE_RATING_(\d+)_PLUS/);
   if (match) return `${match[1]}+`;
   return value.replace(/_/g, " ");
@@ -55,10 +56,21 @@ type DeviceIcon = {
 export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
   const { universe, game } = entry;
   const coverImage = universe.icon_url || "/og-image.png";
-  const primaryHref = game?.slug ? `/${game.slug}` : robloxUniverseUrl(universe);
+  const primaryHref = robloxUniverseUrl(universe);
   const updatedLabel = formatUpdatedLabel(universe.updated_at);
   const ageRating = formatAgeRating(universe.age_rating);
+  const activeCodesHref = game?.slug ? `/${game.slug}` : null;
   const activeCodesValue = typeof game?.active_count === "number" ? game.active_count.toLocaleString() : "—";
+  const badges = (entry as any).badges as UniverseListBadge[] | undefined;
+  const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);
+  const gameDescription = universe.game_description_md || universe.description;
+
+  const badgeIconForRank = (rank: number) => {
+    if (rank === 1) return FaCrown;
+    if (rank === 2) return FaTrophy;
+    if (rank === 3) return FaMedal;
+    return FaMedal;
+  };
 
   const devices: DeviceIcon[] = [
     { icon: FiMonitor, enabled: universe.desktop_enabled, label: "Desktop" },
@@ -83,6 +95,25 @@ export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
             </p>
           </div>
         </div>
+        {visibleBadges?.length ? (
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {visibleBadges.slice(0, 3).map((badge) => {
+              const Icon = badgeIconForRank(badge.rank);
+              const label = `#${badge.rank} on ${badge.list_title}`;
+              return (
+                <Link
+                  key={`${badge.list_id}-${badge.rank}`}
+                  href={`/lists/${badge.list_slug}`}
+                  prefetch={false}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-1 text-[0.7rem] font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                >
+                  <Icon className="h-3.5 w-3.5 text-accent" aria-hidden />
+                  <span className="line-clamp-1">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
         <StatBar
           playing={formatNumber(universe.playing)}
           visits={formatNumber(universe.visits)}
@@ -113,18 +144,26 @@ export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
                 />
               ))}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[0.65rem] font-semibold">
-              <FiShield className="h-3 w-3" />
-              {ageRating}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[0.65rem] font-semibold">
-              <FiHash className="h-3 w-3" />
-              {activeCodesValue} codes
-            </span>
+            {ageRating ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[0.65rem] font-semibold">
+                <FiShield className="h-3 w-3" />
+                {ageRating}
+              </span>
+            ) : null}
+            {Number(game?.active_count ?? 0) > 0 && activeCodesHref ? (
+              <Link
+                href={activeCodesHref}
+                prefetch={false}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[0.65rem] font-semibold transition hover:border-accent hover:text-accent"
+              >
+                <FiHash className="h-3 w-3" />
+                {activeCodesValue} codes
+              </Link>
+            ) : null}
           </div>
-          {universe.description ? (
+          {gameDescription ? (
             <p className="text-[0.8rem] leading-snug text-muted" suppressHydrationWarning>
-              {universe.description}
+              {gameDescription}
             </p>
           ) : null}
         </div>

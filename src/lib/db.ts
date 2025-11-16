@@ -112,6 +112,7 @@ export type ListUniverseDetails = {
   vr_enabled: boolean | null;
   updated_at: string | null;
   description: string | null;
+  game_description_md: string | null;
 };
 
 export type GameList = {
@@ -150,6 +151,13 @@ type GamePreview = Pick<Game, "id" | "slug" | "name" | "universe_id"> & {
 export type GameListUniverseEntry = GameListEntry & {
   universe: ListUniverseDetails;
   game: GamePreview | null;
+};
+
+export type UniverseListBadge = {
+  list_id: string;
+  list_slug: string;
+  list_title: string;
+  rank: number;
 };
 
 export type Code = {
@@ -415,7 +423,7 @@ export async function getGameListBySlug(
   const { data: universeData, error: universeError } = await sb
     .from("roblox_universes")
     .select(
-      "universe_id,root_place_id,name,display_name,slug,icon_url,playing,visits,favorites,likes,dislikes,age_rating,desktop_enabled,mobile_enabled,tablet_enabled,console_enabled,vr_enabled,updated_at,description"
+      "universe_id,root_place_id,name,display_name,slug,icon_url,playing,visits,favorites,likes,dislikes,age_rating,desktop_enabled,mobile_enabled,tablet_enabled,console_enabled,vr_enabled,updated_at,description,game_description_md"
     )
     .in("universe_id", universeIds);
   if (universeError) throw universeError;
@@ -446,6 +454,51 @@ export async function getGameListBySlug(
     .filter((value): value is GameListUniverseEntry => Boolean(value));
 
   return { list, entries: combined };
+}
+
+export async function listRanksForUniverses(
+  universeIds: number[],
+  excludeListId?: string
+): Promise<Map<number, UniverseListBadge[]>> {
+  if (!universeIds.length) {
+    return new Map();
+  }
+
+  const sb = supabaseAdmin();
+  const query = sb
+    .from("game_list_entries")
+    .select("universe_id, rank, list_id, game_lists!inner(id, slug, title, is_published)")
+    .in("universe_id", universeIds);
+
+  if (excludeListId) {
+    query.neq("list_id", excludeListId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const map = new Map<number, UniverseListBadge[]>();
+  for (const row of data ?? []) {
+    const list = (row as any).game_lists;
+    if (!list || !list.is_published) continue;
+    if (row.rank > 3) continue;
+    const badge: UniverseListBadge = {
+      list_id: list.id,
+      list_slug: list.slug,
+      list_title: list.title,
+      rank: row.rank
+    };
+    const existing = map.get(row.universe_id) ?? [];
+    existing.push(badge);
+    map.set(row.universe_id, existing);
+  }
+
+  for (const [key, badges] of map.entries()) {
+    const filtered = badges.filter((badge) => badge.rank >= 1 && badge.rank <= 3).sort((a, b) => a.rank - b.rank);
+    map.set(key, filtered.slice(0, 3));
+  }
+
+  return map;
 }
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {

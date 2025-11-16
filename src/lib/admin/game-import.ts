@@ -119,7 +119,8 @@ export async function syncGameCodesFromSources(
 
   const expiredMap = new Map<string, string>();
   for (const raw of expiredCodes) {
-    const sanitized = sanitizeCodeDisplay(raw);
+    const rawCode = typeof raw === "string" ? raw : raw?.code;
+    const sanitized = sanitizeCodeDisplay(rawCode);
     if (!sanitized) continue;
     const normalized = normalizeCodeKey(sanitized);
     if (!normalized || expiredMap.has(normalized)) continue;

@@ -4,10 +4,18 @@ import { notFound } from "next/navigation";
 import { GameListItem } from "@/components/GameListItem";
 import { SocialShare } from "@/components/SocialShare";
 import { SmallGameListItem } from "@/components/SmallGameListItem";
-import { getGameListBySlug, getGameListMetadata, listPublishedGameLists, type GameListUniverseEntry } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import {
+  getGameListBySlug,
+  getGameListMetadata,
+  listPublishedGameLists,
+  listRanksForUniverses,
+  type GameListUniverseEntry,
+  type UniverseListBadge
+} from "@/lib/db";
+import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, webPageJsonLd } from "@/lib/seo";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
+import "@/styles/article-content.css";
 
 export const revalidate = 30;
 
@@ -41,24 +49,26 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function ListIntro({ heroHtml, introHtml }: { heroHtml: string; introHtml: string }) {
   if (!heroHtml && !introHtml) return null;
   return (
-    <div className="space-y-5 rounded-2xl border border-border/60 bg-surface/80 p-8 shadow-soft">
+    <section className="mb-8" id="intro">
       {heroHtml ? (
-        <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: heroHtml }} />
+        <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: heroHtml }} />
       ) : null}
       {introHtml ? (
-        <div className="prose prose-invert max-w-none text-base text-muted" dangerouslySetInnerHTML={{ __html: introHtml }} />
+        <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: introHtml }} />
       ) : null}
-    </div>
+    </section>
   );
 }
 
 function ListOutro({ outroHtml }: { outroHtml: string }) {
   if (!outroHtml) return null;
   return (
-    <div
-      className="prose prose-invert max-w-none rounded-2xl border border-dashed border-border/60 bg-surface/60 p-6 text-muted"
-      dangerouslySetInnerHTML={{ __html: outroHtml }}
-    />
+    <section className="mb-8" id="outro">
+      <div
+        className="prose dark:prose-invert max-w-none game-copy text-muted"
+        dangerouslySetInnerHTML={{ __html: outroHtml }}
+      />
+    </section>
   );
 }
 
@@ -79,6 +89,8 @@ function listEntryName(entry: GameListUniverseEntry): string {
   return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name;
 }
 
+type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
+
 export default async function GameListPage({ params }: PageProps) {
   const [data, allLists] = await Promise.all([getGameListBySlug(params.slug), listPublishedGameLists()]);
   if (!data) {
@@ -86,6 +98,12 @@ export default async function GameListPage({ params }: PageProps) {
   }
 
   const { list, entries } = data;
+  const universeIds = entries.map((entry) => entry.universe_id);
+  const rankBadgesMap = await listRanksForUniverses(universeIds, list.id);
+  const entriesWithBadges: GameListEntryWithBadges[] = entries.map((entry) => ({
+    ...entry,
+    badges: (rankBadgesMap.get(entry.universe_id) ?? []).slice(0, 3)
+  }));
   const canonicalUrl = `${SITE_URL}/lists/${list.slug}`;
   const otherLists = allLists.filter((item) => item.slug !== list.slug).slice(0, 6);
   const [heroHtml, introHtml, outroHtml] = await Promise.all([
@@ -103,8 +121,8 @@ export default async function GameListPage({ params }: PageProps) {
     name: list.title,
     description: listDescription,
     url: canonicalUrl,
-    numberOfItems: entries.length,
-    itemListElement: entries.map((entry, index) => ({
+        numberOfItems: entriesWithBadges.length,
+        itemListElement: entriesWithBadges.map((entry, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: listEntryUrl(entry),
@@ -112,6 +130,18 @@ export default async function GameListPage({ params }: PageProps) {
       image: entry.universe.icon_url ?? undefined
     }))
   });
+  const pageSchema = JSON.stringify(
+    webPageJsonLd({
+      siteUrl: SITE_URL,
+      slug: `lists/${list.slug}`,
+      title: list.title,
+      description: listDescription,
+      image: list.cover_image ?? `${SITE_URL}/og-image.png`,
+      author: null,
+      publishedAt: new Date(list.created_at).toISOString(),
+      updatedAt: new Date(list.updated_at ?? list.refreshed_at ?? list.created_at).toISOString()
+    })
+  );
 
   return (
     <>
@@ -128,13 +158,13 @@ export default async function GameListPage({ params }: PageProps) {
           <ListIntro heroHtml={heroHtml} introHtml={introHtml} />
         </div>
 
-        {entries.length === 0 ? (
+        {entriesWithBadges.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
             No Roblox experiences matched this list yet. Check back soon.
           </div>
         ) : (
           <div className="space-y-6">
-            {entries.map((entry, index) => {
+            {entriesWithBadges.map((entry, index) => {
               const extra = (entry?.extra ?? null) as { metric?: string } | null;
               const rank = index + 1;
               const metricLabel = extra?.metric;
@@ -164,9 +194,7 @@ export default async function GameListPage({ params }: PageProps) {
       </div>
 
       <aside className="space-y-6">
-        <div className="p-6">
-          <SocialShare url={canonicalUrl} title={list.title} heading="Share this list" />
-        </div>
+        <SocialShare url={canonicalUrl} title={list.title} heading="Share this list" />
         <div className="rounded-2xl border border-border/60 bg-surface/80 p-6">
           <h3 className="text-lg font-semibold text-foreground">Explore other lists</h3>
           <p className="mt-1 text-sm text-muted">Discover more curated Roblox experiences.</p>
@@ -190,6 +218,7 @@ export default async function GameListPage({ params }: PageProps) {
       </aside>
       </div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
     </>
   );
 }
