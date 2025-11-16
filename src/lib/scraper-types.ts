@@ -8,7 +8,9 @@ export type ScrapedCode = {
   providerPriority?: number;
 };
 
+export type ScrapedExpiredCode = string | { code: string; provider?: ScrapedCode["provider"] };
+
 export type ScrapeResult = {
   codes: ScrapedCode[];
-  expiredCodes: string[];
+  expiredCodes: ScrapedExpiredCode[];
 };

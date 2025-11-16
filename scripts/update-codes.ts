@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { promises as fs } from "node:fs";
-import { scrapeSources } from "@/lib/scraper";
+import { getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
 import { sanitizeCodeDisplay, normalizeCodeKey } from "@/lib/code-normalization";
@@ -91,35 +91,38 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     return { slug: game.slug, name: game.name, status: "skipped" };
   }
 
-  const { codes } = await scrapeSources(sourceUrls);
+  const { codes, expiredCodes } = await scrapeSources(sourceUrls);
   let newCodesCount = 0;
+  const scrapedExpired = expiredCodes ?? [];
+
+  const expiredByNormalized = new Map<string, { display: string; priority: number }>();
+  const setExpired = (normalized: string, display: string, priority: number) => {
+    const existing = expiredByNormalized.get(normalized);
+    if (!existing || priority > existing.priority) {
+      expiredByNormalized.set(normalized, { display, priority });
+    }
+  };
 
   const incomingNormalized = new Set<string>();
-  for (const c of codes) {
-    const displayCode = sanitizeCodeDisplay(c.code);
-    if (!displayCode) {
-      continue;
-    }
-    const normalized = normalizeCodeKey(displayCode);
-    if (!normalized) continue;
-    if (c.status === "active") {
-      incomingNormalized.add(normalized);
-    }
-    c.code = displayCode;
-    if (c.isNew) {
-      newCodesCount += 1;
-    }
-  }
 
-  const normalizedExpiredMap = new Map<string, string>();
   const existingExpiredArray = Array.isArray(game.expired_codes) ? game.expired_codes : [];
   for (const code of existingExpiredArray) {
     const displayCode = sanitizeCodeDisplay(code);
     if (!displayCode) continue;
     const normalized = normalizeCodeKey(displayCode);
     if (normalized) {
-      normalizedExpiredMap.set(normalized, displayCode);
+      setExpired(normalized, displayCode, -1);
     }
+  }
+
+  for (const raw of scrapedExpired) {
+    const displayCode = sanitizeCodeDisplay(typeof raw === "string" ? raw : raw?.code);
+    if (!displayCode) continue;
+    const normalized = normalizeCodeKey(displayCode);
+    if (!normalized) continue;
+    const provider = typeof raw === "string" ? undefined : raw?.provider;
+    const priority = getCodeDisplayPriority(provider);
+    setExpired(normalized, displayCode, priority);
   }
 
   const { data: existingRows, error: existingError } = await sb
@@ -158,6 +161,10 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     if (!normalized) {
       continue;
     }
+    if (expiredByNormalized.has(normalized)) {
+      continue; // expired wins; drop active
+    }
+    incomingNormalized.add(normalized);
     const providerPriority = Number(c.providerPriority ?? 0);
 
     // Skip if a code with the same normalized value already exists for this game
@@ -169,6 +176,11 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
       ) {
         continue;
       }
+    }
+
+    c.code = displayCode;
+    if (c.isNew) {
+      newCodesCount += 1;
     }
 
     const status = c.status === "check" ? "expired" : c.status;
@@ -188,10 +200,6 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
 
     upserted += 1;
     existingNormalizedMap.set(normalized, { code: displayCode, providerPriority });
-  }
-
-  for (const normalized of incomingNormalized) {
-    normalizedExpiredMap.delete(normalized);
   }
 
   const existingCheckRows = (existingRows ?? []).filter((row) => row.status === "check");
@@ -218,7 +226,7 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
       for (const code of codesToMove) {
         const normalized = normalizeCodeKey(code);
         if (normalized) {
-          normalizedExpiredMap.set(normalized, code);
+          setExpired(normalized, code, 0);
         }
       }
     }
@@ -256,11 +264,10 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     }
 
     for (const entry of toExpireEntries) {
-      normalizedExpiredMap.set(entry.normalized, entry.original);
+      setExpired(entry.normalized, entry.original, 0);
     }
   }
-
-  const updatedExpiredCodes = Array.from(normalizedExpiredMap.values());
+  const updatedExpiredCodes = Array.from(expiredByNormalized.values()).map((entry) => entry.display);
   let expiredArrayChanged = false;
   if (updatedExpiredCodes.length !== existingExpiredArray.length) {
     expiredArrayChanged = true;

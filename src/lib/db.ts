@@ -59,6 +59,8 @@ export type RobloxUniverseInfo = {
   name: string | null;
   display_name: string | null;
   creator_name: string | null;
+  creator_id: number | null;
+  creator_type: string | null;
   social_links: Record<string, unknown> | null;
 };
 
@@ -545,7 +547,7 @@ export async function getRobloxUniverseById(universeId: number): Promise<RobloxU
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("roblox_universes")
-    .select("universe_id, name, display_name, creator_name, social_links")
+    .select("universe_id, name, display_name, creator_name, creator_id, creator_type, social_links")
     .eq("universe_id", universeId)
     .maybeSingle();
 

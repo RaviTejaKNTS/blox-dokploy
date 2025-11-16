@@ -26,8 +26,8 @@ const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
 const PROVIDER_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
   progameguides: 0,
   destructoid: 1,
-  beebom: 2,
-  robloxden: 3,
+  robloxden: 2,
+  beebom: 3,
 };
 
 function getProviderPriority(provider?: ScrapedCode["provider"]): number {
@@ -36,10 +36,10 @@ function getProviderPriority(provider?: ScrapedCode["provider"]): number {
 }
 
 const CODE_DISPLAY_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  progameguides: 1,
-  destructoid: 2,
-  robloxden: 3,
-  beebom: 4,
+  progameguides: 0,
+  destructoid: 1,
+  robloxden: 2,
+  beebom: 3,
 };
 
 export function getCodeDisplayPriority(provider?: ScrapedCode["provider"]): number {
@@ -50,8 +50,8 @@ export function getCodeDisplayPriority(provider?: ScrapedCode["provider"]): numb
 const REWARD_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
   progameguides: 0,
   destructoid: 1,
-  beebom: 2,
-  robloxden: 3,
+  robloxden: 2,
+  beebom: 3,
 };
 
 function getRewardPriority(provider?: ScrapedCode["provider"]): number {
@@ -121,6 +121,7 @@ function mergeCodeEntry(existing: AggregatedEntry, incoming: ScrapedCode): Aggre
 export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
   const map = new Map<string, AggregatedEntry>();
   const order: string[] = [];
+  const expiredMap = new Map<string, { code: string; priority: number }>();
 
   for (const result of results) {
     for (const codeEntry of result.codes) {
@@ -145,12 +146,26 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
         map.set(normalizedCode, merged);
       }
     }
+
+    for (const expired of result.expiredCodes ?? []) {
+      const code = typeof expired === "string" ? expired.trim() : expired.code?.trim();
+      const provider = typeof expired === "string" ? undefined : expired.provider;
+      if (!code) continue;
+      const normalizedExpired = normalizeCodeKey(code);
+      if (!normalizedExpired) continue;
+      const incomingPriority = getCodeDisplayPriority(provider);
+      const existing = expiredMap.get(normalizedExpired);
+      if (!existing || incomingPriority > existing.priority) {
+        expiredMap.set(normalizedExpired, { code, priority: incomingPriority });
+      }
+    }
   }
 
   const mergedCodes = order
     .map((key) => map.get(key)?.data)
     .filter((entry): entry is ScrapedCode => Boolean(entry));
-  return { codes: mergedCodes, expiredCodes: [] };
+  const mergedExpired = Array.from(expiredMap.values()).map((entry) => entry.code);
+  return { codes: mergedCodes, expiredCodes: mergedExpired };
 }
 
 export function detectProvider(url: string): Provider {

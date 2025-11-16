@@ -3,6 +3,7 @@ import type { ScrapeResult, ScrapedCode } from "./scraper-types";
 
 const USER_AGENT = "Mozilla/5.0 (compatible; RobloxCodesBot/1.0)";
 const LIST_SEPARATOR_REGEX = /\s*:\s*|\s*[–—]\s*|(?:\s+-\s*|\s*-\s+)/;
+const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
 
 function normalizeCode(raw: string): string | null {
   if (!raw) return null;
@@ -91,6 +92,47 @@ function findCodesContainer($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Elem
   return null;
 }
 
+function findExpiredCodes($: cheerio.CheerioAPI): { code: string; provider: "beebom" }[] {
+  const content = $(".beebom-single-content.entry-content.highlight");
+  if (!content.length) return [];
+
+  const expired: { code: string; provider: "beebom" }[] = [];
+
+  const headings = content.find(HEADING_SELECTOR).filter((_, el) => {
+    const text = $(el).text().toLowerCase();
+    return text.includes("expired");
+  });
+
+  headings.each((_, headingEl) => {
+    const heading = $(headingEl);
+    let pointer = heading.next();
+    let list: cheerio.Cheerio<cheerio.Element> | null = null;
+
+    while (pointer.length) {
+      if (pointer.is(HEADING_SELECTOR)) {
+        break; // stop at next heading
+      }
+      if (pointer.is("ul, ol")) {
+        list = pointer;
+        break;
+      }
+      pointer = pointer.next();
+    }
+
+    if (!list || !list.length) {
+      return;
+    }
+
+    list.find("li").each((_: number, li: cheerio.Element) => {
+      const text = $(li).text().trim();
+      if (!text) return;
+      expired.push({ code: text, provider: "beebom" });
+    });
+  });
+
+  return expired;
+}
+
 export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
   const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
   if (!res.ok) {
@@ -101,6 +143,7 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
   const $ = cheerio.load(html);
   const container = findCodesContainer($);
   const codes: ScrapedCode[] = [];
+  const expiredCodes = findExpiredCodes($);
 
   if (container && container.length) {
     if (container.is("table")) {
@@ -160,6 +203,6 @@ export async function scrapeBeebomPage(url: string): Promise<ScrapeResult> {
 
   return {
     codes,
-    expiredCodes: [],
+    expiredCodes,
   };
 }

@@ -179,6 +179,7 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
   // Typical item selector
   const items = $("#masonry .codes-list__item, .codes-list__item");
   const activeCodes: ScrapedCode[] = [];
+  const expiredCodes: { code: string; provider: "robloxden" }[] = [];
 
   items.each((_, el) => {
     const $item = $(el);
@@ -187,7 +188,10 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
     if (!code) return;
 
     const status = extractStatus($item, $);
-    if (status === "expired") return;
+    if (status === "expired") {
+      expiredCodes.push({ code, provider: "robloxden" });
+      return;
+    }
 
     const rewards = extractRewards($item, $);
     const level = extractLevel($item, $, rewards);
@@ -205,6 +209,6 @@ export async function scrapeRobloxdenPage(url: string): Promise<ScrapeResult> {
 
   return {
     codes: activeCodes,
-    expiredCodes: [],
+    expiredCodes,
   };
 }

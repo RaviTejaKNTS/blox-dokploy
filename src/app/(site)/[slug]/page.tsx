@@ -185,6 +185,39 @@ const DEFAULT_SOCIAL_META: { label: string; icon: IconType } = {
   icon: SiGooglechrome
 };
 
+type SocialLinkButton = { key: string; url: string; label: string; Icon: IconType };
+
+function buildCreatorSocialLink(universe?: {
+  creator_id: number | null;
+  creator_type: string | null;
+  creator_name: string | null;
+}): SocialLinkButton | null {
+  if (!universe) return null;
+  const { creator_id: creatorId, creator_type: creatorTypeRaw, creator_name: creatorNameRaw } = universe;
+  if (creatorId == null) return null;
+  const creatorType = creatorTypeRaw?.toLowerCase();
+  const creatorName = creatorNameRaw?.trim();
+  if (!creatorType || !creatorName) return null;
+
+  if (creatorType === "user") {
+    return {
+      key: `creator-user-${creatorId}`,
+      url: `https://www.roblox.com/users/${creatorId}/profile`,
+      label: creatorName,
+      Icon: SiRoblox
+    };
+  }
+  if (creatorType === "group") {
+    return {
+      key: `creator-group-${creatorId}`,
+      url: `https://www.roblox.com/communities/${creatorId}`,
+      label: creatorName,
+      Icon: FaUsers
+    };
+  }
+  return null;
+}
+
 function extractUniverseSocialLinks(raw: unknown): UniverseSocialLink[] {
   if (!raw || typeof raw !== "object") return [];
   const record = raw as Record<string, unknown>;
@@ -449,6 +482,49 @@ export default async function GamePage({ params }: Params) {
     youtube_link: normalizeUrl(game.youtube_link),
   } as const;
 
+  const creatorProfileLink = buildCreatorSocialLink(universe);
+
+  const normalizedUniverseSocialLinks: SocialLinkButton[] = universeSocialLinks
+    .map((link) => {
+      const url = normalizeUrl(link.url);
+      if (!url) return null;
+      const meta = UNIVERSE_SOCIAL_META[link.platform] ?? DEFAULT_SOCIAL_META;
+      return {
+        key: `${link.platform}-${url}`,
+        url,
+        label: formatSocialLabel(link.platform, link, universeDeveloperName),
+        Icon: meta.icon
+      };
+    })
+    .filter((link): link is SocialLinkButton => Boolean(link));
+
+  const robloxSocialButtons: SocialLinkButton[] = [
+    ...(creatorProfileLink ? [creatorProfileLink] : []),
+    ...normalizedUniverseSocialLinks
+  ];
+
+  const fallbackSocialLinks: SocialLinkButton[] = [
+    linkMap.community_link
+      ? { key: "community", url: linkMap.community_link, label: "Community", Icon: FaUsers }
+      : null,
+    linkMap.discord_link
+      ? { key: "discord", url: linkMap.discord_link, label: "Discord", Icon: FaDiscord }
+      : null,
+    linkMap.twitter_link
+      ? { key: "twitter", url: linkMap.twitter_link, label: "Twitter / X", Icon: RiTwitterXLine }
+      : null,
+    linkMap.youtube_link
+      ? { key: "youtube", url: linkMap.youtube_link, label: "YouTube", Icon: FaYoutube }
+      : null
+  ].filter((link): link is SocialLinkButton => Boolean(link));
+
+  const socialLinksToDisplay = normalizedUniverseSocialLinks.length
+    ? robloxSocialButtons
+    : fallbackSocialLinks.length
+    ? [...(creatorProfileLink ? [creatorProfileLink] : []), ...fallbackSocialLinks]
+    : robloxSocialButtons;
+  const shouldShowSocialSection = Boolean(universe || socialLinksToDisplay.length);
+
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
   const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
   const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
@@ -650,32 +726,26 @@ export default async function GamePage({ params }: Params) {
           {expired.length === 0 ? null : <ExpiredCodes codes={expired} />}
         </section>
 
-        {universe ? (
+        {shouldShowSocialSection ? (
           <section className="mb-8 space-y-4" id={`more-${game.slug}-codes`}>
             <div className="prose dark:prose-invert max-w-none game-copy">
               <h2>How to Get New Codes Fast</h2>
               <p>New codes are posted here by the developers:</p>
             </div>
-            {universeSocialLinks.length ? (
+            {socialLinksToDisplay.length ? (
               <div className="mt-4 flex flex-wrap gap-3">
-                {universeSocialLinks.map((link) => {
-                  const url = normalizeUrl(link.url);
-                  if (!url) return null;
-                  const meta = UNIVERSE_SOCIAL_META[link.platform] ?? DEFAULT_SOCIAL_META;
-                  const Icon = meta.icon;
-                  return (
-                    <a
-                      key={`${link.platform}-${url}`}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
-                    >
-                      <Icon className="h-4 w-4" aria-hidden />
-                      <span>{formatSocialLabel(link.platform, link, universeDeveloperName)}</span>
-                    </a>
-                  );
-                })}
+                {socialLinksToDisplay.map(({ key, url, label, Icon }) => (
+                  <a
+                    key={key}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    <span>{label}</span>
+                  </a>
+                ))}
               </div>
             ) : (
               <p className="mt-3 text-sm text-muted">We haven&apos;t found any official social media links yet.</p>
