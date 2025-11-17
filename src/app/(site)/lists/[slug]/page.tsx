@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { GameListItem } from "@/components/GameListItem";
 import { SocialShare } from "@/components/SocialShare";
 import { SmallGameListItem } from "@/components/SmallGameListItem";
+import { ListQuickNav } from "@/components/ListQuickNav";
 import {
   getGameListBySlug,
   getGameListMetadata,
@@ -143,10 +144,17 @@ export default async function GameListPage({ params }: PageProps) {
     })
   );
 
+  const navItems = entriesWithBadges.slice(0, 50).map((entry, index) => ({
+    id: `list-entry-${entry.universe.universe_id}`,
+    rank: index + 1,
+    name: listEntryName(entry),
+    metric: entry.metric_value != null ? { label: (entry.extra as any)?.metric ?? list.filter_config?.metric ?? null, value: entry.metric_value } : undefined
+  }));
+
   return (
     <>
-      <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-10">
+      <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12 lg:min-h-0">
+      <div className="space-y-10 min-w-0 flex-1">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -154,6 +162,9 @@ export default async function GameListPage({ params }: PageProps) {
               <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">{list.title}</h1>
             </div>
             {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
+          </div>
+          <div className="xl:hidden">
+            <ListQuickNav items={navItems} variant="mobile" />
           </div>
           <ListIntro heroHtml={heroHtml} introHtml={introHtml} />
         </div>
@@ -170,21 +181,31 @@ export default async function GameListPage({ params }: PageProps) {
               const metricLabel = extra?.metric;
               if (rank <= 10) {
                 return (
-                  <GameListItem
+                  <div
+                    id={`list-entry-${entry.universe.universe_id}`}
                     key={entry.universe.universe_id}
+                    className="scroll-mt-32"
+                  >
+                    <GameListItem
+                      entry={entry}
+                      rank={rank}
+                      metricLabel={metricLabel}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <div
+                  id={`list-entry-${entry.universe.universe_id}`}
+                  key={entry.universe.universe_id}
+                  className="scroll-mt-32"
+                >
+                  <SmallGameListItem
                     entry={entry}
                     rank={rank}
                     metricLabel={metricLabel}
                   />
-                );
-              }
-              return (
-                <SmallGameListItem
-                  key={entry.universe.universe_id}
-                  entry={entry}
-                  rank={rank}
-                  metricLabel={metricLabel}
-                />
+                </div>
               );
             })}
           </div>
@@ -193,7 +214,10 @@ export default async function GameListPage({ params }: PageProps) {
         <ListOutro outroHtml={outroHtml} />
       </div>
 
-      <aside className="space-y-6">
+      <aside className="space-y-6 lg:w-[360px] lg:shrink-0 lg:self-start lg:min-h-0">
+        <div className="hidden lg:block">
+          <ListQuickNav items={navItems} variant="desktop" title="Jump to game" />
+        </div>
         <SocialShare url={canonicalUrl} title={list.title} heading="Share this list" />
         <div className="rounded-2xl border border-border/60 bg-surface/80 p-6">
           <h3 className="text-lg font-semibold text-foreground">Explore other lists</h3>

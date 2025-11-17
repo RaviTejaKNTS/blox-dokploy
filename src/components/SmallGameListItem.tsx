@@ -123,12 +123,16 @@ export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
-        <Link href={primaryHref} prefetch={false} className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-black/20">
+        <Link
+          href={primaryHref}
+          prefetch={false}
+          className="group relative h-32 w-full max-w-[320px] shrink-0 overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-black/20 sm:h-24 sm:w-24 sm:max-w-none"
+        >
           <Image
             src={coverImage}
             alt={universeTitle(universe)}
             fill
-            sizes="96px"
+            sizes="(min-width: 640px) 96px, 80vw"
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
           />
         </Link>

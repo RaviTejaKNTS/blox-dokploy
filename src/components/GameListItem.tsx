@@ -109,8 +109,8 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
   const gameDescription = universe.game_description_md || universe.description;
 
   return (
-    <article className="rounded-[var(--radius-xl)] border border-border/60 bg-surface/80 p-5 shadow-soft transition hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+    <article className="rounded-[var(--radius-xl)] border border-border/60 bg-surface/80 p-4 shadow-soft transition hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)] sm:p-5">
+      <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent/15 text-base font-bold text-accent">#{rank}</span>
           <div>
@@ -126,7 +126,7 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
           </div>
         </div>
         {visibleBadges?.length ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {visibleBadges.slice(0, 3).map((badge) => {
               const Icon = badgeIconForRank(badge.rank);
               const label = `#${badge.rank} on ${badge.list_title}`;
@@ -147,7 +147,7 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
       </div>
 
       <div className="mt-4 space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat icon={FiUsers} label="Playing Now" value={universe.playing} />
           <Stat icon={FiEye} label="Visits" value={universe.visits} />
           <Stat icon={FiStar} label="Favorites" value={universe.favorites} />
@@ -157,14 +157,14 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
         <div className="grid gap-5 lg:grid-cols-[220px,1fr]">
           <ExternalLinkWrapper
             href={primaryHref}
-            className="group relative block w-full max-w-[360px] lg:max-w-none"
+            className="group relative block w-full max-w-[420px] lg:max-w-none"
           >
             <div className="relative aspect-square overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-black/20">
               <Image
                 src={coverImage}
                 alt={universeTitle(universe)}
                 fill
-                sizes="(min-width: 1024px) 220px, 80vw"
+                sizes="(min-width: 1024px) 220px, 90vw"
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
               />
             </div>
