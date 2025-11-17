@@ -1164,8 +1164,10 @@ const processedUniverseIds = mergedPayload.map((payload) => payload.universe_id)
     if (statRows.length) {
       const { error: statInsertError } = await supabase
         .from("roblox_universe_stats_daily")
-        .insert(statRows, { ignoreDuplicates: true });
-      if (statInsertError) throw statInsertError;
+        .insert(statRows);
+      if (statInsertError && !statInsertError.message.includes("duplicate key")) {
+        throw statInsertError;
+      }
     }
   }
 
