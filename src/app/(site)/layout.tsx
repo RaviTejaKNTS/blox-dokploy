@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { HeaderControls } from "@/components/HeaderControls";
 
 export default function SiteLayout({ children }: { children: ReactNode }) {
   const currentYear = new Date().getFullYear();
@@ -30,29 +30,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
                 className="block h-9 w-auto dark:hidden"
               />
             </a>
-            <nav className="flex items-center gap-6 text-sm font-semibold text-muted">
-              <Link href="/articles" className="transition hover:text-foreground">
-                Articles
-              </Link>
-              <Link href="/codes" className="transition hover:text-foreground">
-                Codes
-              </Link>
-            </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              data-search-trigger
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
-            >
-              <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="m21 21-4.35-4.35" />
-                <circle cx="11" cy="11" r="6" />
-              </svg>
-              <span className="hidden sm:inline">Search</span>
-            </button>
-            <ThemeToggle />
-          </div>
+          <HeaderControls />
         </div>
       </header>
       <main className="container flex-1 py-10">{children}</main>

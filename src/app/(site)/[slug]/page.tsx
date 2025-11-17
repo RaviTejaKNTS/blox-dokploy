@@ -33,10 +33,7 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
-  breadcrumbJsonLd,
-  codesItemListJsonLd,
-  gameJsonLd,
-  howToJsonLd
+  breadcrumbJsonLd
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
@@ -581,78 +578,24 @@ export default async function GamePage({ params }: Params) {
     { label: game.name ?? "Roblox", href: null },
     { label: "Codes", href: `${canonicalUrl}#active-codes` }
   ];
-  const videoGameData = JSON.stringify(
-    gameJsonLd({ siteUrl: SITE_URL, game: { name: game.name, slug: game.slug, image: coverImage } })
-  );
-  const codesItemListData = JSON.stringify(
-    codesItemListJsonLd({
-      siteUrl: SITE_URL,
-      game: { name: game.name, slug: game.slug },
-      codes: codes.map((code) => ({
-        code: code.code,
-        status: code.status,
-        reward: cleanRewardsText(code.rewards_text)
-      }))
-    })
-  );
-  const howToData = redeemSteps.length
-    ? JSON.stringify(
-        howToJsonLd({
-          siteUrl: SITE_URL,
-          subject: { name: game.name, slug: game.slug },
-          steps: redeemSteps
-        })
-      )
-    : null;
   const authorBioHtml = game.author?.bio_md ? await renderMarkdown(game.author.bio_md) : "";
   const authorAvatar = game.author ? authorAvatarUrl(game.author, 72) : null;
   const authorProfileUrl = game.author?.slug ? `/authors/${game.author.slug}` : null;
   const authorSameAs = game.author ? Array.from(new Set(collectAuthorSocials(game.author).map((link) => link.url))) : [];
   const authorBioPlain = game.author?.bio_md ? markdownToPlainText(game.author.bio_md) : null;
-  const articleStructuredData = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    mainEntityOfPage: canonicalUrl,
-    headline: `${game.name} Codes (${monthYear()})`,
-    description: metaDescription,
-    datePublished: publishedIso,
-    dateModified: updatedIso,
-    image: coverImage,
-    author: game.author
-      ? {
-          "@type": "Person",
-          name: game.author.name,
-          url: authorProfileUrl ? `${SITE_URL.replace(/\/$/, "")}${authorProfileUrl}` : undefined,
-          sameAs: authorSameAs.length ? authorSameAs : undefined,
-          description: authorBioPlain || undefined
-        }
-      : {
-          "@type": "Organization",
-          name: SITE_NAME,
-          url: SITE_URL
-        },
-    publisher: {
-      "@type": "Organization",
-      name: SITE_NAME,
-      logo: {
-        "@type": "ImageObject",
-        url: `${SITE_URL}/Bloxodes-dark.png`
-      }
-    }
-  });
   const faqEntries: { question: string; answer: string }[] = [];
   if (hasSupplemental) {
     if (troubleshootMarkdown) {
       const answer = markdownToPlainText(troubleshootMarkdown).trim();
-      if (answer) faqEntries.push({ question: "Troubleshooting", answer });
+      if (answer) faqEntries.push({ question: "Why codes might fail", answer });
     }
     if (rewardsMarkdown) {
       const answer = markdownToPlainText(rewardsMarkdown).trim();
-      if (answer) faqEntries.push({ question: "Rewards", answer });
+      if (answer) faqEntries.push({ question: "Rewards from these codes", answer });
     }
     if (aboutMarkdown) {
       const answer = markdownToPlainText(aboutMarkdown).trim();
-      if (answer) faqEntries.push({ question: "About this game", answer });
+      if (answer) faqEntries.push({ question: `About ${game.name}`, answer });
     }
     // Social section text
     faqEntries.push({
@@ -662,24 +605,8 @@ export default async function GamePage({ params }: Params) {
     });
   } else if (descriptionMarkdown) {
     const answer = markdownToPlainText(descriptionMarkdown).trim();
-    if (answer) faqEntries.push({ question: "About this game", answer });
+    if (answer) faqEntries.push({ question: `About ${game.name}`, answer });
   }
-  const faqData =
-    faqEntries.length > 0
-      ? JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: faqEntries.map(({ question, answer }) => ({
-            "@type": "Question",
-            name: question,
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: answer
-            }
-          }))
-        })
-      : null;
-
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="min-w-0">
@@ -951,14 +878,73 @@ export default async function GamePage({ params }: Params) {
           <EzoicAdSlot placeholderId={115} />
         </div>
 
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: videoGameData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: codesItemListData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleStructuredData }} />
-        {howToData && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
-        )}
-        {faqData && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqData }} />}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                breadcrumbJsonLd(breadcrumbs),
+                {
+                  "@type": "BlogPosting",
+                  mainEntityOfPage: {
+                    "@type": "WebPage",
+                    "@id": canonicalUrl
+                  },
+                  headline: `${game.name} Codes (${monthYear()})`,
+                  datePublished: publishedIso,
+                  dateModified: updatedIso,
+                  author: game.author
+                    ? {
+                        "@type": "Person",
+                        name: game.author.name,
+                        ...(authorProfileUrl ? { url: `${SITE_URL.replace(/\/$/, "")}${authorProfileUrl}` } : {}),
+                        ...(authorBioPlain ? { description: authorBioPlain } : {}),
+                        ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
+                      }
+                    : {
+                        "@type": "Organization",
+                        name: SITE_NAME,
+                        url: SITE_URL
+                      },
+                  publisher: { "@id": `${SITE_URL.replace(/\/$/, "")}/#organization` },
+                  about: {
+                    "@type": "VideoGame",
+                    name: game.name,
+                    operatingSystem: "Roblox"
+                  },
+                  mainEntity: [
+                    ...(redeemSteps.length
+                      ? [
+                          {
+                            "@type": "HowTo",
+                            name: `How to redeem ${game.name} codes`,
+                            step: redeemSteps.map((text, idx) => ({
+                              "@type": "HowToStep",
+                              position: idx + 1,
+                              text
+                            }))
+                          }
+                        ]
+                      : []),
+                    ...(faqEntries.length
+                      ? [
+                          {
+                            "@type": "FAQPage",
+                            mainEntity: faqEntries.map(({ question, answer }) => ({
+                              "@type": "Question",
+                              name: question,
+                              acceptedAnswer: { "@type": "Answer", text: answer }
+                            }))
+                          }
+                        ]
+                      : [])
+                  ]
+                }
+              ]
+            })
+          }}
+        />
         <CodeBlockEnhancer />
       </article>
 

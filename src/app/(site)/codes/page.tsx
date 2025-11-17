@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { listGamesWithActiveCounts } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
+import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 
 export const revalidate = 300;
@@ -48,6 +48,19 @@ export default async function CodesIndexPage() {
           </div>
         )}
       </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Roblox Game Codes",
+            description: `${SITE_NAME} tracks active codes across Roblox games. Explore every game we cover here.`,
+            url: `${SITE_URL}/codes`
+          })
+        }}
+      />
     </div>
   );
 }

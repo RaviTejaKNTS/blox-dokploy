@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { listPublishedArticles } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
+import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ArticleCard } from "@/components/ArticleCard";
 
 export const revalidate = 300;
@@ -35,6 +35,19 @@ export default async function ArticlesIndexPage() {
           </div>
         )}
       </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Articles & Guides",
+            description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`,
+            url: `${SITE_URL}/articles`
+          })
+        }}
+      />
     </div>
   );
 }

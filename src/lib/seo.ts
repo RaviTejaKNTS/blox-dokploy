@@ -13,6 +13,7 @@ export function siteJsonLd({siteUrl}:{siteUrl:string}) {
     "@type": "WebSite",
     "url": siteUrl,
     "name": SITE_NAME,
+    "inLanguage": "en-US",
     "potentialAction": {
       "@type": "SearchAction",
       "target": `${siteUrl}/search?q={query}`,
