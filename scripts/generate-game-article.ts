@@ -68,9 +68,10 @@ type SearchEntry = {
 type ArticleResponse = {
   intro_md: string;
   redeem_md: string;
-  description_md: string;
   meta_description: string;
   game_display_name: string;
+  troubleshoot_md: string;
+  rewards_md: string;
 };
 
 type ProcessedArticle = ArticleResponse;
@@ -109,7 +110,7 @@ type ExistingGameRecord = {
 function isArticleResponse(value: unknown): value is ArticleResponse {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
-  return ["intro_md", "redeem_md", "description_md", "meta_description", "game_display_name"].every(
+  return ["intro_md", "redeem_md", "troubleshoot_md", "rewards_md", "meta_description", "game_display_name"].every(
     (key) => typeof candidate[key] === "string" && Boolean(candidate[key])
   );
 }
@@ -479,7 +480,7 @@ function convertScrapedSocialLinks(links: ScrapedSocialLinks): PlaceholderLinks 
   };
 }
 
-type SectionType = "codeNotWorking" | "whereToFind" | "rewardsOverview";
+type SectionType = "codeNotWorking" | "rewardsOverview";
 
 type SectionConfig = {
   type: SectionType;
@@ -493,13 +494,6 @@ const SECTION_TITLE_VARIANTS: Record<SectionType, Array<(gameName: string) => st
     (gameName) => `## ${gameName} Codes Not Working?`,
     () => "## Trouble Redeeming Codes?",
     (gameName) => `## Why Is My ${gameName} Code Not Working?`
-  ],
-  whereToFind: [
-    () => "## Where to Find More Codes",
-    () => "## Where You Can Find More Codes",
-    (gameName) => `## Where You Can Find ${gameName} Codes`,
-    () => "## Best Places to Grab More Codes",
-    (gameName) => `## Where to Find ${gameName} Codes`
   ],
   rewardsOverview: [
     () => "## What Rewards You Normally Get?",
@@ -519,20 +513,15 @@ function resolveSectionTitle(type: SectionType, gameName: string, variant = 0): 
 
 type StandardSectionOptions = {
   codeVariant?: number;
-  whereVariant?: number;
   rewardsVariant?: number;
-  howVariant?: number;
 };
 
 function standardSections({
   codeVariant = 0,
-  whereVariant = 0,
-  rewardsVariant = 0,
-  howVariant = 0
+  rewardsVariant = 0
 }: StandardSectionOptions = {}): SectionConfig[] {
   return [
     { type: "codeNotWorking", variant: codeVariant },
-    { type: "whereToFind", variant: whereVariant },
     { type: "rewardsOverview", variant: rewardsVariant }
   ];
 }
@@ -548,7 +537,6 @@ const PROMPT_TEMPLATES: {
       `Start by talking about a specific challenge or difficult aspect of ${gameName} that players face. Explain how this makes the game engaging but also frustrating at times. Then smoothly transition to how codes help overcome these challenges and make progress easier. Keep it relatable and grounded. No generic statements like "These codes give you free rewards" Be very detailed and every sentence should be game specific that drives the info forward. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
-      whereVariant: 0,
       rewardsVariant: 0
     })
   },
@@ -558,7 +546,6 @@ const PROMPT_TEMPLATES: {
       `Start directly with what codes give players - list out 2-3 specific rewards like coins, boosts, or items (The ones that are specific to the game). Then introduce ${gameName} briefly and explain why these rewards matter in the game. Make it punchy and benefit-focused. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
-      whereVariant: 2,
       rewardsVariant: 2
     })
   },
@@ -568,7 +555,6 @@ const PROMPT_TEMPLATES: {
       `Talk about the grind in ${gameName} - how much time and effort progression normally takes. Be honest about it. Then explain how codes can speed things up and make the experience more enjoyable. Keep it conversational. Sprinkle some first-hand experience but only in a way that tells the needed info. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
-      whereVariant: 3,
       rewardsVariant: 1
     })
   },
@@ -578,7 +564,6 @@ const PROMPT_TEMPLATES: {
       `Give clean details of what this game is all about. Narrative should flow like a story. Talk about what makes it stand out. Then naturally lead into how codes are a big part of the community experience and help players stay competitive. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
-      whereVariant: 1,
       rewardsVariant: 3
     })
   },
@@ -588,7 +573,6 @@ const PROMPT_TEMPLATES: {
       `Write as if talking to someone who just discovered ${gameName}. Briefly explain what the game is about in one sentence, then immediately tell them about codes and why they should use them from the start. Make it welcoming and helpful. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 4,
-      whereVariant: 4,
       rewardsVariant: 4
     })
   },
@@ -598,7 +582,6 @@ const PROMPT_TEMPLATES: {
       ` Mention how often the ${gameName} get new codes. Talk about how codes often come with these updates and help players access new features or items. Then explain why staying on top of codes matters. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
-      whereVariant: 2,
       rewardsVariant: 1
     })
   },
@@ -608,7 +591,6 @@ const PROMPT_TEMPLATES: {
       `Talk about the competitive or strategic elements in ${gameName}. Explain how codes give players an edge or help them keep up with others. Make it about staying relevant in the game. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
-      whereVariant: 0,
       rewardsVariant: 2
     })
   },
@@ -618,7 +600,6 @@ const PROMPT_TEMPLATES: {
       `Start with how ${gameName} can be time-consuming. Talk about players who want to enjoy the game without spending hours grinding. Then position codes as the solution for efficient progression. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
-      whereVariant: 1,
       rewardsVariant: 0
     })
   },
@@ -628,7 +609,6 @@ const PROMPT_TEMPLATES: {
       `Open with enthusiasm about ${gameName} and what makes it fun. Keep it energetic but genuine. Then talk about how codes add to the excitement by giving free stuff and helping players try new things. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
-      whereVariant: 3,
       rewardsVariant: 3
     })
   },
@@ -638,7 +618,6 @@ const PROMPT_TEMPLATES: {
       `Identify a common problem or frustration players have in ${gameName} (like slow progress, expensive items, etc.). Then present codes as a practical solution. Be direct and helpful. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
-      whereVariant: 4,
       rewardsVariant: 2
     })
   },
@@ -648,7 +627,6 @@ const PROMPT_TEMPLATES: {
       `Start by talking about the genre or style of ${gameName} (if sources mention it). Explain what type of player would enjoy it. Then connect codes to enhancing that specific gameplay experience. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 1,
-      whereVariant: 2,
       rewardsVariant: 4
     })
   },
@@ -658,7 +636,6 @@ const PROMPT_TEMPLATES: {
       `Emphasize that ${gameName} is free to play on Roblox. Talk about how codes make it even better by giving free rewards without spending Robux. Make it about getting the most value. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 2,
-      whereVariant: 0,
       rewardsVariant: 1
     })
   },
@@ -668,7 +645,6 @@ const PROMPT_TEMPLATES: {
       `Mention player counts, popularity, or what the community is saying about ${gameName} (only if in sources). Talk about why so many people are playing it. Then explain how codes help both new and experienced players. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 3,
-      whereVariant: 1,
       rewardsVariant: 2
     })
   },
@@ -678,7 +654,6 @@ const PROMPT_TEMPLATES: {
       `If sources mention any events or seasonal content in ${gameName}, start with that. Otherwise, talk about how the game keeps things fresh. Then explain how codes often tie into special events and limited-time rewards. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 4,
-      whereVariant: 3,
       rewardsVariant: 0
     })
   },
@@ -688,7 +663,6 @@ const PROMPT_TEMPLATES: {
       `Keep it simple and direct. Introduce ${gameName} in one sentence. Say what codes do in one sentence. Explain why players should care in one sentence. Then wrap up the intro. No fluff, just clear information. (Only use info from the sources. Feel free to experiment or tweak the template, but only include the info from the source)`,
     descriptionSections: standardSections({
       codeVariant: 0,
-      whereVariant: 4,
       rewardsVariant: 4
     })
   }
@@ -700,44 +674,27 @@ function buildArticlePrompt(gameName: string, sources: string) {
   const template = PROMPT_TEMPLATES[templateIndex];
   console.log(`📝 Using prompt template ${templateIndex + 1} of ${PROMPT_TEMPLATES.length}`);
   
-  // Build the description sections guidance
-  const descriptionGuidance = template.descriptionSections.map((section) => {
-    const heading = resolveSectionTitle(section.type, gameName, section.variant);
+  const troubleshootSection = template.descriptionSections.find((section) => section.type === "codeNotWorking");
+  const rewardsSection = template.descriptionSections.find((section) => section.type === "rewardsOverview");
 
-    switch (section.type) {
-      case "codeNotWorking":
-        return `   - ${heading}
-     Bullet list of real reasons from sources. Keep it very simple, easy to scan, no generic and obvious solutions need to be included. Include all the needed info and reasons that user might be facing the issue.
-     when mentioning expired codes as a reason, tell users that the code might have been recenly expired and our will verify and remove those codes. 
-     Before the bullet points, write at least a line or two to give cue to the actual points.
-     Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.`;
-      case "whereToFind":
-        return `   - ${heading}
-     1–2 short and on-point conversational paragraphs. Use the sources to locate the official Roblox page plus any verified social channels (Discord, Twitter/X, Trello, Roblox Group, etc.).
-     Mention each channel by exact name (Discord server title, channel names, Twitter @handle, Roblox group title, etc.) and explain what players can find there.
-     Wrap Roblox mentions with [[roblox_link|...]], Discord mentions with [[discord_link|...]], Twitter/X mentions with [[twitter_link|...]], community links with [[community_link|...]], and YouTube mentions with [[youtube_link|...]]. Make sure the anchor text is the real channel or profile name (e.g. [[discord_link|Tower Defense Discord]]).
-     If a source clearly references a Discord, Twitter/X, or community link, you must include the corresponding placeholder in this section. If the source does not mention that channel, do not invent it.
-     No bullet-points in this section at all. Just conversational paras. Write in as less words as possible, keep it short, info rich and to the point. However write full sentences that feels like friend explaining things to another friend. 
-     
-     In next para, Also suggest users to bookmark our page and tell them our system checks these sources for active and expired codes, and out team will verify these codes and update them on this page as soon as the code drops.`;
-      case "rewardsOverview":
-        return `   - ${heading}
-     Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into table to give cue to the audience.`;
-    }
-  }).join('\n');
+  const troubleshootHeading = resolveSectionTitle("codeNotWorking", gameName, troubleshootSection?.variant);
+  const rewardsHeading = resolveSectionTitle("rewardsOverview", gameName, rewardsSection?.variant);
+
+  const troubleshootGuidance = `${troubleshootHeading}
+   Bullet list of real reasons from sources. Keep it very simple, easy to scan, no generic and obvious solutions need to be included. Include all the needed info and reasons that user might be facing the issue.
+   When mentioning expired codes as a reason, tell users that the code might have been recently expired and our team will verify and remove those codes.
+   Before the bullet points, write at least a line or two to give cue to the actual points.
+   Also, after the points have mentioned, write a line or two to talk to the user to give more context about this if you have or skip.`;
+
+  const rewardsGuidance = `${rewardsHeading}
+   Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details, description of each reward, and all the info that makes sense to include in this section. The section should be detailed, in-depth, and everything should be cleanly explained. Write at least a line or two before jumping into table to give cue to the audience.`;
 
   return `
 You are a professional Roblox journalist.
 Use ONLY the information from these trusted sources below to write an accurate, detailed, and structured article.
 Do NOT invent or guess anything. If something isn't in the sources, skip it. Do not mention or reference the source names or URLs—retell the information in your own words. Sprinkle in personal commentary or first-hand style insights only when they add clear value or show how a player might react to the info, but keep the focus on delivering facts.
 
-Use the link placeholders below instead of raw URLs. Always wrap the exact anchor text in the placeholder format [[placeholder_key|Anchor Text]] and never output the actual URL.
-- [[roblox_link|...]] → official Roblox experience page
-- [[community_link|...]] → community links players should join or follow
-- [[discord_link|...]] → Discord server or channel names
-- [[twitter_link|...]] → Twitter/X handles or profiles
-- [[youtube_link|...]] → YouTube channels
-If we have mentioned the game's social media platform, we need to use the placeholder of that platform. 
+Only use the placeholder [[roblox_link|Launch ${gameName}]] when telling players to start the game in the redeem/how-to steps. Do not use any other placeholders; use plain text everywhere else (including social mentions).
 
 === SOURCES START ===
 ${sources}
@@ -756,19 +713,23 @@ Sections required:
    - If there are no requirements, write a line or two before the steps, to give cue to the actual steps. 
    - Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences.
    - Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]].
-   - When you ask readers to join or follow a community, wrap the relevant words with [[community_link|...]].
+   - Use plain text for any social mentions; no other placeholders besides the Roblox launch line.
    - If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.
 
-3. description_md – include these sections in this exact order:
-${descriptionGuidance}
+3. troubleshoot_md – start with "${troubleshootHeading}" and follow this guidance:
+${troubleshootGuidance}
 
-4. meta_description – a single 150–160 character sentence that naturally summarizes the article for search engines. Mention ${gameName} codes and the value players get, keep it friendly, and do not use markdown, placeholders, or quotation marks.
+4. rewards_md – start with "${rewardsHeading}" and follow this guidance:
+${rewardsGuidance}
+
+5. meta_description – a single 150–160 character sentence that naturally summarizes the article for search engines. Mention ${gameName} codes and the value players get, keep it friendly, and do not use markdown, placeholders, or quotation marks.
 
 Return valid JSON:
 {
   "intro_md": "...",
   "redeem_md": "...",
-  "description_md": "...",
+  "troubleshoot_md": "...",
+  "rewards_md": "...",
   "meta_description": "...",
   "game_display_name": "..."
 }
@@ -974,7 +935,9 @@ async function main() {
     slug,
     intro_md: article.intro_md,
     redeem_md: article.redeem_md,
-    description_md: article.description_md,
+    troubleshoot_md: article.troubleshoot_md,
+    rewards_md: article.rewards_md,
+    description_md: null,
     seo_description: article.meta_description,
     is_published: true,
   };
@@ -1125,12 +1088,13 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
   const displayName = sanitizeGameDisplayName(article.game_display_name, gameName);
   let intro = article.intro_md;
   let redeem = links.roblox_link ? ensureLaunchPlaceholder(article.redeem_md, displayName) : article.redeem_md;
-  let description = article.description_md;
+  let troubleshoot = article.troubleshoot_md;
+  let rewards = article.rewards_md;
   const metaDescription = formatMetaDescription(article.meta_description, displayName);
 
   const hasPlaceholder = (key: keyof PlaceholderLinks) => {
     const token = new RegExp(`\\[\\[${key}\\|`, "i");
-    return token.test(intro) || token.test(redeem) || token.test(description);
+    return token.test(intro) || token.test(redeem) || token.test(troubleshoot) || token.test(rewards);
   };
 
   const defaultLabelForKey = (key: keyof PlaceholderLinks): string => {
@@ -1168,20 +1132,22 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
   };
 
   const wrapWithKeyword = (value: string, keyword: string, key: keyof PlaceholderLinks, label: string) => {
-    const lower = value.toLowerCase();
-    const target = keyword.toLowerCase();
-    const index = lower.indexOf(target);
-    if (index === -1) return { applied: false, value };
-    if (index > 0) {
-      const prev = value[index - 1];
-      const prev2 = value[index - 2] ?? "";
-      if (prev === "[" || prev === "|" || (prev === ":" && prev2 === "|")) {
-        return { applied: false, value };
+    const escaped = escapeRegExp(keyword);
+    const pattern = new RegExp(`\\b${escaped}\\b`, "gi");
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(value)) !== null) {
+      const full = match[0];
+      const index = match.index;
+      const before = value.slice(Math.max(0, index - 2), index);
+      if (before.includes("[[")) {
+        continue;
       }
+      const replacement = `[[${key}|${label}]]`;
+      const updated = value.slice(0, index) + replacement + value.slice(index + full.length);
+      return { applied: true, value: updated };
     }
-    const replacement = `[[${key}|${label}]]`;
-    const updated = value.slice(0, index) + replacement + value.slice(index + keyword.length);
-    return { applied: true, value: updated };
+
+    return { applied: false, value };
   };
 
   const appendSentence = (value: string, sentence: string) => {
@@ -1203,43 +1169,31 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     const label = link.label?.trim() || defaultLabelForKey(key);
     const keywordPool = Array.from(new Set([label, ...keywords])).filter(Boolean) as string[];
 
+    const fields = [
+      { get: () => redeem, set: (val: string) => (redeem = val) }
+    ];
+
     for (const regex of regexes) {
-      let result = wrapWithRegex(description, regex, key, label);
-      if (result.applied) {
-        description = result.value;
-        return;
-      }
-      result = wrapWithRegex(redeem, regex, key, label);
-      if (result.applied) {
-        redeem = result.value;
-        return;
-      }
-      result = wrapWithRegex(intro, regex, key, label);
-      if (result.applied) {
-        intro = result.value;
-        return;
+      for (const field of fields) {
+        const result = wrapWithRegex(field.get(), regex, key, label);
+        if (result.applied) {
+          field.set(result.value);
+          return;
+        }
       }
     }
 
     for (const keyword of keywordPool) {
-      let result = wrapWithKeyword(description, keyword, key, label);
-      if (result.applied) {
-        description = result.value;
-        return;
-      }
-      result = wrapWithKeyword(redeem, keyword, key, label);
-      if (result.applied) {
-        redeem = result.value;
-        return;
-      }
-      result = wrapWithKeyword(intro, keyword, key, label);
-      if (result.applied) {
-        intro = result.value;
-        return;
+      for (const field of fields) {
+        const result = wrapWithKeyword(field.get(), keyword, key, label);
+        if (result.applied) {
+          field.set(result.value);
+          return;
+        }
       }
     }
 
-    description = appendSentence(description, buildFallback(label));
+    redeem = appendSentence(redeem, buildFallback(label));
   };
 
   ensurePlaceholder(
@@ -1248,35 +1202,20 @@ function applyLinkPlaceholders(article: ArticleResponse, gameName: string, links
     [],
     (label) => `Visit [[roblox_link|${label}]] to hop in and start playing.`
   );
-  ensurePlaceholder(
-    "community_link",
-    ["community", "group"],
-    [/Roblox\s+community/i],
-    (label) => `Join [[community_link|${label}]] to catch every update.`
-  );
-  ensurePlaceholder(
-    "discord_link",
-    ["Discord"],
-    [/\bdiscord\b/i],
-    (label) => `Chat with other players in [[discord_link|${label}]].`
-  );
-  ensurePlaceholder(
-    "twitter_link",
-    ["Twitter", "X"],
-    [/@[a-z0-9_]{3,}/i],
-    (label) => `Follow [[twitter_link|${label}]] for code drops.`
-  );
-  ensurePlaceholder(
-    "youtube_link",
-    ["YouTube", "channel"],
-    [/\byoutube\b/i],
-    (label) => `Watch new showcases on [[youtube_link|${label}]].`
-  );
+  // Only the Roblox launch placeholder is required; all other placeholders should be stripped
+  const stripNonRobloxPlaceholders = (value: string): string =>
+    value.replace(/\[\[(?!roblox_link)[a-z0-9_]+\|([^\]]+)\]\]/gi, "$1");
+
+  intro = stripNonRobloxPlaceholders(intro);
+  redeem = stripNonRobloxPlaceholders(redeem);
+  troubleshoot = stripNonRobloxPlaceholders(troubleshoot);
+  rewards = stripNonRobloxPlaceholders(rewards);
 
   return {
     intro_md: intro,
     redeem_md: redeem,
-    description_md: description,
+    troubleshoot_md: troubleshoot,
+    rewards_md: rewards,
     meta_description: metaDescription,
     game_display_name: displayName,
   };
