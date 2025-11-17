@@ -887,6 +887,7 @@ export default async function GamePage({ params }: Params) {
                 breadcrumbJsonLd(breadcrumbs),
                 {
                   "@type": "BlogPosting",
+                  url: canonicalUrl,
                   mainEntityOfPage: {
                     "@type": "WebPage",
                     "@id": canonicalUrl
@@ -894,6 +895,11 @@ export default async function GamePage({ params }: Params) {
                   headline: `${game.name} Codes (${monthYear()})`,
                   datePublished: publishedIso,
                   dateModified: updatedIso,
+                  image: {
+                    "@type": "ImageObject",
+                    url: coverImage,
+                    thumbnailUrl: coverImage
+                  },
                   author: game.author
                     ? {
                         "@type": "Person",
