@@ -283,6 +283,7 @@ function mapGameRecordToSummary(game: any, codes: any[]): AdminGameSummary {
       redeem_md: game.redeem_md,
       troubleshoot_md: game.troubleshoot_md,
       rewards_md: game.rewards_md,
+      about_game_md: game.about_game_md,
       description_md: game.description_md,
       linktext_md: game.linktext_md,
     genre: game.genre,
