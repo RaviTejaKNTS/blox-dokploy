@@ -29,7 +29,8 @@ export function organizationJsonLd({ siteUrl }: { siteUrl: string }) {
     "url": siteUrl,
     "logo": `${siteUrl}/Bloxodes-dark.png`,
     "sameAs": [
-      "https://www.roblox.com/"
+      siteUrl.replace(/\/$/, ""),
+      "https://x.com/bloxodes"
     ]
   };
 }

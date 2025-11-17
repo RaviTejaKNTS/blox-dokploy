@@ -86,6 +86,11 @@ function listEntryUrl(entry: GameListUniverseEntry): string {
   return `https://www.roblox.com/games/${placeId}`;
 }
 
+function listEntryRobloxUrl(entry: GameListUniverseEntry): string {
+  const placeId = entry.universe.root_place_id ?? entry.universe.universe_id;
+  return `https://www.roblox.com/games/${placeId}`;
+}
+
 function listEntryName(entry: GameListUniverseEntry): string {
   return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name;
 }
@@ -122,13 +127,16 @@ export default async function GameListPage({ params }: PageProps) {
     name: list.title,
     description: listDescription,
     url: canonicalUrl,
-        numberOfItems: entriesWithBadges.length,
-        itemListElement: entriesWithBadges.map((entry, index) => ({
+    numberOfItems: entriesWithBadges.length,
+    itemListElement: entriesWithBadges.map((entry, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: listEntryUrl(entry),
-      name: listEntryName(entry),
-      image: entry.universe.icon_url ?? undefined
+      item: {
+        "@type": "VideoGame",
+        name: listEntryName(entry),
+        url: listEntryRobloxUrl(entry),
+        image: entry.universe.icon_url ?? undefined
+      }
     }))
   });
   const pageSchema = JSON.stringify(

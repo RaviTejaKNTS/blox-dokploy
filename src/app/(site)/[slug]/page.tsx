@@ -604,7 +604,6 @@ export default async function GamePage({ params }: Params) {
         })
       )
     : null;
-  const codesFaqData = null;
   const authorBioHtml = game.author?.bio_md ? await renderMarkdown(game.author.bio_md) : "";
   const authorAvatar = game.author ? authorAvatarUrl(game.author, 72) : null;
   const authorProfileUrl = game.author?.slug ? `/authors/${game.author.slug}` : null;
@@ -641,6 +640,45 @@ export default async function GamePage({ params }: Params) {
       }
     }
   });
+  const faqEntries: { question: string; answer: string }[] = [];
+  if (hasSupplemental) {
+    if (troubleshootMarkdown) {
+      const answer = markdownToPlainText(troubleshootMarkdown).trim();
+      if (answer) faqEntries.push({ question: "Troubleshooting", answer });
+    }
+    if (rewardsMarkdown) {
+      const answer = markdownToPlainText(rewardsMarkdown).trim();
+      if (answer) faqEntries.push({ question: "Rewards", answer });
+    }
+    if (aboutMarkdown) {
+      const answer = markdownToPlainText(aboutMarkdown).trim();
+      if (answer) faqEntries.push({ question: "About this game", answer });
+    }
+    // Social section text
+    faqEntries.push({
+      question: "How to get new codes fast?",
+      answer:
+        "Developers usually share codes on their official channels. We monitor them and update this page quickly. You can also check Telegram (@bloxodes), X (@bloxodes), or install the Chrome extension."
+    });
+  } else if (descriptionMarkdown) {
+    const answer = markdownToPlainText(descriptionMarkdown).trim();
+    if (answer) faqEntries.push({ question: "About this game", answer });
+  }
+  const faqData =
+    faqEntries.length > 0
+      ? JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqEntries.map(({ question, answer }) => ({
+            "@type": "Question",
+            name: question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: answer
+            }
+          }))
+        })
+      : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
@@ -920,9 +958,7 @@ export default async function GamePage({ params }: Params) {
         {howToData && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
         )}
-        {codesFaqData && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: codesFaqData }} />
-        )}
+        {faqData && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqData }} />}
         <CodeBlockEnhancer />
       </article>
 
