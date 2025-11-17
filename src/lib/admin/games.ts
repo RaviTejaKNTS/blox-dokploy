@@ -29,6 +29,9 @@ export interface AdminGameSummary {
   youtube_link: string | null;
   intro_md: string | null;
   redeem_md: string | null;
+  troubleshoot_md: string | null;
+  rewards_md: string | null;
+  about_game_md: string | null;
   description_md: string | null;
   linktext_md: string | null;
   genre: string | null;
@@ -67,7 +70,7 @@ async function fetchAllGames(client: SupabaseClient) {
       .select(
         `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
          roblox_link, community_link, twitter_link, discord_link, youtube_link,
-         intro_md, redeem_md, description_md, linktext_md, genre, sub_genre, seo_title, seo_description, cover_image, expired_codes,
+         intro_md, redeem_md, troubleshoot_md, rewards_md, about_game_md, description_md, linktext_md, genre, sub_genre, seo_title, seo_description, cover_image, expired_codes,
          internal_links,
          author:authors ( id, name )`
       )
@@ -170,6 +173,9 @@ export async function fetchAdminGames(client: SupabaseClient): Promise<AdminGame
       youtube_link: game.youtube_link,
       intro_md: game.intro_md,
       redeem_md: game.redeem_md,
+      troubleshoot_md: game.troubleshoot_md,
+      rewards_md: game.rewards_md,
+      about_game_md: game.about_game_md,
       description_md: game.description_md,
       linktext_md: game.linktext_md,
       genre: game.genre,
@@ -211,7 +217,7 @@ async function fetchGameRecord(
     .select(
       `id, name, slug, is_published, created_at, updated_at, source_url, source_url_2, source_url_3,
        roblox_link, community_link, twitter_link, discord_link, youtube_link,
-       intro_md, redeem_md, description_md, linktext_md, genre, sub_genre, seo_title, seo_description, cover_image, expired_codes,
+       intro_md, redeem_md, troubleshoot_md, rewards_md, about_game_md, description_md, linktext_md, genre, sub_genre, seo_title, seo_description, cover_image, expired_codes,
        internal_links,
        author:authors ( id, name )`
     )
@@ -272,11 +278,13 @@ function mapGameRecordToSummary(game: any, codes: any[]): AdminGameSummary {
     community_link: game.community_link,
     twitter_link: game.twitter_link,
     discord_link: game.discord_link,
-    youtube_link: game.youtube_link,
-    intro_md: game.intro_md,
-    redeem_md: game.redeem_md,
-    description_md: game.description_md,
-    linktext_md: game.linktext_md,
+      youtube_link: game.youtube_link,
+      intro_md: game.intro_md,
+      redeem_md: game.redeem_md,
+      troubleshoot_md: game.troubleshoot_md,
+      rewards_md: game.rewards_md,
+      description_md: game.description_md,
+      linktext_md: game.linktext_md,
     genre: game.genre,
     sub_genre: game.sub_genre,
     seo_title: game.seo_title,

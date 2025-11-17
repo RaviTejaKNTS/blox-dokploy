@@ -133,6 +133,9 @@ const formSchema = z.object({
   youtube_link: z.string().url().optional().or(z.literal("")),
   intro_md: z.string().optional(),
   redeem_md: z.string().optional(),
+  troubleshoot_md: z.string().optional(),
+  rewards_md: z.string().optional(),
+  about_game_md: z.string().optional(),
   description_md: z.string().optional(),
   linktext_md: z.string().optional(),
   genre: z.string().optional(),
@@ -192,6 +195,9 @@ export function GameEditorForm({
     youtube_link: game?.youtube_link ?? "",
     intro_md: game?.intro_md ?? "",
     redeem_md: game?.redeem_md ?? "",
+    troubleshoot_md: game?.troubleshoot_md ?? "",
+    rewards_md: game?.rewards_md ?? "",
+    about_game_md: game?.about_game_md ?? "",
     description_md: game?.description_md ?? "",
     linktext_md: game?.linktext_md ?? "",
     genre: game?.genre ?? "",
@@ -267,6 +273,9 @@ export function GameEditorForm({
   const youtubeLinkValue = watch("youtube_link");
   const introValue = watch("intro_md");
   const redeemValue = watch("redeem_md");
+  const troubleshootValue = watch("troubleshoot_md");
+  const rewardsValue = watch("rewards_md");
+  const aboutValue = watch("about_game_md");
   const descriptionValue = watch("description_md");
   const linktextValue = watch("linktext_md");
   const disableMetaActions = !game?.slug;
@@ -1311,8 +1320,35 @@ export function GameEditorForm({
                     if ((linktextValue ?? "") === value) return;
                     setValue("linktext_md", value, { shouldDirty: true });
                   }}
-                />
-              </div>
+              />
+            </div>
+
+              <RichMarkdownEditor
+                label="Troubleshoot (shows below expired codes)"
+                value={troubleshootValue ?? ""}
+                onChange={(value) => {
+                  if ((troubleshootValue ?? "") === value) return;
+                  setValue("troubleshoot_md", value, { shouldDirty: true });
+                }}
+              />
+
+              <RichMarkdownEditor
+                label="Rewards (shows below troubleshoot)"
+                value={rewardsValue ?? ""}
+                onChange={(value) => {
+                  if ((rewardsValue ?? "") === value) return;
+                  setValue("rewards_md", value, { shouldDirty: true });
+                }}
+              />
+
+              <RichMarkdownEditor
+                label="About Game"
+                value={aboutValue ?? ""}
+                onChange={(value) => {
+                  if ((aboutValue ?? "") === value) return;
+                  setValue("about_game_md", value, { shouldDirty: true });
+                }}
+              />
 
               <RichMarkdownEditor
                 label="Description"

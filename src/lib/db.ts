@@ -39,6 +39,9 @@ export type Game = {
   seo_description: string | null;
   intro_md: string | null;
   redeem_md: string | null;
+  troubleshoot_md: string | null;
+  rewards_md: string | null;
+  about_game_md: string | null;
   description_md: string | null;
   linktext_md: string | null;
   universe_id: number | null;

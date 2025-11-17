@@ -18,6 +18,9 @@ import { SocialShare } from "@/components/SocialShare";
 import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { EzoicAdSlot } from "@/components/EzoicAdSlot";
 import { monthYear } from "@/lib/date";
+import { authorAvatarUrl } from "@/lib/avatar";
+import { AuthorCard } from "@/components/AuthorCard";
+import { collectAuthorSocials } from "@/lib/author-socials";
 import {
   getGameBySlug,
   listCodesForGame,
@@ -33,7 +36,6 @@ import {
   breadcrumbJsonLd,
   codesItemListJsonLd,
   gameJsonLd,
-  webPageJsonLd,
   howToJsonLd
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
@@ -528,14 +530,23 @@ export default async function GamePage({ params }: Params) {
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
   const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
   const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
+  const troubleshootMarkdown = game.troubleshoot_md ? replaceLinkPlaceholders(game.troubleshoot_md, linkMap) : "";
+  const rewardsMarkdown = game.rewards_md ? replaceLinkPlaceholders(game.rewards_md, linkMap) : "";
+  const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
+  const aboutMarkdown = game.about_game_md ? replaceLinkPlaceholders(game.about_game_md, linkMap) : "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
 
-  const [introHtml, redeemHtml, linktextHtml] = await Promise.all([
+  const [introHtml, redeemHtml, linktextHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
     linktextMarkdown ? renderMarkdown(linktextMarkdown) : "",
+    troubleshootMarkdown ? renderMarkdown(troubleshootMarkdown) : "",
+    rewardsMarkdown ? renderMarkdown(rewardsMarkdown) : "",
+    descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
+    aboutMarkdown ? renderMarkdown(aboutMarkdown) : ""
   ]);
+  const hasSupplemental = Boolean(troubleshootHtml || rewardsHtml || aboutHtml);
 
   const canonicalUrl = `${SITE_URL}/${game.slug}`;
   const coverImage = game.cover_image?.startsWith("http")
@@ -548,6 +559,13 @@ export default async function GamePage({ params }: Params) {
       `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`
   );
   const metaDescription = metaDescriptionRaw?.trim() || SITE_DESCRIPTION;
+  const authorMeta =
+    game.author && game.author.name
+      ? {
+          name: game.author.name,
+          url: game.author.slug ? `${SITE_URL}/authors/${game.author.slug}` : undefined
+        }
+      : null;
   const publishedIso = new Date(game.created_at).toISOString();
   const updatedIso = new Date(lastContentUpdate).toISOString();
   const lastCheckedIso = new Date(lastChecked).toISOString();
@@ -577,18 +595,6 @@ export default async function GamePage({ params }: Params) {
       }))
     })
   );
-  const webPageData = JSON.stringify(
-    webPageJsonLd({
-      siteUrl: SITE_URL,
-      slug: game.slug,
-      title: `${game.name} Codes (${monthYear()})`,
-      description: metaDescription,
-      image: coverImage,
-      author: null,
-      publishedAt: publishedIso,
-      updatedAt: updatedIso
-    })
-  );
   const howToData = redeemSteps.length
     ? JSON.stringify(
         howToJsonLd({
@@ -599,6 +605,42 @@ export default async function GamePage({ params }: Params) {
       )
     : null;
   const codesFaqData = null;
+  const authorBioHtml = game.author?.bio_md ? await renderMarkdown(game.author.bio_md) : "";
+  const authorAvatar = game.author ? authorAvatarUrl(game.author, 72) : null;
+  const authorProfileUrl = game.author?.slug ? `/authors/${game.author.slug}` : null;
+  const authorSameAs = game.author ? Array.from(new Set(collectAuthorSocials(game.author).map((link) => link.url))) : [];
+  const authorBioPlain = game.author?.bio_md ? markdownToPlainText(game.author.bio_md) : null;
+  const articleStructuredData = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    mainEntityOfPage: canonicalUrl,
+    headline: `${game.name} Codes (${monthYear()})`,
+    description: metaDescription,
+    datePublished: publishedIso,
+    dateModified: updatedIso,
+    image: coverImage,
+    author: game.author
+      ? {
+          "@type": "Person",
+          name: game.author.name,
+          url: authorProfileUrl ? `${SITE_URL.replace(/\/$/, "")}${authorProfileUrl}` : undefined,
+          sameAs: authorSameAs.length ? authorSameAs : undefined,
+          description: authorBioPlain || undefined
+        }
+      : {
+          "@type": "Organization",
+          name: SITE_NAME,
+          url: SITE_URL
+        },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/Bloxodes-dark.png`
+      }
+    }
+  });
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
@@ -625,19 +667,52 @@ export default async function GamePage({ params }: Params) {
           </h1>
           <div className="mt-4 flex flex-col gap-3 text-sm text-muted">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-foreground">
-                Maintained by <span className="font-semibold text-foreground">Bloxodes Team</span>
-              </span>
+              {game.author ? (
+                <div className="flex items-center gap-2" itemProp="author" itemScope itemType="https://schema.org/Person">
+                  {authorProfileUrl ? <link itemProp="url" href={authorProfileUrl} /> : null}
+                  {authorBioPlain ? <meta itemProp="description" content={authorBioPlain} /> : null}
+                  {authorSameAs.map((url) => (
+                    <link key={url} itemProp="sameAs" href={url} />
+                  ))}
+                  <img
+                    src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
+                    alt={game.author.name}
+                    className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span>
+                    Authored by {game.author.slug ? (
+                      <Link
+                        href={`/authors/${game.author.slug}`}
+                        className="font-semibold text-foreground transition hover:text-accent"
+                        itemProp="name"
+                      >
+                        {game.author.name}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-foreground" itemProp="name">
+                        {game.author.name}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-semibold text-foreground" itemProp="author">
+                  Published by {SITE_NAME}
+                </span>
+              )}
               <span aria-hidden="true">•</span>
               <span className="text-foreground/80">
                 Updated on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
+                {lastCheckedRelativeLabel ? <span> ({lastCheckedRelativeLabel})</span> : null}
               </span>
             </div>
             <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-accent/40 bg-accent/10 px-4 py-4 font-medium text-accent">
               <time dateTime={lastCheckedIso}>
-                Last checked for new codes on{' '}
+                Last checked for new codes on{" "}
                 <span className="font-semibold text-foreground">{lastCheckedFormatted}</span>
-                {lastCheckedRelativeLabel ? <span>{' '}({lastCheckedRelativeLabel})</span> : null}
+                {lastCheckedRelativeLabel ? <span> ({lastCheckedRelativeLabel})</span> : null}
               </time>
             </div>
           </div>
@@ -726,66 +801,111 @@ export default async function GamePage({ params }: Params) {
           {expired.length === 0 ? null : <ExpiredCodes codes={expired} />}
         </section>
 
-        {shouldShowSocialSection ? (
-          <section className="mb-8 space-y-4" id={`more-${game.slug}-codes`}>
-            <div className="prose dark:prose-invert max-w-none game-copy">
-              <h2>How to Get New Codes Fast</h2>
-              <p>New codes are posted here by the developers:</p>
-            </div>
-            {socialLinksToDisplay.length ? (
-              <div className="mt-4 flex flex-wrap gap-3">
-                {socialLinksToDisplay.map(({ key, url, label, Icon }) => (
+        {hasSupplemental ? (
+          <>
+            {troubleshootHtml ? (
+              <section className="mb-8" id="troubleshoot">
+                <div
+                  className="prose dark:prose-invert max-w-none game-copy"
+                  dangerouslySetInnerHTML={processHtmlLinks(troubleshootHtml)}
+                />
+              </section>
+            ) : null}
+
+            {rewardsHtml ? (
+              <section className="mb-8" id="rewards">
+                <div
+                  className="prose dark:prose-invert max-w-none game-copy"
+                  dangerouslySetInnerHTML={processHtmlLinks(rewardsHtml)}
+                />
+              </section>
+            ) : null}
+
+            {shouldShowSocialSection ? (
+              <section className="mb-8 space-y-4" id={`more-${game.slug}-codes`}>
+                <div className="prose dark:prose-invert max-w-none game-copy">
+                  <h2>How to Get New Codes Fast</h2>
+                  <p>New codes are posted here by the developers:</p>
+                </div>
+                {socialLinksToDisplay.length ? (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {socialLinksToDisplay.map(({ key, url, label, Icon }) => (
+                      <a
+                        key={key}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                      >
+                        <Icon className="h-4 w-4" aria-hidden />
+                        <span>{label}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-muted">We haven't found any official social media links yet.</p>
+                )}
+
+                <div className="prose dark:prose-invert max-w-none game-copy">
+                  <p>
+                    We keep track of these sources and update this page as soon as new codes drop. Bookmark this page or follow our channels to get the codes right away.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
                   <a
-                    key={key}
-                    href={url}
+                    href="https://t.me/bloxodes"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                   >
-                    <Icon className="h-4 w-4" aria-hidden />
-                    <span>{label}</span>
+                    <FaTelegramPlane className="h-4 w-4" aria-hidden />
+                    <span>@bloxodes</span>
                   </a>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-muted">We haven&apos;t found any official social media links yet.</p>
-            )}
+                  <a
+                    href="https://twitter.com/bloxodes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                  >
+                    <RiTwitterXLine className="h-4 w-4" aria-hidden />
+                    <span>@bloxodes</span>
+                  </a>
+                  <a
+                    href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                  >
+                    <SiGooglechrome className="h-4 w-4" aria-hidden />
+                    <span>Install Chrome Extension</span>
+                  </a>
+                </div>
+              </section>
+            ) : null}
 
-            <div className="prose dark:prose-invert max-w-none game-copy">
-              <p>
-                We keep track of these sources and update this page as soon as new codes drop. Bookmark this page or follow our channels to get the codes right away.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="https://t.me/bloxodes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
-              >
-                <FaTelegramPlane className="h-4 w-4" aria-hidden />
-                <span>@bloxodes</span>
-              </a>
-              <a
-                href="https://twitter.com/bloxodes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
-              >
-                <RiTwitterXLine className="h-4 w-4" aria-hidden />
-                <span>@bloxodes</span>
-              </a>
-              <a
-                href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
-              >
-                <SiGooglechrome className="h-4 w-4" aria-hidden />
-                <span>Install Chrome Extension</span>
-              </a>
-            </div>
+            {aboutHtml ? (
+              <section className="mb-8" id="about-game">
+                <div
+                  className="prose dark:prose-invert max-w-none game-copy"
+                  dangerouslySetInnerHTML={processHtmlLinks(aboutHtml)}
+                />
+              </section>
+            ) : null}
+          </>
+        ) : descriptionHtml ? (
+          <section className="mb-8 space-y-4" id="description">
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(descriptionHtml)}
+            />
           </section>
+        ) : null}
+
+
+        {game.author ? (
+          <div className="mt-10">
+            <AuthorCard author={game.author} bioHtml={authorBioHtml} />
+          </div>
         ) : null}
 
         <div className="mb-8">
@@ -796,7 +916,7 @@ export default async function GamePage({ params }: Params) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: videoGameData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: codesItemListData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: webPageData }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleStructuredData }} />
         {howToData && (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: howToData }} />
         )}
