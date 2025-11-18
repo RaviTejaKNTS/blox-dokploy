@@ -1,13 +1,19 @@
 import { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Inter } from "next/font/google";
 import { HeaderControls } from "@/components/HeaderControls";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap"
+});
 
 export default function SiteLayout({ children }: { children: ReactNode }) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={`${inter.className} flex min-h-screen flex-col`}>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/95 backdrop-blur">
         <div className="container flex flex-wrap items-center justify-between gap-6 py-4">
           <div className="flex flex-1 flex-wrap items-end gap-10">
