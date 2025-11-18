@@ -43,11 +43,7 @@ export type Game = {
   rewards_md: string | null;
   about_game_md: string | null;
   description_md: string | null;
-  linktext_md: string | null;
   universe_id: number | null;
-  genre: string | null;
-  sub_genre: string | null;
-  internal_links: number | null;
   is_published: boolean;
   created_at: string;
   updated_at: string;

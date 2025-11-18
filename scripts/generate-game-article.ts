@@ -8,7 +8,6 @@ import { Readability } from "@mozilla/readability";
 import sharp from "sharp";
 
 import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
-import { generateLinktextForGames } from "@/lib/linktext";
 import {
   extractPlaceId,
   fetchGenreFromApi,
@@ -102,8 +101,6 @@ type ExistingGameRecord = {
   source_url: string | null;
   source_url_2: string | null;
   source_url_3: string | null;
-  genre: string | null;
-  sub_genre: string | null;
   universe_id: number | null;
 };
 
@@ -852,11 +849,11 @@ async function main() {
 
   let existingGame: ExistingGameRecord | null = null;
   {
-    const { data, error } = await supabase
-      .from("games")
-      .select(
-        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
-      )
+  const { data, error } = await supabase
+    .from("games")
+    .select(
+      "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, universe_id"
+    )
       .eq("slug", slug)
       .maybeSingle();
     if (error) throw error;
@@ -869,14 +866,6 @@ async function main() {
   }
 
   const robloxExperienceLink = socialLinks.roblox_link?.url ?? existingGame?.roblox_link ?? undefined;
-  if ((!metadata.genre || !metadata.subGenre) && robloxExperienceLink && !socialLinks.roblox_link) {
-    metadata = await collectRobloxMetadata(robloxExperienceLink);
-  }
-
-  if (!socialLinks.community_link && metadata.communityLink) {
-    socialLinks.community_link = { url: metadata.communityLink };
-  }
-
   if (!socialLinks.community_link && robloxExperienceLink) {
     const scrapedCommunityLink = await fetchCommunityLinkFromRobloxExperience(robloxExperienceLink);
     if (scrapedCommunityLink) {
@@ -956,11 +945,6 @@ async function main() {
   if (resolvedLinks.twitter_link) insertPayload.twitter_link = resolvedLinks.twitter_link.url;
   if (resolvedLinks.youtube_link) insertPayload.youtube_link = resolvedLinks.youtube_link.url;
 
-  const finalGenre = metadata.genre ?? existingGame?.genre ?? null;
-  const finalSubGenre = metadata.subGenre ?? existingGame?.sub_genre ?? null;
-  if (finalGenre) insertPayload.genre = finalGenre;
-  if (finalSubGenre) insertPayload.sub_genre = finalSubGenre;
-
   let resolvedUniverseId = (existingGame?.universe_id as number | null | undefined) ?? null;
   if (resolvedLinks.roblox_link?.url) {
     try {
@@ -1002,10 +986,10 @@ async function main() {
   }
 
   if (!existingGame && finalSlug !== slug) {
-    const { data: altGame, error: altError } = await supabase
+  const { data: altGame, error: altError } = await supabase
       .from("games")
       .select(
-        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, genre, sub_genre, universe_id"
+        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, universe_id"
       )
       .eq("slug", finalSlug)
       .maybeSingle();
@@ -1029,15 +1013,6 @@ async function main() {
   if (upsert.error) throw upsert.error;
   const gameId = upsert.data?.id ?? existingGame?.id;
   console.log(`✅ "${name}" saved successfully (${slug})`);
-
-  try {
-    await generateLinktextForGames(supabase, { slugs: [slug], overwrite: false, limit: 1 });
-  } catch (linktextError) {
-    console.warn(
-      "⚠️ Failed to update linktext:",
-      linktextError instanceof Error ? linktextError.message : linktextError
-    );
-  }
 
   const coverSourceLink = resolvedLinks.roblox_link?.url ?? existingGame?.source_url ?? null;
   await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });
