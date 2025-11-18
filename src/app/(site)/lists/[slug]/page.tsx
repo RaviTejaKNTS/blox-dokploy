@@ -71,10 +71,15 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
 
   const titleBase = list.meta_title ?? list.title;
   const title = page > 1 ? `${titleBase} - Page ${page} | ${SITE_NAME}` : `${titleBase} | ${SITE_NAME}`;
+  const canonicalPath = page > 1 ? `/lists/${slug}/page/${page}` : `/lists/${slug}`;
+  const canonical = `${SITE_URL}${canonicalPath}`;
 
   return {
     title,
-    description
+    description,
+    alternates: {
+      canonical
+    }
   };
 }
 

@@ -8,7 +8,10 @@ export const revalidate = 60;
 
 export const metadata = {
   title: `Roblox Game Lists | ${SITE_NAME}`,
-  description: SITE_DESCRIPTION
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: `${SITE_URL}/lists`
+  }
 };
 
 async function ListsContent() {
