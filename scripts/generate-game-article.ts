@@ -1002,7 +1002,7 @@ async function refreshCodesForGame(slug: string) {
 
   const { data: gameRecord, error: fetchError } = await supabase
     .from("games")
-    .select("id, slug, source_url, source_url_2, source_url_3")
+    .select("id, slug, source_url, source_url_2, source_url_3, expired_codes")
     .eq("slug", slug)
     .maybeSingle();
 
