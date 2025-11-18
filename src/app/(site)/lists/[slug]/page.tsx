@@ -25,6 +25,11 @@ type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBa
 
 export const PAGE_SIZE = 10;
 
+function formatMetric(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
 function listEntryUrl(entry: GameListUniverseEntry): string {
   if (entry.game?.slug) {
     return `${SITE_URL}/${entry.game.slug}`;
@@ -156,10 +161,6 @@ function SidebarNav({
   entries: GameListEntryWithBadges[];
 }) {
   if (!entries.length) return null;
-  const formatMetric = (value?: number | null) => {
-    if (value == null || Number.isNaN(value)) return null;
-    return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-  };
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-muted">
@@ -274,6 +275,41 @@ export function ListPageView({
               </div>
               {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
             </div>
+            {/* Mobile jump list placed above the entries */}
+            <div className="lg:hidden">
+              <details className="rounded-xl border border-border/60 bg-surface/70 px-4 py-3">
+                <summary className="flex items-center justify-between text-sm font-semibold text-foreground cursor-pointer">
+                  <span>Jump to game</span>
+                  <span className="text-xs text-muted">Top {entries.length}</span>
+                </summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  {entries.map((entry, index) => {
+                    const pageForEntry = Math.floor(index / PAGE_SIZE) + 1;
+                    const base = pageForEntry === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${pageForEntry}`;
+                    const href = `${base}#list-entry-${entry.universe.universe_id}`;
+                    const extra = (entry?.extra ?? null) as { metric?: string } | null;
+                    const metricLabel = extra?.metric;
+                    const metricValue = formatMetric(entry.metric_value);
+                    const metricText = metricValue ? `${metricValue}${metricLabel ? ` ${metricLabel}` : ""}` : null;
+                    return (
+                      <a
+                        key={entry.universe.universe_id}
+                        href={href}
+                        className="flex items-center justify-between rounded-xl border border-border/40 bg-surface/50 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:bg-accent/5 hover:text-accent"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <span className="text-xs font-bold text-accent">#{index + 1}</span>
+                          <span className="truncate">{listEntryName(entry)}</span>
+                        </span>
+                        {metricText ? (
+                          <span className="ml-2 text-xs font-semibold text-muted whitespace-nowrap">{metricText}</span>
+                        ) : null}
+                      </a>
+                    );
+                  })}
+                </div>
+              </details>
+            </div>
             {showIntroOutro ? (
               <section className="space-y-6">
                 {heroHtml ? (
@@ -322,7 +358,9 @@ export function ListPageView({
         </div>
 
         <div className="mt-0 space-y-6 lg:w-[320px]">
-          <SidebarNav slug={slug} entries={entries} />
+          <div className="hidden lg:block">
+            <SidebarNav slug={slug} entries={entries} />
+          </div>
           <div className="rounded-2xl border border-border/60 bg-surface p-5">
             <h2 className="text-lg font-semibold text-foreground">Lists library</h2>
             <p className="mb-3 text-sm text-muted">More curated Roblox game picks.</p>
