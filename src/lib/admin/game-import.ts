@@ -66,7 +66,7 @@ export async function syncGameCodesFromSources(
     return {
       codesFound: total,
       codesUpserted: 0,
-      errors: scraped.errors ?? []
+      errors: []
     };
   } catch (error) {
     return {
