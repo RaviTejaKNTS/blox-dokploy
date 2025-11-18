@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GameListItem } from "@/components/GameListItem";
 import { SocialShare } from "@/components/SocialShare";
-import { SmallGameListItem } from "@/components/SmallGameListItem";
-import { ListQuickNav } from "@/components/ListQuickNav";
 import {
   getGameListBySlug,
   getGameListMetadata,
@@ -13,7 +10,7 @@ import {
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
@@ -24,59 +21,9 @@ type PageProps = {
   params: { slug: string };
 };
 
-export async function generateStaticParams() {
-  const lists = await listPublishedGameLists();
-  return lists.map((list) => ({ slug: list.slug }));
-}
+type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const list = await getGameListMetadata(params.slug);
-  if (!list) {
-    return {};
-  }
-
-  const description = list.meta_description
-    ? list.meta_description
-    : list.intro_md
-      ? markdownToPlainText(list.intro_md).slice(0, 160)
-      : SITE_DESCRIPTION;
-
-  return {
-    title: list.meta_title ?? `${list.title} | ${SITE_NAME}`,
-    description
-  };
-}
-
-function ListIntro({ heroHtml, introHtml }: { heroHtml: string; introHtml: string }) {
-  if (!heroHtml && !introHtml) return null;
-  return (
-    <section className="mb-8" id="intro">
-      {heroHtml ? (
-        <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: heroHtml }} />
-      ) : null}
-      {introHtml ? (
-        <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: introHtml }} />
-      ) : null}
-    </section>
-  );
-}
-
-function ListOutro({ outroHtml }: { outroHtml: string }) {
-  if (!outroHtml) return null;
-  return (
-    <section className="mb-8" id="outro">
-      <div
-        className="prose dark:prose-invert max-w-none game-copy text-muted"
-        dangerouslySetInnerHTML={{ __html: outroHtml }}
-      />
-    </section>
-  );
-}
-
-function formatListUpdated(listUpdatedAt: string | null | undefined) {
-  const label = formatUpdatedLabel(listUpdatedAt);
-  return label ? `Last refreshed ${label}` : null;
-}
+export const PAGE_SIZE = 10;
 
 function listEntryUrl(entry: GameListUniverseEntry): string {
   if (entry.game?.slug) {
@@ -86,19 +33,12 @@ function listEntryUrl(entry: GameListUniverseEntry): string {
   return `https://www.roblox.com/games/${placeId}`;
 }
 
-function listEntryRobloxUrl(entry: GameListUniverseEntry): string {
-  const placeId = entry.universe.root_place_id ?? entry.universe.universe_id;
-  return `https://www.roblox.com/games/${placeId}`;
-}
-
 function listEntryName(entry: GameListUniverseEntry): string {
   return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name;
 }
 
-type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
-
-export default async function GameListPage({ params }: PageProps) {
-  const [data, allLists] = await Promise.all([getGameListBySlug(params.slug), listPublishedGameLists()]);
+export async function buildListData(slug: string) {
+  const [data, allLists] = await Promise.all([getGameListBySlug(slug), listPublishedGameLists()]);
   if (!data) {
     notFound();
   }
@@ -110,40 +50,208 @@ export default async function GameListPage({ params }: PageProps) {
     ...entry,
     badges: (rankBadgesMap.get(entry.universe_id) ?? []).slice(0, 3)
   }));
-  const canonicalUrl = `${SITE_URL}/lists/${list.slug}`;
-  const otherLists = allLists.filter((item) => item.slug !== list.slug).slice(0, 6);
-  const [heroHtml, introHtml, outroHtml] = await Promise.all([
-    list.hero_md ? renderMarkdown(list.hero_md) : Promise.resolve(""),
-    list.intro_md ? renderMarkdown(list.intro_md) : Promise.resolve(""),
-    list.outro_md ? renderMarkdown(list.outro_md) : Promise.resolve("")
-  ]);
-  const updatedLabel = formatListUpdated(list.refreshed_at ?? list.updated_at);
+
+  return { list, allLists, entries: entriesWithBadges };
+}
+
+export async function buildMetadata(slug: string, page: number): Promise<Metadata> {
+  const list = await getGameListMetadata(slug);
+  if (!list) return {};
+
+  const description = list.meta_description
+    ? list.meta_description
+    : list.intro_md
+    ? markdownToPlainText(list.intro_md).slice(0, 160)
+    : SITE_DESCRIPTION;
+
+  const titleBase = list.meta_title ?? list.title;
+  const title = page > 1 ? `${titleBase} - Page ${page} | ${SITE_NAME}` : `${titleBase} | ${SITE_NAME}`;
+
+  return {
+    title,
+    description
+  };
+}
+
+function buildPagination(totalPages: number, currentPage: number): Array<number | "ellipsis"> {
+  if (totalPages <= 6) {
+    return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+  }
+  const pages = new Set<number>([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+  const filtered = Array.from(pages).filter((p) => p >= 1 && p <= totalPages);
+  const sorted = filtered.sort((a, b) => a - b);
+
+  const result: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    const value = sorted[i];
+    const prev = sorted[i - 1];
+    if (prev !== undefined && value - prev > 1) {
+      result.push("ellipsis");
+    }
+    result.push(value);
+  }
+  return result;
+}
+
+function Pagination({
+  slug,
+  currentPage,
+  totalPages
+}: {
+  slug: string;
+  currentPage: number;
+  totalPages: number;
+}) {
+  if (totalPages <= 1) return null;
+  const sequence = buildPagination(totalPages, currentPage);
+  const pageHref = (page: number) => (page === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${page}`);
+
+  return (
+    <nav className="flex flex-wrap items-center gap-2" aria-label="Pagination">
+      <a
+        href={pageHref(Math.max(1, currentPage - 1))}
+        rel="prev"
+        className="rounded-lg border border-border/60 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+        aria-disabled={currentPage === 1}
+      >
+        Prev
+      </a>
+      {sequence.map((item, idx) =>
+        item === "ellipsis" ? (
+          <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted">
+            …
+          </span>
+        ) : (
+          <a
+            key={item}
+            href={pageHref(item)}
+            className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+              item === currentPage
+                ? "border-accent bg-accent/10 text-foreground"
+                : "border-border/60 text-foreground hover:border-accent hover:text-accent"
+            }`}
+            aria-current={item === currentPage ? "page" : undefined}
+          >
+            {item}
+          </a>
+        )
+      )}
+      <a
+        href={pageHref(Math.min(totalPages, currentPage + 1))}
+        rel="next"
+        className="rounded-lg border border-border/60 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+        aria-disabled={currentPage === totalPages}
+      >
+        Next
+      </a>
+    </nav>
+  );
+}
+
+function SidebarNav({
+  slug,
+  entries
+}: {
+  slug: string;
+  entries: GameListEntryWithBadges[];
+}) {
+  if (!entries.length) return null;
+  const formatMetric = (value?: number | null) => {
+    if (value == null || Number.isNaN(value)) return null;
+    return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+        <span>Jump to game</span>
+        <span>Top {entries.length}</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {entries.map((entry, index) => {
+          const pageForEntry = Math.floor(index / PAGE_SIZE) + 1;
+          const base = pageForEntry === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${pageForEntry}`;
+          const href = `${base}#list-entry-${entry.universe.universe_id}`;
+          const extra = (entry?.extra ?? null) as { metric?: string } | null;
+          const metricLabel = extra?.metric;
+          const metricValue = formatMetric(entry.metric_value);
+          const metricText = metricValue ? `${metricValue}${metricLabel ? ` ${metricLabel}` : ""}` : null;
+          return (
+            <a
+              key={entry.universe.universe_id}
+              href={href}
+              className="flex items-center justify-between rounded-xl border border-border/40 bg-surface/50 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:bg-accent/5 hover:text-accent"
+            >
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="text-xs font-bold text-accent">#{index + 1}</span>
+                <span className="truncate">{listEntryName(entry)}</span>
+              </span>
+              {metricText ? <span className="ml-2 text-xs font-semibold text-muted whitespace-nowrap">{metricText}</span> : null}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function ListPageView({
+  slug,
+  list,
+  entries,
+  allLists,
+  currentPage,
+  heroHtml,
+  introHtml,
+  outroHtml
+}: {
+  slug: string;
+  list: Awaited<ReturnType<typeof getGameListMetadata>>;
+  entries: GameListEntryWithBadges[];
+  allLists: Awaited<ReturnType<typeof listPublishedGameLists>>;
+  currentPage: number;
+  heroHtml: string;
+  introHtml: string;
+  outroHtml: string;
+}) {
+  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const page = Math.min(Math.max(1, currentPage), totalPages);
+  const start = (page - 1) * PAGE_SIZE;
+  const pageEntries = entries.slice(start, start + PAGE_SIZE);
+
+  const showIntroOutro = page === 1;
+  const pageTitle = page === 1 ? list.title : `${list.title} - Page ${page}`;
+  const canonicalPath = page === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${page}`;
+  const canonicalUrl = `${SITE_URL}${canonicalPath}`;
+  const otherLists = allLists.filter((item) => item.slug !== slug).slice(0, 6);
+
   const listDescription =
     list.meta_description ??
     (list.intro_md ? markdownToPlainText(list.intro_md).slice(0, 160) : SITE_DESCRIPTION);
+
   const listSchema = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: list.title,
+    name: pageTitle,
     description: listDescription,
     url: canonicalUrl,
-    numberOfItems: entriesWithBadges.length,
-    itemListElement: entriesWithBadges.map((entry, index) => ({
+    numberOfItems: entries.length,
+    itemListElement: entries.map((entry, index) => ({
       "@type": "ListItem",
       position: index + 1,
       item: {
         "@type": "VideoGame",
         name: listEntryName(entry),
-        url: listEntryRobloxUrl(entry),
+        url: listEntryUrl(entry),
         image: entry.universe.icon_url ?? undefined
       }
     }))
   });
+
   const pageSchema = JSON.stringify(
     webPageJsonLd({
       siteUrl: SITE_URL,
-      slug: `lists/${list.slug}`,
-      title: list.title,
+      slug: canonicalPath.replace(/^\//, ""),
+      title: pageTitle,
       description: listDescription,
       image: list.cover_image ?? `${SITE_URL}/og-image.png`,
       author: null,
@@ -152,105 +260,116 @@ export default async function GameListPage({ params }: PageProps) {
     })
   );
 
-  const navItems = entriesWithBadges.slice(0, 50).map((entry, index) => ({
-    id: `list-entry-${entry.universe.universe_id}`,
-    rank: index + 1,
-    name: listEntryName(entry),
-    metric: entry.metric_value != null ? { label: (entry.extra as any)?.metric ?? list.filter_config?.metric ?? null, value: entry.metric_value } : undefined
-  }));
+  const updatedLabel = showIntroOutro ? formatUpdatedLabel(list.refreshed_at ?? list.updated_at) : null;
 
   return (
     <>
       <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12 lg:min-h-0">
-      <div className="space-y-10 min-w-0 flex-1">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
-              <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">{list.title}</h1>
+        <div className="space-y-10 min-w-0 flex-1">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
+                <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">{pageTitle}</h1>
+              </div>
+              {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
             </div>
-            {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
+            {showIntroOutro ? (
+              <section className="space-y-6">
+                {heroHtml ? (
+                  <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: heroHtml }} />
+                ) : null}
+                {introHtml ? (
+                  <div className="prose dark:prose-invert max-w-none game-copy" dangerouslySetInnerHTML={{ __html: introHtml }} />
+                ) : null}
+              </section>
+            ) : null}
           </div>
-          <div className="xl:hidden">
-            <ListQuickNav items={navItems} variant="mobile" />
-          </div>
-          <ListIntro heroHtml={heroHtml} introHtml={introHtml} />
-        </div>
 
-        {entriesWithBadges.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
-            No Roblox experiences matched this list yet. Check back soon.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {entriesWithBadges.map((entry, index) => {
-              const extra = (entry?.extra ?? null) as { metric?: string } | null;
-              const rank = index + 1;
-              const metricLabel = extra?.metric;
-              if (rank <= 10) {
+          {pageEntries.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
+              No Roblox experiences matched this list yet. Check back soon.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {pageEntries.map((entry, index) => {
+                const extra = (entry?.extra ?? null) as { metric?: string } | null;
+                const rank = start + index + 1;
+                const metricLabel = extra?.metric;
                 return (
                   <div
                     id={`list-entry-${entry.universe.universe_id}`}
                     key={entry.universe.universe_id}
                     className="scroll-mt-32"
                   >
-                    <GameListItem
-                      entry={entry}
-                      rank={rank}
-                      metricLabel={metricLabel}
-                    />
+                    <GameListItem entry={entry} rank={rank} metricLabel={metricLabel} />
                   </div>
                 );
-              }
-              return (
-                <div
-                  id={`list-entry-${entry.universe.universe_id}`}
-                  key={entry.universe.universe_id}
-                  className="scroll-mt-32"
-                >
-                  <SmallGameListItem
-                    entry={entry}
-                    rank={rank}
-                    metricLabel={metricLabel}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+              })}
+            </div>
+          )}
 
-        <ListOutro outroHtml={outroHtml} />
-      </div>
+          {showIntroOutro && outroHtml ? (
+            <section className="space-y-4 text-muted">
+              <div
+                className="prose dark:prose-invert max-w-none game-copy text-muted"
+                dangerouslySetInnerHTML={{ __html: outroHtml }}
+              />
+            </section>
+          ) : null}
 
-      <aside className="space-y-6 lg:w-[360px] lg:shrink-0 lg:self-start lg:min-h-0">
-        <div className="hidden lg:block">
-          <ListQuickNav items={navItems} variant="desktop" title="Jump to game" />
+          <Pagination slug={slug} currentPage={page} totalPages={totalPages} />
         </div>
-        <SocialShare url={canonicalUrl} title={list.title} heading="Share this list" />
-        <div className="rounded-2xl border border-border/60 bg-surface/80 p-6">
-          <h3 className="text-lg font-semibold text-foreground">Explore other lists</h3>
-          <p className="mt-1 text-sm text-muted">Discover more curated Roblox experiences.</p>
-          {otherLists.length ? (
-            <div className="mt-4 space-y-3">
-              {otherLists.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/lists/${item.slug}`}
-                  className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+
+        <div className="mt-0 space-y-6 lg:w-[320px]">
+          <SidebarNav slug={slug} entries={entries} />
+          <div className="rounded-2xl border border-border/60 bg-surface p-5">
+            <h2 className="text-lg font-semibold text-foreground">Lists library</h2>
+            <p className="mb-3 text-sm text-muted">More curated Roblox game picks.</p>
+            <div className="flex flex-col gap-3">
+              {otherLists.map((other) => (
+                <a
+                  key={other.id}
+                  href={`/lists/${other.slug}`}
+                  className="rounded-lg border border-border/60 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                 >
-                  <span className="line-clamp-2 text-left">{item.title}</span>
-                  <span className="text-xs text-muted">View</span>
-                </Link>
+                  {other.title}
+                </a>
               ))}
             </div>
-          ) : (
-            <p className="mt-4 text-sm text-muted">More lists coming soon.</p>
-          )}
+          </div>
+          <SocialShare url={canonicalUrl} title={pageTitle} />
         </div>
-      </aside>
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />
+
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />
     </>
   );
+}
+
+export default async function GameListPage({ params }: PageProps) {
+  const data = await buildListData(params.slug);
+  const [heroHtml, introHtml, outroHtml] = await Promise.all([
+    data.list.hero_md ? renderMarkdown(data.list.hero_md) : Promise.resolve(""),
+    data.list.intro_md ? renderMarkdown(data.list.intro_md) : Promise.resolve(""),
+    data.list.outro_md ? renderMarkdown(data.list.outro_md) : Promise.resolve("")
+  ]);
+
+  return (
+    <ListPageView
+      slug={params.slug}
+      list={data.list}
+      entries={data.entries}
+      allLists={data.allLists}
+      currentPage={1}
+      heroHtml={heroHtml}
+      introHtml={introHtml}
+      outroHtml={outroHtml}
+    />
+  );
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  return buildMetadata(params.slug, 1);
 }

@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { buildListData, buildMetadata, ListPageView, PAGE_SIZE } from "../../page";
+import { renderMarkdown } from "@/lib/markdown";
+
+type PageProps = {
+  params: { slug: string; page: string };
+};
+
+export const revalidate = 30;
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
+  return buildMetadata(params.slug, pageNumber);
+}
+
+export default async function GameListPageWithPagination({ params }: PageProps) {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+    notFound();
+  }
+
+  const data = await buildListData(params.slug);
+  const totalPages = Math.max(1, Math.ceil(data.entries.length / PAGE_SIZE));
+  if (pageNumber > totalPages) {
+    notFound();
+  }
+
+  const [heroHtml, introHtml, outroHtml] = await Promise.all([
+    data.list.hero_md ? renderMarkdown(data.list.hero_md) : Promise.resolve(""),
+    data.list.intro_md ? renderMarkdown(data.list.intro_md) : Promise.resolve(""),
+    data.list.outro_md ? renderMarkdown(data.list.outro_md) : Promise.resolve("")
+  ]);
+
+  return (
+    <ListPageView
+      slug={params.slug}
+      list={data.list}
+      entries={data.entries}
+      allLists={data.allLists}
+      currentPage={pageNumber}
+      heroHtml={heroHtml}
+      introHtml={introHtml}
+      outroHtml={outroHtml}
+    />
+  );
+}
