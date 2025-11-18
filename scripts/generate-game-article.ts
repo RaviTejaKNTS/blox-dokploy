@@ -7,13 +7,9 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import sharp from "sharp";
 
-import { refreshGameCodesWithSupabase } from "@/lib/admin/game-refresh";
-import {
-  extractPlaceId,
-  fetchGenreFromApi,
-  fetchGenreFromUniverse,
-  scrapeRobloxGameMetadata
-} from "@/lib/roblox/game-metadata";
+import { sanitizeCodeDisplay, normalizeCodeKey } from "@/lib/code-normalization";
+import { getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
+import { extractPlaceId, scrapeRobloxGameMetadata } from "@/lib/roblox/game-metadata";
 import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 import { scrapeSocialLinksFromSources, type SocialLinks as ScrapedSocialLinks } from "@/lib/social-links";
 import { appendCodesSuffix, normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
@@ -427,41 +423,16 @@ async function fetchCommunityLinkFromRobloxExperience(gameUrl: string): Promise<
 
 async function collectRobloxMetadata(robloxLink?: string | null) {
   if (!robloxLink) {
-    return { genre: null, subGenre: null, communityLink: null };
+    return { communityLink: null };
   }
 
   try {
     const scraped = await scrapeRobloxGameMetadata(robloxLink);
-    let genre = scraped.genre;
-    let subGenre = scraped.subGenre;
-    let communityLink = scraped.communityLink;
-    const placeId = scraped.placeId ?? extractPlaceId(robloxLink);
-    const universeId = scraped.universeId ?? null;
-
-    if ((!genre || !subGenre) && universeId) {
-      try {
-        const universeData = await fetchGenreFromUniverse(universeId);
-        genre = genre ?? universeData.genre;
-        subGenre = subGenre ?? universeData.subGenre;
-      } catch (error) {
-        console.warn("⚠️ Failed to fetch universe metadata:", error instanceof Error ? error.message : error);
-      }
-    }
-
-    if ((!genre || !subGenre) && placeId) {
-      try {
-        const fallback = await fetchGenreFromApi(placeId);
-        genre = genre ?? fallback.genre;
-        subGenre = subGenre ?? fallback.subGenre;
-      } catch (error) {
-        console.warn("⚠️ Failed to fetch place metadata:", error instanceof Error ? error.message : error);
-      }
-    }
-
-    return { genre: genre ?? null, subGenre: subGenre ?? null, communityLink: communityLink ?? null };
+    const communityLink = scraped.communityLink;
+    return { communityLink: communityLink ?? null };
   } catch (error) {
     console.warn("⚠️ Failed to scrape Roblox metadata:", error instanceof Error ? error.message : error);
-    return { genre: null, subGenre: null, communityLink: null };
+    return { communityLink: null };
   }
 }
 
@@ -1046,16 +1017,121 @@ async function refreshCodesForGame(slug: string) {
   }
 
   console.log(`🔁 Syncing codes for ${slug}...`);
-  const refreshResult = await refreshGameCodesWithSupabase(supabase, gameRecord);
 
-  if (!refreshResult.success) {
-    console.error(`⚠️ Failed to sync codes for ${slug}: ${refreshResult.error}`);
+  const sourceUrls = [gameRecord.source_url, gameRecord.source_url_2, gameRecord.source_url_3]
+    .map((url) => (typeof url === "string" ? url.trim() : ""))
+    .filter((url) => url.length > 0);
+
+  if (!sourceUrls.length) {
+    console.log("⚠️ No source URLs available; skipping code sync.");
     return;
   }
 
-  const removedNote = refreshResult.removed ? `, removed ${refreshResult.removed}` : "";
+  const { codes, expiredCodes } = await scrapeSources(sourceUrls);
+  const scrapedExpired = expiredCodes ?? [];
+
+  const expiredByNormalized = new Map<string, { display: string; priority: number }>();
+  const setExpired = (normalized: string, display: string, priority: number) => {
+    const existing = expiredByNormalized.get(normalized);
+    if (!existing || priority > existing.priority) {
+      expiredByNormalized.set(normalized, { display, priority });
+    }
+  };
+
+  const existingExpiredArray = Array.isArray(gameRecord.expired_codes) ? gameRecord.expired_codes : [];
+  for (const code of existingExpiredArray) {
+    const displayCode = sanitizeCodeDisplay(code);
+    if (!displayCode) continue;
+    const normalized = normalizeCodeKey(displayCode);
+    if (normalized) {
+      setExpired(normalized, displayCode, -1);
+    }
+  }
+
+  for (const raw of scrapedExpired) {
+    const displayCode = sanitizeCodeDisplay(typeof raw === "string" ? raw : raw?.code);
+    if (!displayCode) continue;
+    const normalized = normalizeCodeKey(displayCode);
+    if (!normalized) continue;
+    const provider = typeof raw === "string" ? undefined : raw?.provider;
+    const priority = getCodeDisplayPriority(provider);
+    setExpired(normalized, displayCode, priority);
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("codes")
+    .select("code, status, provider_priority")
+    .eq("game_id", gameRecord.id);
+
+  if (existingError) {
+    console.error(`⚠️ Failed to load existing codes for ${slug}: ${existingError.message}`);
+    return;
+  }
+
+  const existingNormalizedMap = new Map<string, { code: string; providerPriority: number }>();
+  for (const row of existingRows ?? []) {
+    const existingCode = sanitizeCodeDisplay(row.code);
+    if (!existingCode) continue;
+    const normalized = normalizeCodeKey(existingCode);
+    if (!normalized) continue;
+    const providerPriority = Number(row.provider_priority ?? 0);
+    if (existingNormalizedMap.has(normalized)) {
+      const current = existingNormalizedMap.get(normalized)!;
+      if (current.providerPriority >= providerPriority) {
+        continue;
+      }
+    }
+    existingNormalizedMap.set(normalized, { code: existingCode, providerPriority });
+  }
+
+  let upserted = 0;
+  let newCodesCount = 0;
+
+  for (const c of codes) {
+    const displayCode = sanitizeCodeDisplay(c.code);
+    if (!displayCode) continue;
+    const normalized = normalizeCodeKey(displayCode);
+    if (!normalized) continue;
+    if (expiredByNormalized.has(normalized)) continue;
+    const providerPriority = Number(c.providerPriority ?? 0);
+
+    const existingEntry = existingNormalizedMap.get(normalized);
+    if (existingEntry) {
+      if (
+        existingEntry.providerPriority > providerPriority ||
+        (existingEntry.providerPriority === providerPriority && existingEntry.code === displayCode)
+      ) {
+        continue;
+      }
+    }
+
+    if (c.isNew) {
+      newCodesCount += 1;
+    }
+
+    const status = c.status === "check" ? "expired" : c.status;
+    const { error } = await supabase.rpc("upsert_code", {
+      p_game_id: gameRecord.id,
+      p_code: displayCode,
+      p_status: status,
+      p_rewards_text: c.rewardsText ?? null,
+      p_level_requirement: c.levelRequirement ?? null,
+      p_is_new: c.isNew ?? false,
+      p_provider_priority: providerPriority,
+    });
+
+    if (error) {
+      console.error(`⚠️ Upsert failed for ${displayCode}: ${error.message}`);
+      continue;
+    }
+
+    upserted += 1;
+    existingNormalizedMap.set(normalized, { code: displayCode, providerPriority });
+  }
+
+  const removedNote = scrapedExpired.length ? `, scraped expired ${scrapedExpired.length}` : "";
   console.log(
-    `✔ ${slug} — ${refreshResult.upserted} codes upserted (found ${refreshResult.found}${removedNote}, expired ${refreshResult.expired})`
+    `✔ ${slug} — ${upserted} codes upserted (new ${newCodesCount}${removedNote})`
   );
 }
 
