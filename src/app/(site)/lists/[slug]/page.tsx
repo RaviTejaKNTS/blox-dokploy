@@ -205,7 +205,7 @@ export function ListPageView({
   outroHtml
 }: {
   slug: string;
-  list: Awaited<ReturnType<typeof getGameListMetadata>>;
+  list: NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>;
   entries: GameListEntryWithBadges[];
   allLists: Awaited<ReturnType<typeof listPublishedGameLists>>;
   currentPage: number;
@@ -359,7 +359,7 @@ export default async function GameListPage({ params }: PageProps) {
   return (
     <ListPageView
       slug={params.slug}
-      list={data.list}
+      list={data.list as NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>}
       entries={data.entries}
       allLists={data.allLists}
       currentPage={1}
