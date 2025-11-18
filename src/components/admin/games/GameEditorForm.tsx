@@ -25,8 +25,7 @@ import {
   refreshGameCodes,
   uploadGameImage,
   deleteGameById,
-  backfillGameSocialLinks,
-  refreshRobloxGenres
+  backfillGameSocialLinks
 } from "@/app/admin/(dashboard)/games/actions";
 import { normalizeGameSlug, slugFromUrl, titleizeGameSlug } from "@/lib/slug";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
@@ -137,9 +136,6 @@ const formSchema = z.object({
   rewards_md: z.string().optional(),
   about_game_md: z.string().optional(),
   description_md: z.string().optional(),
-  linktext_md: z.string().optional(),
-  genre: z.string().optional(),
-  sub_genre: z.string().optional(),
   seo_title: z.string().optional(),
   seo_description: z.string().optional(),
   cover_image: z.string().optional()
@@ -177,7 +173,6 @@ export function GameEditorForm({
   const [deletePending, setDeletePending] = useState(false);
   const [metaFlash, setMetaFlash] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [socialBackfillPending, setSocialBackfillPending] = useState(false);
-  const [genreRefreshPending, setGenreRefreshPending] = useState(false);
 
   const defaultValues = useMemo<FormValues>(() => ({
     id: game?.id,
@@ -199,9 +194,6 @@ export function GameEditorForm({
     rewards_md: game?.rewards_md ?? "",
     about_game_md: game?.about_game_md ?? "",
     description_md: game?.description_md ?? "",
-    linktext_md: game?.linktext_md ?? "",
-    genre: game?.genre ?? "",
-    sub_genre: game?.sub_genre ?? "",
     seo_title: game?.seo_title ?? "",
     seo_description: game?.seo_description ?? "",
     cover_image: game?.cover_image ?? ""
@@ -252,7 +244,6 @@ export function GameEditorForm({
   useEffect(() => {
     setMetaFlash(null);
     setSocialBackfillPending(false);
-    setGenreRefreshPending(false);
   }, [game?.id]);
 
   useEffect(() => {
@@ -277,7 +268,6 @@ export function GameEditorForm({
   const rewardsValue = watch("rewards_md");
   const aboutValue = watch("about_game_md");
   const descriptionValue = watch("description_md");
-  const linktextValue = watch("linktext_md");
   const disableMetaActions = !game?.slug;
 
   const handleSocialBackfill = useCallback(() => {
@@ -310,37 +300,6 @@ export function GameEditorForm({
       })
       .finally(() => setSocialBackfillPending(false));
   }, [game?.slug, router, socialBackfillPending]);
-
-  const handleGenreRefresh = useCallback(() => {
-    if (!game?.slug || genreRefreshPending) return;
-    setMetaFlash(null);
-    setGenreRefreshPending(true);
-    refreshRobloxGenres(game.slug)
-      .then((result) => {
-        if (!result?.success) {
-          setMetaFlash({ tone: "error", message: result?.error ?? "Failed to refresh Roblox metadata." });
-          return;
-        }
-        const warningText =
-          result.warnings && result.warnings.length ? ` (Warnings: ${result.warnings.join("; ")})` : "";
-        if (result.updatedFields?.length) {
-          setMetaFlash({
-            tone: "success",
-            message: `Roblox metadata updated (${result.updatedFields.join(", ")})${warningText}`
-          });
-          router.refresh();
-        } else {
-          setMetaFlash({ tone: "success", message: `No new Roblox metadata found.${warningText}` });
-        }
-      })
-      .catch((error) => {
-        setMetaFlash({
-          tone: "error",
-          message: error instanceof Error ? error.message : "Failed to refresh Roblox metadata."
-        });
-      })
-      .finally(() => setGenreRefreshPending(false));
-  }, [game?.slug, genreRefreshPending, router]);
 
   const gameNameForSearch = (nameValue?.trim() || game?.name || "").trim();
   const buildSearchUrl = (domain: string) => {
@@ -723,15 +682,6 @@ export function GameEditorForm({
                 <span className={socialBackfillPending ? "animate-spin" : ""}>↻</span>
                 <span>{socialBackfillPending ? "Reloading links…" : "Reload social links"}</span>
               </button>
-              <button
-                type="button"
-                onClick={handleGenreRefresh}
-                disabled={disableMetaActions || genreRefreshPending}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-border/30 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className={genreRefreshPending ? "animate-spin" : ""}>↻</span>
-                <span>{genreRefreshPending ? "Refreshing genres…" : "Refresh Roblox genres"}</span>
-              </button>
             </div>
           </div>
           {metaFlash ? (
@@ -904,24 +854,6 @@ export function GameEditorForm({
                 {...register("cover_image")}
                 className="mt-1 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
                 placeholder="https://"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground">Genre</label>
-              <input
-                type="text"
-                {...register("genre")}
-                className="mt-1 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                placeholder="e.g., Fighting"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground">Sub-genre</label>
-              <input
-                type="text"
-                {...register("sub_genre")}
-                className="mt-1 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
-                placeholder="e.g., Anime Collectathon"
               />
             </div>
           </div>
@@ -1311,17 +1243,6 @@ export function GameEditorForm({
                 </label>
                 {galleryError ? <p className="text-xs text-red-400">{galleryError}</p> : null}
               </div>
-
-              <div className="space-y-2">
-                <RichMarkdownEditor
-                  label="Interlink paragraph"
-                  value={linktextValue ?? ""}
-                  onChange={(value) => {
-                    if ((linktextValue ?? "") === value) return;
-                    setValue("linktext_md", value, { shouldDirty: true });
-                  }}
-              />
-            </div>
 
               <RichMarkdownEditor
                 label="Troubleshoot (shows below expired codes)"

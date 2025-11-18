@@ -15,12 +15,6 @@ import {
   type SocialLinkType,
   scrapeSocialLinksFromSources
 } from "@/lib/social-links";
-import {
-  extractPlaceId,
-  fetchGenreFromApi,
-  fetchGenreFromUniverse,
-  scrapeRobloxGameMetadata
-} from "@/lib/roblox/game-metadata";
 import { sanitizeCodeDisplay } from "@/lib/code-normalization";
 import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 
@@ -44,9 +38,6 @@ const upsertGameSchema = z.object({
   rewards_md: z.string().nullable().optional(),
   about_game_md: z.string().nullable().optional(),
   description_md: z.string().nullable().optional(),
-  linktext_md: z.string().nullable().optional(),
-  genre: z.string().nullable().optional(),
-  sub_genre: z.string().nullable().optional(),
   seo_title: z.string().nullable().optional(),
   seo_description: z.string().nullable().optional(),
   cover_image: z.string().nullable().optional()
@@ -89,9 +80,6 @@ export async function saveGame(form: FormData) {
       rewards_md: raw.rewards_md ? String(raw.rewards_md) : null,
       about_game_md: raw.about_game_md ? String(raw.about_game_md) : null,
       description_md: raw.description_md ? String(raw.description_md) : null,
-      linktext_md: raw.linktext_md ? String(raw.linktext_md) : null,
-      genre: raw.genre ? String(raw.genre) : null,
-      sub_genre: raw.sub_genre ? String(raw.sub_genre) : null,
       seo_title: raw.seo_title ? String(raw.seo_title) : null,
       seo_description: raw.seo_description ? String(raw.seo_description) : null,
       cover_image: raw.cover_image ? String(raw.cover_image) : null
@@ -129,9 +117,6 @@ export async function saveGame(form: FormData) {
       rewards_md: payload.rewards_md,
       about_game_md: payload.about_game_md,
       description_md: payload.description_md,
-      linktext_md: payload.linktext_md,
-      genre: payload.genre,
-      sub_genre: payload.sub_genre,
       seo_title: payload.seo_title,
       seo_description: payload.seo_description,
       cover_image: payload.cover_image,
@@ -552,105 +537,4 @@ export async function backfillGameSocialLinks(slug: string) {
 
   revalidatePath("/admin/games");
   return { success: true, updatedFields, warnings: errors ?? [] };
-}
-
-export async function refreshRobloxGenres(slug: string) {
-  const { supabase } = await requireAdminAction();
-
-  type GenreRow = {
-    id: string;
-    slug: string;
-    name: string;
-    roblox_link: string | null;
-    community_link: string | null;
-    genre: string | null;
-    sub_genre: string | null;
-  };
-
-  const { data: game, error } = await supabase
-    .from("games")
-    .select("id, slug, name, roblox_link, community_link, genre, sub_genre")
-    .eq("slug", slug)
-    .single();
-
-  if (error || !game) {
-    return { success: false, error: error?.message ?? "Game not found." };
-  }
-
-  if (!game.roblox_link) {
-    return { success: false, error: "Roblox link required to refresh metadata." };
-  }
-
-  const warnings: string[] = [];
-  let scraped;
-  try {
-    scraped = await scrapeRobloxGameMetadata(game.roblox_link);
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to scrape Roblox page." };
-  }
-
-  let genre = scraped.genre;
-  let subGenre = scraped.subGenre;
-  const communityLink = scraped.communityLink;
-  const placeIdFromMeta = scraped.placeId ?? extractPlaceId(game.roblox_link);
-  const universeId = scraped.universeId ?? null;
-
-  if ((!genre || !subGenre) && universeId) {
-    try {
-      const universeData = await fetchGenreFromUniverse(universeId);
-      genre = genre ?? universeData.genre;
-      subGenre = subGenre ?? universeData.subGenre;
-    } catch (err) {
-      warnings.push(`Universe API failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  if ((!genre || !subGenre) && placeIdFromMeta) {
-    try {
-      const fallback = await fetchGenreFromApi(placeIdFromMeta);
-      genre = genre ?? fallback.genre;
-      subGenre = subGenre ?? fallback.subGenre;
-    } catch (err) {
-      warnings.push(`Place API failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  const updates: Partial<Pick<GenreRow, "genre" | "sub_genre" | "community_link">> = {};
-  const updatedFields: Array<keyof typeof updates> = [];
-
-  if (genre && genre !== game.genre) {
-    updates.genre = genre;
-    updatedFields.push("genre");
-  }
-  if (subGenre && subGenre !== game.sub_genre) {
-    updates.sub_genre = subGenre;
-    updatedFields.push("sub_genre");
-  }
-  if (!game.community_link && communityLink) {
-    updates.community_link = communityLink;
-    updatedFields.push("community_link");
-  }
-
-  if (!updatedFields.length) {
-    return { success: true, updatedFields: [], warnings };
-  }
-
-  const { error: updateError } = await supabase
-    .from("games")
-    .update(updates)
-    .eq("id", game.id);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
-  }
-
-  revalidatePath("/admin/games");
-  return {
-    success: true,
-    updatedFields,
-    warnings,
-    genre: updates.genre ?? game.genre ?? null,
-    subGenre: updates.sub_genre ?? game.sub_genre ?? null,
-    communityLink: updates.community_link ?? game.community_link ?? null
-  };
 }

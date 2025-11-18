@@ -13,9 +13,3 @@ npm run links:backfill -- --slug some-game-slug
 npm run links:backfill -- --source https://www.beebom.com/... (preview only)
 
 npm run links:backfill -- --slug some-game-slug --source https://www.beebom.com/... (override sources for that game)
-
-npm run linktext:generate
-
-npm run linktext:generate -- --slug some-game-slug --dry-run
-
-npm run linktext:generate -- --overwrite --limit 10

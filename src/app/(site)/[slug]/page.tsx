@@ -526,7 +526,6 @@ export default async function GamePage({ params }: Params) {
 
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
   const redeemMarkdown = game.redeem_md ? replaceLinkPlaceholders(game.redeem_md, linkMap) : "";
-  const linktextMarkdown = game.linktext_md ? replaceLinkPlaceholders(game.linktext_md, linkMap) : "";
   const troubleshootMarkdown = game.troubleshoot_md ? replaceLinkPlaceholders(game.troubleshoot_md, linkMap) : "";
   const rewardsMarkdown = game.rewards_md ? replaceLinkPlaceholders(game.rewards_md, linkMap) : "";
   const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
@@ -534,10 +533,9 @@ export default async function GamePage({ params }: Params) {
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
 
-  const [introHtml, redeemHtml, linktextHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
+  const [introHtml, redeemHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
-    linktextMarkdown ? renderMarkdown(linktextMarkdown) : "",
     troubleshootMarkdown ? renderMarkdown(troubleshootMarkdown) : "",
     rewardsMarkdown ? renderMarkdown(rewardsMarkdown) : "",
     descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",

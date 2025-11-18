@@ -18,7 +18,6 @@
     "backfill:universes": "tsx scripts/backfill-game-universes.ts",
     "generate:queue": "tsx scripts/run-generation-queue.ts",
     "links:backfill": "tsx scripts/backfill-social-links.ts",
-    "linktext:generate": "tsx scripts/backfill-linktext.ts",
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
