@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { IconType } from "react-icons";
 import { FaFacebook, FaTelegramPlane, FaTwitch, FaUsers, FaYoutube, FaDiscord } from "react-icons/fa";
 import { RiTwitterXLine } from "react-icons/ri";
@@ -25,7 +25,6 @@ import {
   getGameBySlug,
   listCodesForGame,
   listGamesWithActiveCounts,
-  getArticleBySlug,
   getRobloxUniverseById,
   type Code
 } from "@/lib/db";
@@ -391,10 +390,6 @@ export default async function GamePage({ params }: Params) {
   const result = await fetchGameData(params.slug);
   
   if (result.error === 'NOT_FOUND') {
-    const article = await getArticleBySlug(params.slug);
-    if (article) {
-      redirect(`/articles/${article.slug}`);
-    }
     notFound();
   }
   
