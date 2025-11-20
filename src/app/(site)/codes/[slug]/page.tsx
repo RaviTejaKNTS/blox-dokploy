@@ -280,7 +280,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const game = await getGameBySlug(slug);
 
   if (!game || !game.is_published) {
-    return {};
+    notFound();
   }
 
   const codes = await listCodesForGame(game.id);
