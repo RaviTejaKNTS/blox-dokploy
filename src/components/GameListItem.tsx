@@ -103,7 +103,7 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
   const primaryHref = robloxUniverseUrl(universe);
   const activeCodesValue =
     typeof game?.active_count === "number" ? game.active_count.toLocaleString() : "—";
-  const activeCodesHref = game?.slug ? `/${game.slug}` : null;
+  const activeCodesHref = game?.slug ? `/codes/${game.slug}` : null;
   const badges = (entry as any).badges as UniverseListBadge[] | undefined;
   const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);
   const gameDescription = universe.game_description_md || universe.description;

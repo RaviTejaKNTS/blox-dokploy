@@ -573,10 +573,11 @@ export async function listPublishedGamesByAuthorWithActiveCounts(authorId: strin
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
   const sb = supabaseAdmin();
+  const normalizedSlug = slug.trim().toLowerCase();
   const { data, error } = await sb
     .from("games")
     .select("*, author:authors(*)")
-    .eq("slug", slug)
+    .eq("slug", normalizedSlug)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;

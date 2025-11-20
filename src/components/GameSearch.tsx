@@ -169,7 +169,7 @@ export function GameSearch({ games, autoFocus = false }: GameSearchProps) {
               return (
                 <li key={game.id}>
                   <Link
-                    href={`/${game.slug}`}
+                    href={`/codes/${game.slug}`}
                     className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border/60 bg-surface px-4 py-3 text-sm text-foreground transition hover:border-accent hover:text-accent"
                   >
                     <span className="font-medium">{game.name}</span>

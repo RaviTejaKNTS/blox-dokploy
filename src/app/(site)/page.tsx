@@ -97,7 +97,7 @@ export default async function HomePage() {
       "@type": "ListItem",
       position: index + 1,
       name: `${game.name} codes`,
-      url: `${SITE_URL}/${game.slug}`,
+      url: `${SITE_URL}/codes/${game.slug}`,
       dateModified: game.content_updated_at ?? game.updated_at
     }))
   });

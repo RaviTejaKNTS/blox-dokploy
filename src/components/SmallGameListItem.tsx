@@ -59,7 +59,7 @@ export function SmallGameListItem({ entry, rank }: SmallGameListItemProps) {
   const primaryHref = robloxUniverseUrl(universe);
   const updatedLabel = formatUpdatedLabel(universe.updated_at);
   const ageRating = formatAgeRating(universe.age_rating);
-  const activeCodesHref = game?.slug ? `/${game.slug}` : null;
+  const activeCodesHref = game?.slug ? `/codes/${game.slug}` : null;
   const activeCodesValue = typeof game?.active_count === "number" ? game.active_count.toLocaleString() : "—";
   const badges = (entry as any).badges as UniverseListBadge[] | undefined;
   const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);

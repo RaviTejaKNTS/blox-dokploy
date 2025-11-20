@@ -180,7 +180,7 @@ function selectHeadline(gameName: string, dateLabel: string) {
 function buildBaseMessage(game: { name: string; slug: string }, codes: { code: string }[]) {
   const today = format(new Date(), 'MMMM d, yyyy');
   const headline = selectHeadline(game.name, today);
-  const link = `${SITE_BASE}/${game.slug}`;
+  const link = `${SITE_BASE}/codes/${game.slug}`;
   const lines = [headline, '', ...codes.map((c) => c.code), '', `Check out all active ${game.name} codes on ${link}`];
   return { headline, link, message: lines.join('\n') };
 }

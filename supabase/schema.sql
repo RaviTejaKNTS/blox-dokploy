@@ -26,6 +26,7 @@ create table if not exists public.games (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
   slug text not null unique,
+  old_slugs text[] not null default '{}'::text[],
   author_id uuid references public.authors(id),
   source_url text,
   source_url_2 text,
@@ -314,6 +315,7 @@ create index if not exists idx_games_published_name on public.games (is_publishe
 create index if not exists idx_games_author_published on public.games (author_id, is_published);
 create unique index if not exists idx_codes_game_code_upper on public.codes (game_id, upper(code));
 CREATE INDEX IF NOT EXISTS idx_games_slug ON public.games (LOWER(slug));
+CREATE INDEX IF NOT EXISTS idx_games_old_slugs ON public.games USING gin (old_slugs);
 
 
 -- game generation queue table

@@ -29,7 +29,7 @@ export function GameCard({
 
   return (
     <div className={`${classes} hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]`}>
-      <Link href={`/${game.slug}`} prefetch={false} className="flex flex-1 flex-col">
+      <Link href={`/codes/${game.slug}`} prefetch={false} className="flex flex-1 flex-col">
         <div className="relative aspect-[16/9] bg-surface-muted">
           {game.cover_image ? (
             <Image

@@ -57,7 +57,7 @@ export function gameJsonLd({siteUrl, game}:{siteUrl:string, game:{name:string, s
     "@context": "https://schema.org",
     "@type": "VideoGame",
     "name": game.name,
-    "url": `${siteUrl}/${game.slug}`,
+    "url": `${siteUrl}/codes/${game.slug}`,
     "image": image,
     "applicationCategory": "Game",
     "operatingSystem": "Roblox",
@@ -92,7 +92,7 @@ export function codesItemListJsonLd({
       "position": idx + 1,
       "name": c.code,
       "description": c.reward || undefined,
-      "url": `${siteUrl}/${game.slug}#${encodeURIComponent(c.code)}`
+      "url": `${siteUrl}/codes/${game.slug}#${encodeURIComponent(c.code)}`
     }))
   };
 }
@@ -140,7 +140,7 @@ export function gameArticleJsonLd({
     "@type": "Article",
     "mainEntityOfPage": {
       "@type": "WebPage",
-      "@id": `${siteUrl}/${game.slug}`
+      "@id": `${siteUrl}/codes/${game.slug}`
     },
     "headline": `${game.name} Codes — How to Redeem`,
     "description": description,
