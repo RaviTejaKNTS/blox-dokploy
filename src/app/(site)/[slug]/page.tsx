@@ -1,4 +1,4 @@
-import { redirect, notFound } from "next/navigation";
+import { permanentRedirect, notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type PageProps = {
@@ -27,5 +27,5 @@ export default async function LegacySlugPage({ params }: PageProps) {
     notFound();
   }
 
-  redirect(`/codes/${canonicalSlug}`);
+  permanentRedirect(`/codes/${canonicalSlug}`);
 }
