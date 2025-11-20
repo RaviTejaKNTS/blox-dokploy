@@ -58,7 +58,7 @@ export async function GET() {
   for (const g of games || []) {
     if (!g?.slug) continue;
     pages.push({
-      loc: `${origin}/${g.slug}`,
+      loc: `${origin}/codes/${g.slug}`,
       changefreq: "weekly",
       priority: "0.9",
       lastmod: g.updated_at ? new Date(g.updated_at).toISOString() : undefined

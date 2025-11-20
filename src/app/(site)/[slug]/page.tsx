@@ -1,27 +1,5 @@
-import { notFound, permanentRedirect } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabase";
+import { notFound } from "next/navigation";
 
-type PageProps = {
-  params: { slug?: string };
-};
-
-export default async function LegacySlugPage({ params }: PageProps) {
-  const normalizedSlug = params.slug?.trim().toLowerCase() ?? "";
-  if (!normalizedSlug) {
-    notFound();
-  }
-
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("games")
-    .select("slug")
-    .contains("old_slugs", [normalizedSlug])
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data?.slug || data.slug === normalizedSlug) {
-    notFound();
-  }
-
-  permanentRedirect(`/codes/${data.slug}`);
+export default function LegacySlugPage() {
+  notFound();
 }
