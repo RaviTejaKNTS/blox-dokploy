@@ -279,12 +279,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const slug = params.slug;
   const game = await getGameBySlug(slug);
 
-  logger.info("codes generateMetadata: slug lookup", {
-    slug,
-    found: Boolean(game),
-    isPublished: game?.is_published ?? null
-  });
-
   if (!game || !game.is_published) {
     notFound();
   }
@@ -355,11 +349,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 async function fetchGameData(slug: string) {
   try {
     const game = await getGameBySlug(slug);
-    logger.info("fetchGameData: slug lookup", {
-      slug,
-      found: Boolean(game),
-      isPublished: game?.is_published ?? null
-    });
     if (!game || !game.is_published) return { error: 'NOT_FOUND' as const };
 
     const [codes, allGames, universe] = await Promise.all([
