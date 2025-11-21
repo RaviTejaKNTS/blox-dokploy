@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { AuthorCard } from "@/components/AuthorCard";
@@ -37,6 +38,11 @@ function collectAuthorSameAs(author?: Author | null): string[] {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const article = await getArticleBySlug(params.slug);
+  logger.info("articles generateMetadata: slug lookup", {
+    slug: params.slug,
+    found: Boolean(article),
+    isPublished: article?.is_published ?? null
+  });
   if (!article) return {};
 
   const canonicalUrl = `${SITE_URL}/articles/${article.slug}`;

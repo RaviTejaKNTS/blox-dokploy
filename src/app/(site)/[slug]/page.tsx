@@ -1,5 +1,5 @@
 import { permanentRedirect, notFound } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabase";
+import legacySlugs from "@/data/slug_oldslugs.json";
 
 type PageProps = {
   params: { slug?: string };
@@ -20,20 +20,25 @@ const ARTICLE_REDIRECT_SLUGS = new Set([
   "all-fisch-enchantments-guide"
 ]);
 
-async function resolveLegacySlug(slug?: string) {
+type LegacySlugEntry = {
+  slug: string;
+  old_slugs: string[];
+};
+
+const LEGACY_SLUG_MAP = new Map<string, string>(
+  (legacySlugs as LegacySlugEntry[]).flatMap(({ slug, old_slugs }) => {
+    const canonical = slug.trim().toLowerCase();
+    return old_slugs
+      .map((oldSlug) => oldSlug?.trim().toLowerCase())
+      .filter((oldSlug): oldSlug is string => Boolean(oldSlug) && oldSlug !== canonical)
+      .map((oldSlug) => [oldSlug, slug]);
+  })
+);
+
+function resolveLegacySlug(slug?: string) {
   const normalized = slug?.trim().toLowerCase();
   if (!normalized) return null;
-
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("games")
-    .select("slug")
-    .contains("old_slugs", [normalized])
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data?.slug || data.slug === normalized) return null;
-  return data.slug;
+  return LEGACY_SLUG_MAP.get(normalized) ?? null;
 }
 
 export default async function LegacySlugPage({ params }: PageProps) {
@@ -42,7 +47,7 @@ export default async function LegacySlugPage({ params }: PageProps) {
     permanentRedirect(`/articles/${normalized}`);
   }
 
-  const canonicalSlug = await resolveLegacySlug(params.slug);
+  const canonicalSlug = resolveLegacySlug(params.slug);
   if (!canonicalSlug) {
     notFound();
   }
