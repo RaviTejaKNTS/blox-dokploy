@@ -5,6 +5,7 @@ const METRICS = ["playing", "visits", "favorites", "likes"] as const;
 type MetricKey = (typeof METRICS)[number];
 
 type FilterConfig = {
+  mode?: "filter" | "sql";
   metric?: MetricKey;
   direction?: "asc" | "desc";
   genre?: string;
@@ -18,6 +19,8 @@ type FilterConfig = {
   include_slugs?: string[];
   exclude_slugs?: string[];
   min_updated_hours?: number;
+  sql?: string;
+  sql_params?: Record<string, unknown>;
 };
 
 type GameListRecord = {
@@ -54,6 +57,19 @@ type UniverseRow = {
 };
 
 type RankedUniverse = UniverseRow & { metricValue: number };
+type ListEntryInput = {
+  universe_id: number;
+  rank?: number | null;
+  metricValue?: number | null;
+  reason?: string | null;
+  extra?: Record<string, unknown> | null;
+  game_id?: string | null;
+  playing?: number | null;
+  visits?: number | null;
+  favorites?: number | null;
+  likes?: number | null;
+  dislikes?: number | null;
+};
 
 type PublishedGamePreview = {
   id: string;
@@ -67,6 +83,7 @@ function parseFilterConfig(raw: unknown): FilterConfig {
   }
 
   const config = raw as Record<string, unknown>;
+  const mode = config.mode === "sql" ? "sql" : "filter";
   const metric = typeof config.metric === "string" && METRICS.includes(config.metric as MetricKey)
     ? (config.metric as MetricKey)
     : undefined;
@@ -105,7 +122,19 @@ function parseFilterConfig(raw: unknown): FilterConfig {
     return undefined;
   };
 
+  const sqlValue = () => {
+    const value = config.sql;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.toLowerCase().startsWith("select")) {
+        return trimmed;
+      }
+    }
+    return undefined;
+  };
+
   return {
+    mode,
     metric,
     direction,
     genre: stringValue("genre"),
@@ -118,7 +147,11 @@ function parseFilterConfig(raw: unknown): FilterConfig {
     limit: limitValue,
     include_slugs: listValue("include_slugs"),
     exclude_slugs: listValue("exclude_slugs"),
-    min_updated_hours: parseNumber(config.min_updated_hours)
+    min_updated_hours: parseNumber(config.min_updated_hours),
+    sql: sqlValue(),
+    sql_params: typeof config.sql_params === "object" && config.sql_params !== null
+      ? (config.sql_params as Record<string, unknown>)
+      : undefined
   };
 }
 
@@ -186,6 +219,46 @@ async function fetchRankedUniverses(config: FilterConfig, limit: number): Promis
   return (data ?? []) as UniverseRow[];
 }
 
+async function fetchSqlEntries(sql: string, limit: number): Promise<ListEntryInput[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb.rpc("run_game_list_sql", { sql_text: sql, limit_count: limit });
+  if (error) {
+    throw new Error(`failed to run SQL for game list: ${error.message}`);
+  }
+  const rows = (data ?? []) as Array<{
+    universe_id: number;
+    rank?: number | null;
+    metric_value?: number | null;
+    reason?: string | null;
+    extra?: Record<string, unknown> | null;
+    game_id?: string | null;
+    playing?: number | null;
+    visits?: number | null;
+    favorites?: number | null;
+    likes?: number | null;
+    dislikes?: number | null;
+  }>;
+
+  return rows.map((row) => ({
+    universe_id: row.universe_id,
+    rank: row.rank ?? null,
+    metricValue:
+      typeof row.metric_value === "number"
+        ? row.metric_value
+        : row.metric_value == null
+        ? null
+        : Number(row.metric_value),
+    reason: row.reason ?? null,
+    extra: row.extra ?? null,
+    game_id: row.game_id ?? null,
+    playing: row.playing ?? null,
+    visits: row.visits ?? null,
+    favorites: row.favorites ?? null,
+    likes: row.likes ?? null,
+    dislikes: row.dislikes ?? null
+  }));
+}
+
 async function fetchPublishedGamesForUniverses(universeIds: number[]): Promise<Map<number, PublishedGamePreview>> {
   if (!universeIds.length) return new Map();
   const sb = supabaseAdmin();
@@ -223,7 +296,7 @@ async function fetchLists(): Promise<GameListRecord[]> {
   return (data ?? []) as GameListRecord[];
 }
 
-async function replaceEntries(list: GameListRecord, entries: RankedUniverse[]): Promise<void> {
+async function replaceEntries(list: GameListRecord, entries: ListEntryInput[]): Promise<void> {
   const sb = supabaseAdmin();
   const universeIds = entries.map((entry) => entry.universe_id);
   const gameMap = await fetchPublishedGamesForUniverses(universeIds);
@@ -231,19 +304,22 @@ async function replaceEntries(list: GameListRecord, entries: RankedUniverse[]): 
   const payload = entries.map((entry, index) => ({
     list_id: list.id,
     universe_id: entry.universe_id,
-    game_id: gameMap.get(entry.universe_id)?.id ?? null,
-    rank: index + 1,
-    metric_value: entry.metricValue,
-    extra: {
-      metric: list.filter_config?.metric ?? "playing",
-      metrics: {
-        playing: entry.playing ?? null,
-        visits: entry.visits ?? null,
-        favorites: entry.favorites ?? null,
-        likes: entry.likes ?? null,
-        dislikes: entry.dislikes ?? null
+    game_id: entry.game_id ?? gameMap.get(entry.universe_id)?.id ?? null,
+    rank: entry.rank ?? index + 1,
+    metric_value: entry.metricValue ?? null,
+    reason: entry.reason ?? null,
+    extra:
+      entry.extra ??
+      {
+        metric: list.filter_config?.metric ?? "playing",
+        metrics: {
+          playing: entry.playing ?? null,
+          visits: entry.visits ?? null,
+          favorites: entry.favorites ?? null,
+          likes: entry.likes ?? null,
+          dislikes: entry.dislikes ?? null
+        }
       }
-    }
   }));
 
   const { error: deleteError } = await sb.from("game_list_entries").delete().eq("list_id", list.id);
@@ -267,13 +343,19 @@ async function replaceEntries(list: GameListRecord, entries: RankedUniverse[]): 
   }
 }
 
-async function buildEntriesForList(list: GameListRecord): Promise<RankedUniverse[]> {
+async function buildEntriesForList(list: GameListRecord): Promise<ListEntryInput[]> {
   if (list.list_type === "manual") {
     return [];
   }
 
   const config = parseFilterConfig(list.filter_config);
   const limit = config.limit ?? list.limit_count ?? 50;
+  if (config.mode === "sql") {
+    if (!config.sql) {
+      throw new Error(`filter_config.mode is "sql" but no sql provided for list ${list.slug}`);
+    }
+    return fetchSqlEntries(config.sql, limit);
+  }
   const universes = await fetchRankedUniverses(config, limit);
 
   return universes.map((universe) => ({
