@@ -170,10 +170,22 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     // Skip if a code with the same normalized value already exists for this game
     const existingEntry = existingNormalizedMap.get(normalized);
     if (existingEntry) {
-      if (
-        existingEntry.providerPriority > providerPriority ||
-        (existingEntry.providerPriority === providerPriority && existingEntry.code === displayCode)
-      ) {
+      const higherPriorityExists = existingEntry.providerPriority > providerPriority;
+      const samePrioritySameDisplay = existingEntry.providerPriority === providerPriority && existingEntry.code === displayCode;
+
+      if (higherPriorityExists || samePrioritySameDisplay) {
+        // Still touch the row to refresh last_seen_at without overwriting provider priority
+        const { error: touchError } = await sb
+          .from("codes")
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq("game_id", game.id)
+          .ilike("code", existingEntry.code);
+
+        if (touchError) {
+          throw new Error(`failed to refresh last_seen_at for ${displayCode}: ${touchError.message}`);
+        }
+
+        existingNormalizedMap.set(normalized, { code: existingEntry.code, providerPriority: existingEntry.providerPriority });
         continue;
       }
     }

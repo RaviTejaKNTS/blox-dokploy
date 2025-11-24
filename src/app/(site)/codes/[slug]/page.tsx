@@ -11,7 +11,7 @@ import "@/styles/article-content.css";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
 import { logger } from "@/lib/logger";
-import { CopyCodeButton } from "@/components/CopyCodeButton";
+import { ActiveCodes } from "@/components/ActiveCodes";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
@@ -21,12 +21,12 @@ import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
 import { collectAuthorSocials } from "@/lib/author-socials";
+import { sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
   listCodesForGame,
   listGamesWithActiveCounts,
-  getRobloxUniverseById,
-  type Code
+  getRobloxUniverseById
 } from "@/lib/db";
 import {
   SITE_DESCRIPTION,
@@ -40,41 +40,6 @@ import { extractHowToSteps } from "@/lib/how-to";
 export const revalidate = 30;
 
 export type Params = { params: { slug: string } };
-
-function cleanRewardsText(text?: string | null): string | null {
-  if (!text) return null;
-  let t = text.replace(/\s+/g, " ").trim();
-  t = t.replace(/^New Code/i, "").trim();
-  t = t.replace(/^Copy/i, "").trim();
-  t = t.replace(/\s*(Active|Expired|Check)\s*$/i, "").trim();
-  t = t.replace(/this code credits your account with/i, "This code gives you");
-  return t || null;
-}
-
-const NEW_CODE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
-
-function firstSeenTimestamp(code: Pick<Code, "first_seen_at">): number | null {
-  if (!code.first_seen_at) return null;
-  const time = new Date(code.first_seen_at).getTime();
-  return Number.isNaN(time) ? null : time;
-}
-
-function sortCodesByFirstSeenDesc<T extends Pick<Code, "first_seen_at">>(codes: T[]): T[] {
-  return [...codes].sort((a, b) => {
-    const aTime = firstSeenTimestamp(a);
-    const bTime = firstSeenTimestamp(b);
-    if (aTime === bTime) return 0;
-    if (aTime == null) return 1;
-    if (bTime == null) return -1;
-    return bTime - aTime;
-  });
-}
-
-function isCodeWithinNewThreshold(code: Pick<Code, "first_seen_at">, referenceMs: number): boolean {
-  const firstSeenMs = firstSeenTimestamp(code);
-  if (firstSeenMs == null) return false;
-  return referenceMs - firstSeenMs <= NEW_CODE_THRESHOLD_MS;
-}
 
 interface FaqEntry {
   question: string;
@@ -403,6 +368,7 @@ export default async function GamePage({ params }: Params) {
   const nowMs = Date.now();
   const sortedActive = sortCodesByFirstSeenDesc(active);
   const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
+  const expiredWithoutSpaces = expired.filter(code => typeof code === "string" && !/\s/.test(code));
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;
@@ -458,8 +424,6 @@ export default async function GamePage({ params }: Params) {
         return "Yesterday";
       case 2:
         return "2 days ago";
-      case 3:
-        return "3 days ago";
       default:
         return null;
     }
@@ -663,15 +627,7 @@ export default async function GamePage({ params }: Params) {
               <span aria-hidden="true">•</span>
               <span className="text-foreground/80">
                 Updated on <span className="font-semibold text-foreground">{lastUpdatedFormatted}</span>
-                {lastCheckedRelativeLabel ? <span> ({lastCheckedRelativeLabel})</span> : null}
               </span>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-accent/40 bg-accent/10 px-4 py-4 font-medium text-accent">
-              <time dateTime={lastCheckedIso}>
-                Last checked for new codes on{" "}
-                <span className="font-semibold text-foreground">{lastCheckedFormatted}</span>
-                {lastCheckedRelativeLabel ? <span> ({lastCheckedRelativeLabel})</span> : null}
-              </time>
             </div>
           </div>
         </header>
@@ -685,61 +641,17 @@ export default async function GamePage({ params }: Params) {
           </section>
         ) : null}
 
-          <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="active-codes">
-          <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
-            <h2>Active {game.name} Codes</h2>
-            {active.length > 0 ? (
-              <p className="text-muted">
-                Right now, there are {active.length} active {active.length === 1 ? "code" : "codes"} you can use.
-              </p>
-            ) : null}
-          </div>
-          {active.length === 0 ? (
-            <p className="text-muted">We haven't confirmed any working codes right now. Check back soon.</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {sortedActive.map(c => {
-                const rewards = cleanRewardsText(c.rewards_text);
-                const isNew = isCodeWithinNewThreshold(c, nowMs);
-                return (
-                  <article
-                    key={c.id}
-                    className="rounded-[var(--radius-sm)] border border-accent/25 bg-surface px-5 py-4 shadow-soft"
-                  >
-                    <div className="flex flex-wrap gap-4 md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
-                      <div className="basis-full flex flex-col gap-3 md:basis-auto">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="relative inline-flex max-w-full min-w-0 justify-start">
-                            <code
-                              id={c.code}
-                              className="inline-flex max-w-full flex-wrap items-center justify-start gap-2 rounded-full bg-gradient-to-r from-accent to-accent-dark px-4 py-2 text-left text-sm font-semibold leading-tight text-white shadow-soft whitespace-normal break-words break-all min-w-0"
-                            >
-                              <span className="max-w-full break-words break-all leading-snug tracking-[0.08em]">{c.code}</span>
-                            </code>
-                            {isNew ? (
-                              <span className="pointer-events-none absolute -top-2 -right-2 inline-flex items-center rounded-full bg-[#0f1121] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_18px_28px_-16px_rgba(72,92,255,0.55)] ring-2 ring-accent/25 rotate-2 md:-top-2 md:-right-2 dark:bg-white dark:text-accent">
-                                New
-                              </span>
-                            ) : null}
-                          </div>
-                          <CopyCodeButton code={c.code} tone="accent" />
-                          {c.level_requirement != null ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
-                              Level {c.level_requirement}+
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="basis-full rounded-[var(--radius-sm)] bg-surface-muted/60 pl-1 pr-4 py-3 text-sm leading-relaxed text-foreground/90 md:basis-auto md:rounded-none md:border-l md:border-border/40 md:bg-transparent md:px-0 md:py-0 md:pl-6">
-                        {rewards ? rewards : <span className="text-muted">No reward listed</span>}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <div className="mb-8">
+          <ActiveCodes
+            codes={sortedActive}
+            gameName={game.name}
+            lastUpdatedLabel={lastUpdatedFormatted}
+            lastCheckedLabel={lastCheckedFormatted}
+            lastCheckedRelativeLabel={lastCheckedRelativeLabel}
+            coverImage={game.cover_image}
+            nowMs={nowMs}
+          />
+        </div>
 
         {redeemHtml ? (
           <section className="mb-8" id="redeem" itemProp="articleBody">
@@ -752,11 +664,11 @@ export default async function GamePage({ params }: Params) {
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="expired-codes">
           <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
             <h2>Expired {game.name} Codes</h2>
-            {expired.length === 0 ? (
+            {expiredWithoutSpaces.length === 0 ? (
               <p className="text-muted">We haven't tracked any expired codes yet.</p>
             ) : null}
           </div>
-          {expired.length === 0 ? null : <ExpiredCodes codes={expired} />}
+          {expiredWithoutSpaces.length === 0 ? null : <ExpiredCodes codes={expiredWithoutSpaces} />}
         </section>
 
         {hasSupplemental ? (
