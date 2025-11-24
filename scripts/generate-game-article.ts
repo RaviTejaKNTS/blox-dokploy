@@ -12,7 +12,7 @@ import { getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
 import { extractPlaceId, scrapeRobloxGameMetadata } from "@/lib/roblox/game-metadata";
 import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 import { scrapeSocialLinksFromSources, type SocialLinks as ScrapedSocialLinks } from "@/lib/social-links";
-import { appendCodesSuffix, normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
+import { slugify, stripCodesSuffix } from "@/lib/slug";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const supabase = createClient(
@@ -263,7 +263,7 @@ async function findGameCodeArticle(gameName: string, siteSpecifier: string) {
   }
 
   if (domain.includes("robloxden.com")) {
-    const slugCandidate = stripCodesSuffix(normalizeGameSlug(gameName, gameName));
+    const slugCandidate = stripCodesSuffix(slugify(gameName));
     if (slugCandidate) {
       const candidateUrl = `https://robloxden.com/game-codes/${slugCandidate}`;
       if (await validateGameMatch(candidateUrl, gameName)) {
@@ -477,6 +477,7 @@ function resolveSectionTitle(type: SectionType, gameName: string, variant = 0): 
 function buildArticlePrompt(gameName: string, sources: string) {
   const troubleshootHeading = resolveSectionTitle("codeNotWorking", gameName, 0);
   const rewardsHeading = resolveSectionTitle("rewardsOverview", gameName, 0);
+  const redeemHeading = `## How to Redeem ${gameName} Codes`;
 
   return `
 You are a Roblox player and a good friendly writer who is writing an article on ${gameName} Codes. Write the article in simple english, easy to understand style and most importantly information rich. Use only the details from the provided script and write only the section asked.
@@ -489,6 +490,7 @@ Rules:
 - All the sections should have full sentences, info rich sentences that are engaging.
 - Start troubleshoot_md with "${troubleshootHeading}".
 - Start rewards_md with "${rewardsHeading}".
+- Start redeem_md with "${redeemHeading}".
 - Should leave out anything that is generic in nature and common for all codes, focus on the unique game specific aspect and keep everything cleanly readbale, informational. 
 - Write full sentences and easy to read and understand style, but write in as less words as possible.
 - Do not hype up things, keep it informational, friendly and engaging.
@@ -501,7 +503,7 @@ ${sources}
 Return valid JSON with these keys:
 {
   "intro_md": "Just 3-5 small sentences that explains the reader, what's the game, what rewards they get from codes and what benefit we get from these. No generic or filler sentences like "This is a good roblox game", "You will love this game, if", "definitely a game you want to check out". Always write in unique, unventional way, get directly to the point. Always start with unqiue thing that is very specific to the game and keep it engaging and very easy to read and follow. Do not just mention, you get free rewards, leave out anything that is very generic in nature. Write what rewards they get normally for this specific game and how that will be useful for this particular game, etc. Write like a Roblox ${gameName} player that is writing for another player who plays the game. Keep everything grounded and simple, do not hype up things, keep it informational, friendly and engaging. Write the info in full sentences, but in as less words as possible. Each and every intro should be very uniquely started, so do not ever start with ${gameName} or ${gameName} codes. Always start with something that is not very like templated writing. But keep the flow of infomration each to consume for the users. Don't write at the end like "Using codes strategically" or "Using codes smartly". Keep it simple and do not make it a template.",
-  "redeem_md": "## How to Redeem ${gameName} Codes with numbered steps. If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps. If there are no requirements, write a line or two before the steps, to give cue to the actual steps. Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences. Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]]. Use plain text for any social mentions; no other placeholders besides the Roblox launch line. If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.",
+  "redeem_md": "Start with ${JSON.stringify(redeemHeading)} and follow with numbered steps. If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps. If there are no requirements, write a line or two before the steps, to give cue to the actual steps. Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences. Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]]. Use plain text for any social mentions; no other placeholders besides the Roblox launch line. If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.",
   "rewards_md": "Start with ${JSON.stringify(rewardsHeading)} then Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details,and a small description of each reward. Keep it very informational, full sentences, clean to understand, but write in as less words as possible. Before the table, write a line or two to give cue to the users. Do not include any generic or templated writing. Always write things that are unique to the game and leave out everything that is generic in nature like rewards help you progress faster. Leave out the ovbious and focus on the depth and information.",
   "troubleshoot_md": "Start with ${JSON.stringify(troubleshootHeading)} and write why codes might fail and how to fix it. Anything that is generic in nature should be just covered in para style and in one word. But if there are any game specific issues like reaching a specific level or something like that, only then it needs to include them in the bullet list. Even if the list only has 1, include only the unique ones and do not repeat anything. Always keep things direct and try to tell in as less words as possible. (No generic reasons should get into bullet points",
   "meta_description": "150-160 character, plain sentence mentioning ${gameName} codes and the value players get. No generic claims, write unconvetional and very human and unique meta descriptions for each game.",
@@ -622,7 +624,7 @@ async function main() {
   }
 
   const canonicalName = sanitizeGameDisplayName(parsed.game_display_name, gameName);
-  let slug = normalizeGameSlug(canonicalName, gameName);
+  let slug = slugify(canonicalName || gameName);
 
   let existingGame: ExistingGameRecord | null = null;
   {
@@ -693,7 +695,7 @@ async function main() {
   const article = applyLinkPlaceholders(parsed, canonicalName, resolvedLinks);
 
   const name = article.game_display_name;
-  slug = normalizeGameSlug(name, slug);
+  slug = slugify(name || slug);
 
   console.log(`📦 Saving article for "${name}"...`);
   const insertPayload: Record<string, unknown> = {
@@ -705,7 +707,7 @@ async function main() {
     rewards_md: article.rewards_md,
     description_md: null,
     seo_description: article.meta_description,
-    is_published: true,
+    is_published: false,
   };
 
   const authorId = existingGame?.author_id ?? (await pickAuthorId());
@@ -740,42 +742,7 @@ async function main() {
     insertPayload.universe_id = resolvedUniverseId;
   }
 
-  let derivedUniverseSlug: string | null = null;
-  if (resolvedUniverseId != null) {
-    const { data: universeRow, error: universeError } = await supabase
-      .from("roblox_universes")
-      .select("slug")
-      .eq("universe_id", resolvedUniverseId)
-      .maybeSingle();
-    if (universeError) {
-      console.warn(
-        "⚠️ Failed to load universe slug:",
-        universeError instanceof Error ? universeError.message : universeError
-      );
-    } else {
-      derivedUniverseSlug = (universeRow?.slug as string | null) ?? null;
-    }
-  }
-
-  let finalSlug = slug;
-  if (derivedUniverseSlug) {
-    finalSlug = appendCodesSuffix(derivedUniverseSlug);
-  }
-
-  if (!existingGame && finalSlug !== slug) {
-  const { data: altGame, error: altError } = await supabase
-      .from("games")
-      .select(
-        "id, slug, author_id, is_published, roblox_link, community_link, discord_link, twitter_link, youtube_link, source_url, source_url_2, source_url_3, universe_id"
-      )
-      .eq("slug", finalSlug)
-      .maybeSingle();
-    if (altError) throw altError;
-    existingGame = (altGame as ExistingGameRecord | null) ?? null;
-  }
-
-  slug = finalSlug;
-  insertPayload.slug = finalSlug;
+  insertPayload.slug = slug;
 
   if (existingGame?.id) {
     insertPayload.id = existingGame.id;
