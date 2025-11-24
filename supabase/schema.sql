@@ -48,6 +48,7 @@ create table if not exists public.games (
   description_md text,
   internal_links integer not null default 0,
   is_published boolean not null default false,
+  re_rewritten_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

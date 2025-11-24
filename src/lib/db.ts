@@ -45,6 +45,7 @@ export type Game = {
   description_md: string | null;
   universe_id: number | null;
   is_published: boolean;
+  re_rewritten_at?: string | null;
   created_at: string;
   updated_at: string;
 };
