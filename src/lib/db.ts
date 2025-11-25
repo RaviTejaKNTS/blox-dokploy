@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_AUTHOR_ID } from "./constants";
 
@@ -228,120 +229,41 @@ export async function listAllGames(): Promise<Game[]> {
   return data as Game[];
 }
 
-const ACTIVE_CODE_BATCH_SIZE = 50;
-const ACTIVE_CODE_PAGE_SIZE = 1000;
+type CodePageSummary = GameSummaryFields & {
+  active_code_count?: number | null;
+  latest_code_first_seen_at?: string | null;
+  content_updated_at?: string | null;
+};
 
-async function fetchActiveCodeStats(
-  sb: ReturnType<typeof supabaseAdmin>,
-  gameIds: string[]
-): Promise<{
-  counts: Map<string, number>;
-  latestFirstSeenMap: Map<string, string | null>;
-}> {
-  const counts = new Map<string, number>();
-  const latestFirstSeenMap = new Map<string, string | null>();
-
-  for (let offset = 0; offset < gameIds.length; offset += ACTIVE_CODE_BATCH_SIZE) {
-    const batchIds = gameIds.slice(offset, offset + ACTIVE_CODE_BATCH_SIZE);
-    let from = 0;
-
-    while (true) {
-      const to = from + ACTIVE_CODE_PAGE_SIZE - 1;
-      const { data, error } = await sb
-        .from("codes")
-        .select("game_id, status, first_seen_at")
-        .in("game_id", batchIds)
-        .order("first_seen_at", { ascending: false })
-        .range(from, to);
-
-      if (error) {
-        throw error;
-      }
-
-      const rows = (data ?? []) as {
-        game_id: string;
-        status: "active" | "expired" | "check";
-        first_seen_at: string | null;
-      }[];
-
-      for (const row of rows) {
-        if (row.status === "active") {
-          counts.set(row.game_id, (counts.get(row.game_id) ?? 0) + 1);
-        }
-
-        if (!latestFirstSeenMap.has(row.game_id)) {
-          latestFirstSeenMap.set(row.game_id, row.first_seen_at ?? null);
-        }
-      }
-
-      if (rows.length < ACTIVE_CODE_PAGE_SIZE) {
-        break;
-      }
-      from += ACTIVE_CODE_PAGE_SIZE;
-    }
-  }
-
-  return { counts, latestFirstSeenMap };
+function mapCodePageRowToCounts(row: CodePageSummary): GameWithCounts {
+  return {
+    ...row,
+    active_count: row.active_code_count ?? 0,
+    latest_code_first_seen_at: row.latest_code_first_seen_at ?? null,
+    content_updated_at: row.content_updated_at ?? row.updated_at ?? null
+  };
 }
 
-function buildGamesWithActiveCounts(
-  gameList: GameSummaryFields[],
-  counts: Map<string, number>,
-  latestFirstSeenMap: Map<string, string | null>
-): GameWithCounts[] {
-  return gameList.map<GameWithCounts>((g) => {
-    const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
-    const updatedAtTime = Date.parse(g.updated_at ?? "");
-    const latestFirstSeenTime = latestFirstSeen ? Date.parse(latestFirstSeen) : NaN;
-    const hasLatestFirstSeen = Number.isFinite(latestFirstSeenTime);
-    const hasUpdatedAt = Number.isFinite(updatedAtTime);
-    let contentUpdatedAt: string | null = g.updated_at ?? null;
-    if (hasLatestFirstSeen && hasUpdatedAt) {
-      contentUpdatedAt = latestFirstSeenTime > updatedAtTime ? latestFirstSeen : g.updated_at ?? latestFirstSeen;
-    } else if (hasLatestFirstSeen) {
-      contentUpdatedAt = latestFirstSeen;
-    }
+async function fetchGamesWithActiveCounts(): Promise<GameWithCounts[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("code_pages_view")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+    .eq("is_published", true)
+    .order("content_updated_at", { ascending: false });
+  if (error) throw error;
 
-    return {
-      ...g,
-      active_count: counts.get(g.id) || 0,
-      latest_code_first_seen_at: latestFirstSeen,
-      content_updated_at: contentUpdatedAt ?? g.updated_at ?? null
-    };
-  });
+  return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
 }
+
+const cachedListGamesWithActiveCounts = unstable_cache(
+  fetchGamesWithActiveCounts,
+  ["listGamesWithActiveCounts"],
+  { revalidate: 30 }
+);
 
 export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
-  const sb = supabaseAdmin();
-  const { data: games, error: gamesError } = await sb
-    .from("games")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
-    .eq("is_published", true)
-    .order("updated_at", { ascending: false });
-  if (gamesError) throw gamesError;
-
-  const gameList = (games ?? []) as GameSummaryFields[];
-  if (gameList.length === 0) {
-    return [];
-  }
-  const gameIds = gameList.map((g) => g.id);
-
-  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
-
-  const toTimestamp = (value: string | null | undefined): number => {
-    if (!value) return 0;
-    const ts = new Date(value).getTime();
-    return Number.isNaN(ts) ? 0 : ts;
-  };
-
-  const withCounts = buildGamesWithActiveCounts(gameList, counts, latestFirstSeenMap);
-
-  return withCounts
-    .sort((a, b) => {
-      const aTime = toTimestamp(a.latest_code_first_seen_at ?? a.updated_at);
-      const bTime = toTimestamp(b.latest_code_first_seen_at ?? b.updated_at);
-      return bTime - aTime;
-    });
+  return cachedListGamesWithActiveCounts();
 }
 
 export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promise<GameWithCounts[]> {
@@ -352,19 +274,18 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
   const uniqueIds = Array.from(new Set(gameIds));
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("games")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
+    .from("code_pages_view")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
     .eq("is_published", true)
     .in("id", uniqueIds);
   if (error) throw error;
 
-  const gameList = (data ?? []) as GameSummaryFields[];
+  const gameList = (data ?? []) as CodePageSummary[];
   if (!gameList.length) {
     return [];
   }
 
-  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, uniqueIds);
-  const withCounts = buildGamesWithActiveCounts(gameList, counts, latestFirstSeenMap);
+  const withCounts = gameList.map((row) => mapCodePageRowToCounts(row));
   const map = new Map(withCounts.map((game) => [game.id, game]));
 
   return gameIds.map((id) => map.get(id)).filter((game): game is GameWithCounts => Boolean(game));
@@ -373,7 +294,7 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
 export async function listPublishedGameLists(): Promise<GameList[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("game_lists")
+    .from("game_lists_view")
     .select("*")
     .eq("is_published", true)
     .order("updated_at", { ascending: false });
@@ -384,7 +305,7 @@ export async function listPublishedGameLists(): Promise<GameList[]> {
 export async function getGameListMetadata(slug: string): Promise<GameList | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("game_lists")
+    .from("game_lists_view")
     .select("*")
     .eq("slug", slug)
     .eq("is_published", true)
@@ -397,63 +318,38 @@ export async function getGameListBySlug(
   slug: string
 ): Promise<{ list: GameList; entries: GameListUniverseEntry[] } | null> {
   const sb = supabaseAdmin();
-  const { data: listData, error: listError } = await sb
-    .from("game_lists")
+  const { data, error } = await sb
+    .from("game_lists_view")
     .select("*")
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
-  if (listError) throw listError;
-  if (!listData) return null;
-  const list = listData as GameList;
+  if (error) throw error;
+  if (!data) return null;
 
-  const { data: entriesData, error: entriesError } = await sb
-    .from("game_list_entries")
-    .select("list_id,universe_id,game_id,rank,metric_value,reason,extra")
-    .eq("list_id", list.id)
-    .order("rank", { ascending: true });
-  if (entriesError) throw entriesError;
-  const entries = (entriesData ?? []) as GameListEntry[];
-
-  if (!entries.length) {
-    return { list, entries: [] };
-  }
-
-  const universeIds = entries.map((entry) => entry.universe_id);
-  const { data: universeData, error: universeError } = await sb
-    .from("roblox_universes")
-    .select(
-      "universe_id,root_place_id,name,display_name,slug,icon_url,playing,visits,favorites,likes,dislikes,age_rating,desktop_enabled,mobile_enabled,tablet_enabled,console_enabled,vr_enabled,updated_at,description,game_description_md"
-    )
-    .in("universe_id", universeIds);
-  if (universeError) throw universeError;
-  const universeMap = new Map<number, ListUniverseDetails>(
-    (universeData ?? []).map((row) => [row.universe_id, row as ListUniverseDetails])
-  );
-
-  const gameIds = entries.map((entry) => entry.game_id).filter((id): id is string => Boolean(id));
-  let gameMap = new Map<string, GamePreview>();
-  if (gameIds.length) {
-    const gamesWithCounts = await listGamesWithActiveCountsForIds(gameIds);
-    gameMap = new Map(gamesWithCounts.map((game) => [game.id, game]));
-  }
-
-  const combined = entries
-    .map<GameListUniverseEntry | null>((entry) => {
-      const universe = universeMap.get(entry.universe_id);
-      if (!universe) {
-        return null;
-      }
-      const game = entry.game_id ? gameMap.get(entry.game_id) ?? null : null;
+  const list = data as GameList & { entries?: unknown[] };
+  const entriesRaw = Array.isArray(list.entries) ? list.entries : [];
+  const entries = entriesRaw
+    .map((entry) => {
+      const record = entry as Record<string, unknown>;
+      const universe = (record.universe ?? null) as ListUniverseDetails | null;
+      const game = (record.game ?? null) as GamePreview | null;
+      if (!universe) return null;
       return {
-        ...entry,
+        list_id: (record.list_id as string) ?? list.id,
+        universe_id: record.universe_id as number,
+        game_id: (record.game_id as string | null) ?? null,
+        rank: (record.rank as number) ?? 0,
+        metric_value: (record.metric_value as number | null) ?? null,
+        reason: (record.reason as string | null) ?? null,
+        extra: (record.extra as Record<string, unknown> | null) ?? null,
         universe,
         game
-      };
+      } as GameListUniverseEntry;
     })
-    .filter((value): value is GameListUniverseEntry => Boolean(value));
+    .filter((entry): entry is GameListUniverseEntry => Boolean(entry));
 
-  return { list, entries: combined };
+  return { list, entries };
 }
 
 export async function listRanksForUniverses(
@@ -501,24 +397,32 @@ export async function listRanksForUniverses(
   return map;
 }
 
-export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from('articles')
-    .select(articleSelectFields())
-    .eq('is_published', true)
-    .order('published_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+const cachedListPublishedArticles = unstable_cache(
+  async (limit: number, offset: number) => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from('article_pages_view')
+      .select('*')
+      .eq('is_published', true)
+      .order('published_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-  if (error) throw error;
-  return (data ?? []) as unknown as ArticleWithRelations[];
+    if (error) throw error;
+    return (data ?? []) as unknown as ArticleWithRelations[];
+  },
+  ["listPublishedArticles"],
+  { revalidate: 30 }
+);
+
+export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
+  return cachedListPublishedArticles(limit, offset);
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleWithRelations | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from('articles')
-    .select(articleSelectFields())
+    .from('article_pages_view')
+    .select('*')
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -532,91 +436,97 @@ export async function listRecentArticlesForSitemap(): Promise<ArticleWithRelatio
   return listPublishedArticles(200, 0);
 }
 
+const cachedListPublishedGamesByAuthorWithActiveCounts = unstable_cache(
+  async (authorId: string) => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from("code_pages_view")
+      .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+      .eq("is_published", true)
+      .eq("author_id", authorId)
+      .order("name", { ascending: true });
+    if (error) throw error;
+
+    return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
+  },
+  ["listPublishedGamesByAuthorWithActiveCounts"],
+  { revalidate: 600 }
+);
+
 export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {
-  const sb = supabaseAdmin();
-  const { data: games, error: gamesError } = await sb
-    .from("games")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id")
-    .eq("is_published", true)
-    .eq("author_id", authorId)
-    .order("name", { ascending: true });
-  if (gamesError) throw gamesError;
+  return cachedListPublishedGamesByAuthorWithActiveCounts(authorId);
+}
 
-  const gameList = (games ?? []) as GameSummaryFields[];
-  if (!gameList.length) {
-    return [];
-  }
+const cachedGetGameBySlug = unstable_cache(
+  async (slug: string) => {
+    const sb = supabaseAdmin();
+    const normalizedSlug = slug.trim().toLowerCase();
+    const { data, error } = await sb
+      .from("code_pages_view")
+      .select("*")
+      .eq("slug", normalizedSlug)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
 
-  const gameIds = gameList.map((g) => g.id);
-  const { counts, latestFirstSeenMap } = await fetchActiveCodeStats(sb, gameIds);
-
-  return gameList.map<GameWithCounts>((g) => {
-    const latestFirstSeen = latestFirstSeenMap.get(g.id) ?? null;
-    const updatedAtTime = Date.parse(g.updated_at ?? "");
-    const latestFirstSeenTime = latestFirstSeen ? Date.parse(latestFirstSeen) : NaN;
-    const hasLatestFirstSeen = Number.isFinite(latestFirstSeenTime);
-    const hasUpdatedAt = Number.isFinite(updatedAtTime);
-    let contentUpdatedAt: string | null = g.updated_at ?? null;
-    if (hasLatestFirstSeen && hasUpdatedAt) {
-      contentUpdatedAt = latestFirstSeenTime > updatedAtTime ? latestFirstSeen : g.updated_at ?? latestFirstSeen;
-    } else if (hasLatestFirstSeen) {
-      contentUpdatedAt = latestFirstSeen;
+    if (!(data as any).author && DEFAULT_AUTHOR_ID) {
+      const { data: fallback } = await sb
+        .from("authors")
+        .select("*")
+        .eq("id", DEFAULT_AUTHOR_ID)
+        .maybeSingle();
+      if (fallback) {
+        (data as any).author = fallback;
+      }
     }
 
-    return {
-      ...g,
-      active_count: counts.get(g.id) || 0,
-      latest_code_first_seen_at: latestFirstSeen,
-      content_updated_at: contentUpdatedAt ?? g.updated_at ?? null
-    };
-  });
-}
+    return data as GameWithAuthor;
+  },
+  ["getGameBySlug"],
+  { revalidate: 30 }
+);
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
-  const sb = supabaseAdmin();
-  const normalizedSlug = slug.trim().toLowerCase();
-  const { data, error } = await sb
-    .from("games")
-    .select("*, author:authors(*)")
-    .eq("slug", normalizedSlug)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-
-  if (!data.author && DEFAULT_AUTHOR_ID) {
-    const { data: fallback } = await sb
-      .from("authors")
-      .select("*")
-      .eq("id", DEFAULT_AUTHOR_ID)
-      .maybeSingle();
-    if (fallback) {
-      (data as any).author = fallback;
-    }
-  }
-
-  return data as GameWithAuthor;
+  return cachedGetGameBySlug(slug);
 }
+
+const cachedGetRobloxUniverseById = unstable_cache(
+  async (universeId: number) => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from("roblox_universes")
+      .select("universe_id, name, display_name, creator_name, creator_id, creator_type, social_links")
+      .eq("universe_id", universeId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as RobloxUniverseInfo) || null;
+  },
+  ["getRobloxUniverseById"],
+  { revalidate: 30 }
+);
 
 export async function getRobloxUniverseById(universeId: number): Promise<RobloxUniverseInfo | null> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("roblox_universes")
-    .select("universe_id, name, display_name, creator_name, creator_id, creator_type, social_links")
-    .eq("universe_id", universeId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data as RobloxUniverseInfo) || null;
+  return cachedGetRobloxUniverseById(universeId);
 }
 
+const cachedListCodesForGame = unstable_cache(
+  async (gameId: string) => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from("code_pages_view")
+      .select("codes")
+      .eq("id", gameId)
+      .maybeSingle();
+    if (error) throw error;
+    const codes = (data as { codes?: unknown })?.codes;
+    if (!Array.isArray(codes)) return [];
+    return codes as Code[];
+  },
+  ["listCodesForGame"],
+  { revalidate: 30 }
+);
+
 export async function listCodesForGame(gameId: string): Promise<Code[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("codes")
-    .select("*")
-    .eq("game_id", gameId)
-    .order("status", { ascending: true })  // active first if status sorted lexicographically by custom order handled in UI
-    .order("last_seen_at", { ascending: false });
-  if (error) throw error;
-  return data as Code[];
+  return cachedListCodesForGame(gameId);
 }

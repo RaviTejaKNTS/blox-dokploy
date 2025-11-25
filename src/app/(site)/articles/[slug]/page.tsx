@@ -19,7 +19,6 @@ import {
 } from "@/lib/seo";
 import {
   getArticleBySlug,
-  listPublishedArticles,
   type ArticleWithRelations,
   type Author
 } from "@/lib/db";
@@ -89,13 +88,15 @@ async function renderArticlePage(article: ArticleWithRelations) {
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : null;
   const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
-  const [articleHtml, authorBioHtml, latestArticles] = await Promise.all([
+  const relatedArticlesRaw = Array.isArray((article as any).related_articles)
+    ? ((article as any).related_articles as ArticleWithRelations[])
+    : [];
+  const [articleHtml, authorBioHtml] = await Promise.all([
     renderMarkdown(article.content_md),
-    article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve(""),
-    listPublishedArticles(6)
+    article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve("")
   ]);
 
-  const fallbackArticles = (latestArticles ?? []).filter((entry) => entry.id !== article.id);
+  const fallbackArticles = relatedArticlesRaw.filter((entry) => entry.id !== article.id);
   const relatedArticles = fallbackArticles.slice(0, 5);
   const relatedHeading = relatedArticles.length ? "Latest articles" : null;
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;

@@ -24,9 +24,7 @@ import { collectAuthorSocials } from "@/lib/author-socials";
 import { sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
-  listCodesForGame,
-  listGamesWithActiveCounts,
-  getRobloxUniverseById
+  listGamesWithActiveCounts
 } from "@/lib/db";
 import {
   SITE_DESCRIPTION,
@@ -248,7 +246,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     notFound();
   }
 
-  const codes = await listCodesForGame(game.id);
+  const codes = Array.isArray((game as any).codes) ? ((game as any).codes as Code[]) : [];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;
@@ -316,30 +314,12 @@ async function fetchGameData(slug: string) {
     const game = await getGameBySlug(slug);
     if (!game || !game.is_published) return { error: 'NOT_FOUND' as const };
 
-    const [codes, allGames, universe] = await Promise.all([
-      listCodesForGame(game.id).catch(error => {
-        logger.error('Failed to fetch codes for game', { 
-          gameId: game.id,
-          error: error instanceof Error ? error.message : String(error)
-        });
-        return [];
-      }),
-      listGamesWithActiveCounts().catch(error => {
-        logger.error('Failed to fetch game list', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-        return [];
-      }),
-      game.universe_id
-        ? getRobloxUniverseById(game.universe_id).catch(error => {
-            logger.error("Failed to fetch roblox universe", {
-              universeId: game.universe_id,
-              error: error instanceof Error ? error.message : String(error)
-            });
-            return null;
-          })
-        : Promise.resolve(null)
-    ]);
+    const codes = Array.isArray((game as any).codes) ? ((game as any).codes as Code[]) : [];
+    const recommended = Array.isArray((game as any).recommended_games)
+      ? ((game as any).recommended_games as GameWithCounts[])
+      : [];
+    const allGames = recommended;
+    const universe = (game as any).universe ?? null;
 
     return { game, codes, allGames, universe };
   } catch (error) {
@@ -387,16 +367,11 @@ export default async function GamePage({ params }: Params) {
   });
 
   const lastChecked = codes.reduce((acc, c) => (acc > c.last_seen_at ? acc : c.last_seen_at), game.updated_at);
-  const recommended = allGames
+  const recommended = (allGames ?? [])
     .filter((g) => g.id !== game.id)
-    .sort((a, b) => {
-      if (b.active_count !== a.active_count) return b.active_count - a.active_count;
-      return a.name.localeCompare(b.name);
-    })
-    .slice(0, 6)
     .map((g) => ({
       game: g,
-      articleUpdatedAt: g.content_updated_at ?? g.updated_at ?? null
+      articleUpdatedAt: (g as any).content_updated_at ?? (g as any).updated_at ?? null
     }));
 
   const lastCheckedDate = new Date(lastChecked);

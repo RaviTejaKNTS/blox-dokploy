@@ -5,8 +5,6 @@ import { SocialShare } from "@/components/SocialShare";
 import {
   getGameListBySlug,
   getGameListMetadata,
-  listPublishedGameLists,
-  listRanksForUniverses,
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
@@ -43,20 +41,20 @@ function listEntryName(entry: GameListUniverseEntry): string {
 }
 
 export async function buildListData(slug: string) {
-  const [data, allLists] = await Promise.all([getGameListBySlug(slug), listPublishedGameLists()]);
+  const data = await getGameListBySlug(slug);
   if (!data) {
     notFound();
   }
 
   const { list, entries } = data;
-  const universeIds = entries.map((entry) => entry.universe_id);
-  const rankBadgesMap = await listRanksForUniverses(universeIds, list.id);
   const entriesWithBadges: GameListEntryWithBadges[] = entries.map((entry) => ({
     ...entry,
-    badges: (rankBadgesMap.get(entry.universe_id) ?? []).slice(0, 3)
+    badges: (entry as any).badges ? ((entry as any).badges as UniverseListBadge[]) : []
   }));
 
-  return { list, allLists, entries: entriesWithBadges };
+  const otherLists = Array.isArray((list as any).other_lists) ? (list as any).other_lists : [];
+
+  return { list: { ...list, other_lists: otherLists }, entries: entriesWithBadges };
 }
 
 export async function buildMetadata(slug: string, page: number): Promise<Metadata> {
@@ -404,7 +402,7 @@ export default async function GameListPage({ params }: PageProps) {
       slug={params.slug}
       list={data.list as NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>}
       entries={data.entries}
-      allLists={data.allLists}
+      allLists={(data.list as any).other_lists ?? []}
       currentPage={1}
       heroHtml={heroHtml}
       introHtml={introHtml}
