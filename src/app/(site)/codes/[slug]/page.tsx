@@ -16,7 +16,6 @@ import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
 import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
-import { EzoicAdSlot } from "@/components/EzoicAdSlot";
 import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
@@ -753,11 +752,6 @@ export default async function GamePage({ params }: Params) {
             <AuthorCard author={game.author} bioHtml={authorBioHtml} />
           </div>
         ) : null}
-
-        <div className="mb-8">
-          {/* Ezoic - incontent_5 - incontent_5 */}
-          <EzoicAdSlot placeholderId={115} />
-        </div>
 
         <script
           type="application/ld+json"

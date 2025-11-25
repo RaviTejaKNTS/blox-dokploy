@@ -1,9 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import dynamic from "next/dynamic";
-import Script from "next/script";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
-import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const GlobalSearchOverlay = dynamic(
@@ -30,7 +28,6 @@ const themeScript = `(() => {
 const siteStructuredData = JSON.stringify(siteJsonLd({ siteUrl: SITE_URL }));
 const organizationStructuredData = JSON.stringify(organizationJsonLd({ siteUrl: SITE_URL }));
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
-const googleAdSenseClientId = process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID;
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -113,34 +110,11 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className="dark" data-theme="dark">
-      <head>
-        <Script
-          src="https://cmp.gatekeeperconsent.com/min.js"
-          data-cfasync="false"
-          strategy="beforeInteractive"
-        />
-        <Script
-          src="https://the.gatekeeperconsent.com/cmp.min.js"
-          data-cfasync="false"
-          strategy="beforeInteractive"
-        />
-        <Script
-          src="//www.ezojs.com/ezoic/sa.min.js"
-          strategy="beforeInteractive"
-          async
-        />
-        <Script id="ezoic-standalone-cmd" strategy="beforeInteractive">
-          {`
-            window.ezstandalone = window.ezstandalone || {};
-            ezstandalone.cmd = ezstandalone.cmd || [];
-          `}
-        </Script>
-      </head>
+      <head />
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
-        <GoogleAdSense clientId={googleAdSenseClientId} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
         <GlobalSearchOverlay />
         {children}
