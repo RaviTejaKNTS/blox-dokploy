@@ -33,12 +33,14 @@ export default async function GameListPageWithPagination({ params }: PageProps) 
     data.list.outro_md ? renderMarkdown(data.list.outro_md) : Promise.resolve("")
   ]);
 
+  const allLists = (data.list as any).other_lists ?? [];
+
   return (
     <ListPageView
       slug={params.slug}
       list={data.list}
       entries={data.entries}
-      allLists={data.allLists}
+      allLists={allLists}
       currentPage={pageNumber}
       heroHtml={heroHtml}
       introHtml={introHtml}
