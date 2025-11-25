@@ -26,7 +26,7 @@ import {
   getGameBySlug,
   listGamesWithActiveCounts
 } from "@/lib/db";
-import type { Code } from "@/lib/db";
+import type { Code, GameWithCounts } from "@/lib/db";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
