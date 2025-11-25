@@ -20,6 +20,7 @@ type PageProps = {
 };
 
 type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
+type OtherListLink = { id: string; slug: string; title: string };
 
 export const PAGE_SIZE = 10;
 
@@ -211,7 +212,7 @@ export function ListPageView({
   slug: string;
   list: NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>;
   entries: GameListEntryWithBadges[];
-  allLists: Awaited<ReturnType<typeof listPublishedGameLists>>;
+  allLists: OtherListLink[];
   currentPage: number;
   heroHtml: string;
   introHtml: string;
