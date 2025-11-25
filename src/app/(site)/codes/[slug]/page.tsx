@@ -26,6 +26,7 @@ import {
   getGameBySlug,
   listGamesWithActiveCounts
 } from "@/lib/db";
+import type { Code } from "@/lib/db";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -35,7 +36,7 @@ import {
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
 
-export const revalidate = 30;
+export const revalidate = 3600;
 
 export type Params = { params: { slug: string } };
 

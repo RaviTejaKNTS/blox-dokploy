@@ -24,7 +24,7 @@ import {
 } from "@/lib/db";
 import { extractHowToSteps } from "@/lib/how-to";
 
-export const revalidate = 30;
+export const revalidate = 86400;
 
 type Params = { params: { slug: string } };
 
