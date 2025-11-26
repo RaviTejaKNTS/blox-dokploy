@@ -35,6 +35,7 @@ body {
   @apply bg-background text-foreground antialiased;
   font-feature-settings: "liga" on, "kern" on;
   text-rendering: optimizeLegibility;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
 body {

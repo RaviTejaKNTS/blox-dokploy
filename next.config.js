@@ -40,12 +40,27 @@ const nextConfig = {
     ];
   },
   images: {
+    domains: [
+      "tr.rbxcdn.com",
+      "rbxcdn.com",
+      "rbxcdn.net",
+      "roblox.com",
+      "robloxden.com",
+      "ggpht.com",
+      "googleusercontent.com",
+      "bmwksaykcsndsvgspapz.supabase.co",
+    ],
     remotePatterns: [
       { protocol: "https", hostname: "**.roblox.com" },
       { protocol: "https", hostname: "**.robloxden.com" },
       { protocol: "https", hostname: "**.ggpht.com" },
       { protocol: "https", hostname: "**.googleusercontent.com" },
-      { protocol: "https", hostname: "bmwksaykcsndsvgspapz.supabase.co" }
+      { protocol: "https", hostname: "bmwksaykcsndsvgspapz.supabase.co" },
+      { protocol: "https", hostname: "rbxcdn.com" },
+      { protocol: "https", hostname: "**.rbxcdn.com" },
+      { protocol: "https", hostname: "tr.rbxcdn.com" },
+      { protocol: "https", hostname: "rbxcdn.net" },
+      { protocol: "https", hostname: "**.rbxcdn.net" }
     ],
     formats: ["image/avif", "image/webp"],
   },
