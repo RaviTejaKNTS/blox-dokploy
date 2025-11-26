@@ -69,7 +69,7 @@ export default async function AuthorPage({ params }: Params) {
     return notFound();
   }
 
-  const games = await listPublishedGamesByAuthorWithActiveCounts(author.id);
+  const games = await listPublishedGamesByAuthorWithActiveCounts(author.id, author.slug);
   const avatar = authorAvatarUrl(author, 120);
   const bioHtml = author.bio_md ? await marked.parse(author.bio_md) : "";
   const bioText = markdownToPlain(author.bio_md) || `${author.name} shares the latest Roblox code guides on ${SITE_NAME}.`;

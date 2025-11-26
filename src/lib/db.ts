@@ -261,7 +261,7 @@ const cachedListGamesWithActiveCounts = unstable_cache(
   ["listGamesWithActiveCounts"],
   {
     revalidate: 21600, // 6 hours
-    tags: ["codes", "codes-index", "home"]
+    tags: ["codes-index", "home"]
   }
 );
 
@@ -416,7 +416,7 @@ const cachedListPublishedArticles = unstable_cache(
   ["listPublishedArticles"],
   {
     revalidate: 21600, // 6 hours
-    tags: ["articles", "articles-index"]
+    tags: ["articles-index", "home"]
   }
 );
 
@@ -442,64 +442,68 @@ export async function listRecentArticlesForSitemap(): Promise<ArticleWithRelatio
   return listPublishedArticles(200, 0);
 }
 
-const cachedListPublishedGamesByAuthorWithActiveCounts = unstable_cache(
-  async (authorId: string) => {
-    const sb = supabaseAdmin();
-    const { data, error } = await sb
-      .from("code_pages_view")
-      .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
-      .eq("is_published", true)
-      .eq("author_id", authorId)
-      .order("name", { ascending: true });
-    if (error) throw error;
+export async function listPublishedGamesByAuthorWithActiveCounts(
+  authorId: string,
+  authorSlug?: string | null
+): Promise<GameWithCounts[]> {
+  const tagSlug = authorSlug?.trim().toLowerCase() ?? null;
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("code_pages_view")
+        .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+        .eq("is_published", true)
+        .eq("author_id", authorId)
+        .order("name", { ascending: true });
+      if (error) throw error;
 
-    return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
-  },
-  ["listPublishedGamesByAuthorWithActiveCounts"],
-  {
-    revalidate: 21600, // 6 hours
-    tags: ["authors"]
-  }
-);
+      return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
+    },
+    [`listPublishedGamesByAuthorWithActiveCounts:${authorId}`],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["authors-index", tagSlug ? `author:${tagSlug}` : null].filter(Boolean) as string[]
+    }
+  );
 
-export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {
-  return cachedListPublishedGamesByAuthorWithActiveCounts(authorId);
+  return cached();
 }
 
-const cachedGetGameBySlug = unstable_cache(
-  async (slug: string) => {
-    const sb = supabaseAdmin();
-    const normalizedSlug = slug.trim().toLowerCase();
-    const { data, error } = await sb
-      .from("code_pages_view")
-      .select("*")
-      .eq("slug", normalizedSlug)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
-
-    if (!(data as any).author && DEFAULT_AUTHOR_ID) {
-      const { data: fallback } = await sb
-        .from("authors")
-        .select("*")
-        .eq("id", DEFAULT_AUTHOR_ID)
-        .maybeSingle();
-      if (fallback) {
-        (data as any).author = fallback;
-      }
-    }
-
-    return data as GameWithAuthor;
-  },
-  ["getGameBySlug"],
-  {
-    revalidate: 21600, // 6 hours
-    tags: ["codes"]
-  }
-);
-
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
-  return cachedGetGameBySlug(slug);
+  const normalizedSlug = slug.trim().toLowerCase();
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("code_pages_view")
+        .select("*")
+        .eq("slug", normalizedSlug)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+
+      if (!(data as any).author && DEFAULT_AUTHOR_ID) {
+        const { data: fallback } = await sb
+          .from("authors")
+          .select("*")
+          .eq("id", DEFAULT_AUTHOR_ID)
+          .maybeSingle();
+        if (fallback) {
+          (data as any).author = fallback;
+        }
+      }
+
+      return data as GameWithAuthor;
+    },
+    [`getGameBySlug:${normalizedSlug}`],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["codes-index", `code:${normalizedSlug}`]
+    }
+  );
+
+  return cached();
 }
 
 const cachedGetRobloxUniverseById = unstable_cache(
@@ -517,7 +521,7 @@ const cachedGetRobloxUniverseById = unstable_cache(
   ["getRobloxUniverseById"],
   {
     revalidate: 21600, // 6 hours
-    tags: ["codes"]
+    tags: ["codes-index"]
   }
 );
 
@@ -541,7 +545,7 @@ const cachedListCodesForGame = unstable_cache(
   ["listCodesForGame"],
   {
     revalidate: 21600, // 6 hours
-    tags: ["codes"]
+    tags: ["codes-index"]
   }
 );
 

@@ -24,6 +24,7 @@ function revalidateForCode(slug: string) {
   revalidatePath(`/codes/${slug}`);
   revalidatePath("/codes");
   revalidatePath("/"); // home shows featured codes
+  revalidateTag(`code:${slug}`);
   revalidateTag("codes");
   revalidateTag("codes-index");
   revalidateTag("home");
@@ -33,6 +34,7 @@ function revalidateForArticle(slug: string) {
   revalidatePath(`/articles/${slug}`);
   revalidatePath("/articles");
   revalidatePath("/"); // home shows latest articles
+  revalidateTag(`article:${slug}`);
   revalidateTag("articles");
   revalidateTag("articles-index");
 }
@@ -42,6 +44,7 @@ function revalidateForList(slug: string) {
   // Revalidate all paginated list pages (dynamic [page] segment)
   revalidatePath(`/lists/${slug}/page/[page]`);
   revalidatePath("/lists");
+  revalidateTag(`list:${slug}`);
   revalidateTag("lists");
   revalidateTag("lists-index");
 }
@@ -49,6 +52,7 @@ function revalidateForList(slug: string) {
 function revalidateForAuthor(slug: string) {
   revalidatePath(`/authors/${slug}`);
   revalidatePath("/authors");
+  revalidateTag(`author:${slug}`);
   revalidateTag("authors");
   revalidateTag("authors-index");
 }
