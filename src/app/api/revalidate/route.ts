@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 type Payload =
   | { type: "code"; slug: string }
@@ -24,12 +24,17 @@ function revalidateForCode(slug: string) {
   revalidatePath(`/codes/${slug}`);
   revalidatePath("/codes");
   revalidatePath("/"); // home shows featured codes
+  revalidateTag("codes");
+  revalidateTag("codes-index");
+  revalidateTag("home");
 }
 
 function revalidateForArticle(slug: string) {
   revalidatePath(`/articles/${slug}`);
   revalidatePath("/articles");
   revalidatePath("/"); // home shows latest articles
+  revalidateTag("articles");
+  revalidateTag("articles-index");
 }
 
 function revalidateForList(slug: string) {
@@ -37,11 +42,15 @@ function revalidateForList(slug: string) {
   // Revalidate all paginated list pages (dynamic [page] segment)
   revalidatePath(`/lists/${slug}/page/[page]`);
   revalidatePath("/lists");
+  revalidateTag("lists");
+  revalidateTag("lists-index");
 }
 
 function revalidateForAuthor(slug: string) {
   revalidatePath(`/authors/${slug}`);
   revalidatePath("/authors");
+  revalidateTag("authors");
+  revalidateTag("authors-index");
 }
 
 export async function POST(request: Request) {

@@ -259,7 +259,10 @@ async function fetchGamesWithActiveCounts(): Promise<GameWithCounts[]> {
 const cachedListGamesWithActiveCounts = unstable_cache(
   fetchGamesWithActiveCounts,
   ["listGamesWithActiveCounts"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["codes", "codes-index", "home"]
+  }
 );
 
 export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
@@ -411,7 +414,10 @@ const cachedListPublishedArticles = unstable_cache(
     return (data ?? []) as unknown as ArticleWithRelations[];
   },
   ["listPublishedArticles"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["articles", "articles-index"]
+  }
 );
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
@@ -450,7 +456,10 @@ const cachedListPublishedGamesByAuthorWithActiveCounts = unstable_cache(
     return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
   },
   ["listPublishedGamesByAuthorWithActiveCounts"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["authors"]
+  }
 );
 
 export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {
@@ -483,7 +492,10 @@ const cachedGetGameBySlug = unstable_cache(
     return data as GameWithAuthor;
   },
   ["getGameBySlug"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["codes"]
+  }
 );
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
@@ -503,7 +515,10 @@ const cachedGetRobloxUniverseById = unstable_cache(
     return (data as RobloxUniverseInfo) || null;
   },
   ["getRobloxUniverseById"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["codes"]
+  }
 );
 
 export async function getRobloxUniverseById(universeId: number): Promise<RobloxUniverseInfo | null> {
@@ -524,7 +539,10 @@ const cachedListCodesForGame = unstable_cache(
     return codes as Code[];
   },
   ["listCodesForGame"],
-  { revalidate: 21600 } // 6 hours
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["codes"]
+  }
 );
 
 export async function listCodesForGame(gameId: string): Promise<Code[]> {
