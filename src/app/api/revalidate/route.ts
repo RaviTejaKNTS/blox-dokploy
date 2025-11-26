@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 type Payload =
   | { type: "code"; slug: string }
   | { type: "article"; slug: string }
-  | { type: "list"; slug: string };
+  | { type: "list"; slug: string }
+  | { type: "author"; slug: string };
 
 function assertSecret(request: Request) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -33,7 +34,14 @@ function revalidateForArticle(slug: string) {
 
 function revalidateForList(slug: string) {
   revalidatePath(`/lists/${slug}`);
+  // Revalidate all paginated list pages (dynamic [page] segment)
+  revalidatePath(`/lists/${slug}/page/[page]`);
   revalidatePath("/lists");
+}
+
+function revalidateForAuthor(slug: string) {
+  revalidatePath(`/authors/${slug}`);
+  revalidatePath("/authors");
 }
 
 export async function POST(request: Request) {
@@ -67,6 +75,9 @@ export async function POST(request: Request) {
       break;
     case "list":
       revalidateForList(slug);
+      break;
+    case "author":
+      revalidateForAuthor(slug);
       break;
     default:
       return NextResponse.json({ error: "Unknown type" }, { status: 400 });

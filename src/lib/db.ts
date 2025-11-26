@@ -259,7 +259,7 @@ async function fetchGamesWithActiveCounts(): Promise<GameWithCounts[]> {
 const cachedListGamesWithActiveCounts = unstable_cache(
   fetchGamesWithActiveCounts,
   ["listGamesWithActiveCounts"],
-  { revalidate: 30 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
@@ -411,7 +411,7 @@ const cachedListPublishedArticles = unstable_cache(
     return (data ?? []) as unknown as ArticleWithRelations[];
   },
   ["listPublishedArticles"],
-  { revalidate: 30 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
@@ -450,7 +450,7 @@ const cachedListPublishedGamesByAuthorWithActiveCounts = unstable_cache(
     return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
   },
   ["listPublishedGamesByAuthorWithActiveCounts"],
-  { revalidate: 600 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function listPublishedGamesByAuthorWithActiveCounts(authorId: string): Promise<GameWithCounts[]> {
@@ -483,7 +483,7 @@ const cachedGetGameBySlug = unstable_cache(
     return data as GameWithAuthor;
   },
   ["getGameBySlug"],
-  { revalidate: 30 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
@@ -503,7 +503,7 @@ const cachedGetRobloxUniverseById = unstable_cache(
     return (data as RobloxUniverseInfo) || null;
   },
   ["getRobloxUniverseById"],
-  { revalidate: 30 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function getRobloxUniverseById(universeId: number): Promise<RobloxUniverseInfo | null> {
@@ -524,7 +524,7 @@ const cachedListCodesForGame = unstable_cache(
     return codes as Code[];
   },
   ["listCodesForGame"],
-  { revalidate: 30 }
+  { revalidate: 21600 } // 6 hours
 );
 
 export async function listCodesForGame(gameId: string): Promise<Code[]> {

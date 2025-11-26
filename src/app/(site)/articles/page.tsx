@@ -3,7 +3,7 @@ import { listPublishedArticles } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ArticleCard } from "@/components/ArticleCard";
 
-export const revalidate = 300;
+export const revalidate = 604800; // weekly
 
 export const metadata: Metadata = {
   title: "Articles & Guides",

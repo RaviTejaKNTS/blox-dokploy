@@ -7,7 +7,7 @@ type PageProps = {
   params: { slug: string; page: string };
 };
 
-export const revalidate = 300;
+export const revalidate = 86400; // daily
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const pageNumber = Number(params.page);

@@ -16,8 +16,8 @@ import {
   breadcrumbJsonLd
 } from "@/lib/seo";
 
-// Cache author pages for 10 minutes to avoid per-request SSR
-export const revalidate = 600;
+// Cache author pages for a month; on-demand revalidation keeps them fresh
+export const revalidate = 2592000; // monthly
 
 type Params = { params: { slug: string } };
 

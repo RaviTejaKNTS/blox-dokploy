@@ -13,7 +13,7 @@ import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
 
-export const revalidate = 300;
+export const revalidate = 86400; // daily
 
 type PageProps = {
   params: { slug: string };

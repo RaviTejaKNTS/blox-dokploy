@@ -24,7 +24,7 @@ import {
 } from "@/lib/db";
 import { extractHowToSteps } from "@/lib/how-to";
 
-export const revalidate = 86400;
+export const revalidate = 604800; // weekly
 
 const LazyCodeBlockEnhancer = dynamic(
   () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),

@@ -35,7 +35,7 @@ import {
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // daily
 
 const LazyCodeBlockEnhancer = dynamic(
   () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),

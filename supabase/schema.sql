@@ -390,7 +390,7 @@ create index if not exists idx_articles_published_published_at on public.article
 -- Queue table for revalidation events
 create table if not exists public.revalidation_events (
   id uuid primary key default uuid_generate_v4(),
-  entity_type text not null check (entity_type in ('code','article','list')),
+  entity_type text not null check (entity_type in ('code','article','list','author')),
   slug text not null,
   source text,
   created_at timestamptz not null default now()

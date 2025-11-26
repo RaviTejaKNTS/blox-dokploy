@@ -3,7 +3,7 @@ import { listGamesWithActiveCounts } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 
-export const revalidate = 300;
+export const revalidate = 86400; // daily
 
 export const metadata: Metadata = {
   title: "Roblox Game Codes",

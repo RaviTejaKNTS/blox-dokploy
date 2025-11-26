@@ -15,7 +15,7 @@ const LazyMoreGames = dynamic(() => import("@/components/MoreGames").then((mod) 
   )
 });
 
-export const revalidate = 30;
+export const revalidate = 21600; // 6 hours
 
 const PAGE_TITLE = `${SITE_NAME} — Check Latest Roblox Game Codes`;
 const PAGE_DESCRIPTION =
