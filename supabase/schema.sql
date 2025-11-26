@@ -387,6 +387,18 @@ create index if not exists idx_articles_author on public.articles (author_id, is
 create index if not exists idx_articles_universe on public.articles (universe_id);
 create index if not exists idx_articles_published_published_at on public.articles (is_published, published_at desc);
 
+-- Queue table for revalidation events
+create table if not exists public.revalidation_events (
+  id uuid primary key default uuid_generate_v4(),
+  entity_type text not null check (entity_type in ('code','article','list')),
+  slug text not null,
+  source text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_revalidation_events_type_slug on public.revalidation_events (entity_type, slug);
+create index if not exists idx_revalidation_events_created on public.revalidation_events (created_at desc);
+
 create index if not exists idx_games_universe_id on public.games (universe_id);
 
 -- game lists metadata for curated list pages

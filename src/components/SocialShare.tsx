@@ -1,5 +1,3 @@
-"use client";
-
 import {
   FaDiscord,
   FaFacebook,

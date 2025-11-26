@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { AuthorCard } from "@/components/AuthorCard";
 import { SocialShare } from "@/components/SocialShare";
-import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
+import dynamic from "next/dynamic";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
 import { authorAvatarUrl } from "@/lib/avatar";
@@ -25,6 +25,11 @@ import {
 import { extractHowToSteps } from "@/lib/how-to";
 
 export const revalidate = 86400;
+
+const LazyCodeBlockEnhancer = dynamic(
+  () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),
+  { ssr: false }
+);
 
 type Params = { params: { slug: string } };
 
@@ -260,7 +265,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleHowToData }} />
         ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
-        <CodeBlockEnhancer />
+      <LazyCodeBlockEnhancer />
       </article>
 
       <aside className="space-y-4">

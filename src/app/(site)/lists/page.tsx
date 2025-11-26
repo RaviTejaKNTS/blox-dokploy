@@ -4,7 +4,7 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { markdownToPlainText } from "@/lib/markdown";
 import { ListCard } from "@/components/ListCard";
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 export const metadata = {
   title: `Roblox Game Lists | ${SITE_NAME}`,

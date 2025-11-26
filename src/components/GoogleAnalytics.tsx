@@ -10,7 +10,7 @@ type GoogleAnalyticsProps = {
 };
 
 const adminPrefix = "/admin";
-const DEFAULT_IDLE_DELAY = 3000;
+const DEFAULT_IDLE_DELAY = 5000;
 
 type IdleWindow = typeof window & {
   requestIdleCallback?: (callback: (deadline: IdleDeadline) => void, opts?: IdleRequestOptions) => number;

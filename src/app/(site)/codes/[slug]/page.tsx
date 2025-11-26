@@ -15,7 +15,7 @@ import { ActiveCodes } from "@/components/ActiveCodes";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
-import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
+import dynamic from "next/dynamic";
 import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
@@ -36,6 +36,11 @@ import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
 
 export const revalidate = 3600;
+
+const LazyCodeBlockEnhancer = dynamic(
+  () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),
+  { ssr: false }
+);
 
 export type Params = { params: { slug: string } };
 
@@ -826,7 +831,7 @@ export default async function GamePage({ params }: Params) {
             })
           }}
         />
-        <CodeBlockEnhancer />
+        <LazyCodeBlockEnhancer />
       </article>
 
       {recommended.length > 0 ? (
