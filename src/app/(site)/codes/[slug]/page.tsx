@@ -646,7 +646,9 @@ export default async function GamePage({ params }: Params) {
             <h2>Expired {game.name} Codes</h2>
             {expiredWithoutSpaces.length === 0 ? (
               <p className="text-muted">We haven't tracked any expired codes yet.</p>
-            ) : null}
+            ) : (
+              <p>These codes are expired and no longer work.</p>
+            )}
           </div>
           {expiredWithoutSpaces.length === 0 ? null : <ExpiredCodes codes={expiredWithoutSpaces} />}
         </section>

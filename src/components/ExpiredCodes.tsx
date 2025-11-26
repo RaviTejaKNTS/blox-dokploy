@@ -7,11 +7,12 @@ export function ExpiredCodes({ codes }: { codes: string[] }) {
     <div className="space-y-3">
       <ul
         id={listId}
-        className="mt-3 grid grid-cols-2 gap-2 text-xs text-foreground sm:grid-cols-3 md:grid-cols-4"
+        className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground"
       >
-        {sorted.map((code) => (
-          <li key={code} className="rounded-full border border-border/40 bg-surface-muted/70 px-3 py-1 text-center font-medium text-foreground">
-            <code>{code}</code>
+        {sorted.map((code, index) => (
+          <li key={code} className="flex items-center text-foreground">
+            <code className="font-medium">{code}</code>
+            {index < sorted.length - 1 ? <span className="mx-2 text-border/80">|</span> : null}
           </li>
         ))}
       </ul>
