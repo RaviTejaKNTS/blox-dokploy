@@ -146,6 +146,10 @@ type InterlinkGame = {
   universe: UniverseMeta | null;
 };
 
+type InterlinkGameQuery = Omit<InterlinkGame, "universe"> & {
+  universe: UniverseMeta | UniverseMeta[] | null;
+};
+
 type InterlinkPromptContext = {
   game: { id: string; name: string; slug: string };
   developer: string | null;
@@ -153,6 +157,11 @@ type InterlinkPromptContext = {
   basis: { developer: boolean; genre: boolean };
   picks: { id: string; slug: string; name: string; basis: "developer" | "genre" }[];
 };
+
+const normalizeInterlinkGame = (row: InterlinkGameQuery): InterlinkGame => ({
+  ...row,
+  universe: Array.isArray(row.universe) ? row.universe[0] ?? null : row.universe ?? null
+});
 
 function isArticleResponse(value: unknown): value is ArticleResponse {
   if (!value || typeof value !== "object") return false;
@@ -317,7 +326,9 @@ async function generateInterlinkingForGame(params: {
     console.warn("⚠️ Failed to load target game for interlinking:", targetError.message);
     return null;
   }
-  const targetGame = targetRow as InterlinkGame | null;
+  const targetGame = targetRow
+    ? normalizeInterlinkGame(targetRow as InterlinkGameQuery)
+    : null;
   if (!targetGame) return null;
 
   const { data: publishedRows, error: publishedError } = await supabase
@@ -332,9 +343,9 @@ async function generateInterlinkingForGame(params: {
   const allGames: InterlinkGame[] = [];
   const seen = new Set<string>();
   for (const row of publishedRows ?? []) {
-    const casted = row as InterlinkGame;
-    allGames.push(casted);
-    seen.add(casted.id);
+    const normalized = normalizeInterlinkGame(row as InterlinkGameQuery);
+    allGames.push(normalized);
+    seen.add(normalized.id);
   }
   if (!seen.has(targetGame.id)) {
     allGames.push(targetGame);

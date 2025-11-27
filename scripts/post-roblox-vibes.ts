@@ -37,7 +37,7 @@ const TRENDING_SORT_IDS = [
 type SocialLinks = Record<string, unknown> | null;
 
 type Universe = {
-  universe_id: number;
+  universe_id: number | null;
   name: string | null;
   display_name: string | null;
   slug: string | null;
@@ -50,6 +50,8 @@ type Universe = {
   social_links: SocialLinks;
 };
 
+type UniverseWithId = Universe & { universe_id: number };
+
 type SortEntry = {
   sort_id: string;
   rank: number | null;
@@ -57,11 +59,15 @@ type SortEntry = {
   universe: Universe | null;
 };
 
+type SortEntryQuery = Omit<SortEntry, "universe"> & {
+  universe: Universe | Universe[] | null;
+};
+
 type Candidate = {
   sortId: string;
   rank: number;
   fetchedAt: string;
-  universe: Universe;
+  universe: UniverseWithId;
 };
 
 type PlatformResult = "sent" | "skipped";
@@ -153,9 +159,11 @@ async function fetchTrending(): Promise<Candidate[]> {
   }
 
   const byUniverse = new Map<number, Candidate>();
-  for (const entry of (data as SortEntry[]) ?? []) {
+  const entries = ((data ?? []) as SortEntryQuery[]).map(normalizeSortEntry);
+  for (const entry of entries) {
     const universe = entry.universe;
     if (!universe || typeof universe.universe_id !== "number") continue;
+    const universeWithId: UniverseWithId = { ...universe, universe_id: universe.universe_id };
     const rank = typeof entry.rank === "number" ? entry.rank : 999;
     const playing = universe.playing ?? null;
     if (playing !== null && playing < MIN_PLAYING) continue;
@@ -165,7 +173,7 @@ async function fetchTrending(): Promise<Candidate[]> {
         sortId: entry.sort_id,
         rank,
         fetchedAt: entry.fetched_at,
-        universe
+        universe: universeWithId
       });
     }
   }
@@ -203,6 +211,11 @@ const FALLBACK_PROMPTS = [
   "Who else hoards avatar items they never use? 👀",
   "Speedrunning snack break before queuing up again. What should I play?"
 ];
+
+const normalizeSortEntry = (entry: SortEntryQuery): SortEntry => ({
+  ...entry,
+  universe: Array.isArray(entry.universe) ? entry.universe[0] ?? null : entry.universe ?? null
+});
 
 function pickTags(gameName: string | null | undefined): string {
   const tags: string[] = [];
@@ -317,7 +330,9 @@ async function main() {
     const pickIndex = Math.min(candidates.length - 1, Math.floor(Math.random() * Math.min(5, candidates.length)));
     const selection = candidates[pickIndex];
     const guessedHandle = extractHandleFromSocialLinks(selection.universe.social_links);
-    const handle = (await fetchUniverseHandle(selection.universe.universe_id)) ?? guessedHandle;
+    const handle = selection.universe.universe_id
+      ? (await fetchUniverseHandle(selection.universe.universe_id)) ?? guessedHandle
+      : guessedHandle;
     tweet = buildTrendTweet(selection, handle);
     console.log(`Selected trending universe ${selection.universe.display_name ?? selection.universe.name ?? selection.universe.universe_id}`);
   } else {
