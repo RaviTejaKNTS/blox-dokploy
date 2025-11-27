@@ -28,7 +28,8 @@ export function HeaderControls() {
   const navLinks = [
     { href: "/articles", label: "Articles" },
     { href: "/codes", label: "Codes" },
-    { href: "/lists", label: "Lists" }
+    { href: "/lists", label: "Lists" },
+    { href: "/calculators/robux-to-usd", label: "Robux to USD" }
   ];
 
   const mobileMenu = (

@@ -20,6 +20,7 @@ type Props = {
 type EnrichedCode = Code & {
   rewardText: string | null;
   isNew: boolean;
+  addedAtLabel: string | null;
 };
 
 function normalizeCoverImage(coverImage?: string | null): string | null {
@@ -70,7 +71,12 @@ export function ActiveCodes({
     return codes.map((code) => {
       const rewardText = cleanRewardsText(code.rewards_text);
       const isNew = isCodeWithinNewThreshold(code, nowMs);
-      return { ...code, rewardText, isNew };
+      const addedAtLabel = code.first_seen_at
+        ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(
+            new Date(code.first_seen_at)
+          )
+        : null;
+      return { ...code, rewardText, isNew, addedAtLabel };
     });
   }, [codes, nowMs]);
 
@@ -184,7 +190,11 @@ export function ActiveCodes({
                       </button>
                       <div className="space-y-2 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <code className={`text-lg font-bold tracking-[0.14em] sm:text-xl ${isUsed ? "line-through text-muted" : "text-foreground"}`}>
+                          <code
+                            className={`font-mono text-lg font-bold tracking-[0.14em] sm:text-xl ${
+                              isUsed ? "line-through text-muted" : "text-foreground"
+                            }`}
+                          >
                             {code.code}
                           </code>
                           {code.isNew ? (
@@ -203,8 +213,13 @@ export function ActiveCodes({
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 pl-14 sm:pl-0 sm:justify-end sm:gap-3 sm:[&>*]:whitespace-nowrap">
+                    <div className="flex flex-col items-end gap-2 pl-14 sm:pl-0 sm:justify-end sm:gap-3 sm:[&>*]:whitespace-nowrap">
                       <CopyCodeButton code={code.code} tone="accent" />
+                      {code.addedAtLabel ? (
+                        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted">
+                          Added {code.addedAtLabel}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </article>

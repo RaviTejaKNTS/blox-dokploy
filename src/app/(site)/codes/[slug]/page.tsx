@@ -20,7 +20,7 @@ import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
 import { collectAuthorSocials } from "@/lib/author-socials";
-import { sortCodesByFirstSeenDesc } from "@/lib/code-utils";
+import { isCodeWithinNewThreshold, sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
   listGamesWithActiveCounts
@@ -469,12 +469,14 @@ export default async function GamePage({ params }: Params) {
   const rewardsMarkdown = game.rewards_md ? replaceLinkPlaceholders(game.rewards_md, linkMap) : "";
   const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
   const aboutMarkdown = game.about_game_md ? replaceLinkPlaceholders(game.about_game_md, linkMap) : "";
+  const interlinkMarkdown = game.interlinking_ai_copy_md ?? "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
 
-  const [introHtml, redeemHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
+  const [introHtml, redeemHtml, interlinkHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
+    interlinkMarkdown ? renderMarkdown(interlinkMarkdown) : "",
     troubleshootMarkdown ? renderMarkdown(troubleshootMarkdown) : "",
     rewardsMarkdown ? renderMarkdown(rewardsMarkdown) : "",
     descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
@@ -520,6 +522,28 @@ export default async function GamePage({ params }: Params) {
   const authorProfileUrl = game.author?.slug ? `/authors/${game.author.slug}` : null;
   const authorSameAs = game.author ? Array.from(new Set(collectAuthorSocials(game.author).map((link) => link.url))) : [];
   const authorBioPlain = game.author?.bio_md ? markdownToPlainText(game.author.bio_md) : null;
+  const activeCodesItemList = sortedActive.map((code, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: code.code,
+    item: {
+      "@type": "Product",
+      name: `${game.name} code ${code.code}`,
+      sku: code.code,
+      description: code.rewards_text ?? undefined,
+      dateCreated: code.first_seen_at ? new Date(code.first_seen_at).toISOString() : undefined,
+      additionalProperty: [
+        { "@type": "PropertyValue", name: "code", value: code.code },
+        { "@type": "PropertyValue", name: "is_new", value: isCodeWithinNewThreshold(code, nowMs) },
+        ...(code.rewards_text
+          ? [{ "@type": "PropertyValue", name: "rewards", value: code.rewards_text }]
+          : []),
+        ...(code.first_seen_at
+          ? [{ "@type": "PropertyValue", name: "added_at", value: new Date(code.first_seen_at).toISOString() }]
+          : [])
+      ]
+    }
+  }));
   const faqEntries: { question: string; answer: string }[] = [];
   if (hasSupplemental) {
     if (troubleshootMarkdown) {
@@ -641,16 +665,16 @@ export default async function GamePage({ params }: Params) {
             />
           </section>
         ) : null}
+        {interlinkHtml ? (
+          <section className="mb-8" id="more-games">
+            <div
+              className="prose dark:prose-invert max-w-none game-copy"
+              dangerouslySetInnerHTML={processHtmlLinks(interlinkHtml)}
+            />
+          </section>
+        ) : null}
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="expired-codes">
-          <div className="prose prose-headings:mt-0 prose-headings:mb-2 prose-p:mt-2 dark:prose-invert max-w-none">
-            <h2>Expired {game.name} Codes</h2>
-            {expiredWithoutSpaces.length === 0 ? (
-              <p className="text-muted">We haven't tracked any expired codes yet.</p>
-            ) : (
-              <p>These codes are expired and no longer work.</p>
-            )}
-          </div>
-          {expiredWithoutSpaces.length === 0 ? null : <ExpiredCodes codes={expiredWithoutSpaces} />}
+          <ExpiredCodes codes={expiredWithoutSpaces} gameName={game.name} />
         </section>
 
         {hasSupplemental ? (
@@ -824,6 +848,16 @@ export default async function GamePage({ params }: Params) {
                               name: question,
                               acceptedAnswer: { "@type": "Answer", text: answer }
                             }))
+                          }
+                        ]
+                      : []),
+                    ...(activeCodesItemList.length
+                      ? [
+                          {
+                            "@type": "ItemList",
+                            name: `${game.name} active codes`,
+                            numberOfItems: activeCodesItemList.length,
+                            itemListElement: activeCodesItemList
                           }
                         ]
                       : [])

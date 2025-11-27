@@ -47,6 +47,8 @@ create table if not exists public.games (
   about_game_md text,
   description_md text,
   internal_links integer not null default 0,
+  interlinking_ai jsonb not null default '{}'::jsonb,
+  interlinking_ai_copy_md text,
   is_published boolean not null default false,
   re_rewritten_at timestamptz,
   created_at timestamptz not null default now(),
@@ -731,6 +733,7 @@ alter table public.codes
 -- Views for page data aggregation
 
 -- Codes/game pages view: game + author + universe + aggregated codes/counts + recommendations
+drop view if exists public.code_pages_view;
 create or replace view public.code_pages_view as
 with code_stats as (
   select
@@ -740,9 +743,34 @@ with code_stats as (
     max(c.first_seen_at) filter (where c.status = 'active') as latest_code_first_seen_at
   from public.codes c
   group by game_id
-)
+) 
 select
-  g.*,
+  g.id,
+  g.name,
+  g.slug,
+  g.old_slugs,
+  g.author_id,
+  g.roblox_link,
+  g.universe_id,
+  g.community_link,
+  g.discord_link,
+  g.twitter_link,
+  g.youtube_link,
+  g.expired_codes,
+  g.cover_image,
+  g.seo_title,
+  g.seo_description,
+  g.intro_md,
+  g.redeem_md,
+  g.troubleshoot_md,
+  g.rewards_md,
+  g.about_game_md,
+  g.description_md,
+  g.internal_links,
+  g.is_published,
+  g.re_rewritten_at,
+  g.created_at,
+  g.updated_at,
   coalesce(cs.codes, '[]'::jsonb) as codes,
   coalesce(cs.active_code_count, 0) as active_code_count,
   cs.latest_code_first_seen_at,
@@ -814,7 +842,8 @@ select
       order by coalesce(cs2.active_code_count, 0) desc, g2.updated_at desc
       limit 6
     ) rec
-  ) as recommended_games
+  ) as recommended_games,
+  g.interlinking_ai_copy_md
 from public.games g
 left join code_stats cs on cs.game_id = g.id
 left join public.authors a on a.id = g.author_id

@@ -25,7 +25,9 @@
     "lists:refresh": "tsx scripts/refresh-game-lists.ts",
     "update:playing": "tsx scripts/update-universe-playing.ts",
     "update:stats": "tsx scripts/update-universe-stats.ts",
-    "generate:universe-description": "tsx scripts/generate-universe-description.ts"
+    "generate:universe-description": "tsx scripts/generate-universe-description.ts",
+    "post:vibes": "tsx scripts/post-roblox-vibes.ts",
+    "backfill:interlinking": "tsx scripts/backfill-interlinking.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

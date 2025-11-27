@@ -54,6 +54,35 @@ const sleep = (ms: number): Promise<void> =>
 const normalizeForMatch = (value: string): string =>
   value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
+function normalize(str?: string | null): string | null {
+  if (!str) return null;
+  const cleaned = str.trim();
+  return cleaned.length ? cleaned : null;
+}
+
+const devKey = (universe?: UniverseMeta | null): string | null => {
+  if (!universe) return null;
+  if (universe.creator_id != null) return `id:${universe.creator_id}`;
+  const name = normalize(universe.creator_name);
+  return name ? `name:${name.toLowerCase()}` : null;
+};
+
+const genreKey = (universe?: UniverseMeta | null): string | null => {
+  if (!universe) return null;
+  const g1 = normalize(universe.genre_l1);
+  if (g1) return g1.toLowerCase();
+  const g2 = normalize(universe.genre_l2);
+  return g2 ? g2.toLowerCase() : null;
+};
+
+const sortCandidates = (list: InterlinkGame[]): InterlinkGame[] =>
+  [...list].sort((a, b) => {
+    const aLinks = a.internal_links ?? 0;
+    const bLinks = b.internal_links ?? 0;
+    if (aLinks !== bLinks) return aLinks - bLinks;
+    return a.name.localeCompare(b.name);
+  });
+
 type SearchEntry = {
   title: string;
   url: string;
@@ -98,6 +127,31 @@ type ExistingGameRecord = {
   source_url_2: string | null;
   source_url_3: string | null;
   universe_id: number | null;
+};
+
+type UniverseMeta = {
+  universe_id: number | null;
+  creator_id: number | null;
+  creator_name: string | null;
+  genre_l1: string | null;
+  genre_l2: string | null;
+};
+
+type InterlinkGame = {
+  id: string;
+  name: string;
+  slug: string;
+  internal_links: number | null;
+  is_published: boolean;
+  universe: UniverseMeta | null;
+};
+
+type InterlinkPromptContext = {
+  game: { id: string; name: string; slug: string };
+  developer: string | null;
+  genre: string | null;
+  basis: { developer: boolean; genre: boolean };
+  picks: { id: string; slug: string; name: string; basis: "developer" | "genre" }[];
 };
 
 function isArticleResponse(value: unknown): value is ArticleResponse {
@@ -224,6 +278,179 @@ async function fetchWithRetry(url: string, attempts = 2): Promise<Response> {
     await sleep(500);
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function generateInterlinkingForGame(params: {
+  gameId: string | null | undefined;
+  gameName: string;
+  gameSlug: string;
+  universeId: number | null;
+}): Promise<{
+  copy: string;
+  meta: Record<string, unknown>;
+  increments: Array<{ id: string; internal_links: number }>;
+} | null> {
+  const { gameId, gameName, gameSlug } = params;
+  if (!gameId) return null;
+
+  const baseSelect = `
+    id,
+    name,
+    slug,
+    internal_links,
+    is_published,
+    universe:roblox_universes(
+      universe_id,
+      creator_id,
+      creator_name,
+      genre_l1,
+      genre_l2
+    )
+  `;
+
+  const { data: targetRow, error: targetError } = await supabase
+    .from("games")
+    .select(baseSelect)
+    .eq("id", gameId)
+    .maybeSingle();
+  if (targetError) {
+    console.warn("⚠️ Failed to load target game for interlinking:", targetError.message);
+    return null;
+  }
+  const targetGame = targetRow as InterlinkGame | null;
+  if (!targetGame) return null;
+
+  const { data: publishedRows, error: publishedError } = await supabase
+    .from("games")
+    .select(baseSelect)
+    .eq("is_published", true);
+  if (publishedError) {
+    console.warn("⚠️ Failed to load published games for interlinking:", publishedError.message);
+    return null;
+  }
+
+  const allGames: InterlinkGame[] = [];
+  const seen = new Set<string>();
+  for (const row of publishedRows ?? []) {
+    const casted = row as InterlinkGame;
+    allGames.push(casted);
+    seen.add(casted.id);
+  }
+  if (!seen.has(targetGame.id)) {
+    allGames.push(targetGame);
+  }
+
+  const baseLinks = new Map<string, number>();
+  for (const g of allGames) baseLinks.set(g.id, g.internal_links ?? 0);
+
+  const byDev = new Map<string, InterlinkGame[]>();
+  const byGenre = new Map<string, InterlinkGame[]>();
+  for (const g of allGames) {
+    const dk = devKey(g.universe);
+    if (dk) {
+      if (!byDev.has(dk)) byDev.set(dk, []);
+      byDev.get(dk)!.push(g);
+    }
+    const gk = genreKey(g.universe);
+    if (gk) {
+      if (!byGenre.has(gk)) byGenre.set(gk, []);
+      byGenre.get(gk)!.push(g);
+    }
+  }
+
+  const dk = devKey(targetGame.universe);
+  const gk = genreKey(targetGame.universe);
+  const devCandidates = dk ? sortCandidates((byDev.get(dk) || []).filter((g) => g.id !== targetGame.id)) : [];
+  const genreCandidates = gk ? sortCandidates((byGenre.get(gk) || []).filter((g) => g.id !== targetGame.id)) : [];
+
+  const picks: { game: InterlinkGame; basis: "developer" | "genre" }[] = [];
+  const devQueue = [...devCandidates];
+  const genreQueue = [...genreCandidates];
+
+  while (picks.length < 4 && (devQueue.length || genreQueue.length)) {
+    const nextDev = devQueue[0];
+    const nextGenre = genreQueue[0];
+    const pickDev = nextDev && (!nextGenre || (nextDev.internal_links ?? 0) <= (nextGenre.internal_links ?? 0));
+    const next = pickDev ? devQueue.shift() : genreQueue.shift();
+    if (!next) break;
+    picks.push({ game: next, basis: pickDev ? "developer" : "genre" });
+  }
+
+  if (!picks.length) return null;
+
+  const devName = normalize(targetGame.universe?.creator_name);
+  const genreLabel = normalize(targetGame.universe?.genre_l1) || normalize(targetGame.universe?.genre_l2);
+
+  const promptContext: InterlinkPromptContext = {
+    game: { id: gameId, name: gameName, slug: gameSlug },
+    developer: devName || null,
+    genre: genreLabel || null,
+    basis: {
+      developer: Boolean(devCandidates.length),
+      genre: Boolean(genreCandidates.length)
+    },
+    picks: picks.map((p) => ({
+      id: p.game.id,
+      slug: p.game.slug,
+      name: p.game.name,
+      basis: p.basis
+    }))
+  };
+
+  const copy = await generateInterlinkCopy(promptContext);
+  if (!copy) return null;
+
+  const meta: Record<string, unknown> = {
+    generated_by: "generate-game-article",
+    generated_at: new Date().toISOString(),
+    version: 2,
+    prompt_context: promptContext
+  };
+
+  const increments = picks.map(({ game }) => ({
+    id: game.id,
+    internal_links: (baseLinks.get(game.id) ?? 0) + 1
+  }));
+
+  return { copy, meta, increments };
+}
+
+async function generateInterlinkCopy(context: InterlinkPromptContext): Promise<string | null> {
+  if (!context.picks.length) return null;
+
+  const system = [
+    "You are writing one short interlinking sentence for a Roblox codes page.",
+    "Tone: crisp, human, not templated, no fluff, 1-2 sentences max.",
+    "Link format must be Markdown with inline links: [Game Name codes](/codes/slug).",
+    "If there are developer picks, mention they are from the same developer.",
+    "If there are genre picks, mention they are genre-similar.",
+    "Do not invent games; only use the provided picks.",
+    "Do not repeat the game name of the page; focus on alternatives.",
+    "Avoid numbered lists or bullets."
+  ].join(" ");
+
+  const devLinks = context.picks.filter((p) => p.basis === "developer").map((p) => `[${p.name} codes](/codes/${p.slug})`);
+  const genreLinks = context.picks.filter((p) => p.basis === "genre").map((p) => `[${p.name} codes](/codes/${p.slug})`);
+
+  const user = {
+    game: context.game,
+    developer: context.developer,
+    genre: context.genre,
+    developer_picks: devLinks,
+    genre_picks: genreLinks
+  };
+
+  const completion = await openai.responses.create({
+    model: "gpt-4.1-mini",
+    input: [
+      { role: "system", content: system },
+      { role: "user", content: JSON.stringify(user) }
+    ]
+  });
+
+  const text = (completion.output_text ?? "").trim();
+  if (!text) return null;
+  return text;
 }
 
 async function findGameCodeArticle(gameName: string, siteSpecifier: string) {
@@ -502,7 +729,7 @@ ${sources}
 
 Return valid JSON with these keys:
 {
-  "intro_md": "Just 3-5 small sentences that explains the reader, what's the game, what rewards they get from codes and what benefit we get from these. No generic or filler sentences like "This is a good roblox game", "You will love this game, if", "definitely a game you want to check out". Always write in unique, unventional way, get directly to the point. Always start with unqiue thing that is very specific to the game and keep it engaging and very easy to read and follow. Do not just mention, you get free rewards, leave out anything that is very generic in nature. Write what rewards they get normally for this specific game and how that will be useful for this particular game, etc. Write like a Roblox ${gameName} player that is writing for another player who plays the game. Keep everything grounded and simple, do not hype up things, keep it informational, friendly and engaging. Write the info in full sentences, but in as less words as possible. Each and every intro should be very uniquely started, so do not ever start with ${gameName} or ${gameName} codes. Always start with something that is not very like templated writing. But keep the flow of infomration each to consume for the users. Don't write at the end like "Using codes strategically" or "Using codes smartly". Keep it simple and do not make it a template. Include the keyword ${gameName} codes in the intro. Do not force, only include it naturally. Also include only once, never user use the keyword more than once in the intro",
+  "intro_md": "Just a small intro that explains the reader what is the game, what rewards they get from codes and what benefit we get from these. No generic or filler sentences like "This is a good roblox game", "You will love this game, if", "definitely a game you want to check out". Keep it detailed and make it very easy for the reader the understand the game and the rewards.  Write like a Roblox ${gameName} player that is writing for another player who plays the game. Keep everything grounded and simple, do not hype up things, keep it informational, friendly and engaging. Write the info in full sentences, but in as less words as possible.  Include the keyword ${gameName} codes in the intro natually. Do not force the keyword, just make it arrive natually. Only use the keyword one time, never ever use the keyword two times",
   "redeem_md": "Start with ${JSON.stringify(redeemHeading)} and follow with numbered steps. If any requirements, conditions, or level limits appear anywhere in the sources, summarize them clearly before listing steps. If there are no requirements, write a line or two before the steps, to give cue to the actual steps. Write step-by-step in numbered list and keep the sentences simple and easy to scan. Do not use : and write like key value pairs, just write simple sentences. Always wrap the instruction to start the experience with [[roblox_link|Launch ${gameName}]]. Use plain text for any social mentions; no other placeholders besides the Roblox launch line. If the game does not have codes system yet, no need for step-by-step instructions, just convey the information in clear detail. We can skip the step by step process completely if the game does not have codes system.",
   "rewards_md": "Start with ${JSON.stringify(rewardsHeading)} then Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details,and a small description of each reward. Keep it very informational, full sentences, clean to understand, but write in as less words as possible. Before the table, write a line or two to give cue to the users. Do not include any generic or templated writing. Always write things that are unique to the game and leave out everything that is generic in nature like rewards help you progress faster. Leave out the ovbious and focus on the depth and information.",
   "troubleshoot_md": "Start with ${JSON.stringify(troubleshootHeading)} and write why codes might fail and how to fix it. Anything that is generic in nature should be just covered in para style and in one word. But if there are any game specific issues like reaching a specific level or something like that, only then it needs to include them in the bullet list. Even if the list only has 1, include only the unique ones and do not repeat anything. Always keep things direct and try to tell in as less words as possible. (No generic reasons should get into bullet points",
@@ -757,6 +984,38 @@ async function main() {
   if (upsert.error) throw upsert.error;
   const gameId = upsert.data?.id ?? existingGame?.id;
   console.log(`✅ "${name}" saved successfully (${slug})`);
+
+  if (gameId) {
+    const interlinking = await generateInterlinkingForGame({
+      gameId,
+      gameName: name,
+      gameSlug: slug,
+      universeId: resolvedUniverseId ?? null
+    });
+
+    if (interlinking) {
+      const { error: interlinkError } = await supabase
+        .from("games")
+        .update({
+          interlinking_ai: interlinking.meta,
+          interlinking_ai_copy_md: interlinking.copy
+        })
+        .eq("id", gameId);
+      if (interlinkError) {
+        console.warn("⚠️ Failed to store interlinking copy:", interlinkError.message);
+      }
+
+      for (const inc of interlinking.increments) {
+        const { error: incError } = await supabase
+          .from("games")
+          .update({ internal_links: inc.internal_links })
+          .eq("id", inc.id);
+        if (incError) {
+          console.warn(`⚠️ Failed to bump internal_links for ${inc.id}:`, incError.message);
+        }
+      }
+    }
+  }
 
   const coverSourceLink = resolvedLinks.roblox_link?.url ?? existingGame?.source_url ?? null;
   await maybeAttachCoverImage({ slug, name, id: gameId ?? undefined, robloxLink: coverSourceLink });

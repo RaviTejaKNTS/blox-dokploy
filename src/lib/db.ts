@@ -45,6 +45,7 @@ export type Game = {
   about_game_md: string | null;
   description_md: string | null;
   universe_id: number | null;
+  interlinking_ai_copy_md: string | null;
   is_published: boolean;
   re_rewritten_at?: string | null;
   created_at: string;
