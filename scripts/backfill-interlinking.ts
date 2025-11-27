@@ -22,6 +22,10 @@ type GameRow = {
   universe: Universe | null;
 };
 
+type GameQueryRow = Omit<GameRow, "universe"> & {
+  universe: Universe[] | Universe | null;
+};
+
 type CliOptions = {
   force: boolean;
   limit: number | null;
@@ -145,7 +149,10 @@ async function main() {
     process.exit(1);
   }
 
-  const rows: GameRow[] = (games ?? []) as GameRow[];
+  const rows: GameRow[] = ((games ?? []) as GameQueryRow[]).map((g) => ({
+    ...g,
+    universe: Array.isArray(g.universe) ? g.universe[0] ?? null : g.universe ?? null
+  }));
   const baseLinks = new Map(rows.map((g) => [g.id, g.internal_links ?? 0]));
 
   const byDev = new Map<string, GameRow[]>();
