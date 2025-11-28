@@ -398,6 +398,9 @@ create table if not exists public.revalidation_events (
   created_at timestamptz not null default now()
 );
 
+alter table if exists public.revalidation_events
+  add constraint revalidation_events_entity_slug_key unique (entity_type, slug);
+
 create index if not exists idx_revalidation_events_type_slug on public.revalidation_events (entity_type, slug);
 create index if not exists idx_revalidation_events_created on public.revalidation_events (created_at desc);
 

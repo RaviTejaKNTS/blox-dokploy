@@ -1,8 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
-export const revalidate = 3600;
-
 export async function GET() {
   const sb = supabaseAdmin();
   const origin = "https://bloxodes.com";
@@ -42,7 +40,8 @@ export async function GET() {
     { path: "/privacy-policy", changefreq: "yearly", priority: "0.5" },
     { path: "/editorial-guidelines", changefreq: "monthly", priority: "0.5" },
     { path: "/disclaimer", changefreq: "monthly", priority: "0.5" },
-    { path: "/authors", changefreq: "monthly", priority: "0.6" }
+    { path: "/authors", changefreq: "monthly", priority: "0.6" },
+    { path: "/calculators/robux-to-usd", changefreq: "weekly", priority: "0.9" }
   ];
 
   staticRoutes.push({ path: "/articles", changefreq: "weekly", priority: "0.7" });

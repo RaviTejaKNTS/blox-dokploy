@@ -10,7 +10,7 @@ const serviceRoleKey =
   Deno.env.get("SUPABASE_SERVICE_ROLE") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const revalidateEndpoint = Deno.env.get("REVALIDATE_ENDPOINT");
 const revalidateSecret = Deno.env.get("REVALIDATE_SECRET");
-const batchSize = Number(Deno.env.get("REVALIDATE_BATCH_SIZE") ?? 25);
+const batchSize = Number(Deno.env.get("REVALIDATE_BATCH_SIZE") ?? 100);
 const requestDelayMs = Number(Deno.env.get("REVALIDATE_REQUEST_DELAY_MS") ?? 0);
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
