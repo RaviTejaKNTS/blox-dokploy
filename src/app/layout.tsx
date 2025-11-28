@@ -27,8 +27,10 @@ const themeScript = `(() => {
   }
 })();`;
 
-const siteStructuredData = JSON.stringify(siteJsonLd({ siteUrl: SITE_URL }));
-const organizationStructuredData = JSON.stringify(organizationJsonLd({ siteUrl: SITE_URL }));
+const structuredData = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [siteJsonLd({ siteUrl: SITE_URL }), organizationJsonLd({ siteUrl: SITE_URL })]
+});
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
 export const metadata = {
@@ -122,8 +124,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
         <Analytics />
         <SpeedInsights />

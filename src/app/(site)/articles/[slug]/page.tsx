@@ -119,17 +119,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const authorSameAs = collectAuthorSameAs(article.author);
   const authorBioPlain = article.author?.bio_md ? markdownToPlainText(article.author.bio_md) : null;
   const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
-  const fallbackUniverse = universeName ?? "Roblox";
   const breadcrumbItems = [
     { label: "Home", href: "/" },
-    { label: fallbackUniverse, href: null },
-    { label: "Articles", href: "/articles" }
+    { label: "Articles", href: "/articles" },
+    { label: article.title, href: null }
   ];
   const breadcrumbData = JSON.stringify(
     breadcrumbJsonLd([
       { name: "Home", url: SITE_URL },
-      { name: fallbackUniverse, url: `${SITE_URL}/articles` },
-      { name: "Articles", url: `${SITE_URL}/articles` }
+      { name: "Articles", url: `${SITE_URL}/articles` },
+      { name: article.title, url: canonicalUrl }
     ])
   );
   const howToSteps = extractHowToSteps(article.content_md);

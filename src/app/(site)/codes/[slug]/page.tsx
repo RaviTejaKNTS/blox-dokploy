@@ -508,14 +508,14 @@ export default async function GamePage({ params }: Params) {
   const siteBaseUrl = SITE_URL.replace(/\/$/, "");
   const breadcrumbs = [
     { name: "Home", url: SITE_URL },
-    { name: game.name ?? "Roblox", url: canonicalUrl },
-    { name: "Codes", url: `${canonicalUrl}#codes` }
+    { name: "Codes", url: `${SITE_URL.replace(/\/$/, "")}/codes` },
+    { name: game.name ?? "Roblox", url: canonicalUrl }
   ];
   const breadcrumbData = JSON.stringify(breadcrumbJsonLd(breadcrumbs));
   const breadcrumbNavItems = [
     { label: "Home", href: "/" },
-    { label: game.name ?? "Roblox", href: null },
-    { label: "Codes", href: `${canonicalUrl}#active-codes` }
+    { label: "Codes", href: "/codes" },
+    { label: game.name ?? "Roblox", href: null }
   ];
   const authorBioHtml = game.author?.bio_md ? await renderMarkdown(game.author.bio_md) : "";
   const authorAvatar = game.author ? authorAvatarUrl(game.author, 72) : null;

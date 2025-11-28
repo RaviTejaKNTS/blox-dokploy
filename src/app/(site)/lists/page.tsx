@@ -64,7 +64,7 @@ export default function ListsPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-muted">Browse</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
         <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Roblox Game Lists</h1>
         <p className="text-sm text-muted max-w-3xl">
           Curated rankings and collections of Roblox experiences — updated regularly.

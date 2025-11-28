@@ -1,28 +1,24 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import "@/styles/article-content.css";
 import { RobuxBundle } from "./robux-bundles";
+import {
+  BudgetPlan,
+  DEFAULT_HAS_PREMIUM,
+  DEFAULT_TARGET_ROBUX,
+  DEFAULT_TARGET_USD,
+  PlanBreakdown,
+  PlanWithPlatform,
+  PlatformOption,
+  buildBudgetPlan,
+  buildRobuxPlan,
+  buildValueBundlePlan,
+  robuxForBundle,
+  selectBestRobuxPlan
+} from "./robux-plans";
 
-type PlatformOption = "pc_web" | "mobile";
 type CalculatorMode = "robux_to_usd" | "usd_to_robux";
-
-type PlanBreakdown = { bundle: RobuxBundle; count: number; robuxPerBundle: number; pricePerBundle: number };
-
-type RobuxPlan = {
-  totalRobux: number;
-  totalPrice: number;
-  approxCostForRequested: number;
-  isExact: boolean;
-  breakdown: PlanBreakdown[];
-};
-
-type BudgetPlan = {
-  totalRobux: number;
-  totalPrice: number;
-  approxRobuxForBudget: number;
-  breakdown: PlanBreakdown[];
-};
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -35,6 +31,12 @@ const usdPerRobux = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 4,
   maximumFractionDigits: 4
 });
+
+// Keep identical class strings on server and client to avoid hydration mismatches.
+const TEXT_BASE_CLASS = "article-content prose dark:prose-invert game-copy max-w-4xl text-muted";
+const INTRO_TEXT_CLASS = "article-content prose dark:prose-invert game-copy max-w-4xl text-muted space-y-4";
+const BODY_TEXT_CLASS = "article-content prose dark:prose-invert game-copy max-w-4xl text-muted space-y-3";
+const GUIDE_TEXT_CLASS = "article-content prose dark:prose-invert game-copy max-w-4xl text-muted space-y-6";
 
 function formatNumber(value: number): string {
   return value.toLocaleString("en-US");
@@ -54,281 +56,6 @@ function formatPremiumBonus(bundle: RobuxBundle): string {
   return mobile ?? pcWeb ?? "—";
 }
 
-function robuxForBundle(bundle: RobuxBundle, platform: PlatformOption, hasPremium: boolean): number | null {
-  const base = platform === "pc_web" ? bundle.basePcWeb : bundle.baseMobile;
-  if (base == null) return null;
-  const bonus = hasPremium ? (platform === "pc_web" ? bundle.bonusPcWeb : bundle.bonusMobile) ?? 0 : 0;
-  return base + bonus;
-}
-
-// thresholds to avoid huge DP arrays; fallback to greedy if larger
-const ROBUX_DP_CAP = 200000; // robux
-const BUDGET_DP_CAP_CENTS = 300000; // $3000
-
-function greedyRobuxPlan(target: number, platform: PlatformOption, hasPremium: boolean, bundles: RobuxBundle[]): RobuxPlan | null {
-  const candidates = bundles
-    .filter((b) => b.active)
-    .map((b) => {
-      const robux = robuxForBundle(b, platform, hasPremium);
-      if (!robux || robux <= 0) return null;
-      return { bundle: b, robux, price: b.priceUsd, value: robux / b.priceUsd };
-    })
-    .filter((entry): entry is { bundle: RobuxBundle; robux: number; price: number; value: number } => Boolean(entry))
-    .sort((a, b) => b.value - a.value || b.robux - a.robux || a.price - b.price);
-
-  if (!candidates.length) return null;
-
-  let remaining = Math.max(1, Math.floor(target));
-  const breakdown: PlanBreakdown[] = [];
-
-  for (const c of candidates) {
-    if (remaining <= 0) break;
-    const count = Math.max(1, Math.ceil(remaining / c.robux));
-    breakdown.push({ bundle: c.bundle, count, robuxPerBundle: c.robux, pricePerBundle: c.price });
-    remaining -= count * c.robux;
-  }
-
-  if (!breakdown.length) return null;
-
-  const totalRobux = breakdown.reduce((sum, entry) => sum + entry.robuxPerBundle * entry.count, 0);
-  const totalPrice = breakdown.reduce((sum, entry) => sum + entry.pricePerBundle * entry.count, 0);
-  const approxCostForRequested = totalRobux > 0 ? (target / totalRobux) * totalPrice : totalPrice;
-
-  return {
-    totalRobux,
-    totalPrice,
-    approxCostForRequested,
-    isExact: totalRobux === target,
-    breakdown
-  };
-}
-
-function buildRobuxPlan(target: number, platform: PlatformOption, hasPremium: boolean, bundles: RobuxBundle[]): RobuxPlan | null {
-  const desired = Math.max(1, Math.floor(target));
-  if (desired > ROBUX_DP_CAP) {
-    return greedyRobuxPlan(desired, platform, hasPremium, bundles);
-  }
-
-  const candidates = bundles
-    .filter((bundle) => bundle.active)
-    .map((bundle) => {
-      const robux = robuxForBundle(bundle, platform, hasPremium);
-      if (!robux || robux <= 0) return null;
-      return { bundle, robux, price: bundle.priceUsd };
-    })
-    .filter((entry): entry is { bundle: RobuxBundle; robux: number; price: number } => Boolean(entry));
-
-  if (!candidates.length) return null;
-
-  const cap = desired;
-  const inf = Number.POSITIVE_INFINITY;
-  type State = { price: number; robux: number; counts: Map<string, number> };
-  const dp: State[] = Array(cap + 1)
-    .fill(null)
-    .map(() => ({ price: inf, robux: 0, counts: new Map() }));
-  dp[0] = { price: 0, robux: 0, counts: new Map() };
-
-  const better = (a: State, b: State) => {
-    if (a.price !== b.price) return a.price < b.price;
-    const overA = a.robux - cap;
-    const overB = b.robux - cap;
-    if (overA !== overB) return overA < overB;
-    const countA = Array.from(a.counts.values()).reduce((s, c) => s + c, 0);
-    const countB = Array.from(b.counts.values()).reduce((s, c) => s + c, 0);
-    if (countA !== countB) return countA < countB;
-    const valueA = a.robux / Math.max(1, a.price);
-    const valueB = b.robux / Math.max(1, b.price);
-    if (valueA !== valueB) return valueA > valueB;
-    return false;
-  };
-
-  for (let r = 0; r < cap; r++) {
-    const current = dp[r];
-    if (!Number.isFinite(current.price)) continue;
-    for (const c of candidates) {
-      const nextR = Math.min(cap, r + c.robux);
-      const candidate: State = {
-        price: current.price + c.price,
-        robux: r + c.robux,
-        counts: new Map(current.counts)
-      };
-      candidate.counts.set(c.bundle.id, (candidate.counts.get(c.bundle.id) ?? 0) + 1);
-      if (better(candidate, dp[nextR])) {
-        dp[nextR] = candidate;
-      }
-    }
-  }
-
-  const best = dp[cap];
-  if (!Number.isFinite(best.price)) return greedyRobuxPlan(desired, platform, hasPremium, bundles);
-
-  const breakdown = Array.from(best.counts.entries())
-    .map(([id, count]) => {
-      const match = candidates.find((c) => c.bundle.id === id);
-      if (!match) return null;
-      return { bundle: match.bundle, count, robuxPerBundle: match.robux, pricePerBundle: match.price };
-    })
-    .filter((entry): entry is PlanBreakdown => Boolean(entry))
-    .sort((a, b) => a.bundle.sortOrder - b.bundle.sortOrder);
-
-  const totalRobux = best.robux;
-  const totalPrice = best.price;
-  const approxCostForRequested = totalRobux > 0 ? (desired / totalRobux) * totalPrice : totalPrice;
-  const multiBundleCount = breakdown.reduce((sum, entry) => sum + entry.count, 0);
-
-  // Find best single bundle that meets/exceeds the target
-  const singleCandidate = candidates
-    .filter((c) => c.robux >= desired)
-    .sort((a, b) => {
-      if (a.price !== b.price) return a.price - b.price;
-      if (a.robux !== b.robux) return b.robux - a.robux;
-      return a.bundle.sortOrder - b.bundle.sortOrder;
-    })[0];
-
-  if (singleCandidate && multiBundleCount > 1) {
-    const multiWithTax = totalPrice * 1.1; // 10% estimated tax
-    if (multiWithTax >= singleCandidate.price) {
-      const singleBreakdown: PlanBreakdown[] = [
-        {
-          bundle: singleCandidate.bundle,
-          count: 1,
-          robuxPerBundle: singleCandidate.robux,
-          pricePerBundle: singleCandidate.price
-        }
-      ];
-      const singleRobux = singleCandidate.robux;
-      const singlePrice = singleCandidate.price;
-      return {
-        totalRobux: singleRobux,
-        totalPrice: singlePrice,
-        approxCostForRequested: singleRobux > 0 ? (desired / singleRobux) * singlePrice : singlePrice,
-        isExact: singleRobux === desired,
-        breakdown: singleBreakdown
-      };
-    }
-  }
-
-  return {
-    totalRobux,
-    totalPrice,
-    approxCostForRequested,
-    isExact: totalRobux === desired,
-    breakdown
-  };
-}
-
-function buildBudgetPlan(budget: number, hasPremium: boolean, bundles: RobuxBundle[]): BudgetPlan | null {
-  const budgetCents = Math.max(0, Math.round(budget * 100));
-  const candidates = bundles
-    .filter((bundle) => bundle.active)
-    .map((bundle) => {
-      const robux = robuxForBundle(bundle, "pc_web", hasPremium); // PC/Web preferred
-      if (!robux || robux <= 0) return null;
-      return { bundle, robux, price: Math.round(bundle.priceUsd * 100) };
-    })
-    .filter((entry): entry is { bundle: RobuxBundle; robux: number; price: number } => Boolean(entry));
-
-  if (!candidates.length) return null;
-
-  if (budgetCents > BUDGET_DP_CAP_CENTS) {
-    // greedy: pick best value bundle until budget exhausted
-    const sorted = candidates
-      .map((c) => ({ ...c, value: c.robux / c.price }))
-      .sort((a, b) => b.value - a.value || a.price - b.price);
-    let remaining = budgetCents;
-    const breakdown: PlanBreakdown[] = [];
-    for (const c of sorted) {
-      if (remaining < Math.min(...sorted.map((s) => s.price))) break;
-      const count = Math.floor(remaining / c.price);
-      if (count <= 0) continue;
-      breakdown.push({ bundle: c.bundle, count, robuxPerBundle: c.robux, pricePerBundle: c.price / 100 });
-      remaining -= count * c.price;
-    }
-    if (!breakdown.length) {
-      const cheapest = sorted[0];
-      breakdown.push({ bundle: cheapest.bundle, count: 1, robuxPerBundle: cheapest.robux, pricePerBundle: cheapest.price / 100 });
-    }
-    const totalRobux = breakdown.reduce((s, e) => s + e.robuxPerBundle * e.count, 0);
-    const totalPrice = breakdown.reduce((s, e) => s + e.pricePerBundle * e.count, 0);
-    const approxRobuxForBudget = totalPrice > 0 ? (budget / totalPrice) * totalRobux : totalRobux;
-    return { totalRobux, totalPrice, approxRobuxForBudget, breakdown };
-  }
-
-  type State = { robux: number; price: number; counts: Map<string, number> };
-  const dp: State[] = Array(budgetCents + 1)
-    .fill(null)
-    .map(() => ({ robux: 0, price: 0, counts: new Map() }));
-
-  const better = (a: State, b: State) => {
-    if (a.robux !== b.robux) return a.robux > b.robux;
-    if (a.price !== b.price) return a.price > b.price; // closer to budget
-    const countA = Array.from(a.counts.values()).reduce((s, c) => s + c, 0);
-    const countB = Array.from(b.counts.values()).reduce((s, c) => s + c, 0);
-    if (countA !== countB) return countA < countB;
-    const valueA = a.robux / Math.max(1, a.price);
-    const valueB = b.robux / Math.max(1, b.price);
-    if (valueA !== valueB) return valueA > valueB;
-    return false;
-  };
-
-  for (let cost = 0; cost <= budgetCents; cost++) {
-    const current = dp[cost];
-    for (const c of candidates) {
-      const nextCost = cost + c.price;
-      if (nextCost > budgetCents) continue;
-      const candidate: State = {
-        robux: current.robux + c.robux,
-        price: current.price + c.price,
-        counts: new Map(current.counts)
-      };
-      candidate.counts.set(c.bundle.id, (candidate.counts.get(c.bundle.id) ?? 0) + 1);
-      if (better(candidate, dp[nextCost])) {
-        dp[nextCost] = candidate;
-      }
-    }
-  }
-
-  let best = dp[budgetCents];
-  for (let cost = budgetCents; cost >= 0; cost--) {
-    if (better(dp[cost], best)) {
-      best = dp[cost];
-    }
-  }
-
-  if (best.robux === 0) {
-    const cheapest = candidates.reduce((min, c) => (c.price < min.price ? c : min), candidates[0]);
-    best = { robux: cheapest.robux, price: cheapest.price, counts: new Map([[cheapest.bundle.id, 1]]) };
-  }
-
-  const breakdown = Array.from(best.counts.entries())
-    .map(([id, count]) => {
-      const match = candidates.find((c) => c.bundle.id === id);
-      if (!match) return null;
-      return { bundle: match.bundle, count, robuxPerBundle: match.robux, pricePerBundle: match.price / 100 };
-    })
-    .filter((entry): entry is PlanBreakdown => Boolean(entry))
-    .sort((a, b) => a.bundle.sortOrder - b.bundle.sortOrder);
-
-  const totalRobux = best.robux;
-  const totalPrice = best.price / 100;
-  const approxRobuxForBudget = totalPrice > 0 ? (budget / totalPrice) * totalRobux : totalRobux;
-
-  return {
-    totalRobux,
-    totalPrice,
-    approxRobuxForBudget,
-    breakdown
-  };
-}
-
-function breakdownRobuxForPlatform(breakdown: PlanBreakdown[] | undefined, platform: PlatformOption, hasPremium: boolean): number {
-  if (!breakdown) return 0;
-  return breakdown.reduce((sum, entry) => {
-    const robux = robuxForBundle(entry.bundle, platform, hasPremium) ?? entry.robuxPerBundle;
-    return sum + robux * entry.count;
-  }, 0);
-}
-
 function formatBundleLine(entry: PlanBreakdown, platform: PlatformOption, hasPremium: boolean): string {
   const baseRobux = robuxForBundle(entry.bundle, platform, false) ?? entry.robuxPerBundle;
   const premiumRobux = robuxForBundle(entry.bundle, platform, true) ?? baseRobux;
@@ -337,11 +64,38 @@ function formatBundleLine(entry: PlanBreakdown, platform: PlatformOption, hasPre
   return `${entry.count} × ${formatNumber(baseRobux)} Robux${premiumNote} — ${currency.format(entry.pricePerBundle)}`;
 }
 
-export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
+function platformLabel(platform: PlatformOption | null): string {
+  if (platform === "pc_web") return "PC / Web / Gift Cards";
+  if (platform === "mobile") return "Mobile / Microsoft Store";
+  return "—";
+}
+
+type RobuxPurchaseClientProps = {
+  bundles: RobuxBundle[];
+  initialRobuxTarget?: number;
+  initialUsdTarget?: number;
+  initialHasPremium?: boolean;
+  initialRobuxPlan?: PlanWithPlatform | null;
+  initialValuePlan?: PlanWithPlatform | null;
+  initialBudgetPlan?: BudgetPlan | null;
+};
+
+export function RobuxPurchaseClient({
+  bundles,
+  initialRobuxTarget = DEFAULT_TARGET_ROBUX,
+  initialUsdTarget = DEFAULT_TARGET_USD,
+  initialHasPremium = DEFAULT_HAS_PREMIUM,
+  initialRobuxPlan = null,
+  initialValuePlan = null,
+  initialBudgetPlan = null
+}: RobuxPurchaseClientProps) {
   const [mode, setMode] = useState<CalculatorMode>("robux_to_usd");
-  const [targetRobuxInput, setTargetRobuxInput] = useState("4600");
-  const [targetUsdInput, setTargetUsdInput] = useState("9.99");
-  const [hasPremium, setHasPremium] = useState(false);
+  const [targetRobuxInput, setTargetRobuxInput] = useState(() => initialRobuxTarget.toString());
+  const [targetUsdInput, setTargetUsdInput] = useState(() => initialUsdTarget.toString());
+  const [hasPremium, setHasPremium] = useState(initialHasPremium);
+  const [robuxPlan, setRobuxPlan] = useState<PlanWithPlatform | null>(initialRobuxPlan ?? null);
+  const [valueBundlePlan, setValueBundlePlan] = useState<PlanWithPlatform | null>(initialValuePlan ?? null);
+  const [budgetPlan, setBudgetPlan] = useState<BudgetPlan | null>(initialBudgetPlan ?? null);
 
   const activeBundles = useMemo(
     () =>
@@ -353,36 +107,45 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
 
   const parsedRobux = Number(targetRobuxInput);
   const parsedUsd = Number(targetUsdInput);
-  const robuxPlanPc = Number.isFinite(parsedRobux) && parsedRobux > 0 ? buildRobuxPlan(parsedRobux, "pc_web", hasPremium, bundles) : null;
-  const robuxPlanMobile = Number.isFinite(parsedRobux) && parsedRobux > 0 ? buildRobuxPlan(parsedRobux, "mobile", hasPremium, bundles) : null;
-  const robuxPlan = (() => {
-    const options = [robuxPlanPc ? { plan: robuxPlanPc, platform: "pc_web" as const } : null, robuxPlanMobile ? { plan: robuxPlanMobile, platform: "mobile" as const } : null].filter(
-      Boolean
-    ) as { plan: RobuxPlan; platform: PlatformOption }[];
-    if (!options.length) return null;
-    options.sort((a, b) => {
-      if (a.plan.totalPrice !== b.plan.totalPrice) return a.plan.totalPrice - b.plan.totalPrice;
-      if (a.plan.totalRobux !== b.plan.totalRobux) return b.plan.totalRobux - a.plan.totalRobux;
-      // prefer pc_web when otherwise equal
-      if (a.platform !== b.platform) return a.platform === "pc_web" ? -1 : 1;
-      return 0;
-    });
-    return { ...options[0].plan, platform: options[0].platform };
-  })();
-  const budgetPlan = Number.isFinite(parsedUsd) && parsedUsd > 0 ? buildBudgetPlan(parsedUsd, hasPremium, bundles) : null;
 
-  const mobileRobuxForRobuxPlan = robuxPlan ? breakdownRobuxForPlatform(robuxPlan.breakdown, "mobile", hasPremium) : null;
-  const pcRobuxForRobuxPlan = robuxPlan ? breakdownRobuxForPlatform(robuxPlan.breakdown, "pc_web", hasPremium) : null;
-  const mobileRobuxForBudgetPlan = budgetPlan ? breakdownRobuxForPlatform(budgetPlan.breakdown, "mobile", hasPremium) : null;
+  useEffect(() => {
+    if (Number.isFinite(parsedRobux) && parsedRobux > 0) {
+      const pcPlan = buildRobuxPlan(parsedRobux, "pc_web", hasPremium, bundles);
+      const mobilePlan = buildRobuxPlan(parsedRobux, "mobile", hasPremium, bundles);
+      setRobuxPlan(selectBestRobuxPlan(pcPlan, mobilePlan));
+      setValueBundlePlan(buildValueBundlePlan(parsedRobux, hasPremium, bundles));
+    } else {
+      setRobuxPlan(null);
+      setValueBundlePlan(null);
+    }
+  }, [parsedRobux, hasPremium, bundles]);
+
+  useEffect(() => {
+    if (Number.isFinite(parsedUsd) && parsedUsd > 0) {
+      setBudgetPlan(buildBudgetPlan(parsedUsd, hasPremium, bundles));
+    } else {
+      setBudgetPlan(null);
+    }
+  }, [parsedUsd, hasPremium, bundles]);
+
+  const displayRobuxPlan = robuxPlan;
+  const displayValuePlan = valueBundlePlan;
+  const displayBudgetPlan = budgetPlan;
+  const formattedTargetRobux = Number.isFinite(parsedRobux) ? formatNumber(parsedRobux) : "—";
 
   return (
     <div className="space-y-10">
       <section className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent/80">Calculator</p>
         <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">Robux to USD (and USD to Robux) Calculator</h1>
-        <p className="max-w-3xl text-base text-muted md:text-lg">
-          Toggle between Robux → USD or USD → Robux. We build the cheapest plan from real Roblox bundles and show the exact bundle breakdown.
-        </p>
+        <div className={INTRO_TEXT_CLASS}>
+          <p>
+            This calculator shows how much real USD you would spend for the Robux you want. If you already have Robux, you can use it to know how much worth of Robux you have in your account. We also suggest the best value bundles if you are planning to buy.
+          </p>
+          <p>
+            It works both ways. If you have a fixed budget, you can instantly see how many Robux you will get for that amount. Just toggle between Robux → USD or USD → Robux.
+          </p>
+        </div>
         <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
           <button
             type="button"
@@ -402,7 +165,7 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
       </section>
 
       {mode === "robux_to_usd" ? (
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
           <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); setTargetRobuxInput(targetRobuxInput.trim()); }} className="panel space-y-5 p-6">
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-foreground">Robux to USD</h2>
@@ -433,40 +196,81 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
           </form>
 
           <div className="panel flex h-full flex-col gap-6 p-6">
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-foreground">Your plan</h2>
-            </div>
+            <div className="space-y-2" />
 
             <div className="rounded-lg border border-border/60 bg-surface px-4 py-4 space-y-2">
-              <p className="text-sm text-muted">Approx cost for exactly {Number.isFinite(parsedRobux) ? formatNumber(parsedRobux) : "—"} Robux</p>
+              <p className="text-sm text-muted">Approx cost for exactly {formattedTargetRobux} Robux</p>
               <p className="text-3xl font-semibold text-foreground">
-                {robuxPlan ? currency.format(robuxPlan.approxCostForRequested) : "—"}
+                {displayRobuxPlan ? currency.format(displayRobuxPlan.approxCostForRequested) : "—"}
               </p>
               <p className="text-sm text-muted">This is just an approximate amount for the Robux you need.</p>
             </div>
 
-            <div className="rounded-lg border border-border/60 bg-surface px-4 py-4 space-y-3">
-              <p className="text-sm text-muted">Roblox only sells Robux in fixed bundles, so we pick the bundle that gives the best value per dollar.</p>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Bundle price ({robuxPlan?.platform === "pc_web" ? "PC / Web / Gift Cards" : "Mobile / Microsoft Store"})
-                </h3>
-                <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Recommended</span>
+            <p className="text-sm text-muted">Roblox only sells Robux in fixed bundles — here are the two best ways to cover your target.</p>
+
+            <div className="grid items-stretch gap-4 md:grid-cols-2">
+              <div className="flex h-full flex-col gap-4 rounded-lg border border-border/60 bg-surface px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold leading-tight text-foreground max-w-[70%]">Bundle to get just as much as needed</h3>
+                  <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Cheapest</span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-4">
+                  <p className="text-3xl font-semibold text-foreground">
+                    {displayRobuxPlan ? currency.format(displayRobuxPlan.totalPrice) : "—"}
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    Robux you will receive: <span className="text-2xl">{displayRobuxPlan ? formatNumber(displayRobuxPlan.totalRobux) : "—"}</span>
+                  </p>
+                </div>
+                <div className="flex-1" />
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
+                    <span>Bundle breakdown</span>
+                    <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] text-foreground">
+                      {platformLabel(displayRobuxPlan?.platform ?? null)}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm text-foreground">
+                    {displayRobuxPlan?.breakdown.map((entry) => (
+                      <p key={entry.bundle.id}>{formatBundleLine(entry, displayRobuxPlan.platform, hasPremium)}</p>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <p className="text-3xl font-semibold text-foreground">{robuxPlan ? currency.format(robuxPlan.totalPrice) : "—"}</p>
-              <p className="text-lg font-semibold text-foreground">
-                Robux you will receive: <span className="text-2xl">{robuxPlan ? formatNumber(robuxPlan.totalRobux) : "—"}</span>
-              </p>
-              <div className="space-y-1 text-sm text-foreground">
-                {robuxPlan?.breakdown.map((entry) => (
-                  <p key={entry.bundle.id}>{formatBundleLine(entry, robuxPlan.platform, hasPremium)}</p>
-                ))}
+
+              <div className="flex h-full flex-col gap-4 rounded-lg border border-border/60 bg-surface px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold leading-tight text-foreground max-w-[70%]">Best value for money bundle</h3>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">Best value</span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-4">
+                  <p className="text-3xl font-semibold text-foreground">
+                    {displayValuePlan ? currency.format(displayValuePlan.totalPrice) : "—"}
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    Robux you will receive: <span className="text-2xl">{displayValuePlan ? formatNumber(displayValuePlan.totalRobux) : "—"}</span>
+                  </p>
+                </div>
+                <div className="flex-1" />
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-muted">
+                    <span>Bundle breakdown</span>
+                    <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] text-foreground">
+                      {platformLabel(displayValuePlan?.platform ?? null)}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm text-foreground">
+                    {displayValuePlan?.breakdown.map((entry) => (
+                      <p key={entry.bundle.id}>{formatBundleLine(entry, displayValuePlan.platform, hasPremium)}</p>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
       ) : (
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
           <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); setTargetUsdInput(targetUsdInput.trim()); }} className="panel space-y-5 p-6">
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-foreground">USD to Robux</h2>
@@ -498,13 +302,11 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
           </form>
 
           <div className="panel flex h-full flex-col gap-6 p-6">
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-foreground">Your plan</h2>
-            </div>
+            <div className="space-y-2" />
             <div className="rounded-lg border border-border/60 bg-surface px-4 py-4 space-y-2">
               <p className="text-sm text-muted">Approx Robux for exactly {Number.isFinite(parsedUsd) ? currency.format(parsedUsd) : "—"}</p>
               <p className="text-3xl font-semibold text-foreground">
-                {budgetPlan ? formatNumber(Math.round(budgetPlan.approxRobuxForBudget)) : "—"}
+                {displayBudgetPlan ? formatNumber(Math.round(displayBudgetPlan.approxRobuxForBudget)) : "—"}
               </p>
               <p className="text-sm text-muted">This is just an approximate amount of Robux you get for the price you entered.</p>
             </div>
@@ -515,19 +317,30 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
                 <h3 className="text-lg font-semibold text-foreground">Bundle price (PC / Web / Gift Cards)</h3>
                 <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Recommended</span>
               </div>
-              <p className="text-3xl font-semibold text-foreground">{budgetPlan ? currency.format(budgetPlan.totalPrice) : "—"}</p>
+              <p className="text-3xl font-semibold text-foreground">{displayBudgetPlan ? currency.format(displayBudgetPlan.totalPrice) : "—"}</p>
               <p className="text-lg font-semibold text-foreground">
-                Robux you will receive: <span className="text-2xl">{budgetPlan ? formatNumber(budgetPlan.totalRobux) : "—"}</span>
+                Robux you will receive: <span className="text-2xl">{displayBudgetPlan ? formatNumber(displayBudgetPlan.totalRobux) : "—"}</span>
               </p>
               <div className="space-y-1 text-sm text-foreground">
-                {budgetPlan?.breakdown.map((entry) => (
+                {displayBudgetPlan?.breakdown.map((entry) => (
                   <p key={entry.bundle.id}>{formatBundleLine(entry, "pc_web", hasPremium)}</p>
                 ))}
               </div>
             </div>
             </div>
-          </section>
-        )}
+        </section>
+      )}
+
+      <section className={BODY_TEXT_CLASS}>
+        <h2 className="text-2xl font-semibold text-foreground">How this calculator actually works</h2>
+        <p>
+          Roblox never lets you pay for an exact custom amount of Robux. You always buy fixed bundles, and the bundle values change between PC/web, mobile, and Premium. So instead of guessing a fake per-Robux rate, the calculator uses the real bundles you see in the pricing table below.
+        </p>
+        <p>
+          If you type Robux, it finds the cheapest way to hit your target based on live bundles, compares PC/web and mobile, applies Premium if needed, and shows the closest plan with as little extra spend as possible. If you type dollars, it flips the logic: it tries to get you the maximum Robux your budget can buy using the highest value bundles without going over.
+        </p>
+        <p>The calculator always follows the current official USD bundles and builds realistic purchase plans around them.</p>
+      </section>
 
       <section className="panel space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -582,6 +395,172 @@ export function RobuxPurchaseClient({ bundles }: { bundles: RobuxBundle[] }) {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <section className={GUIDE_TEXT_CLASS}>
+        <div>
+          <h2>Where you can buy Robux</h2>
+          <p>You can buy Robux in a few official places:</p>
+          <ul>
+            <li>Roblox website</li>
+            <li>Roblox PC / Mac app</li>
+            <li>Roblox mobile app</li>
+            <li>Microsoft Store app</li>
+            <li>Roblox gift cards from stores or online retailers</li>
+          </ul>
+          <p>In general:</p>
+          <ul>
+            <li><strong>PC / web / gift cards usually give more Robux for the same price</strong></li>
+            <li><strong>Mobile bundles often give less Robux</strong> for the same listed price</li>
+          </ul>
+          <p>
+            The pricing table on this page shows which platforms each bundle supports and how many Robux you get there. Use it to avoid overpaying just because you bought from the wrong place.
+          </p>
+        </div>
+
+        <div>
+          <h2>What people normally buy with Robux</h2>
+          <p>This helps you understand whether something in a game is cheap or expensive in real money.</p>
+          <ul>
+            <li>Around <strong>400 Robux</strong> → most game passes or avatar bundles</li>
+            <li>Around <strong>1,000 Robux</strong> → premium items in top anime RPGs or multiple game passes</li>
+            <li>Around <strong>5,000 Robux</strong> → full avatar makeover + limited items + private server + game passes</li>
+            <li><strong>10,000+ Robux</strong> → layered clothing bundles, limiteds and big game upgrades</li>
+          </ul>
+          <p>The calculator lets you see the real USD value before you buy, so you know exactly what that “399 Robux” item means for your wallet.</p>
+        </div>
+
+        <div>
+          <h2>Roblox Premium in simple terms</h2>
+          <p>Roblox Premium is a monthly subscription that gives:</p>
+          <ul>
+            <li>A monthly Robux payout based on your plan</li>
+            <li>Extra Robux every time you buy a Robux bundle</li>
+            <li>The ability to sell some items and use the trading system</li>
+            <li>Extra perks inside some games if the developer supports Premium</li>
+          </ul>
+          <p>The current Premium tiers are:</p>
+          <ul>
+            <li>Premium 450</li>
+            <li>Premium 1,000</li>
+            <li>Premium 2,200</li>
+          </ul>
+          <p>Each tier costs more per month but gives more Robux.</p>
+          <p>
+            When you flip the Premium toggle in the calculator, you see how much extra value you get for the same purchase. That helps you decide if Premium makes sense for how you play.
+          </p>
+        </div>
+
+        <div>
+          <h2>If your price looks different on Roblox</h2>
+          <p>If you are outside the United States, Roblox shows prices in your local currency. Those prices:</p>
+          <ul>
+            <li>Are not always a perfect live conversion from USD</li>
+            <li>Can be rounded or adjusted per country</li>
+            <li>Can change when Roblox updates bundle values</li>
+          </ul>
+          <p>This calculator uses USD bundle prices as the base, then converts Robux amounts into dollars.</p>
+          <p>
+            If your local store shows a slightly different final price, treat the calculator as a close guide, not a perfect local invoice.
+          </p>
+        </div>
+
+        <div>
+          <h2>Easy ways to avoid wasting money</h2>
+          <p>A few mistakes make players and parents lose extra money without noticing:</p>
+          <ul>
+            <li>Buying on mobile when PC or web would give more Robux for the same price</li>
+            <li>Buying many small bundles instead of one medium or big bundle</li>
+            <li>Forgetting to log into the Premium account before purchasing</li>
+            <li>Clicking random links in chats, comments, or DMs that promise free Robux</li>
+          </ul>
+          <p>Use the calculator on this page to:</p>
+          <ul>
+            <li>Check the real money cost of the Robux you want</li>
+            <li>See which bundle gives you the best value</li>
+            <li>Decide whether to buy from mobile or switch to PC or gift cards first</li>
+          </ul>
+        </div>
+
+        <div>
+          <h2>DevEx payouts use different calculations</h2>
+          <p>
+            Developers who exchange Robux for real money through DevEx get a different USD rate than players who buy Robux. DevEx includes taxes, platform fees, and eligibility rules, so the value per Robux is much lower compared to normal purchases.
+          </p>
+          <p>
+            This calculator is not optimized for DevEx payouts. If you want to check how much money developers earn from Robux, use the dedicated DevEx calculator instead.
+          </p>
+        </div>
+
+        <div>
+          <h2>Commonly Asked Questions</h2>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <p><strong>Q:</strong> Robux calculator AUD or Robux calculator pounds?</p>
+              <p><strong>A:</strong> This calculator uses USD. If you pay in AUD, GBP or another currency, your bank or card provider converts from USD automatically. You can still use these numbers as a close guide to how expensive a purchase is.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> Is buying Robux on mobile worse than PC or web?</p>
+              <p><strong>A:</strong> Often yes. The price looks similar, but you usually get fewer Robux for the same amount on mobile.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> Why are my prices slightly different from this calculator?</p>
+              <p><strong>A:</strong> Roblox uses regional pricing and may adjust bundle values. This tool follows the main USD bundles and uses those as the base.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> Can I get a refund for Robux purchases?</p>
+              <p><strong>A:</strong> In most cases Robux purchases are final. In rare cases Roblox may refund Robux if a paid item you own is removed or moderated.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> Are Robux generators or “free Robux” sites real?</p>
+              <p><strong>A:</strong> No. They are almost always scams that try to steal your account or make money from surveys.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 350 Robux in USD?</p>
+              <p><strong>A:</strong> 350 Robux is roughly <strong>$3 to $4</strong> on PC/Web, since it sits between the $2.99 and $4.99 bundles.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 499 Robux in USD?</p>
+              <p><strong>A:</strong> 499 Robux is basically one 500 Robux bundle, so it is around <strong>$4.99</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 2400 Robux in USD?</p>
+              <p><strong>A:</strong> 2400 Robux usually lands near a 2000 + 500 style combination, so expect roughly <strong>$24 to $25</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 7000 Robux in USD (7k Robux in USD)?</p>
+              <p><strong>A:</strong> 7000 Robux is in the <strong>$70 range</strong> on PC/Web, depending on which mix of bundles you use.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 9999 Robux in USD?</p>
+              <p><strong>A:</strong> 9999 Robux is effectively the same as 10,000 Robux, which is about <strong>$100</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 40000 Robux in USD (40k Robux to USD)?</p>
+              <p><strong>A:</strong> 40000 Robux is in the <strong>high $300s</strong>, usually somewhere around <strong>$360 to $400</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 48000 Robux in USD (48000 Robux to USD)?</p>
+              <p><strong>A:</strong> 48000 Robux lines up well with two of the largest packs, so it is close to <strong>$400</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 50000 Robux in USD (50000 Robux in USD)?</p>
+              <p><strong>A:</strong> 50000 Robux usually ends up in the <strong>low $400s</strong>, roughly <strong>$410 to $450</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 70000 Robux in USD (70000 Robux to USD)?</p>
+              <p><strong>A:</strong> 70000 Robux usually lands in the <strong>$600 to $650</strong> range on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 85000 Robux in USD (85000 Robux to USD)?</p>
+              <p><strong>A:</strong> 85000 Robux can easily go above <strong>$750</strong>, often sitting somewhere between <strong>$750 and $850</strong> on PC/Web.</p>
+            </div>
+            <div className="space-y-2">
+              <p><strong>Q:</strong> How much is 999999999 Robux in USD?</p>
+              <p><strong>A:</strong> 999,999,999 Robux is a meme-level amount. In real terms, it would cost <strong>millions of dollars</strong> if it were even possible to buy that much directly.</p>
+            </div>
           </div>
         </div>
       </section>

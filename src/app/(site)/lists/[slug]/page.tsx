@@ -8,7 +8,7 @@ import {
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd } from "@/lib/seo";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
@@ -264,11 +264,39 @@ export function ListPageView({
       updatedAt: new Date(list.updated_at ?? list.refreshed_at ?? list.created_at).toISOString()
     })
   );
+  const breadcrumbs = [
+    { name: "Home", url: SITE_URL },
+    { name: "Lists", url: `${SITE_URL.replace(/\/$/, "")}/lists` },
+    { name: list.title, url: canonicalUrl }
+  ];
+  const breadcrumbData = JSON.stringify(breadcrumbJsonLd(breadcrumbs));
+  const breadcrumbNavItems = [
+    { label: "Home", href: "/" },
+    { label: "Lists", href: "/lists" },
+    { label: list.title, href: null }
+  ];
 
   const updatedLabel = showIntroOutro ? formatUpdatedLabel(list.refreshed_at ?? list.updated_at) : null;
 
   return (
     <>
+      <nav aria-label="Breadcrumb" className="mb-6 text-xs uppercase tracking-[0.25em] text-muted">
+        <ol className="flex flex-wrap items-center gap-2">
+          {breadcrumbNavItems.map((item, index) => (
+            <li key={`${item.label}-${index}`} className="flex items-center gap-2">
+              {item.href ? (
+                <a href={item.href} className="font-semibold text-muted transition hover:text-accent">
+                  {item.label}
+                </a>
+              ) : (
+                <span className="font-semibold text-foreground/80">{item.label}</span>
+              )}
+              {index < breadcrumbNavItems.length - 1 ? <span className="text-muted/60">&gt;</span> : null}
+            </li>
+          ))}
+        </ol>
+      </nav>
+
       <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12 lg:min-h-0">
         <div className="space-y-10 min-w-0 flex-1">
           <div className="space-y-4">
@@ -386,6 +414,7 @@ export function ListPageView({
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
     </>
   );
 }
