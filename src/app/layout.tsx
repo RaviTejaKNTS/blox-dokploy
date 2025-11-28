@@ -1,6 +1,8 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
@@ -123,6 +125,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteStructuredData }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationStructuredData }} />
         <GoogleAnalytics measurementId={googleAnalyticsId} />
+        <Analytics />
+        <SpeedInsights />
         <GlobalSearchOverlay />
         {children}
       </body>
