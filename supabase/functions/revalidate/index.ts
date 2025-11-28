@@ -10,6 +10,8 @@ const serviceRoleKey =
   Deno.env.get("SUPABASE_SERVICE_ROLE") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const revalidateEndpoint = Deno.env.get("REVALIDATE_ENDPOINT");
 const revalidateSecret = Deno.env.get("REVALIDATE_SECRET");
+const batchSize = Number(Deno.env.get("REVALIDATE_BATCH_SIZE") ?? 25);
+const requestDelayMs = Number(Deno.env.get("REVALIDATE_REQUEST_DELAY_MS") ?? 0);
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -36,20 +38,43 @@ async function deleteEvents(ids: string[]) {
   await supabase.from("revalidation_events").delete().in("id", ids);
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function revalidateEvent(event: EventRow): Promise<boolean> {
   if (!revalidateEndpoint || !revalidateSecret) return false;
-  const res = await fetch(revalidateEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${revalidateSecret}`
-    },
-    body: JSON.stringify({ type: event.entity_type, slug: event.slug })
-  });
-  if (!res.ok) {
-    logError("Revalidate request failed", { status: res.status, statusText: res.statusText, event });
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(revalidateEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${revalidateSecret}`
+      },
+      body: JSON.stringify({ type: event.entity_type, slug: event.slug })
+    });
+
+    if (res.ok) return true;
+
+    if (attempt < 3) {
+      // Backoff between retries to avoid hammering Vercel.
+      const backoffMs = 200 * attempt + Math.floor(Math.random() * 100);
+      await sleep(backoffMs);
+      continue;
+    }
+
+    const body = await res.text().catch(() => "");
+    logError("Revalidate request failed", {
+      status: res.status,
+      statusText: res.statusText,
+      body,
+      event,
+      attempt
+    });
   }
-  return res.ok;
+
+  return false;
 }
 
 serve(async (req) => {
@@ -67,12 +92,18 @@ serve(async (req) => {
     const successIds: string[] = [];
     const failures: EventRow[] = [];
 
-    for (const event of events) {
+    const eventsToProcess = events.slice(0, Math.max(1, batchSize));
+
+    for (const event of eventsToProcess) {
       const ok = await revalidateEvent(event);
       if (ok) {
         successIds.push(event.id);
       } else {
         failures.push(event);
+      }
+
+      if (requestDelayMs > 0) {
+        await sleep(requestDelayMs);
       }
     }
 

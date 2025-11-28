@@ -29,6 +29,8 @@ const siteStructuredData = JSON.stringify(siteJsonLd({ siteUrl: SITE_URL }));
 const organizationStructuredData = JSON.stringify(organizationJsonLd({ siteUrl: SITE_URL }));
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
+export const revalidate = 3600; // Default revalidation interval (1 hour) for all routes
+
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
