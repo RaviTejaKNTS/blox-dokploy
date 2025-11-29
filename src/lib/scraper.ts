@@ -122,6 +122,7 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
   const map = new Map<string, AggregatedEntry>();
   const order: string[] = [];
   const expiredMap = new Map<string, { code: string; priority: number }>();
+  const expiredCandidates: { normalized: string; code: string; priority: number }[] = [];
 
   for (const result of results) {
     for (const codeEntry of result.codes) {
@@ -154,10 +155,19 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
       const normalizedExpired = normalizeCodeKey(code);
       if (!normalizedExpired) continue;
       const incomingPriority = getCodeDisplayPriority(provider);
-      const existing = expiredMap.get(normalizedExpired);
-      if (!existing || incomingPriority > existing.priority) {
-        expiredMap.set(normalizedExpired, { code, priority: incomingPriority });
-      }
+      expiredCandidates.push({ normalized: normalizedExpired, code, priority: incomingPriority });
+    }
+  }
+
+  for (const candidate of expiredCandidates) {
+    const aggregated = map.get(candidate.normalized);
+    const hasHigherPriorityActive =
+      aggregated && aggregated.data.status === "active" && (aggregated.codePriority ?? 0) > candidate.priority;
+    if (hasHigherPriorityActive) continue;
+
+    const existing = expiredMap.get(candidate.normalized);
+    if (!existing || candidate.priority > existing.priority) {
+      expiredMap.set(candidate.normalized, { code: candidate.code, priority: candidate.priority });
     }
   }
 

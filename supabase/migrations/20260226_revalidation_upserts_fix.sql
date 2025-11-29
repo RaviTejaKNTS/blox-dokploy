@@ -1,14 +1,28 @@
--- Expand revalidation events to cover authors and universe-driven updates.
+-- Replace the enqueue helper with unambiguous parameter names by dropping the old signature first.
+drop function if exists public.enqueue_revalidation(text, text, text);
 
--- Allow the new entity type
-alter table public.revalidation_events
-  drop constraint if exists revalidation_events_entity_type_check;
+create or replace function public.enqueue_revalidation(p_entity_type text, p_slug text, p_source text default null)
+returns void
+language plpgsql
+as $$
+begin
+  if p_slug is null or trim(p_slug) = '' then
+    return;
+  end if;
 
-alter table public.revalidation_events
-  add constraint revalidation_events_entity_type_check
-  check (entity_type in ('code','article','list','author'));
+  insert into public.revalidation_events (entity_type, slug, source)
+  values (lower(p_entity_type), lower(trim(p_slug)), p_source)
+  on conflict on constraint revalidation_events_entity_slug_key
+  do update set
+    created_at = now(),
+    source = excluded.source;
+end;
+$$;
 
--- Authors trigger: revalidate author pages plus their games/articles
+-- Recreate the authors trigger helper with explicit conflict target.
+drop trigger if exists trg_enqueue_revalidation_authors on public.authors;
+drop function if exists public.trg_enqueue_revalidation_authors();
+
 create or replace function public.trg_enqueue_revalidation_authors()
 returns trigger
 language plpgsql
@@ -31,7 +45,7 @@ begin
   where a.author_id = author_id
     and a.slug is not null
     and trim(a.slug) <> ''
-  on conflict (entity_type, slug)
+  on conflict on constraint revalidation_events_entity_slug_key
   do update set
     created_at = now(),
     source = excluded.source;
@@ -44,7 +58,7 @@ begin
     and g.is_published = true
     and g.slug is not null
     and trim(g.slug) <> ''
-  on conflict (entity_type, slug)
+  on conflict on constraint revalidation_events_entity_slug_key
   do update set
     created_at = now(),
     source = excluded.source;
@@ -52,10 +66,3 @@ begin
   return null;
 end;
 $$;
-
-drop trigger if exists trg_enqueue_revalidation_authors on public.authors;
-create trigger trg_enqueue_revalidation_authors
-after insert or update or delete on public.authors
-for each row execute function public.trg_enqueue_revalidation_authors();
-
--- Roblox universe triggers removed to avoid high-churn revalidation noise.

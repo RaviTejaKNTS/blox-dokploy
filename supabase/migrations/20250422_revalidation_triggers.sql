@@ -20,7 +20,11 @@ begin
     return;
   end if;
   insert into public.revalidation_events (entity_type, slug, source)
-  values (lower(entity_type), lower(trim(slug)), source);
+  values (lower(entity_type), lower(trim(slug)), source)
+  on conflict (entity_type, slug)
+  do update set
+    created_at = now(),
+    source = excluded.source;
 end;
 $$;
 

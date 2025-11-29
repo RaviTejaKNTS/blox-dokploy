@@ -127,27 +127,31 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
 
   const { data: existingRows, error: existingError } = await sb
     .from("codes")
-    .select("code, status, provider_priority")
+    .select("code, status, provider_priority, first_seen_at")
     .eq("game_id", game.id);
 
   if (existingError) {
     throw new Error(`failed to load existing codes for ${game.slug}: ${existingError.message}`);
   }
 
-  const existingNormalizedMap = new Map<string, { code: string; providerPriority: number }>();
+  const existingNormalizedMap = new Map<string, { code: string; providerPriority: number; status: string; firstSeenAt?: string | null }>();
+  const expiredInDb = new Set<string>();
   for (const row of existingRows ?? []) {
     const existingCode = sanitizeCodeDisplay(row.code);
     if (!existingCode) continue;
     const normalized = normalizeCodeKey(existingCode);
     if (!normalized) continue;
     const providerPriority = Number(row.provider_priority ?? 0);
+    if (row.status === "expired") {
+      expiredInDb.add(normalized);
+    }
     if (existingNormalizedMap.has(normalized)) {
       const current = existingNormalizedMap.get(normalized)!;
       if (current.providerPriority >= providerPriority) {
         continue;
       }
     }
-    existingNormalizedMap.set(normalized, { code: existingCode, providerPriority });
+    existingNormalizedMap.set(normalized, { code: existingCode, providerPriority, status: row.status, firstSeenAt: row.first_seen_at });
   }
 
   let upserted = 0;
@@ -161,19 +165,24 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     if (!normalized) {
       continue;
     }
-    if (expiredByNormalized.has(normalized)) {
-      continue; // expired wins; drop active
+    const providerPriority = Number(c.providerPriority ?? getCodeDisplayPriority(c.provider) ?? 0);
+    const expiredEntry = expiredByNormalized.get(normalized);
+    if (expiredEntry) {
+      if (expiredEntry.priority >= providerPriority) {
+        continue; // expired wins for equal or higher priority
+      }
+      expiredByNormalized.delete(normalized); // higher priority active overrides expired
     }
     incomingNormalized.add(normalized);
-    const providerPriority = Number(c.providerPriority ?? 0);
 
     // Skip if a code with the same normalized value already exists for this game
     const existingEntry = existingNormalizedMap.get(normalized);
     if (existingEntry) {
+      const existingExpired = existingEntry.status === "expired";
       const higherPriorityExists = existingEntry.providerPriority > providerPriority;
       const samePrioritySameDisplay = existingEntry.providerPriority === providerPriority && existingEntry.code === displayCode;
 
-      if (higherPriorityExists || samePrioritySameDisplay) {
+      if (!existingExpired && (higherPriorityExists || samePrioritySameDisplay)) {
         // Still touch the row to refresh last_seen_at without overwriting provider priority
         const { error: touchError } = await sb
           .from("codes")
@@ -185,7 +194,12 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
           throw new Error(`failed to refresh last_seen_at for ${displayCode}: ${touchError.message}`);
         }
 
-        existingNormalizedMap.set(normalized, { code: existingEntry.code, providerPriority: existingEntry.providerPriority });
+        existingNormalizedMap.set(normalized, {
+          code: existingEntry.code,
+          providerPriority: existingEntry.providerPriority,
+          status: existingEntry.status,
+          firstSeenAt: existingEntry.firstSeenAt,
+        });
         continue;
       }
     }
@@ -196,6 +210,7 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     }
 
     const status = c.status === "check" ? "expired" : c.status;
+    const shouldResetFirstSeen = status === "active" && expiredInDb.has(normalized);
     const { error } = await sb.rpc("upsert_code", {
       p_game_id: game.id,
       p_code: displayCode,
@@ -210,8 +225,33 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
       throw new Error(`upsert failed for ${c.code}: ${error.message}`);
     }
 
+    if (shouldResetFirstSeen) {
+      const nowIso = new Date().toISOString();
+      const { error: resetError } = await sb
+        .from("codes")
+        .update({ first_seen_at: nowIso })
+        .eq("game_id", game.id)
+        .ilike("code", displayCode);
+
+      if (resetError) {
+        throw new Error(`failed to reset first_seen_at for ${displayCode}: ${resetError.message}`);
+      }
+      existingNormalizedMap.set(normalized, {
+        code: displayCode,
+        providerPriority,
+        status,
+        firstSeenAt: nowIso,
+      });
+    } else {
+      existingNormalizedMap.set(normalized, {
+        code: displayCode,
+        providerPriority,
+        status,
+        firstSeenAt: existingEntry?.firstSeenAt,
+      });
+    }
+
     upserted += 1;
-    existingNormalizedMap.set(normalized, { code: displayCode, providerPriority });
   }
 
   const existingCheckRows = (existingRows ?? []).filter((row) => row.status === "check");
