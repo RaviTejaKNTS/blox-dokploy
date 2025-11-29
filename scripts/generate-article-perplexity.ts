@@ -90,6 +90,30 @@ const QUALITY_DOMAINS = [
   "gamingonphone.com"
 ];
 
+let cachedAuthorIds: string[] | null = null;
+
+async function pickAuthorId(): Promise<string | null> {
+  if (!cachedAuthorIds) {
+    const { data, error } = await supabase.from("authors").select("id");
+    if (error) {
+      console.warn("⚠️ Unable to load authors:", error.message);
+      cachedAuthorIds = [];
+    } else {
+      cachedAuthorIds = (data ?? [])
+        .map((author) => author.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+    }
+  }
+
+  if (!cachedAuthorIds || cachedAuthorIds.length === 0) {
+    console.warn("⚠️ No authors available; falling back to default author.");
+    return null;
+  }
+
+  const index = Math.floor(Math.random() * cachedAuthorIds.length);
+  return cachedAuthorIds[index] ?? null;
+}
+
 function isHighQualityHost(hostname: string): boolean {
   const base = hostname.replace(/^www\./i, "").toLowerCase();
   return QUALITY_DOMAINS.some((domain) => base === domain || base.endsWith(`.${domain}`));
@@ -478,6 +502,7 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
 async function insertArticleDraft(article: DraftArticle): Promise<string> {
   const slug = await ensureUniqueSlug(article.title);
   const wordCount = estimateWordCount(article.content_md);
+  const authorId = (await pickAuthorId()) ?? AUTHOR_ID;
 
   const { data, error } = await supabase
     .from("articles")
@@ -486,7 +511,7 @@ async function insertArticleDraft(article: DraftArticle): Promise<string> {
       slug,
       content_md: article.content_md,
       meta_description: article.meta_description,
-      author_id: AUTHOR_ID,
+      author_id: authorId,
       is_published: false,
       word_count: wordCount
     })
