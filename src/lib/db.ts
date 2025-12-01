@@ -126,6 +126,7 @@ export type GameList = {
   outro_md: string | null;
   meta_title: string | null;
   meta_description: string | null;
+  display_name: string | null;
   cover_image: string | null;
   list_type: "sql" | "manual" | "hybrid";
   filter_config: Record<string, unknown> | null;
@@ -134,6 +135,7 @@ export type GameList = {
   refreshed_at: string | null;
   created_at: string;
   updated_at: string;
+  entries?: unknown[] | null;
 };
 
 export type GameListEntry = {

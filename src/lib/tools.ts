@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export type ToolFaqEntry = { q: string; a: string };
@@ -23,6 +24,7 @@ export type ToolContent = {
 
 const TOOL_SELECT_FIELDS =
   "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, created_at, updated_at";
+const TOOL_INDEX_FIELDS = "id, code, title, seo_title, meta_description, intro_md, thumb_url, created_at, updated_at";
 
 export async function getToolContent(code: string): Promise<ToolContent | null> {
   const supabase = supabaseAdmin();
@@ -39,4 +41,36 @@ export async function getToolContent(code: string): Promise<ToolContent | null> 
   }
 
   return (data as ToolContent) ?? null;
+}
+
+export type ToolListEntry = Pick<
+  ToolContent,
+  "id" | "code" | "title" | "seo_title" | "meta_description" | "intro_md" | "thumb_url"
+> & { created_at?: string; updated_at?: string };
+
+const cachedListPublishedTools = unstable_cache(
+  async () => {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from("tools")
+      .select(TOOL_INDEX_FIELDS)
+      .eq("is_published", true)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching tools index", error);
+      return [];
+    }
+
+    return (data ?? []) as ToolListEntry[];
+  },
+  ["listPublishedTools"],
+  {
+    revalidate: 21600, // 6 hours
+    tags: ["tools-index"]
+  }
+);
+
+export async function listPublishedTools(): Promise<ToolListEntry[]> {
+  return cachedListPublishedTools();
 }

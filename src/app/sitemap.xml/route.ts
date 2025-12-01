@@ -5,7 +5,7 @@ export async function GET() {
   const sb = supabaseAdmin();
   const origin = "https://bloxodes.com";
 
-  const [{ data: games }, { data: authors }, { data: articles }, { data: lists }] = await Promise.all([
+  const [{ data: games }, { data: authors }, { data: articles }, { data: lists }, { data: tools }] = await Promise.all([
     sb
       .from("games")
       .select("slug, updated_at")
@@ -26,6 +26,11 @@ export async function GET() {
       .from("game_lists")
       .select("slug, updated_at, refreshed_at")
       .eq("is_published", true)
+      .order("updated_at", { ascending: false }),
+    sb
+      .from("tools")
+      .select("code, updated_at")
+      .eq("is_published", true)
       .order("updated_at", { ascending: false })
   ]);
 
@@ -41,7 +46,7 @@ export async function GET() {
     { path: "/editorial-guidelines", changefreq: "monthly", priority: "0.5" },
     { path: "/disclaimer", changefreq: "monthly", priority: "0.5" },
     { path: "/authors", changefreq: "monthly", priority: "0.6" },
-    { path: "/tools/robux-to-usd-calculator", changefreq: "weekly", priority: "0.9" }
+    { path: "/tools", changefreq: "weekly", priority: "0.8" }
   ];
 
   staticRoutes.push({ path: "/articles", changefreq: "weekly", priority: "0.7" });
@@ -92,6 +97,16 @@ export async function GET() {
       changefreq: "daily",
       priority: "0.7",
       lastmod: updated ? new Date(updated).toISOString() : undefined
+    });
+  }
+
+  for (const tool of tools || []) {
+    if (!tool?.code) continue;
+    pages.push({
+      loc: `${origin}/tools/${tool.code}`,
+      changefreq: "weekly",
+      priority: "0.7",
+      lastmod: tool.updated_at ? new Date(tool.updated_at).toISOString() : undefined
     });
   }
 

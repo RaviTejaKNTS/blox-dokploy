@@ -1,8 +1,12 @@
 import { Suspense } from "react";
 import { listPublishedGameLists } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
-import { markdownToPlainText } from "@/lib/markdown";
 import { ListCard } from "@/components/ListCard";
+
+type ListEntryPreview = {
+  game?: { cover_image?: string | null } | null;
+  universe?: { icon_url?: string | null } | null;
+};
 
 export const revalidate = 86400; // daily
 
@@ -18,17 +22,16 @@ async function ListsContent() {
   const lists = await listPublishedGameLists();
   const cards = await Promise.all(
     (lists ?? []).map(async (list) => {
-      const description = list.meta_description
-        ? list.meta_description
-        : list.intro_md
-        ? markdownToPlainText(list.intro_md).slice(0, 200)
-        : null;
+      const entries = Array.isArray(list.entries) ? (list.entries as ListEntryPreview[]) : [];
+      const topEntry = entries[0] ?? null;
+      const topImage = topEntry?.game?.cover_image ?? topEntry?.universe?.icon_url ?? null;
+      const displayName = list.display_name || list.title;
       return {
         id: list.id,
         title: list.title,
+        displayName,
         slug: list.slug,
-        coverImage: list.cover_image || `${SITE_URL}/og-image.png`,
-        description,
+        coverImage: list.cover_image || topImage || `${SITE_URL}/og-image.png`,
         updatedAt: list.updated_at ?? list.refreshed_at ?? list.created_at,
         itemsCount: typeof list.limit_count === "number" ? list.limit_count : null
       };
@@ -44,13 +47,13 @@ async function ListsContent() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {cards.map((card) => (
         <ListCard
           key={card.id}
+          displayName={card.displayName}
           title={card.title}
           slug={card.slug}
-          description={card.description}
           coverImage={card.coverImage}
           updatedAt={card.updatedAt}
           itemsCount={card.itemsCount}
