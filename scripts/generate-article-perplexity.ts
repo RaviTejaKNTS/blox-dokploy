@@ -423,13 +423,17 @@ async function gatherSources(topic: string): Promise<SourceDocument[]> {
   return collected.slice(0, MAX_SOURCES);
 }
 
-function buildArticlePrompt(topic: string, sources: SourceDocument[]): string {
-  const sourceBlock = sources
+function formatSourcesForPrompt(sources: SourceDocument[]): string {
+  return sources
     .map(
       (source, index) =>
         `SOURCE ${index + 1}\nTITLE: ${source.title}\nURL: ${source.url}\nHOST: ${source.host}\nCONTENT:\n${source.content}\n`
     )
     .join("\n");
+}
+
+function buildArticlePrompt(topic: string, sources: SourceDocument[]): string {
+  const sourceBlock = formatSourcesForPrompt(sources);
 
   return `
 Use the research below to write a Roblox article.
@@ -446,7 +450,9 @@ Don't drag and explain things that are very obvious to the reader. Do not focus 
 
 Use only H2 headings for sections. Bullet points or tables are fine when they make information easier to scan. For step by step instructions, always use numbered steps. Before any bullets, tables, or steps, write a short paragraph that sets the context.
 
-Keep the tone friendly and relatable, like a Roblox player sharing their knowledge. Do not use over technical language. Focus on solving the user’s intent completely so they leave with zero confusion. Sprinkle in some first hand experience where ever matters and needed. 
+Keep the tone friendly and relatable, like a Roblox player sharing their knowledge. Do not use over technical language. Focus on solving the user’s intent completely so they leave with zero confusion. 
+
+Sprinkle in some first hand experience where ever matters and needed. Do not blatently write like from my experience or when I player. Give experience instead like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
 
 If the article is a listicle or has any lists that you can give, present them in clear, easy-to-scan formats like tables or bullet points.
 
@@ -492,6 +498,112 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
   const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
   if (!title || !content_md || !meta_description) {
     throw new Error("Draft missing required fields.");
+  }
+
+  return {
+    title: title.trim(),
+    content_md: content_md.trim(),
+    meta_description: meta_description.trim()
+  };
+}
+
+async function factCheckArticle(topic: string, article: DraftArticle, sources: SourceDocument[]): Promise<string> {
+  const prompt = `
+Fact check this Roblox article. Search broadly. If everything is accurate, reply exactly: Yes
+If anything is incorrect, missing, or misleading, reply starting with: No
+Then give clear details of what is wrong and how to change it, including the correct information needed. Be explicit about what to fix. Make sure to provide all the correct and upto date details. 
+
+Topic: "${topic}"
+
+Article Title: ${article.title}
+Meta Description: ${article.meta_description}
+Article Markdown:
+${article.content_md}
+`.trim();
+
+  const completion = await perplexity.chat.completions.create({
+    model: "sonar",
+    temperature: 0,
+    max_tokens: 1200,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a strict fact checker. Always reply exactly 'Yes' if the article is accurate. Otherwise start with 'No' and provide detailed, actionable corrections with the right information."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const feedback = completion.choices[0]?.message?.content?.trim();
+  if (!feedback) {
+    throw new Error("Fact check returned empty feedback.");
+  }
+
+  return feedback;
+}
+
+async function reviseArticleWithFeedback(
+  topic: string,
+  article: DraftArticle,
+  sources: SourceDocument[],
+  factCheckFeedback: string
+): Promise<DraftArticle> {
+  const sourceBlock = formatSourcesForPrompt(sources);
+  const prompt = `
+You are updating a Roblox article after fact-check feedback. Keep the same friendly, conversational tone and overall structure.
+- If feedback starts with "Yes", return the original article unchanged.
+- If feedback starts with "No", only adjust the parts that were flagged. Keep everything else as close as possible to the original voice.
+- Use the fact-check feedback plus the provided sources; do not invent new information.
+- Make only the changes required by the feedback—no extra rewrites.
+
+Topic: "${topic}"
+
+Fact-check feedback:
+${factCheckFeedback}
+
+Sources:
+${sourceBlock}
+
+Original article:
+Title: ${article.title}
+Meta Description: ${article.meta_description}
+Content:
+${article.content_md}
+
+Return JSON:
+{
+  "title": "Keep this close to the original title unless feedback requires a correction",
+  "meta_description": "150-160 character summary",
+  "content_md": "Updated Markdown article with only the necessary corrections"
+}
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0.35,
+    max_tokens: 4000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Revision step did not return valid JSON: ${(error as Error).message}`);
+  }
+
+  const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
+  if (!title || !content_md || !meta_description) {
+    throw new Error("Revision missing required fields.");
   }
 
   return {
@@ -552,11 +664,18 @@ async function main() {
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
-    if (draft.content_md.length < 400) {
-      throw new Error("Draft content is too short.");
+    const factCheckFeedback = await factCheckArticle(topic, draft, sources);
+    const factCheckLog = factCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
+    console.log(`fact_check="${factCheckLog}${factCheckFeedback.length > 200 ? "..." : ""}"`);
+
+    const revisedDraft = await reviseArticleWithFeedback(topic, draft, sources, factCheckFeedback);
+    console.log(`revised_title="${revisedDraft.title}" word_count=${estimateWordCount(revisedDraft.content_md)}`);
+
+    if (revisedDraft.content_md.length < 400) {
+      throw new Error("Draft content is too short after revision.");
     }
 
-    const articleId = await insertArticleDraft(draft);
+    const articleId = await insertArticleDraft(revisedDraft);
     console.log(`article_saved id=${articleId}`);
 
     await updateQueueStatus(queueEntry.id, "completed", null);
