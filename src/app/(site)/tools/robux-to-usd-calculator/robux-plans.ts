@@ -28,6 +28,7 @@ export const DEFAULT_HAS_PREMIUM = false;
 // thresholds to avoid huge DP arrays; fallback to greedy if larger
 const ROBUX_DP_CAP = 200000; // robux
 const BUDGET_DP_CAP_CENTS = 300000; // $3000
+const BUDGET_MARGIN_USD = 1; // allow recommending a slightly higher bundle than entered
 
 export function robuxForBundle(bundle: RobuxBundle, platform: PlatformOption, hasPremium: boolean): number | null {
   const base = platform === "pc_web" ? bundle.basePcWeb : bundle.baseMobile;
@@ -194,6 +195,32 @@ export function buildValueBundlePlan(target: number, hasPremium: boolean, bundle
 
   if (!candidates.length) return null;
 
+  const maxRobuxSingle = candidates.reduce((max, c) => Math.max(max, c.robux), 0);
+
+  // If the target is larger than any single bundle, build a multi-bundle plan (with DP/greedy fallback)
+  if (desired > maxRobuxSingle) {
+    const pcPlan = buildRobuxPlan(desired, "pc_web", hasPremium, bundles);
+    const mobilePlan = buildRobuxPlan(desired, "mobile", hasPremium, bundles);
+    const options = [
+      pcPlan ? { plan: pcPlan, platform: "pc_web" as const } : null,
+      mobilePlan ? { plan: mobilePlan, platform: "mobile" as const } : null
+    ].filter(Boolean) as { plan: RobuxPlan; platform: PlatformOption }[];
+
+    if (!options.length) return null;
+
+    options.sort((a, b) => {
+      const valueA = a.plan.totalRobux / Math.max(1, a.plan.totalPrice);
+      const valueB = b.plan.totalRobux / Math.max(1, b.plan.totalPrice);
+      if (valueA !== valueB) return valueB - valueA; // better value first
+      if (a.plan.totalPrice !== b.plan.totalPrice) return a.plan.totalPrice - b.plan.totalPrice;
+      if (a.plan.totalRobux !== b.plan.totalRobux) return b.plan.totalRobux - a.plan.totalRobux;
+      return a.platform === "pc_web" ? -1 : 1;
+    });
+
+    const pick = options[0];
+    return { ...pick.plan, platform: pick.platform };
+  }
+
   const meetsTarget = candidates.filter((c) => c.robux >= desired);
   const pool = meetsTarget.length ? meetsTarget : candidates;
 
@@ -222,7 +249,8 @@ export function buildValueBundlePlan(target: number, hasPremium: boolean, bundle
 }
 
 export function buildBudgetPlan(budget: number, hasPremium: boolean, bundles: RobuxBundle[]): BudgetPlan | null {
-  const budgetCents = Math.max(0, Math.round(budget * 100));
+  const baseBudgetCents = Math.max(0, Math.round(budget * 100));
+  const budgetCents = baseBudgetCents + Math.round(BUDGET_MARGIN_USD * 100);
   const candidates = bundles
     .filter((bundle) => bundle.active)
     .map((bundle) => {

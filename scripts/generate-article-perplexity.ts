@@ -436,19 +436,21 @@ Use the research below to write a Roblox article.
 
 Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional content writer who also plays Roblox. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
 
-Start with a short hook that makes the reader want to continue. Don't start the intro with a generic template style opening. Don't start with "If you ever" or other clichéd phrases.
+Start with an small intro that's engaging and is not templated style. Don't start the intro with a generic template style opening. Don't start with "If you ever" or other clichéd phrases.
 
 Right after the intro, give the main answer upfront in one short paragraph with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally.
 
-Use full sentences and explain things clearly without fluff or repetition. Keep the information dense but readable. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly.
+Use full sentences and explain things clearly without fluff or repetition. Keep the information dense but readable. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
+
+Don't drag and explain things that are very obvious to the reader. Do not focus on generic stuff or repeat what's already clear.
 
 Use only H2 headings for sections. Bullet points or tables are fine when they make information easier to scan. For step by step instructions, always use numbered steps. Before any bullets, tables, or steps, write a short paragraph that sets the context.
 
-Keep the tone friendly and relatable, like a Roblox player sharing their knowledge. Do not use over technical language. Focus on solving the user’s intent completely so they leave with zero confusion.
+Keep the tone friendly and relatable, like a Roblox player sharing their knowledge. Do not use over technical language. Focus on solving the user’s intent completely so they leave with zero confusion. Sprinkle in some first hand experience where ever matters and needed. 
 
 If the article is a listicle or has any lists that you can give, present them in clear, easy-to-scan formats like tables or bullet points.
 
-Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. End with a short friendly takeaway that leaves the reader feeling guided and confident.
+Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. End with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
 Topic: "${topic}"
 

@@ -29,7 +29,7 @@ export function HeaderControls() {
     { href: "/articles", label: "Articles" },
     { href: "/codes", label: "Codes" },
     { href: "/lists", label: "Lists" },
-    { href: "/calculators/robux-to-usd", label: "Robux to USD" }
+    { href: "/tools/robux-to-usd-calculator", label: "Robux to USD" }
   ];
 
   const mobileMenu = (

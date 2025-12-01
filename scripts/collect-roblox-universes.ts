@@ -7,7 +7,7 @@ import { slugify } from "@/lib/slug";
 
 const EXPLORE_BASE = "https://apis.roblox.com/explore-api/v1";
 const DEVICES = ["computer", "phone", "tablet", "console", "vr"];
-const COUNTRIES = ["in"];
+const COUNTRIES = ["us"];
 const CPU_CORES = process.env.ROBLOX_CPU_CORES ?? "8";
 const MAX_RESOLUTION = process.env.ROBLOX_MAX_RESOLUTION ?? "1440x900";
 const MAX_MEMORY = process.env.ROBLOX_MAX_MEMORY ?? "8192";
