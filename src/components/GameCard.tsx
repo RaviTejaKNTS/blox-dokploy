@@ -26,14 +26,21 @@ export function GameCard({
 }: GameCardProps) {
   const classes = className ? `${baseCardClass} ${className}` : baseCardClass;
   const updatedLabel = formatUpdatedLabel(articleUpdatedAt);
+  const hasCover = Boolean(game.cover_image);
+  const coverSrc =
+    hasCover && game.cover_image
+      ? game.cover_image.startsWith("http")
+        ? game.cover_image
+        : `/` + game.cover_image.replace(/^\//, "")
+      : null;
 
   return (
     <div className={`${classes} hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]`}>
       <Link href={`/codes/${game.slug}`} prefetch={false} className="flex flex-1 flex-col">
         <div className="relative aspect-[16/9] bg-surface-muted">
-          {game.cover_image ? (
+          {coverSrc ? (
             <Image
-              src={game.cover_image.startsWith("http") ? game.cover_image : `/` + game.cover_image.replace(/^\//, "")}
+              src={coverSrc}
               alt={game.name}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -44,7 +51,9 @@ export function GameCard({
               loading={priority ? undefined : "lazy"}
             />
           ) : (
-            <div className="absolute inset-0 grid place-items-center text-muted">{game.name}</div>
+            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-[rgba(var(--color-accent),0.9)] via-[rgba(var(--color-accent-dark),0.85)] to-[rgba(var(--color-foreground),0.75)] px-4 text-center text-white">
+              <span className="line-clamp-2 text-lg font-semibold drop-shadow-sm">{game.name}</span>
+            </div>
           )}
         </div>
         <div className="flex flex-1 flex-col gap-3 p-4">

@@ -14,7 +14,18 @@ type ArticleCardProps = {
 };
 
 export function ArticleCard({ article }: ArticleCardProps) {
-  const coverImage = article.cover_image || "/og-image.png";
+  const hasCover = Boolean(article.cover_image);
+  const coverImage = hasCover
+    ? article.cover_image!
+    : null;
+  const normalizedCover =
+    coverImage && coverImage.startsWith("http")
+      ? coverImage
+      : coverImage?.startsWith("/")
+        ? coverImage
+        : coverImage
+          ? `/${coverImage}`
+          : null;
   const updatedLabel = new Date(article.updated_at).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -27,15 +38,23 @@ export function ArticleCard({ article }: ArticleCardProps) {
     <div className={`${BASE_CLASS} hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)]`}>
       <Link href={`/articles/${article.slug}`} prefetch={false} className="flex flex-1 flex-col">
         <div className="relative aspect-[16/9] bg-surface-muted">
-          <Image
-            src={coverImage.startsWith("http") ? coverImage : coverImage.startsWith("/") ? coverImage : `/${coverImage}`}
-            alt={article.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            placeholder="blur"
-            blurDataURL={BLUR_DATA_URL}
-          />
+          {normalizedCover ? (
+            <Image
+              src={normalizedCover}
+              alt={article.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              placeholder="blur"
+              blurDataURL={BLUR_DATA_URL}
+            />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-[rgba(var(--color-accent),0.92)] via-[rgba(var(--color-accent-dark),0.88)] to-[rgba(var(--color-foreground),0.78)] px-4 text-center text-white">
+              <span className="line-clamp-2 text-lg font-semibold drop-shadow-sm">
+                {article.universe?.display_name ?? article.universe?.name ?? article.title}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-3 p-4">
           <div>
