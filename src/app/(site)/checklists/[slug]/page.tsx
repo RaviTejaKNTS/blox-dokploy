@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ChecklistBoard } from "@/components/ChecklistBoard";
+import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
@@ -36,10 +37,8 @@ export default async function ChecklistPage({ params }: PageProps) {
   const { page, items } = data;
 
   return (
-    <div className="flex flex-col gap-3 pb-6 md:gap-4">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-xl font-black leading-tight sm:text-[26px]">{page.title}</h1>
-      </div>
+    <div className="flex flex-col gap-3 pb-6 md:gap-2">
+      <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={items.length} />
       <div className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)]">
         <div className="min-w-max pr-6">
           <ChecklistBoard slug={page.slug} items={items} className="w-auto min-w-max" />

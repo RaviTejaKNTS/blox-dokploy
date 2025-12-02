@@ -211,6 +211,30 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
   const [availableHeight, setAvailableHeight] = useState<number>(0);
 
   const sections = useMemo(() => groupSections(items), [items]);
+  const progressByTopCode = useMemo(() => {
+    const totals = new Map<string, number>();
+    const done = new Map<string, number>();
+
+    for (const item of items) {
+      const { top } = parseCodeParts(item.section_code);
+      const key = String(top);
+      totals.set(key, (totals.get(key) ?? 0) + 1);
+      if (checked.has(item.id)) {
+        done.set(key, (done.get(key) ?? 0) + 1);
+      }
+    }
+
+    const result: Record<string, { total: number; done: number; percent: number }> = {};
+    for (const [key, total] of totals.entries()) {
+      const completed = done.get(key) ?? 0;
+      result[key] = {
+        total,
+        done: completed,
+        percent: total ? Math.round((completed / total) * 100) : 0
+      };
+    }
+    return result;
+  }, [items, checked]);
 
   useEffect(() => {
     setMounted(true);
@@ -282,6 +306,11 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
     });
   };
 
+  useEffect(() => {
+    const detail = { slug, checkedCount: checked.size, totalCount: items.length };
+    window.dispatchEvent(new CustomEvent("checklist-progress", { detail }));
+  }, [slug, checked, items.length]);
+
   const columns = useMemo(() => {
     const maxHeight = availableHeight > 0 ? availableHeight - 16 : containerHeight > 0 ? containerHeight - 16 : 640;
     return buildColumns(sections, maxHeight);
@@ -333,12 +362,34 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
             }
             return groups.map((group) => (
               <div key={`group-${group.topCode}`} className="flex flex-col gap-3">
-                <div className="space-y-1 px-1">
-                  <div className="text-lg font-extrabold leading-snug text-foreground">
-                    {group.topCode}. {group.topLabel}
-                  </div>
-                  <div className="h-px w-full bg-border/80" />
-                </div>
+                {(() => {
+                  const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
+                  return (
+                    <div className="space-y-2 px-1">
+                      <div className="text-lg font-extrabold leading-snug text-foreground">
+                        {group.topCode}. {group.topLabel}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-border/70"
+                          role="progressbar"
+                          aria-label={`Progress for ${group.topLabel}`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={progress.percent}
+                        >
+                          <div
+                            className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                            style={{ width: `${progress.percent}%` }}
+                          />
+                        </div>
+                        <div className="min-w-[52px] text-right text-[11px] font-semibold text-muted-foreground">
+                          {progress.done}/{progress.total}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {(() => {
                   const sectionGroups: { code: string; name: string; cols: typeof group.cols }[] = [];
                   for (const col of group.cols) {
