@@ -3,7 +3,7 @@ name: Update Stats and Refresh Lists
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "0 0 31 2 *" # nonexistent date to keep schedule effectively disabled
+    - cron: "0 4 * * *" # daily at 04:00 UTC
 
 concurrency:
   group: update-stats-and-lists
