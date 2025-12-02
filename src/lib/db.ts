@@ -164,6 +164,32 @@ export type UniverseListBadge = {
   rank: number;
 };
 
+export type ChecklistPage = {
+  id: string;
+  universe_id: number;
+  slug: string;
+  title: string;
+  seo_title: string | null;
+  seo_description: string | null;
+  published_at: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChecklistItem = {
+  id: string;
+  page_id: string;
+  section_code: string;
+  section_name: string;
+  title: string;
+  description: string | null;
+  is_required: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Code = {
   id: string;
   game_id: string;
@@ -467,6 +493,69 @@ export async function listPublishedGamesByAuthorWithActiveCounts(
     {
       revalidate: 21600, // 6 hours
       tags: ["authors-index", tagSlug ? `author:${tagSlug}` : null].filter(Boolean) as string[]
+    }
+  );
+
+  return cached();
+}
+
+const cachedGetChecklistPageBySlug = unstable_cache(
+  async (slug: string) => {
+    const normalizedSlug = slug.trim().toLowerCase();
+    const sb = supabaseAdmin();
+
+    const { data: page, error: pageError } = await sb
+      .from("checklist_pages")
+      .select("*")
+      .eq("slug", normalizedSlug)
+      .eq("is_public", true)
+      .maybeSingle();
+
+    if (pageError) throw pageError;
+    if (!page) return null;
+
+    const { data: items, error: itemsError } = await sb
+      .from("checklist_items")
+      .select("*")
+      .eq("page_id", (page as any).id)
+      .order("section_code", { ascending: true })
+      .order("position", { ascending: true });
+
+    if (itemsError) throw itemsError;
+
+    return {
+      page: page as ChecklistPage,
+      items: (items ?? []) as ChecklistItem[]
+    };
+  },
+  ["getChecklistPageBySlug"],
+  {
+    revalidate: 1800,
+    tags: ["checklists-index"]
+  }
+);
+
+export async function getChecklistPageBySlug(
+  slug: string
+): Promise<{ page: ChecklistPage; items: ChecklistItem[] } | null> {
+  return cachedGetChecklistPageBySlug(slug.trim().toLowerCase());
+}
+
+export async function listPublishedChecklistSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("checklist_pages")
+        .select("slug")
+        .eq("is_public", true);
+      if (error) throw error;
+      return (data ?? []).map((row) => (row as { slug: string }).slug);
+    },
+    ["listPublishedChecklistSlugs"],
+    {
+      revalidate: 1800,
+      tags: ["checklists-index"]
     }
   );
 

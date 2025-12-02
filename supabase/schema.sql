@@ -481,6 +481,24 @@ create table if not exists public.checklist_items (
 create index if not exists idx_checklist_items_page_section on public.checklist_items (page_id, section_code, position);
 create index if not exists idx_checklist_items_page on public.checklist_items (page_id);
 
+-- helper to normalize section_code
+create or replace function public.normalize_section_code(raw text) returns text as $$
+declare
+  cleaned text;
+begin
+  cleaned := regexp_replace(coalesce(raw, ''), E'[\\s\\u00A0]', '', 'g');
+  cleaned := regexp_replace(cleaned, '[^0-9\\.]', '', 'g');
+  return cleaned;
+end;
+$$ language plpgsql immutable;
+
+create or replace function public.trg_normalize_section_code() returns trigger as $$
+begin
+  new.section_code := public.normalize_section_code(new.section_code);
+  return new;
+end;
+$$ language plpgsql;
+
 -- trigger to update updated_at
 create or replace function public.set_updated_at() returns trigger as $$
 begin
@@ -512,6 +530,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_checklist_items_updated_at on public.checklist_items;
 create trigger trg_checklist_items_updated_at before update on public.checklist_items
 for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_checklist_items_normalize on public.checklist_items;
+create trigger trg_checklist_items_normalize
+before insert or update on public.checklist_items
+for each row execute function public.trg_normalize_section_code();
 
 drop trigger if exists trg_admin_users_updated_at on public.admin_users;
 create trigger trg_admin_users_updated_at before update on public.admin_users
