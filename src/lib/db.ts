@@ -169,6 +169,7 @@ export type ChecklistPage = {
   universe_id: number;
   slug: string;
   title: string;
+  description_md: string | null;
   seo_title: string | null;
   seo_description: string | null;
   published_at: string | null;

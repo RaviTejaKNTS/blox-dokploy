@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
+import { FiCheckCircle } from "react-icons/fi";
 import type { ChecklistItem } from "@/lib/db";
 
 type SectionBlock = {
@@ -199,10 +200,11 @@ function buildColumns(
 type ChecklistBoardProps = {
   slug: string;
   items: ChecklistItem[];
+  descriptionHtml?: string | null;
   className?: string;
 };
 
-export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) {
+export function ChecklistBoard({ slug, items, descriptionHtml, className }: ChecklistBoardProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const [containerHeight, setContainerHeight] = useState<number>(0);
@@ -241,13 +243,13 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
   }, []);
 
   useEffect(() => {
-    const prevBodyOverflow = document.body.style.overflowY;
-    const prevHtmlOverflow = document.documentElement.style.overflowY;
+    const prevBodyOverflowY = document.body.style.overflowY;
+    const prevHtmlOverflowY = document.documentElement.style.overflowY;
     document.body.style.overflowY = "hidden";
     document.documentElement.style.overflowY = "hidden";
     return () => {
-      document.body.style.overflowY = prevBodyOverflow;
-      document.documentElement.style.overflowY = prevHtmlOverflow;
+      document.body.style.overflowY = prevBodyOverflowY;
+      document.documentElement.style.overflowY = prevHtmlOverflowY;
     };
   }, []);
 
@@ -320,6 +322,134 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
     sectionRefs.current.set(code, node);
   };
 
+  const scrollTargetRef = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    const node =
+      containerRef.current ??
+      (typeof document !== "undefined"
+        ? (document.querySelector("[data-checklist-scroll]") as HTMLElement | null)
+        : null);
+    scrollTargetRef.current = node;
+  }, [containerRef.current]);
+
+  const getScrollTarget = useCallback((): HTMLElement | null => {
+    if (scrollTargetRef.current) return scrollTargetRef.current;
+    if (containerRef.current) {
+      scrollTargetRef.current = containerRef.current;
+      return containerRef.current;
+    }
+    if (typeof document !== "undefined") {
+      const el = document.querySelector("[data-checklist-scroll]") as HTMLElement | null;
+      scrollTargetRef.current = el;
+      return el;
+    }
+    return null;
+  }, []);
+
+  const applyHorizontalScroll = useCallback(
+    (deltaX: number, deltaY: number, deltaMode: number) => {
+      const target = getScrollTarget();
+      if (!target) return;
+      const overflowX = target.scrollWidth - target.clientWidth;
+      if (overflowX <= 0) return;
+
+      const scale = deltaMode === 1 ? 16 : deltaMode === 2 ? 100 : 1; // line or page modes
+      const dx = deltaX * scale;
+      const dy = deltaY * scale;
+      const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+      if (!delta) return;
+      // debug logging
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.debug("[checklist] wheel", { dx, dy, deltaMode, chosen: delta, targetOverflow: overflowX });
+      }
+      const next = Math.min(Math.max(0, target.scrollLeft + delta), overflowX);
+      if (next !== target.scrollLeft) {
+        target.scrollLeft = next;
+      }
+    },
+    [getScrollTarget]
+  );
+
+  useEffect(() => {
+    const handleWheel = (event: WheelEvent) => {
+      applyHorizontalScroll(event.deltaX, event.deltaY, event.deltaMode);
+      const target = getScrollTarget();
+      if (target && target.scrollWidth > target.clientWidth) {
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.debug("[checklist] wheel ignored", {
+          hasTarget: Boolean(target),
+          scrollWidth: target?.scrollWidth,
+          clientWidth: target?.clientWidth
+        });
+      }
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+    return () => {
+      window.removeEventListener("wheel", handleWheel, { capture: true } as AddEventListenerOptions);
+    };
+  }, [applyHorizontalScroll, getScrollTarget]);
+
+  useEffect(() => {
+    const target = getScrollTarget();
+    if (!target) return;
+
+    let isTouching = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (target.scrollWidth <= target.clientWidth) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      isTouching = true;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startScrollLeft = target.scrollLeft;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isTouching) return;
+      if (target.scrollWidth <= target.clientWidth) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const dominant = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+      target.scrollLeft = startScrollLeft - dominant;
+      event.preventDefault();
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.debug("[checklist] touch move", {
+          deltaX,
+          deltaY,
+          dominant,
+          scrollLeft: target.scrollLeft
+        });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isTouching = false;
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
+
   if (!mounted) {
     return (
       <div
@@ -341,8 +471,16 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
     >
       <div
         ref={containerRef}
-        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden px-4 py-3 [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden px-4 py-3 touch-pan-x [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
+        {descriptionHtml ? (
+          <div className="flex h-full w-[420px] shrink-0 flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+            <div
+              className="prose dark:prose-invert max-w-none game-copy text-foreground"
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
+          </div>
+        ) : null}
         {columns.length === 0 ? (
           <div className="flex w-full items-center justify-center">
             <p className="px-6 py-12 text-center text-sm font-semibold text-muted-foreground">
@@ -369,9 +507,9 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
                       <div className="text-lg font-extrabold leading-snug text-foreground">
                         {group.topCode}. {group.topLabel}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div
-                          className="h-1.5 w-full overflow-hidden rounded-full bg-border/70"
+                          className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/70"
                           role="progressbar"
                           aria-label={`Progress for ${group.topLabel}`}
                           aria-valuemin={0}
@@ -383,8 +521,12 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
                             style={{ width: `${progress.percent}%` }}
                           />
                         </div>
-                        <div className="min-w-[52px] text-right text-[11px] font-semibold text-muted-foreground">
-                          {progress.done}/{progress.total}
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm">
+                          <span className="text-foreground">{progress.done}/{progress.total}</span>
+                          <span>tasks done</span>
+                          <span className="text-border">.</span>
+                          <span className="text-foreground">{progress.percent}%</span>
+                          <span>complete</span>
                         </div>
                       </div>
                     </div>
@@ -454,14 +596,21 @@ export function ChecklistBoard({ slug, items, className }: ChecklistBoardProps) 
                                                 />
                                                 <span
                                                   className={clsx(
-                                                    "mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border text-[11px] font-bold transition",
-                                                    isChecked
-                                                      ? "border-accent bg-accent text-background shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
-                                                      : "border-border/70 bg-background/90 text-transparent"
+                                                    "relative mt-0.5 flex h-5 w-5 items-center justify-center overflow-hidden rounded-[5px] border transition duration-200",
+                                                    isChecked ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]" : "border-border/80"
                                                   )}
                                                   aria-hidden
                                                 >
-                                                  ✓
+                                                  <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                                                  <span
+                                                    className={clsx(
+                                                      "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
+                                                      isChecked ? "scale-x-100" : "scale-x-0"
+                                                    )}
+                                                  />
+                                                  {isChecked ? (
+                                                    <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
+                                                  ) : null}
                                                 </span>
                                                 <div className="flex-1 space-y-1 leading-snug">
                                                   <div

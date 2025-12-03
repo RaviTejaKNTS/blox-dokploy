@@ -452,6 +452,7 @@ create table if not exists public.checklist_pages (
   universe_id bigint not null references public.roblox_universes(universe_id) on delete cascade,
   slug text not null,
   title text not null,
+  description_md text,
   seo_title text,
   seo_description text,
   published_at timestamptz,

@@ -77,9 +77,9 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
   return (
     <div className="flex flex-col gap-2">
       <h1 className="text-xl font-black leading-tight sm:text-[26px]">{title}</h1>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div
-          className="h-2 w-full overflow-hidden rounded-full bg-border/70"
+          className="h-2 flex-1 overflow-hidden rounded-full bg-border/70"
           role="progressbar"
           aria-label={`Overall progress for ${title}`}
           aria-valuemin={0}
@@ -91,8 +91,12 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
             style={{ width: `${progress.percent}%` }}
           />
         </div>
-        <div className="min-w-[64px] text-right text-xs font-semibold text-muted-foreground">
-          {progress.done}/{progress.total}
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-[6px] text-[11px] font-semibold text-muted-foreground shadow-sm">
+          <span className="text-foreground">{progress.done}/{progress.total}</span>
+          <span>tasks done</span>
+          <span className="text-border">.</span>
+          <span className="text-foreground">{progress.percent}%</span>
+          <span>complete</span>
         </div>
       </div>
     </div>
