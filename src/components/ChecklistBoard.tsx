@@ -213,6 +213,16 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   const [availableHeight, setAvailableHeight] = useState<number>(0);
 
   const sections = useMemo(() => groupSections(items), [items]);
+  const categoryDescriptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of items) {
+      const { top, child } = parseCodeParts(item.section_code);
+      if (child === null && item.description && !map.has(String(top))) {
+        map.set(String(top), item.description);
+      }
+    }
+    return map;
+  }, [items]);
   const progressByTopCode = useMemo(() => {
     const totals = new Map<string, number>();
     const done = new Map<string, number>();
@@ -259,7 +269,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
-      const height = Math.max(320, viewportHeight - rect.top - 24);
+      const bottomGutter =
+        typeof window !== "undefined" ? Math.max(96, Math.min(180, Math.floor(viewportHeight * 0.15))) : 96;
+      const height = Math.max(320, viewportHeight - rect.top - bottomGutter);
       setAvailableHeight(height);
       setContainerHeight(height);
     };
@@ -314,7 +326,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   }, [slug, checked, items.length]);
 
   const columns = useMemo(() => {
-    const maxHeight = availableHeight > 0 ? availableHeight - 16 : containerHeight > 0 ? containerHeight - 16 : 640;
+    const baseHeight =
+      availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
+    const maxHeight = Math.max(240, baseHeight - 56); // reserve bottom breathing room
     return buildColumns(sections, maxHeight);
   }, [sections, availableHeight, containerHeight]);
 
@@ -464,14 +478,14 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   return (
     <div
       className={clsx(
-        "relative w-full max-w-full min-w-0 overflow-hidden",
+        "relative w-full max-w-full min-w-0 overflow-hidden pb-6",
         className
       )}
       style={{ height: availableHeight || undefined }}
     >
       <div
         ref={containerRef}
-        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden px-4 py-3 touch-pan-x [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden px-4 py-3 pb-16 touch-pan-x [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {descriptionHtml ? (
           <div className="flex h-full w-[420px] shrink-0 flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
@@ -498,57 +512,64 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                 last.cols.push(col);
               }
             }
-            return groups.map((group) => (
-              <div key={`group-${group.topCode}`} className="flex flex-col gap-3">
-                {(() => {
-                  const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
-                  return (
-                    <div className="space-y-2 px-1">
-                      <div className="text-lg font-extrabold leading-snug text-foreground">
-                        {group.topCode}. {group.topLabel}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3">
+            return groups.map((group) => {
+              const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
+              const categoryDescription = categoryDescriptions.get(group.topCode);
+
+              const sectionGroups: { code: string; name: string; cols: typeof group.cols }[] = [];
+              for (const col of group.cols) {
+                const section = col.sections[0];
+                const last = sectionGroups[sectionGroups.length - 1];
+                if (!last || last.code !== section.code) {
+                  sectionGroups.push({ code: section.code, name: section.name, cols: [col] });
+                } else {
+                  last.cols.push(col);
+                }
+              }
+
+              return (
+                <div key={`group-${group.topCode}`} className="flex flex-col gap-3">
+                  <div className="space-y-1.5 px-1">
+                    <h2 className="text-lg font-extrabold leading-snug text-foreground">
+                      {group.topCode}. {group.topLabel}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div
+                        className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
+                        role="progressbar"
+                        aria-label={`Progress for ${group.topLabel}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress.percent}
+                      >
                         <div
-                          className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/70"
-                          role="progressbar"
-                          aria-label={`Progress for ${group.topLabel}`}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={progress.percent}
-                        >
-                          <div
-                            className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
-                            style={{ width: `${progress.percent}%` }}
-                          />
-                        </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm">
-                          <span className="text-foreground">{progress.done}/{progress.total}</span>
-                          <span>tasks done</span>
-                          <span className="text-border">.</span>
-                          <span className="text-foreground">{progress.percent}%</span>
-                          <span>complete</span>
-                        </div>
+                          className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                          style={{ width: `${progress.percent}%` }}
+                        />
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm">
+                        <span className="text-foreground">{progress.done}/{progress.total}</span>
+                        <span>tasks done</span>
+                        <span className="text-border">.</span>
+                        <span className="text-foreground">{progress.percent}%</span>
+                        <span>complete</span>
                       </div>
                     </div>
-                  );
-                })()}
-                {(() => {
-                  const sectionGroups: { code: string; name: string; cols: typeof group.cols }[] = [];
-                  for (const col of group.cols) {
-                    const section = col.sections[0];
-                    const last = sectionGroups[sectionGroups.length - 1];
-                    if (!last || last.code !== section.code) {
-                      sectionGroups.push({ code: section.code, name: section.name, cols: [col] });
-                    } else {
-                      last.cols.push(col);
-                    }
-                  }
-                  return (
-                    <div className="flex gap-6">
+                  </div>
+                  <div className="flex gap-7">
+                    {categoryDescription ? (
+                      <div className="relative w-[440px] shrink-0 self-start rounded-2xl border border-border/60 bg-surface/70 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                        <div className="prose dark:prose-invert max-w-none game-copy text-foreground">
+                          <p className="whitespace-pre-line">{categoryDescription}</p>
+                        </div>
+                        <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-surface/90 to-transparent" />
+                      </div>
+                    ) : null}
+                    <div className="flex gap-7">
                       {sectionGroups.map((sg, sgIdx) => {
                         const colCount = sg.cols.length || 1;
                         const colWidth = 320; // px (20rem) matches w-80
-                        const gapWidth = 24; // px (gap-6)
+                        const gapWidth = 28; // px (gap-7)
                         const spanWidth = colCount * colWidth + Math.max(0, colCount - 1) * gapWidth;
                         return (
                           <div
@@ -557,10 +578,12 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                             style={{ minWidth: `${spanWidth}px` }}
                           >
                             <div className="space-y-1 px-1">
-                              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                                {sg.code}
+                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
+                                  {sg.code}
+                                </span>
+                                <span className="text-sm font-semibold text-foreground">{sg.name}</span>
                               </div>
-                              <div className="text-sm font-semibold text-foreground">{sg.name}</div>
                               <div className="h-px w-full bg-border/60" />
                             </div>
                             <div className="flex gap-6">
@@ -583,9 +606,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                               <label
                                                 key={item.id}
                                                 className={clsx(
-                                                  "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition",
-                                                  "border-border/50 bg-surface/80 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:border-accent/70 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]",
-                                                  isChecked ? "opacity-70 bg-surface/60" : "opacity-100"
+                                                  "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 text-sm transition",
+                                                  "border-border/60 bg-surface/85 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:border-accent/70 hover:shadow-[0_6px_18px_rgba(0,0,0,0.12)]",
+                                                  isChecked ? "bg-surface/70" : "bg-surface/90"
                                                 )}
                                               >
                                                 <input
@@ -596,8 +619,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                                 />
                                                 <span
                                                   className={clsx(
-                                                    "relative mt-0.5 flex h-5 w-5 items-center justify-center overflow-hidden rounded-[5px] border transition duration-200",
-                                                    isChecked ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]" : "border-border/80"
+                                                    "relative mt-0.5 flex h-6 w-6 items-center justify-center overflow-hidden rounded-[6px] border transition duration-250",
+                                                    isChecked
+                                                      ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
+                                                      : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
                                                   )}
                                                   aria-hidden
                                                 >
@@ -639,10 +664,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                         );
                       })}
                     </div>
-                  );
-                })()}
-              </div>
-            ));
+                  </div>
+                </div>
+              );
+            });
           })()
         )}
       </div>

@@ -75,11 +75,11 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
   }, [slug, totalItems]);
 
   return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-xl font-black leading-tight sm:text-[26px]">{title}</h1>
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="sticky top-0 z-30 flex flex-col gap-1 bg-background/95 py-1 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
+      <h1 className="text-xl font-black leading-tight sm:text-[26px] max-w-5xl mb-0">{title}</h1>
+      <div className="flex flex-wrap items-center gap-3 max-w-5xl">
         <div
-          className="h-2 flex-1 overflow-hidden rounded-full bg-border/70"
+          className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
           role="progressbar"
           aria-label={`Overall progress for ${title}`}
           aria-valuemin={0}
