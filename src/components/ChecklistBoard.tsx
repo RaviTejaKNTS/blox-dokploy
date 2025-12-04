@@ -890,7 +890,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                                     )}
                                                     aria-hidden
                                                   >
-                                                    <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                                                    <span className="absolute inset-0 rounded-[5px] bg-white dark:bg-black/85" />
                                                     <span
                                                       className={clsx(
                                                         "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
