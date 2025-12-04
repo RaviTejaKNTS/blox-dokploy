@@ -1,5 +1,0 @@
-- Schema & types: Added `source_url_2`/`source_url_3` columns (with Supabase SQL) and updated `Game` typing.
-- Scraper architecture: Introduced `src/lib/scraper-types.ts`, `src/lib/scraper.ts`, `src/lib/beebom.ts`, refreshed `robloxden.ts`. Scraper merges now prefer Robloxden rewards, take Beebom as fallback, dedupe codes.
-- Scripts: `scripts/update-codes.ts` and `scripts/import-games.ts` iterate all source URLs, use `scrapeSources`, and now mark missing codes as expired while updating `expired_codes`—no separate refresh script required. Import script accepts `--source2/--source3`.
-- Front-end: Game page reads `game.expired_codes`, `ExpiredCodes` handles string arrays.
-- Authors: Added richer social profiles (Facebook, LinkedIn, Instagram, Roblox, Discord) with icon-only badges across bios and author listings.

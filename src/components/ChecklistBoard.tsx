@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
-import { FiCheckCircle } from "react-icons/fi";
+import { FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { ChecklistItem } from "@/lib/db";
 
 type SectionBlock = {
@@ -101,59 +101,79 @@ function chunkSectionsByHeight(
   let chunkCounter = 0;
 
   for (const section of sections) {
-    let remainingItems = [...section.items];
-    let isFirstChunk = true;
-
-    while (remainingItems.length) {
-      let remainingSpace = maxHeight - usedHeight;
-      if (current.length > 0 && remainingSpace < MIN_REMAINING_BEFORE_WRAP) {
-        columns.push(current);
-        current = [];
-        usedHeight = COLUMN_VERTICAL_PADDING;
-        remainingSpace = maxHeight - usedHeight;
-      }
-
-      const includeHeader = isFirstChunk;
-      const headerHeight = includeHeader ? SECTION_HEADER + SECTION_PADDING * 2 : CONT_HEADER_EXTRA + SECTION_PADDING;
-      const availableForItems = remainingSpace - headerHeight - SECTION_GAP;
-
-      const perItem = DEFAULT_ITEM_HEIGHT + ITEM_GAP;
-      let capacity = Math.max(1, Math.floor((availableForItems + ITEM_GAP) / perItem));
-      capacity = Math.min(capacity, remainingItems.length);
-
-      if (capacity === 0) {
-        if (current.length) {
-          columns.push(current);
-          current = [];
-          usedHeight = COLUMN_VERTICAL_PADDING;
-          capacity = Math.min(1, remainingItems.length);
-        } else {
-          capacity = Math.min(1, remainingItems.length);
-        }
-      }
-
-      const chunkItems = remainingItems.splice(0, capacity);
-      const chunk: SectionBlock = {
-        code: section.code,
-        name: section.name,
-        items: chunkItems,
-        topCode: section.topCode,
-        chunkKey: `${section.code}-${chunkCounter++}`,
-        continuation: !isFirstChunk
-      };
-
-      const itemsHeight = chunkItems.length * DEFAULT_ITEM_HEIGHT + Math.max(0, chunkItems.length - 1) * ITEM_GAP;
-      const chunkHeight = headerHeight + itemsHeight + SECTION_GAP;
-      current.push(chunk);
-      usedHeight += chunkHeight;
-      isFirstChunk = false;
-    }
-
-    // Force next section to start in a fresh column
-    if (current.length) {
+    // Force each section to start in a new column
+    if (current.length > 0) {
       columns.push(current);
       current = [];
       usedHeight = COLUMN_VERTICAL_PADDING;
+    }
+
+    // Calculate total height needed for this entire section
+    const headerHeight = SECTION_HEADER + SECTION_PADDING * 2;
+    const itemsHeight = section.items.length * DEFAULT_ITEM_HEIGHT + Math.max(0, section.items.length - 1) * ITEM_GAP;
+    const totalSectionHeight = headerHeight + itemsHeight + SECTION_GAP;
+
+    // Check if the entire section fits in one column
+    if (totalSectionHeight <= maxHeight - COLUMN_VERTICAL_PADDING) {
+      // Entire section fits in one column
+      const chunk: SectionBlock = {
+        code: section.code,
+        name: section.name,
+        items: section.items,
+        topCode: section.topCode,
+        chunkKey: `${section.code}-${chunkCounter++}`,
+        continuation: false
+      };
+      current.push(chunk);
+      usedHeight += totalSectionHeight;
+    } else {
+      // Section is too large for one column, must split it
+      let remainingItems = [...section.items];
+      let isFirstChunk = true;
+
+      while (remainingItems.length > 0) {
+        // Start new column if needed
+        let availableSpace = maxHeight - usedHeight;
+        if (current.length > 0 && availableSpace < MIN_REMAINING_BEFORE_WRAP) {
+          columns.push(current);
+          current = [];
+          usedHeight = COLUMN_VERTICAL_PADDING;
+          availableSpace = maxHeight - usedHeight;
+        }
+
+        const chunkHeaderHeight = isFirstChunk ? SECTION_HEADER + SECTION_PADDING * 2 : CONT_HEADER_EXTRA + SECTION_PADDING;
+        const availableForItems = availableSpace - chunkHeaderHeight - SECTION_GAP;
+
+        const perItem = DEFAULT_ITEM_HEIGHT + ITEM_GAP;
+        let capacity = Math.max(1, Math.floor((availableForItems + ITEM_GAP) / perItem));
+        capacity = Math.min(capacity, remainingItems.length);
+
+        if (capacity === 0) {
+          // Force new column
+          if (current.length > 0) {
+            columns.push(current);
+            current = [];
+            usedHeight = COLUMN_VERTICAL_PADDING;
+          }
+          capacity = Math.min(1, remainingItems.length);
+        }
+
+        const chunkItems = remainingItems.splice(0, capacity);
+        const chunk: SectionBlock = {
+          code: section.code,
+          name: section.name,
+          items: chunkItems,
+          topCode: section.topCode,
+          chunkKey: `${section.code}-${chunkCounter++}`,
+          continuation: !isFirstChunk
+        };
+
+        const chunkItemsHeight = chunkItems.length * DEFAULT_ITEM_HEIGHT + Math.max(0, chunkItems.length - 1) * ITEM_GAP;
+        const chunkHeight = chunkHeaderHeight + chunkItemsHeight + SECTION_GAP;
+        current.push(chunk);
+        usedHeight += chunkHeight;
+        isFirstChunk = false;
+      }
     }
   }
 
@@ -212,6 +232,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   const [mounted, setMounted] = useState(false);
   const [availableHeight, setAvailableHeight] = useState<number>(0);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
   const computedClassName = isNarrow ? undefined : className;
 
   const sections = useMemo(() => groupSections(items), [items]);
@@ -258,6 +281,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     const measureWidth = () => {
       if (typeof window === "undefined") return;
       setIsNarrow(window.innerWidth <= 900 || window.innerHeight > window.innerWidth);
+      setIsLargeScreen(window.innerWidth >= 1600);
     };
     measureWidth();
     window.addEventListener("resize", measureWidth);
@@ -268,11 +292,20 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     if (isNarrow) return;
     const prevBodyOverflowY = document.body.style.overflowY;
     const prevHtmlOverflowY = document.documentElement.style.overflowY;
+
+    // Lock scroll
     document.body.style.overflowY = "hidden";
     document.documentElement.style.overflowY = "hidden";
+
+    // Hide footer via style injection
+    const style = document.createElement("style");
+    style.innerHTML = "footer { display: none !important; }";
+    document.head.appendChild(style);
+
     return () => {
       document.body.style.overflowY = prevBodyOverflowY;
       document.documentElement.style.overflowY = prevHtmlOverflowY;
+      document.head.removeChild(style);
     };
   }, [isNarrow]);
 
@@ -373,23 +406,27 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
 
   useLayoutEffect(() => {
     const node =
-      containerRef.current ??
       (typeof document !== "undefined"
         ? (document.querySelector("[data-checklist-scroll]") as HTMLElement | null)
-        : null);
+        : null) ?? containerRef.current;
     scrollTargetRef.current = node;
   }, [containerRef.current]);
 
   const getScrollTarget = useCallback((): HTMLElement | null => {
     if (scrollTargetRef.current) return scrollTargetRef.current;
+
+    // Prioritize external scroll target (page wrapper)
+    if (typeof document !== "undefined") {
+      const el = document.querySelector("[data-checklist-scroll]") as HTMLElement | null;
+      if (el) {
+        scrollTargetRef.current = el;
+        return el;
+      }
+    }
+
     if (containerRef.current) {
       scrollTargetRef.current = containerRef.current;
       return containerRef.current;
-    }
-    if (typeof document !== "undefined") {
-      const el = document.querySelector("[data-checklist-scroll]") as HTMLElement | null;
-      scrollTargetRef.current = el;
-      return el;
     }
     return null;
   }, []);
@@ -422,26 +459,50 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   useEffect(() => {
     if (isNarrow) return;
     const handleWheel = (event: WheelEvent) => {
+      // Always capture wheel events on the window to force horizontal scroll
       applyHorizontalScroll(event.deltaX, event.deltaY, event.deltaMode);
+
+      // Prevent default vertical scrolling if we have a target
       const target = getScrollTarget();
-      if (target && target.scrollWidth > target.clientWidth) {
+      if (target) {
         event.preventDefault();
         event.stopPropagation();
-      } else if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
-        console.debug("[checklist] wheel ignored", {
-          hasTarget: Boolean(target),
-          scrollWidth: target?.scrollWidth,
-          clientWidth: target?.clientWidth
-        });
       }
     };
 
+    // Attach to window to capture ALL scroll events
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
     return () => {
       window.removeEventListener("wheel", handleWheel, { capture: true } as AddEventListenerOptions);
     };
   }, [applyHorizontalScroll, getScrollTarget, isNarrow]);
+
+  const updateArrows = useCallback(() => {
+    const target = getScrollTarget();
+    if (!target) return;
+    setShowLeftArrow(target.scrollLeft > 10);
+    setShowRightArrow(target.scrollLeft < target.scrollWidth - target.clientWidth - 10);
+  }, [getScrollTarget]);
+
+  useEffect(() => {
+    const target = getScrollTarget();
+    if (!target) return;
+    target.addEventListener("scroll", updateArrows);
+    window.addEventListener("resize", updateArrows);
+    // Initial check
+    setTimeout(updateArrows, 100);
+    return () => {
+      target.removeEventListener("scroll", updateArrows);
+      window.removeEventListener("resize", updateArrows);
+    };
+  }, [getScrollTarget, updateArrows, columns]);
+
+  const scrollByArrow = (direction: "left" | "right") => {
+    const target = getScrollTarget();
+    if (!target) return;
+    const amount = direction === "left" ? -400 : 400;
+    target.scrollBy({ left: amount, behavior: "smooth" });
+  };
 
   useEffect(() => {
     if (isNarrow) return;
@@ -644,8 +705,31 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     >
       <div
         ref={containerRef}
-        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden px-4 py-3 pb-16 touch-pan-x [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full min-w-0 gap-6 overflow-x-auto overflow-y-hidden py-3 pb-16 touch-pan-x [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
+        {/* Left Arrow */}
+        <button
+          onClick={() => scrollByArrow("left")}
+          className={clsx(
+            "fixed left-6 top-1/2 z-50 -translate-y-1/2 rounded-full border border-border/40 bg-surface/80 p-3 text-foreground backdrop-blur-md transition-all duration-300 hover:bg-surface hover:shadow-lg active:scale-95",
+            showLeftArrow ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"
+          )}
+          aria-label="Scroll left"
+        >
+          <FiChevronLeft className="h-6 w-6" />
+        </button>
+
+        {/* Right Arrow */}
+        <button
+          onClick={() => scrollByArrow("right")}
+          className={clsx(
+            "fixed right-6 top-1/2 z-50 -translate-y-1/2 rounded-full border border-border/40 bg-surface/80 p-3 text-foreground backdrop-blur-md transition-all duration-300 hover:bg-surface hover:shadow-lg active:scale-95",
+            showRightArrow ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"
+          )}
+          aria-label="Scroll right"
+        >
+          <FiChevronRight className="h-6 w-6" />
+        </button>
         {descriptionHtml ? (
           <div className="flex h-full w-[420px] shrink-0 flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
             <div
@@ -674,17 +758,6 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
             return groups.map((group) => {
               const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
               const categoryDescription = categoryDescriptions.get(group.topCode);
-
-              const sectionGroups: { code: string; name: string; cols: typeof group.cols }[] = [];
-              for (const col of group.cols) {
-                const section = col.sections[0];
-                const last = sectionGroups[sectionGroups.length - 1];
-                if (!last || last.code !== section.code) {
-                  sectionGroups.push({ code: section.code, name: section.name, cols: [col] });
-                } else {
-                  last.cols.push(col);
-                }
-              }
 
               return (
                 <div key={`group-${group.topCode}`} className="flex flex-col gap-3">
@@ -725,103 +798,136 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                       </div>
                     ) : null}
                     <div className="flex gap-7">
-                      {sectionGroups.map((sg, sgIdx) => {
-                        const colCount = sg.cols.length || 1;
-                        const colWidth = 320; // px (20rem) matches w-80
-                        const gapWidth = 28; // px (gap-7)
-                        const spanWidth = colCount * colWidth + Math.max(0, colCount - 1) * gapWidth;
-                        return (
-                          <div
-                            key={`${group.topCode}-${sg.code}-${sgIdx}`}
-                            className="flex flex-col gap-3 shrink-0"
-                            style={{ minWidth: `${spanWidth}px` }}
-                          >
-                            <div className="space-y-1 px-1">
-                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
-                                  {sg.code}
-                                </span>
-                                <span className="text-sm font-semibold text-foreground">{sg.name}</span>
-                              </div>
-                              <div className="h-px w-full bg-border/60" />
-                            </div>
-                            <div className="flex gap-6">
-                              {sg.cols.map((column, idx) => (
-                                <div
-                                  key={`${column.topCode}-${sg.code}-${idx}`}
-                                  className="flex w-80 shrink-0 flex-col gap-5"
-                                >
-                                  <div className="flex flex-1 flex-col gap-5 overflow-hidden">
-                                    {column.sections.map((section) => (
-                                      <div
-                                        key={section.chunkKey}
-                                        ref={setSectionRef(section.chunkKey)}
-                                        className="space-y-3"
-                                      >
-                                        <div className="flex flex-col gap-2">
-                                          {section.items.map((item) => {
-                                            const isChecked = checked.has(item.id);
-                                            return (
-                                              <label
-                                                key={item.id}
-                                                className={clsx(
-                                                  "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 text-sm transition",
-                                                  "border-border/60 bg-surface/85 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:border-accent/70 hover:shadow-[0_6px_18px_rgba(0,0,0,0.12)]",
-                                                  isChecked ? "bg-surface/70" : "bg-surface/90"
-                                                )}
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  checked={isChecked}
-                                                  onChange={() => toggleItem(item.id)}
-                                                  className="sr-only"
-                                                />
-                                                <span
+                      {(() => {
+                        // Group consecutive columns by section
+                        const sectionGroups: { code: string; name: string; cols: typeof group.cols }[] = [];
+                        for (const col of group.cols) {
+                          const section = col.sections[0];
+                          const last = sectionGroups[sectionGroups.length - 1];
+                          if (!last || last.code !== section.code) {
+                            sectionGroups.push({ code: section.code, name: section.name, cols: [col] });
+                          } else {
+                            last.cols.push(col);
+                          }
+                        }
+
+                        return sectionGroups.map((sg, sgIdx) => {
+                          const colCount = sg.cols.length || 1;
+                          const colWidth = isLargeScreen ? 400 : 320;
+                          const gapWidth = 28; // gap-7
+                          const spanWidth = colCount * colWidth + Math.max(0, colCount - 1) * gapWidth;
+
+                          return (
+                            <div
+                              key={`${group.topCode}-${sg.code}-${sgIdx}`}
+                              className="flex flex-col gap-3 shrink-0"
+                              style={{ minWidth: `${spanWidth}px` }}
+                            >
+                              {/* Section header spanning all columns - only show if section is split across multiple columns */}
+                              {sg.cols.length > 1 && (
+                                <div className="space-y-1 px-1">
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
+                                      {sg.code}
+                                    </span>
+                                    <span className="text-sm font-semibold text-foreground">{sg.name}</span>
+                                  </div>
+                                  <div className="h-px w-full bg-border/60" />
+                                </div>
+                              )}
+
+                              {/* Columns underneath */}
+                              <div className="flex gap-7">
+                                {sg.cols.map((column, idx) => (
+                                  <div
+                                    key={`${column.topCode}-${sg.code}-${idx}`}
+                                    className="flex shrink-0 flex-col gap-5"
+                                    style={{ width: colWidth }}
+                                  >
+                                    <div className="flex flex-1 flex-col gap-5 overflow-hidden">
+                                      {column.sections.map((section) => (
+                                        <div
+                                          key={section.chunkKey}
+                                          ref={setSectionRef(section.chunkKey)}
+                                          className="space-y-3"
+                                        >
+                                          {/* Show section header only if section is NOT split across multiple columns */}
+                                          {!section.continuation && sg.cols.length === 1 && (
+                                            <div className="space-y-1 px-1">
+                                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                                <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
+                                                  {section.code}
+                                                </span>
+                                                <span className="text-sm font-semibold text-foreground">{section.name}</span>
+                                              </div>
+                                              <div className="h-px w-full bg-border/60" />
+                                            </div>
+                                          )}
+                                          <div className="flex flex-col gap-2">
+                                            {section.items.map((item) => {
+                                              const isChecked = checked.has(item.id);
+                                              return (
+                                                <label
+                                                  key={item.id}
                                                   className={clsx(
-                                                    "relative mt-0.5 flex h-6 w-6 items-center justify-center overflow-hidden rounded-[6px] border transition duration-250",
-                                                    isChecked
-                                                      ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
-                                                      : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
+                                                    "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 text-sm transition",
+                                                    "border-border/60 bg-surface/85 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:border-accent/70 hover:shadow-[0_6px_18px_rgba(0,0,0,0.12)]",
+                                                    isChecked ? "bg-surface/70" : "bg-surface/90"
                                                   )}
-                                                  aria-hidden
                                                 >
-                                                  <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => toggleItem(item.id)}
+                                                    className="sr-only"
+                                                  />
                                                   <span
                                                     className={clsx(
-                                                      "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
-                                                      isChecked ? "scale-x-100" : "scale-x-0"
+                                                      "relative mt-0.5 flex h-6 w-6 items-center justify-center overflow-hidden rounded-[6px] border transition duration-250",
+                                                      isChecked
+                                                        ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
+                                                        : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
                                                     )}
-                                                  />
-                                                  {isChecked ? (
-                                                    <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
-                                                  ) : null}
-                                                </span>
-                                                <div className="flex-1 space-y-1 leading-snug">
-                                                  <div
-                                                    className={clsx(
-                                                      "font-semibold text-foreground",
-                                                      isChecked ? "line-through decoration-2" : undefined
-                                                    )}
+                                                    aria-hidden
                                                   >
-                                                    {item.title}
+                                                    <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                                                    <span
+                                                      className={clsx(
+                                                        "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
+                                                        isChecked ? "scale-x-100" : "scale-x-0"
+                                                      )}
+                                                    />
+                                                    {isChecked ? (
+                                                      <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
+                                                    ) : null}
+                                                  </span>
+                                                  <div className="flex-1 space-y-1 leading-snug">
+                                                    <div
+                                                      className={clsx(
+                                                        "font-semibold text-foreground",
+                                                        isChecked ? "line-through decoration-2" : undefined
+                                                      )}
+                                                    >
+                                                      {item.title}
+                                                    </div>
+                                                    {item.description ? (
+                                                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                                                    ) : null}
                                                   </div>
-                                                  {item.description ? (
-                                                    <p className="text-xs text-muted-foreground">{item.description}</p>
-                                                  ) : null}
-                                                </div>
-                                              </label>
-                                            );
-                                          })}
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 </div>

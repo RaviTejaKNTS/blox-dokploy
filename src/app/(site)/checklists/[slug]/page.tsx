@@ -62,10 +62,10 @@ export default async function ChecklistPage({ params }: PageProps) {
   };
 
   return (
-    <div className="flex flex-col gap-3 pb-6 md:gap-2">
+    <div className="flex flex-col gap-1 pb-2 md:gap-0 -mt-4 md:-mt-6">
       <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={items.length} />
       <div
-        className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)]"
+        className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)] [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         data-checklist-scroll
       >
         <div className="w-full pr-6 md:min-w-max">

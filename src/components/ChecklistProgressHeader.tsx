@@ -75,28 +75,31 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
   }, [slug, totalItems]);
 
   return (
-    <div className="sticky top-0 z-30 flex flex-col gap-1 bg-background/95 py-1 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
-      <h1 className="text-xl font-black leading-tight sm:text-[26px] max-w-5xl mb-0">{title}</h1>
-      <div className="flex flex-wrap items-center gap-3 max-w-5xl">
-        <div
-          className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
-          role="progressbar"
-          aria-label={`Overall progress for ${title}`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress.percent}
-        >
+    <div className="sticky top-0 z-30 flex flex-col gap-2 bg-background/95 py-5 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
+      {/* Heading and progress bar on the same line */}
+      <div className="flex items-center gap-4 min-h-[32px]">
+        <h1 className="text-xl font-black leading-none sm:text-[26px] whitespace-nowrap m-0">{title}</h1>
+        <div className="flex flex-1 items-center gap-3">
           <div
-            className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
-            style={{ width: `${progress.percent}%` }}
-          />
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-[6px] text-[11px] font-semibold text-muted-foreground shadow-sm">
-          <span className="text-foreground">{progress.done}/{progress.total}</span>
-          <span>tasks done</span>
-          <span className="text-border">.</span>
-          <span className="text-foreground">{progress.percent}%</span>
-          <span>complete</span>
+            className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
+            role="progressbar"
+            aria-label={`Overall progress for ${title}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.percent}
+          >
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-[6px] text-[11px] font-semibold text-muted-foreground shadow-sm whitespace-nowrap">
+            <span className="text-foreground">{progress.done}/{progress.total}</span>
+            <span>tasks done</span>
+            <span className="text-border">.</span>
+            <span className="text-foreground">{progress.percent}%</span>
+            <span>complete</span>
+          </div>
         </div>
       </div>
     </div>
