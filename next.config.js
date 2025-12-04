@@ -40,6 +40,8 @@ const nextConfig = {
     ];
   },
   images: {
+    // Disable Next image optimizer to avoid Vercel billing and serve images directly.
+    unoptimized: true,
     domains: [
       "tr.rbxcdn.com",
       "rbxcdn.com",
