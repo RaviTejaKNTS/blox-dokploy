@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ToolCard } from "@/components/ToolCard";
 import { listPublishedTools } from "@/lib/tools";
@@ -14,27 +13,9 @@ export const metadata: Metadata = {
   }
 };
 
-async function ToolsContent() {
+export default async function ToolsPage() {
   const tools = await listPublishedTools();
 
-  if (!tools.length) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
-        No tools have been published yet. Check back soon.
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {tools.map((tool) => (
-        <ToolCard key={tool.id ?? tool.code} tool={tool} />
-      ))}
-    </div>
-  );
-}
-
-export default function ToolsPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3 rounded-2xl border border-border/60 bg-surface/80 p-8 shadow-soft">
@@ -46,9 +27,17 @@ export default function ToolsPage() {
         </p>
       </header>
 
-      <Suspense fallback={<div className="text-muted">Loading tools…</div>}>
-        <ToolsContent />
-      </Suspense>
+      {tools.length ? (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {tools.map((tool) => (
+            <ToolCard key={tool.id ?? tool.code} tool={tool} />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
+          No tools have been published yet. Check back soon.
+        </div>
+      )}
 
       <script
         type="application/ld+json"

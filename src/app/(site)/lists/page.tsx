@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { listPublishedGameLists } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ListCard } from "@/components/ListCard";
@@ -18,7 +17,7 @@ export const metadata = {
   }
 };
 
-async function ListsContent() {
+export default async function ListsPage() {
   const lists = await listPublishedGameLists();
   const cards = await Promise.all(
     (lists ?? []).map(async (list) => {
@@ -40,30 +39,33 @@ async function ListsContent() {
 
   if (!cards.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
-        No published lists yet. Check back soon.
+      <div className="space-y-8">
+        <header className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
+          <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Roblox Game Lists</h1>
+          <p className="text-sm text-muted max-w-3xl">
+            Curated rankings and collections of Roblox experiences — updated regularly.
+          </p>
+        </header>
+        <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
+          No published lists yet. Check back soon.
+        </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              name: "Roblox Game Lists",
+              description: SITE_DESCRIPTION,
+              url: `${SITE_URL}/lists`
+            })
+          }}
+        />
       </div>
     );
   }
 
-  return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {cards.map((card) => (
-        <ListCard
-          key={card.id}
-          displayName={card.displayName}
-          title={card.title}
-          slug={card.slug}
-          coverImage={card.coverImage}
-          updatedAt={card.updatedAt}
-          itemsCount={card.itemsCount}
-        />
-      ))}
-    </div>
-  );
-}
-
-export default function ListsPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -73,9 +75,19 @@ export default function ListsPage() {
           Curated rankings and collections of Roblox experiences — updated regularly.
         </p>
       </header>
-      <Suspense fallback={<div className="text-muted">Loading lists…</div>}>
-        <ListsContent />
-      </Suspense>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {cards.map((card) => (
+          <ListCard
+            key={card.id}
+            displayName={card.displayName}
+            title={card.title}
+            slug={card.slug}
+            coverImage={card.coverImage}
+            updatedAt={card.updatedAt}
+            itemsCount={card.itemsCount}
+          />
+        ))}
+      </div>
 
       <script
         type="application/ld+json"

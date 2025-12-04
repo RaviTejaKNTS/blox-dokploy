@@ -119,10 +119,11 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const authorSameAs = collectAuthorSameAs(article.author);
   const authorBioPlain = article.author?.bio_md ? markdownToPlainText(article.author.bio_md) : null;
   const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
+  const breadcrumbLeaf = universeName ?? article.title;
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Articles", href: "/articles" },
-    { label: article.title, href: null }
+    { label: breadcrumbLeaf, href: null }
   ];
   const breadcrumbData = JSON.stringify(
     breadcrumbJsonLd([

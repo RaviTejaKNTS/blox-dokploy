@@ -343,6 +343,7 @@ create table if not exists public.article_generation_queue (
   id uuid primary key default uuid_generate_v4(),
   article_title text,
   article_type text check (article_type in ('listicle','how_to','explainer','opinion','news')),
+  universe_id bigint references public.roblox_universes(universe_id),
   sources text,
   status text not null default 'pending' check (status in ('pending','completed','failed')),
   attempts int not null default 0,

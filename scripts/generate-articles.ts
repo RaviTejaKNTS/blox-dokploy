@@ -4,12 +4,15 @@ import { Readability } from "@mozilla/readability";
 import OpenAI from "openai";
 import { JSDOM } from "jsdom";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 import { slugify } from "@/lib/slug";
 
 type QueueRow = {
   id: string;
   article_title: string | null;
+  sources: string | null;
+  universe_id: number | null;
   status: "pending" | "completed" | "failed";
   attempts: number;
   last_attempted_at: string | null;
@@ -42,6 +45,7 @@ const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const AUTHOR_ID = process.env.ARTICLE_AUTHOR_ID ?? "4fc99a58-83da-46f6-9621-7816e36b4088";
+const SUPABASE_MEDIA_BUCKET = process.env.SUPABASE_MEDIA_BUCKET;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE.");
@@ -162,10 +166,146 @@ async function ensureUniqueSlug(baseTitle: string): Promise<string> {
   }
 }
 
+function parseQueueSources(raw: string | null): string[] {
+  if (!raw) return [];
+  const urls = raw
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .filter((entry) => /^https?:\/\//i.test(entry));
+
+  return Array.from(new Set(urls));
+}
+
+type RobloxUniverseMedia = {
+  thumbnail_urls?: unknown;
+  icon_url?: string | null;
+  name?: string | null;
+  display_name?: string | null;
+};
+
+function normalizeThumbnailUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry) return null;
+      if (typeof entry === "string") return entry;
+      if (typeof entry === "object" && "url" in entry) {
+        const url = (entry as { url?: unknown }).url;
+        return typeof url === "string" ? url : null;
+      }
+      return null;
+    })
+    .filter((url): url is string => typeof url === "string" && url.trim().length > 0);
+}
+
+async function pickUniverseThumbnail(universeId: number): Promise<{ url: string; gameName?: string } | null> {
+  const { data, error } = await supabase
+    .from("roblox_universes")
+    .select("thumbnail_urls, icon_url, name, display_name")
+    .eq("universe_id", universeId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn(`⚠️ Failed to load universe ${universeId} media:`, error.message);
+    return null;
+  }
+
+  if (!data) return null;
+
+  const media = data as RobloxUniverseMedia;
+  const thumbs = normalizeThumbnailUrls(media.thumbnail_urls);
+  const candidates = thumbs.length
+    ? thumbs
+    : media.icon_url && typeof media.icon_url === "string"
+      ? [media.icon_url]
+      : [];
+
+  if (!candidates.length) return null;
+
+  const selected = candidates[Math.floor(Math.random() * candidates.length)];
+  const rawName = media.display_name ?? media.name ?? null;
+  const gameName = rawName?.trim();
+  return { url: selected, gameName: gameName && gameName.length ? gameName : undefined };
+}
+
+async function downloadResizeAndUploadCover(params: {
+  imageUrl: string;
+  slug: string;
+  fileBase?: string;
+}): Promise<string | null> {
+  if (!SUPABASE_MEDIA_BUCKET) {
+    console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
+    return null;
+  }
+
+  try {
+    const response = await fetch(params.imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+      }
+    });
+
+    if (!response.ok) {
+      console.warn("⚠️ Failed to download universe thumbnail:", response.statusText);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    const resized = await sharp(buffer)
+      .resize(1200, 675, { fit: "cover", position: "attention" })
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer();
+
+    const fileBase =
+      (params.fileBase ?? params.slug)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/-{2,}/g, "-")
+        .replace(/(^-|-$)/g, "") || params.slug;
+
+    const path = `articles/${params.slug}/${fileBase}-cover.webp`;
+    const storageClient = supabase.storage.from(SUPABASE_MEDIA_BUCKET);
+
+    const { error } = await storageClient.upload(path, resized, {
+      contentType: "image/webp",
+      upsert: true
+    });
+
+    if (error) {
+      console.warn("⚠️ Failed to upload article cover image:", error.message);
+      return null;
+    }
+
+    const publicUrl = storageClient.getPublicUrl(path);
+    return publicUrl.data.publicUrl ?? null;
+  } catch (error) {
+    console.warn("⚠️ Could not process cover image:", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+async function uploadUniverseCoverImage(universeId: number, slug: string): Promise<string | null> {
+  if (!SUPABASE_MEDIA_BUCKET) {
+    console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
+    return null;
+  }
+
+  const pick = await pickUniverseThumbnail(universeId);
+  if (!pick) return null;
+  return downloadResizeAndUploadCover({
+    imageUrl: pick.url,
+    slug,
+    fileBase: pick.gameName ?? `universe-${universeId}`
+  });
+}
+
 async function getNextQueueItem(): Promise<QueueRow | null> {
   const { data, error } = await supabase
     .from("article_generation_queue")
-    .select("id, article_title, status, attempts, last_attempted_at, last_error")
+    .select("id, article_title, sources, status, attempts, last_attempted_at, last_error, universe_id")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(1)
@@ -177,12 +317,22 @@ async function getNextQueueItem(): Promise<QueueRow | null> {
 
   if (!data) return null;
 
+  const rawUniverseId = (data as { universe_id?: unknown }).universe_id;
+  const universeId =
+    typeof rawUniverseId === "number"
+      ? rawUniverseId
+      : rawUniverseId !== null && rawUniverseId !== undefined && !Number.isNaN(Number(rawUniverseId))
+        ? Number(rawUniverseId)
+        : null;
+
   return {
     ...data,
     attempts: data.attempts ?? 0,
     status: (data.status as QueueRow["status"]) ?? "pending",
     last_attempted_at: data.last_attempted_at ?? null,
-    last_error: data.last_error ?? null
+    last_error: data.last_error ?? null,
+    sources: (data as { sources?: string | null }).sources ?? null,
+    universe_id: Number.isFinite(universeId) ? universeId : null
   };
 }
 
@@ -367,11 +517,51 @@ ${topic} give me full details related to this — key facts, mechanics, requirem
   return completion.choices[0]?.message?.content?.trim() || "";
 }
 
-async function gatherSources(topic: string): Promise<SourceDocument[]> {
+async function gatherSources(topic: string, queueSources?: string | null): Promise<SourceDocument[]> {
   const collected: SourceDocument[] = [];
   const hostCounts = new Map<string, number>();
   const forumCount = { value: 0 };
   const seenUrls = new Set<string>();
+
+  const manualUrls = parseQueueSources(queueSources ?? null);
+  for (const url of manualUrls) {
+    if (collected.length >= MAX_SOURCES) break;
+    if (seenUrls.has(url)) continue;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      continue;
+    }
+
+    const host = parsed.hostname.toLowerCase();
+    if (isVideoHost(host)) continue;
+
+    const isForum = isForumHost(host);
+    if (isForum && forumCount.value >= MAX_FORUM_SOURCES) continue;
+
+    const highQuality = isHighQualityHost(host);
+    const hostLimit = highQuality ? MAX_PER_HOST_HIGH_QUALITY : MAX_PER_HOST_DEFAULT;
+    const hostCount = hostCounts.get(host) ?? 0;
+    if (hostCount >= hostLimit) continue;
+
+    const parsedContent = await fetchArticleContent(url);
+    if (!parsedContent) continue;
+
+    collected.push({
+      title: parsedContent.title || url,
+      url,
+      content: parsedContent.content,
+      host,
+      isForum
+    });
+
+    seenUrls.add(url);
+    hostCounts.set(host, hostCount + 1);
+    if (isForum) forumCount.value += 1;
+    console.log(`source_${collected.length}: ${host} [queue]${isForum ? " [forum]" : ""}`);
+  }
 
   // 1) Primary search (take first 3-5 sources, non-fandom)
   const primaryQuery = `${topic}`;
@@ -491,7 +681,7 @@ Write an article in simple English that is easy for anyone to understand. Use a 
 
 Start with an small intro that's engaging and is not templated style. Don't start the intro with a generic template style opening. Don't start with "If you ever" or other clichéd phrases.
 
-Right after the intro, give the main answer upfront in one short paragraph with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally.
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally. This should be just a small para only covering the most important aspect that like 2-3 lines long. Can use bullet points here if you think that will make it easier to scan.
 
 Use full sentences and explain things clearly without fluff or repetition. Keep the article information dense but readable. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
 
@@ -700,8 +890,11 @@ Return JSON:
   };
 }
 
-async function insertArticleDraft(article: DraftArticle): Promise<string> {
-  const slug = await ensureUniqueSlug(article.title);
+async function insertArticleDraft(
+  article: DraftArticle,
+  options: { slug?: string; universeId?: number | null; coverImage?: string | null } = {}
+): Promise<{ id: string; slug: string }> {
+  const slug = options.slug ?? (await ensureUniqueSlug(article.title));
   const wordCount = estimateWordCount(article.content_md);
   const authorId = (await pickAuthorId()) ?? AUTHOR_ID;
 
@@ -713,17 +906,23 @@ async function insertArticleDraft(article: DraftArticle): Promise<string> {
       content_md: article.content_md,
       meta_description: article.meta_description,
       author_id: authorId,
+      universe_id: options.universeId ?? null,
+      cover_image: options.coverImage ?? null,
       is_published: false,
       word_count: wordCount
     })
-    .select("id")
+    .select("id, slug")
     .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to insert article draft: ${error.message}`);
   }
 
-  return data?.id as string;
+  if (!data?.id || !data.slug) {
+    throw new Error("Article insert did not return expected data.");
+  }
+
+  return { id: data.id as string, slug: data.slug as string };
 }
 
 async function main() {
@@ -744,7 +943,7 @@ async function main() {
     console.log(`✏️  Generating article for "${topic}" (${queueEntry.id})`);
     await markAttempt(queueEntry);
 
-    const collectedSources = await gatherSources(topic);
+    const collectedSources = await gatherSources(topic, queueEntry.sources);
     console.log(`sources_collected=${collectedSources.length}`);
 
     const verifiedSources = await verifySources(topic, collectedSources);
@@ -785,8 +984,21 @@ async function main() {
       throw new Error("Draft content is too short after revision.");
     }
 
-    const articleId = await insertArticleDraft(finalDraft);
-    console.log(`article_saved id=${articleId}`);
+    const slug = await ensureUniqueSlug(finalDraft.title);
+
+    let coverImage: string | null = null;
+    if (queueEntry.universe_id) {
+      console.log(`🖼️ Attaching universe cover from ${queueEntry.universe_id}...`);
+      coverImage = await uploadUniverseCoverImage(queueEntry.universe_id, slug);
+    }
+
+    const article = await insertArticleDraft(finalDraft, {
+      slug,
+      universeId: queueEntry.universe_id,
+      coverImage
+    });
+
+    console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
 
     await updateQueueStatus(queueEntry.id, "completed", null);
   } catch (error) {

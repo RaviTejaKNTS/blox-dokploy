@@ -28,6 +28,7 @@ export function HeaderControls() {
   const navLinks = [
     { href: "/articles", label: "Articles" },
     { href: "/codes", label: "Codes" },
+    { href: "/checklists", label: "Checklists" },
     { href: "/lists", label: "Lists" },
     { href: "/tools", label: "Tools" }
   ];

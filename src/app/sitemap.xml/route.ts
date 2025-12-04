@@ -5,7 +5,14 @@ export async function GET() {
   const sb = supabaseAdmin();
   const origin = "https://bloxodes.com";
 
-  const [{ data: games }, { data: authors }, { data: articles }, { data: lists }, { data: tools }] = await Promise.all([
+  const [
+    { data: games },
+    { data: authors },
+    { data: articles },
+    { data: lists },
+    { data: tools },
+    { data: checklists }
+  ] = await Promise.all([
     sb
       .from("games")
       .select("slug, updated_at")
@@ -31,6 +38,11 @@ export async function GET() {
       .from("tools")
       .select("code, updated_at")
       .eq("is_published", true)
+      .order("updated_at", { ascending: false }),
+    sb
+      .from("checklist_pages")
+      .select("slug, updated_at, published_at")
+      .eq("is_public", true)
       .order("updated_at", { ascending: false })
   ]);
 
@@ -107,6 +119,17 @@ export async function GET() {
       changefreq: "weekly",
       priority: "0.7",
       lastmod: tool.updated_at ? new Date(tool.updated_at).toISOString() : undefined
+    });
+  }
+
+  for (const checklist of checklists || []) {
+    if (!checklist?.slug) continue;
+    const updated = checklist.updated_at ?? checklist.published_at;
+    pages.push({
+      loc: `${origin}/checklists/${checklist.slug}`,
+      changefreq: "weekly",
+      priority: "0.7",
+      lastmod: updated ? new Date(updated).toISOString() : undefined
     });
   }
 

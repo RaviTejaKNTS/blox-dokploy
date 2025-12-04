@@ -410,7 +410,7 @@ async function collectSortContent(
         is_sponsored: null,
         age_rating: null,
         icon_url: null,
-        thumbnail_urls: null,
+        thumbnail_urls: [],
         social_links: {},
         raw_metadata: {
           source: "explore",
@@ -420,7 +420,7 @@ async function collectSortContent(
           device,
           country
         },
-        raw_details: null,
+        raw_details: {},
         last_seen_in_sort: now
       });
 

@@ -563,6 +563,50 @@ export async function listPublishedChecklistSlugs(): Promise<string[]> {
   return cached();
 }
 
+type ChecklistSummaryRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description_md?: string | null;
+  seo_description?: string | null;
+  published_at?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+  universe?: {
+    display_name?: string | null;
+    name?: string | null;
+    icon_url?: string | null;
+    thumbnail_urls?: unknown;
+  } | null;
+  items?: Array<{ count?: number }>;
+};
+
+export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("checklist_pages")
+    .select(
+      `
+        id,
+        slug,
+        title,
+        description_md,
+        seo_description,
+        published_at,
+        updated_at,
+        created_at,
+        universe:roblox_universes(display_name, name, icon_url, thumbnail_urls),
+        items:checklist_items(count)
+      `
+    )
+    .eq("is_public", true)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []) as ChecklistSummaryRow[];
+}
+
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {
   const normalizedSlug = slug.trim().toLowerCase();
   const cached = unstable_cache(
