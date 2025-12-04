@@ -211,6 +211,8 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
   const [availableHeight, setAvailableHeight] = useState<number>(0);
+  const [isNarrow, setIsNarrow] = useState(false);
+  const computedClassName = isNarrow ? undefined : className;
 
   const sections = useMemo(() => groupSections(items), [items]);
   const categoryDescriptions = useMemo(() => {
@@ -253,6 +255,17 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   }, []);
 
   useEffect(() => {
+    const measureWidth = () => {
+      if (typeof window === "undefined") return;
+      setIsNarrow(window.innerWidth <= 900 || window.innerHeight > window.innerWidth);
+    };
+    measureWidth();
+    window.addEventListener("resize", measureWidth);
+    return () => window.removeEventListener("resize", measureWidth);
+  }, []);
+
+  useEffect(() => {
+    if (isNarrow) return;
     const prevBodyOverflowY = document.body.style.overflowY;
     const prevHtmlOverflowY = document.documentElement.style.overflowY;
     document.body.style.overflowY = "hidden";
@@ -261,7 +274,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
       document.body.style.overflowY = prevBodyOverflowY;
       document.documentElement.style.overflowY = prevHtmlOverflowY;
     };
-  }, []);
+  }, [isNarrow]);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -326,11 +339,31 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   }, [slug, checked, items.length]);
 
   const columns = useMemo(() => {
-    const baseHeight =
-      availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
+    if (isNarrow) return [];
+    const baseHeight = availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
     const maxHeight = Math.max(240, baseHeight - 56); // reserve bottom breathing room
     return buildColumns(sections, maxHeight);
-  }, [sections, availableHeight, containerHeight]);
+  }, [sections, availableHeight, containerHeight, isNarrow]);
+
+  const groupedSections = useMemo(() => {
+    const grouped = new Map<string, { topLabel: string; sections: SectionBlock[] }>();
+    for (const section of sections) {
+      const topKey = section.topCode;
+      const entry = grouped.get(topKey) ?? { topLabel: section.name, sections: [] };
+      entry.sections.push(section);
+      if (!grouped.has(topKey)) {
+        entry.topLabel = section.code === topKey ? section.name : entry.topLabel;
+      }
+      grouped.set(topKey, entry);
+    }
+    return Array.from(grouped.entries())
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([topCode, value]) => ({
+        topCode,
+        topLabel: value.topLabel || `Section ${topCode}`,
+        sections: value.sections
+      }));
+  }, [sections]);
 
   const setSectionRef = (code: string) => (node: HTMLDivElement | null) => {
     sectionRefs.current.set(code, node);
@@ -387,6 +420,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   );
 
   useEffect(() => {
+    if (isNarrow) return;
     const handleWheel = (event: WheelEvent) => {
       applyHorizontalScroll(event.deltaX, event.deltaY, event.deltaMode);
       const target = getScrollTarget();
@@ -407,9 +441,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     return () => {
       window.removeEventListener("wheel", handleWheel, { capture: true } as AddEventListenerOptions);
     };
-  }, [applyHorizontalScroll, getScrollTarget]);
+  }, [applyHorizontalScroll, getScrollTarget, isNarrow]);
 
   useEffect(() => {
+    if (isNarrow) return;
     const target = getScrollTarget();
     if (!target) return;
 
@@ -475,11 +510,135 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     );
   }
 
+  if (isNarrow) {
+    return (
+      <div className={clsx("flex w-full flex-col gap-4 pb-10 overflow-x-hidden", computedClassName)}>
+        {descriptionHtml ? (
+          <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+            <div
+              className="prose dark:prose-invert max-w-none game-copy text-foreground"
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
+          </div>
+        ) : null}
+        {groupedSections.map((group) => {
+          const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
+          const categoryDescription = categoryDescriptions.get(group.topCode);
+          return (
+            <section
+              key={`mobile-${group.topCode}`}
+              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-surface/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+            >
+              <div className="space-y-1">
+                <h2 className="text-lg font-extrabold leading-snug text-foreground">
+                  {group.topCode}. {group.topLabel}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div
+                    className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
+                    role="progressbar"
+                    aria-label={`Progress for ${group.topLabel}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progress.percent}
+                  >
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm">
+                    <span className="text-foreground">{progress.done}/{progress.total}</span>
+                    <span>tasks done</span>
+                    <span className="text-border">.</span>
+                    <span className="text-foreground">{progress.percent}%</span>
+                    <span>complete</span>
+                  </div>
+                </div>
+              </div>
+              {categoryDescription ? (
+                <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.06)]">
+                  <div className="prose dark:prose-invert max-w-none game-copy text-foreground">
+                    <p className="whitespace-pre-line">{categoryDescription}</p>
+                  </div>
+                </div>
+              ) : null}
+              <div className="flex flex-col gap-4">
+                {group.sections.map((section) => (
+                  <div key={`${group.topCode}-${section.code}`} className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">{section.code}</span>
+                      <span className="text-sm font-semibold text-foreground">{section.name}</span>
+                    </div>
+                    <div className="space-y-3">
+                      {section.items.map((item) => {
+                        const isChecked = checked.has(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className={clsx(
+                              "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 text-sm transition",
+                              "border-border/60 bg-surface/85 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:border-accent/70 hover:shadow-[0_6px_18px_rgba(0,0,0,0.12)]",
+                              isChecked ? "bg-surface/70" : "bg-surface/90"
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleItem(item.id)}
+                              className="sr-only"
+                            />
+                            <span
+                              className={clsx(
+                                "relative mt-0.5 flex h-6 w-6 items-center justify-center overflow-hidden rounded-[6px] border transition duration-250",
+                                isChecked
+                                  ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
+                                  : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
+                              )}
+                              aria-hidden
+                            >
+                              <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                              <span
+                                className={clsx(
+                                  "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
+                                  isChecked ? "scale-x-100" : "scale-x-0"
+                                )}
+                              />
+                              {isChecked ? (
+                                <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
+                              ) : null}
+                            </span>
+                            <div className="flex-1 space-y-1 leading-snug">
+                              <div
+                                className={clsx(
+                                  "font-semibold text-foreground",
+                                  isChecked ? "line-through decoration-2" : undefined
+                                )}
+                              >
+                                {item.title}
+                              </div>
+                              {item.description ? (
+                                <p className="text-xs text-muted-foreground">{item.description}</p>
+                              ) : null}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div
       className={clsx(
         "relative w-full max-w-full min-w-0 overflow-hidden pb-6",
-        className
+        computedClassName
       )}
       style={{ height: availableHeight || undefined }}
     >

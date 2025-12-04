@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "echo \"(lint intentionally omitted)\"",
     "generate:article": "tsx scripts/generate-article.ts",
+    "generate:articles": "tsx scripts/generate-articles.ts",
     "articles:queue": "tsx scripts/run-article-generation-queue.ts",
     "refresh:codes": "tsx scripts/update-codes.ts",
     "rewrite:codes": "tsx scripts/rewrite-codes-articles.ts",

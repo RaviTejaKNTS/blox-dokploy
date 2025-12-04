@@ -68,7 +68,7 @@ export default async function ChecklistPage({ params }: PageProps) {
         className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)]"
         data-checklist-scroll
       >
-        <div className="min-w-max pr-6">
+        <div className="w-full pr-6 md:min-w-max">
           <ChecklistBoard
             slug={page.slug}
             items={items}
