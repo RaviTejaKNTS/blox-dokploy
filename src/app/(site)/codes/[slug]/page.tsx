@@ -273,7 +273,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     : game.cover_image
     ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
     : `${SITE_URL}/og-image.png`;
-  const publishedTime = new Date(game.created_at).toISOString();
+  const publishedTime = new Date(game.published_at ?? game.created_at).toISOString();
   const modifiedTime = new Date(lastContentUpdate).toISOString();
   const otherMeta: Record<string, string> = {};
   return {

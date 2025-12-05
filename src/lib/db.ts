@@ -47,6 +47,7 @@ export type Game = {
   universe_id: number | null;
   interlinking_ai_copy_md: string | null;
   is_published: boolean;
+  published_at: string | null;
   re_rewritten_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -80,6 +81,7 @@ export type Article = {
   updated_at: string;
   word_count: number | null;
   meta_description: string | null;
+  tags: string[];
 };
 
 export type UniverseSummary = {

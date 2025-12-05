@@ -19,13 +19,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { page } = data;
   const titleBase = page.seo_title ?? page.title;
-  const description = SITE_DESCRIPTION;
+  const description = page.seo_description || SITE_DESCRIPTION;
+  const canonical = `${SITE_URL}/checklists/${page.slug}`;
+  const publishedTime = page.published_at ? new Date(page.published_at).toISOString() : undefined;
+  const updatedTime = page.updated_at ? new Date(page.updated_at).toISOString() : undefined;
 
   return {
     title: `${titleBase} | ${SITE_NAME}`,
     description,
-    alternates: {
-      canonical: `${SITE_URL}/checklists/${page.slug}`
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      url: canonical,
+      title: titleBase,
+      description,
+      siteName: SITE_NAME,
+      publishedTime,
+      modifiedTime: updatedTime
+    },
+    twitter: {
+      card: "summary",
+      title: titleBase,
+      description
     }
   };
 }
@@ -38,9 +53,19 @@ export default async function ChecklistPage({ params }: PageProps) {
 
   const { page, items } = data;
   const canonicalUrl = `${SITE_URL}/checklists/${page.slug}`;
-  const descriptionPlain = SITE_DESCRIPTION;
+  const descriptionPlain = page.seo_description || SITE_DESCRIPTION;
   const descriptionHtml = page.description_md ? await renderMarkdown(page.description_md) : null;
   const leafItems = items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3);
+  const latestItemUpdated = items.reduce<Date | null>((latest, item) => {
+    const dt = item.updated_at ? new Date(item.updated_at) : null;
+    if (!dt) return latest;
+    if (!latest || dt > latest) return dt;
+    return latest;
+  }, null);
+  const publishedDate = page.published_at ? new Date(page.published_at) : new Date(page.created_at);
+  const updatedDate = latestItemUpdated && latestItemUpdated > new Date(page.updated_at)
+    ? latestItemUpdated
+    : new Date(page.updated_at);
   const itemListElements = leafItems.map((item, index) => ({
     "@type": "ListItem",
     position: index + 1,
@@ -57,6 +82,8 @@ export default async function ChecklistPage({ params }: PageProps) {
     name: `${page.title} Checklist`,
     description: descriptionPlain,
     url: canonicalUrl,
+    datePublished: publishedDate.toISOString(),
+    dateModified: updatedDate.toISOString(),
     numberOfItems: leafItems.length,
     itemListOrder: "Ascending",
     itemListElement: itemListElements

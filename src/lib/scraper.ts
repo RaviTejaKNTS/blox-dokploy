@@ -19,14 +19,25 @@ function normalizeCodeKey(code: string): string {
   return code.replace(/\s+/g, "").trim().toUpperCase();
 }
 
+function sanitizeRewardText(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = raw
+    // Strip any "(new)" markers regardless of casing/spaces
+    .replace(/\(\s*new\s*\)/gi, "")
+    // Collapse leftover double spaces
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || undefined;
+}
+
 const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
   active: 2,
   check: 1,
 };
 
 const PROVIDER_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  // progameguides: 0,
-  // destructoid: 1,
+  progameguides: 0,
+  destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -37,8 +48,8 @@ function getProviderPriority(provider?: ScrapedCode["provider"]): number {
 }
 
 const CODE_DISPLAY_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  // progameguides: 0,
-  // destructoid: 1,
+  progameguides: 0,
+  destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -49,8 +60,8 @@ export function getCodeDisplayPriority(provider?: ScrapedCode["provider"]): numb
 }
 
 const REWARD_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  // progameguides: 0,
-  // destructoid: 1,
+  progameguides: 0,
+  destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -127,6 +138,11 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
 
   for (const result of results) {
     for (const codeEntry of result.codes) {
+      const normalizedRewards = sanitizeRewardText(codeEntry.rewardsText);
+      const sanitizedEntry: ScrapedCode = {
+        ...codeEntry,
+        rewardsText: normalizedRewards,
+      };
       const normalizedCode = normalizeCodeKey(codeEntry.code);
       if (!normalizedCode) continue;
       const existing = map.get(normalizedCode);
@@ -134,9 +150,9 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
         const sanitizedCode = codeEntry.code.trim();
         map.set(normalizedCode, {
           data: {
-            ...codeEntry,
+            ...sanitizedEntry,
             code: sanitizedCode,
-            rewardsText: codeEntry.rewardsText?.trim() || undefined,
+            rewardsText: normalizedRewards,
             providerPriority: getCodeDisplayPriority(codeEntry.provider),
           },
           codePriority: getCodeDisplayPriority(codeEntry.provider),
@@ -144,7 +160,7 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
         });
         order.push(normalizedCode);
       } else {
-        const merged = mergeCodeEntry(existing, codeEntry);
+        const merged = mergeCodeEntry(existing, sanitizedEntry);
         map.set(normalizedCode, merged);
       }
     }

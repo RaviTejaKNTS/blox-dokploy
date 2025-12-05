@@ -74,6 +74,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = tool.seo_title ?? tool.title ?? undefined;
   const description = tool.meta_description ?? undefined;
   const image = tool.thumb_url || FALLBACK_IMAGE;
+  const publishedTime = tool.published_at ?? tool.created_at;
+  const modifiedTime = tool.updated_at ?? tool.published_at ?? tool.created_at;
 
   return {
     title,
@@ -82,12 +84,14 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: CANONICAL
     },
     openGraph: {
-      type: "website",
+      type: "article",
       url: CANONICAL,
       title,
       description,
       siteName: SITE_NAME,
-      images: [image]
+      images: [image],
+      publishedTime: publishedTime ? new Date(publishedTime).toISOString() : undefined,
+      modifiedTime: modifiedTime ? new Date(modifiedTime).toISOString() : undefined
     },
     twitter: {
       card: "summary_large_image",
@@ -100,6 +104,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RobloxDevexPage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
+  const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
+  const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
 
   const faqSchema =
     (tool?.faq_json?.length ?? 0) > 0
@@ -121,6 +127,8 @@ export default async function RobloxDevexPage() {
         name: tool?.title ?? undefined,
         description: tool?.meta_description ?? undefined,
         url: CANONICAL,
+        datePublished: publishedTime ? new Date(publishedTime).toISOString() : undefined,
+        dateModified: modifiedTime ? new Date(modifiedTime).toISOString() : undefined,
         breadcrumb: {
           "@type": "BreadcrumbList",
           itemListElement: [

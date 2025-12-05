@@ -18,13 +18,14 @@ export type ToolContent = {
   schema_ld_json?: unknown;
   thumb_url?: string | null;
   is_published: boolean;
+  published_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
 
 const TOOL_SELECT_FIELDS =
-  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, created_at, updated_at";
-const TOOL_INDEX_FIELDS = "id, code, title, seo_title, meta_description, intro_md, thumb_url, created_at, updated_at";
+  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at";
+const TOOL_INDEX_FIELDS = "id, code, title, seo_title, meta_description, intro_md, thumb_url, published_at, created_at, updated_at";
 
 export async function getToolContent(code: string): Promise<ToolContent | null> {
   const supabase = supabaseAdmin();
@@ -45,7 +46,7 @@ export async function getToolContent(code: string): Promise<ToolContent | null> 
 
 export type ToolListEntry = Pick<
   ToolContent,
-  "id" | "code" | "title" | "seo_title" | "meta_description" | "intro_md" | "thumb_url"
+  "id" | "code" | "title" | "seo_title" | "meta_description" | "intro_md" | "thumb_url" | "published_at"
 > & { created_at?: string; updated_at?: string };
 
 const cachedListPublishedTools = unstable_cache(

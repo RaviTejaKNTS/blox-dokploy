@@ -50,6 +50,7 @@ create table if not exists public.games (
   interlinking_ai jsonb not null default '{}'::jsonb,
   interlinking_ai_copy_md text,
   is_published boolean not null default false,
+  published_at timestamptz,
   re_rewritten_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -377,11 +378,12 @@ create table if not exists public.articles (
   author_id uuid references public.authors(id) on delete set null,
   universe_id bigint references public.roblox_universes(universe_id),
   is_published boolean not null default false,
-  published_at timestamptz not null default now(),
+  published_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   word_count int,
-  meta_description text
+  meta_description text,
+  tags text[] not null default '{}'::text[]
 );
 
 create index if not exists idx_articles_published on public.articles (is_published);
@@ -509,6 +511,51 @@ begin
 end;
 $$ language plpgsql;
 
+-- stamp published_at only when is_published flips to true
+create or replace function public.set_article_published_at() returns trigger as $$
+begin
+  if new.is_published = true
+     and (old.is_published is distinct from true)
+     and new.published_at is null then
+    new.published_at := now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create or replace function public.set_game_published_at() returns trigger as $$
+begin
+  if new.is_published = true
+     and (old.is_published is distinct from true)
+     and new.published_at is null then
+    new.published_at := now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create or replace function public.set_checklist_published_at() returns trigger as $$
+begin
+  if new.is_public = true
+     and (old.is_public is distinct from true)
+     and new.published_at is null then
+    new.published_at := now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create or replace function public.set_tool_published_at() returns trigger as $$
+begin
+  if new.is_published = true
+     and (old.is_published is distinct from true)
+     and new.published_at is null then
+    new.published_at := now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
 drop trigger if exists trg_games_updated_at on public.games;
 create trigger trg_games_updated_at before update on public.games
 for each row execute function public.set_updated_at();
@@ -546,6 +593,11 @@ drop trigger if exists trg_articles_updated_at on public.articles;
 create trigger trg_articles_updated_at before update on public.articles
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_set_article_published_at on public.articles;
+create trigger trg_set_article_published_at
+before insert or update on public.articles
+for each row execute function public.set_article_published_at();
+
 drop trigger if exists trg_roblox_universes_updated_at on public.roblox_universes;
 create trigger trg_roblox_universes_updated_at before update on public.roblox_universes
 for each row execute function public.set_updated_at();
@@ -557,6 +609,21 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_article_generation_queue_updated_at on public.article_generation_queue;
 create trigger trg_article_generation_queue_updated_at before update on public.article_generation_queue
 for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_set_game_published_at on public.games;
+create trigger trg_set_game_published_at
+before insert or update on public.games
+for each row execute function public.set_game_published_at();
+
+drop trigger if exists trg_set_checklist_published_at on public.checklist_pages;
+create trigger trg_set_checklist_published_at
+before insert or update on public.checklist_pages
+for each row execute function public.set_checklist_published_at();
+
+drop trigger if exists trg_set_tool_published_at on public.tools;
+create trigger trg_set_tool_published_at
+before insert or update on public.tools
+for each row execute function public.set_tool_published_at();
 
 -- helper to run SQL-driven game lists during refresh
 create or replace function public.run_game_list_sql(
@@ -1088,6 +1155,7 @@ create table if not exists public.tools (
   schema_ld_json jsonb,
   thumb_url text,
   is_published boolean not null default true,
+  published_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

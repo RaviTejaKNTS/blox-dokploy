@@ -72,12 +72,28 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
   const title = page > 1 ? `${titleBase} - Page ${page} | ${SITE_NAME}` : `${titleBase} | ${SITE_NAME}`;
   const canonicalPath = page > 1 ? `/lists/${slug}/page/${page}` : `/lists/${slug}`;
   const canonical = `${SITE_URL}${canonicalPath}`;
+  const publishedTime = list.created_at ? new Date(list.created_at).toISOString() : undefined;
+  const updatedTime = (list.updated_at ?? list.refreshed_at ?? list.created_at) ? new Date(list.updated_at ?? list.refreshed_at ?? list.created_at).toISOString() : undefined;
 
   return {
     title,
     description,
     alternates: {
       canonical
+    },
+    openGraph: {
+      type: "article",
+      url: canonical,
+      title,
+      description,
+      siteName: SITE_NAME,
+      publishedTime,
+      modifiedTime: updatedTime
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description
     }
   };
 }

@@ -5,13 +5,38 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 
 export const revalidate = 21600; // refresh a few times per day
 
-export const metadata: Metadata = {
-  title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-  description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
-  alternates: {
-    canonical: `${SITE_URL}/tools`
-  }
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const tools = await listPublishedTools();
+  const updatedAt =
+    tools.reduce<string | null>((latest, tool) => {
+      const candidate = tool.updated_at ?? tool.published_at ?? tool.created_at;
+      if (!candidate) return latest;
+      if (!latest || candidate > latest) return candidate;
+      return latest;
+    }, null) ?? null;
+
+  const updatedIso = updatedAt ? new Date(updatedAt).toISOString() : undefined;
+
+  return {
+    title: `Roblox Tools & Calculators | ${SITE_NAME}`,
+    description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
+    alternates: {
+      canonical: `${SITE_URL}/tools`
+    },
+    openGraph: {
+      type: "website",
+      url: `${SITE_URL}/tools`,
+      title: `Roblox Tools & Calculators | ${SITE_NAME}`,
+      description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
+      siteName: SITE_NAME
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Roblox Tools & Calculators | ${SITE_NAME}`,
+      description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`
+    }
+  };
+}
 
 export default async function ToolsPage() {
   const tools = await listPublishedTools();
