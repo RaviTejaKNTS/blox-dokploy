@@ -118,6 +118,21 @@ function groupSections(items: ChecklistItem[]): SectionBlock[] {
     .sort((a, b) => compareCodes(a.code, b.code));
 }
 
+function parseTitleLink(raw: string): { label: string; href: string | null } {
+  const trimmed = raw.trim();
+  const mdMatch = trimmed.match(/^\[(.+?)\]\((https?:\/\/\S+)\)$/);
+  if (mdMatch) {
+    return { label: mdMatch[1], href: mdMatch[2] };
+  }
+  const urlMatch = trimmed.match(/(https?:\/\/\S+)/);
+  if (urlMatch) {
+    const href = urlMatch[1];
+    const label = trimmed.replace(urlMatch[0], "").trim() || href;
+    return { label, href };
+  }
+  return { label: trimmed, href: null };
+}
+
 function estimateChunkHeight(itemCount: number, includeHeader: boolean): number {
   const headerHeight = includeHeader ? SECTION_HEADER + SECTION_PADDING * 2 : CONT_HEADER_EXTRA + SECTION_PADDING;
   const itemsHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP;
@@ -717,33 +732,53 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                   ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
                                   : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
                               )}
-                              aria-hidden
-                            >
-                              <span className="absolute inset-0 rounded-[5px] bg-black/85" />
-                              <span
-                                className={clsx(
-                                  "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
-                                  isChecked ? "scale-x-100" : "scale-x-0"
-                                )}
-                              />
-                              {isChecked ? (
-                                <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
-                              ) : null}
-                            </span>
-                            <div className="flex-1 space-y-1 leading-snug">
-                              <div
-                                className={clsx(
-                                  "font-semibold text-foreground",
-                                  isChecked ? "line-through decoration-2" : undefined
-                                )}
-                              >
-                                {item.title}
-                              </div>
-                              {item.description ? (
-                                <p className="text-xs text-muted-foreground">{item.description}</p>
-                              ) : null}
-                            </div>
-                          </label>
+                            aria-hidden
+                          >
+                            <span className="absolute inset-0 rounded-[5px] bg-black/85" />
+                            <span
+                              className={clsx(
+                                "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
+                                isChecked ? "scale-x-100" : "scale-x-0"
+                              )}
+                            />
+                            {isChecked ? (
+                              <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
+                            ) : null}
+                          </span>
+                          <div className="flex-1 space-y-1 leading-snug">
+                            {(() => {
+                              const { label, href } = parseTitleLink(item.title);
+                              if (href) {
+                                return (
+                                  <a
+                                    href={href}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={clsx(
+                                      "font-semibold text-foreground underline decoration-accent/70 underline-offset-2",
+                                      isChecked ? "line-through decoration-2" : undefined
+                                    )}
+                                  >
+                                    {label}
+                                  </a>
+                                );
+                              }
+                              return (
+                                <div
+                                  className={clsx(
+                                    "font-semibold text-foreground",
+                                    isChecked ? "line-through decoration-2" : undefined
+                                  )}
+                                >
+                                  {label}
+                                </div>
+                              );
+                            })()}
+                            {item.description ? (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            ) : null}
+                          </div>
+                        </label>
                         );
                       })}
                     </div>
@@ -963,14 +998,34 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                                     ) : null}
                                                   </span>
                                                   <div className="flex-1 space-y-1 leading-snug">
-                                                    <div
-                                                      className={clsx(
-                                                        "font-semibold text-foreground",
-                                                        isChecked ? "line-through decoration-2" : undefined
-                                                      )}
-                                                    >
-                                                      {item.title}
-                                                    </div>
+                                                    {(() => {
+                                                      const { label, href } = parseTitleLink(item.title);
+                                                      if (href) {
+                                                        return (
+                                                          <a
+                                                            href={href}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className={clsx(
+                                                              "font-semibold text-foreground underline decoration-accent/70 underline-offset-2",
+                                                              isChecked ? "line-through decoration-2" : undefined
+                                                            )}
+                                                          >
+                                                            {label}
+                                                          </a>
+                                                        );
+                                                      }
+                                                      return (
+                                                        <div
+                                                          className={clsx(
+                                                            "font-semibold text-foreground",
+                                                            isChecked ? "line-through decoration-2" : undefined
+                                                          )}
+                                                        >
+                                                          {label}
+                                                        </div>
+                                                      );
+                                                    })()}
                                                     {item.description ? (
                                                       <p className="text-xs text-muted-foreground">{item.description}</p>
                                                     ) : null}

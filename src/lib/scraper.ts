@@ -8,8 +8,9 @@ import type { ScrapeResult, ScrapedCode } from "./scraper-types";
 const SCRAPER_MAP = {
   robloxden: scrapeRobloxdenPage,
   beebom: scrapeBeebomPage,
-  progameguides: scrapeProGameGuidesPage,
-  destructoid: scrapeDestructoidPage,
+  // Temporarily disabled
+  // progameguides: scrapeProGameGuidesPage,
+  // destructoid: scrapeDestructoidPage,
 } as const;
 
 type Provider = keyof typeof SCRAPER_MAP;
@@ -24,8 +25,8 @@ const STATUS_PRIORITY: Record<ScrapedCode["status"], number> = {
 };
 
 const PROVIDER_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  progameguides: 0,
-  destructoid: 1,
+  // progameguides: 0,
+  // destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -36,8 +37,8 @@ function getProviderPriority(provider?: ScrapedCode["provider"]): number {
 }
 
 const CODE_DISPLAY_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  progameguides: 0,
-  destructoid: 1,
+  // progameguides: 0,
+  // destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -48,8 +49,8 @@ export function getCodeDisplayPriority(provider?: ScrapedCode["provider"]): numb
 }
 
 const REWARD_PRIORITY: Record<NonNullable<ScrapedCode["provider"]>, number> = {
-  progameguides: 0,
-  destructoid: 1,
+  // progameguides: 0,
+  // destructoid: 1,
   robloxden: 2,
   beebom: 3,
 };
@@ -178,12 +179,13 @@ export function mergeScrapeResults(results: ScrapeResult[]): ScrapeResult {
   return { codes: mergedCodes, expiredCodes: mergedExpired };
 }
 
-export function detectProvider(url: string): Provider {
+export function detectProvider(url: string): Provider | null {
   const host = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
   if (host.endsWith("robloxden.com")) return "robloxden";
   if (host.endsWith("beebom.com")) return "beebom";
-  if (host.endsWith("progameguides.com")) return "progameguides";
-  if (host.endsWith("destructoid.com")) return "destructoid";
+  // Paused providers: skip instead of failing the whole run
+  if (host.endsWith("progameguides.com")) return null;
+  if (host.endsWith("destructoid.com")) return null;
   throw new Error(`Unsupported source host: ${host}`);
 }
 
@@ -201,11 +203,21 @@ export async function scrapeSources(urls: string[]): Promise<ScrapeResult> {
   }
 
   const results: ScrapeResult[] = [];
+  const skippedProviders = new Set<string>();
   for (const url of unique) {
     const provider = detectProvider(url);
+    if (!provider) {
+      skippedProviders.add(url);
+      continue;
+    }
     const scraper = SCRAPER_MAP[provider];
     const result = await scraper(url);
     results.push(result);
+  }
+
+  if (skippedProviders.size) {
+    const skippedList = Array.from(skippedProviders).join(", ");
+    console.warn(`Skipped disabled providers for: ${skippedList}`);
   }
 
   return mergeScrapeResults(results);

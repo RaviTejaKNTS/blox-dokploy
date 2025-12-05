@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { promises as fs } from "node:fs";
-import { getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
+import { detectProvider, getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { Game } from "@/lib/db";
 import { sanitizeCodeDisplay, normalizeCodeKey } from "@/lib/code-normalization";
@@ -91,7 +91,19 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
     return { slug: game.slug, name: game.name, status: "skipped" };
   }
 
-  const { codes, expiredCodes } = await scrapeSources(sourceUrls);
+  const enabledUrls = sourceUrls.filter((url) => {
+    try {
+      return Boolean(detectProvider(url));
+    } catch {
+      return false;
+    }
+  });
+
+  if (enabledUrls.length === 0) {
+    return { slug: game.slug, name: game.name, status: "skipped", error: "all sources disabled or unsupported" };
+  }
+
+  const { codes, expiredCodes } = await scrapeSources(enabledUrls);
   let newCodesCount = 0;
   const scrapedExpired = expiredCodes ?? [];
 
@@ -426,7 +438,8 @@ async function main() {
         });
       } else if (res.status === "skipped") {
         stats.skipped += 1;
-        console.log(`↷ ${res.slug} — skipped (missing source URLs)`);
+        const reason = res.error ? ` (${res.error})` : " (missing source URLs)";
+        console.log(`↷ ${res.slug} — skipped${reason}`);
         skippedDetails.push(res);
       } else {
         stats.failed += 1;
