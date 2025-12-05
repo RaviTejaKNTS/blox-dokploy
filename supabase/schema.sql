@@ -469,18 +469,16 @@ create index if not exists idx_checklist_pages_published on public.checklist_pag
 create table if not exists public.checklist_items (
   id uuid primary key default uuid_generate_v4(),
   page_id uuid not null references public.checklist_pages(id) on delete cascade,
-  section_code text not null check (section_code ~ '^[0-9]+(\\.[0-9]+)?$'),
-  section_name text not null,
+  section_code text not null check (section_code ~ '^[0-9]+(\\.[0-9]+){0,2}$'),
   title text not null,
   description text,
   is_required boolean not null default false,
-  position int not null default 1 check (position > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (page_id, section_code, position, title)
+  unique (page_id, section_code, title)
 );
 
-create index if not exists idx_checklist_items_page_section on public.checklist_items (page_id, section_code, position);
+create index if not exists idx_checklist_items_page_section on public.checklist_items (page_id, section_code);
 create index if not exists idx_checklist_items_page on public.checklist_items (page_id);
 
 -- helper to normalize section_code
@@ -490,6 +488,8 @@ declare
 begin
   cleaned := regexp_replace(coalesce(raw, ''), E'[\\s\\u00A0]', '', 'g');
   cleaned := regexp_replace(cleaned, '[^0-9\\.]', '', 'g');
+  cleaned := regexp_replace(cleaned, '\\.{2,}', '.', 'g');
+  cleaned := regexp_replace(cleaned, '^\\.|\\.$', '', 'g');
   return cleaned;
 end;
 $$ language plpgsql immutable;

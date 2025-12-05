@@ -32,12 +32,21 @@ const COLUMN_VERTICAL_PADDING = 20;
 const MIN_REMAINING_BEFORE_WRAP = 240;
 const CONT_HEADER_EXTRA = 10;
 
-function parseCodeParts(code: string): { top: number; child: number | null } {
+function parseCodeParts(code: string): { top: number; child: number | null; leaf: number | null } {
   const parts = code.split(".").map((p) => Number.parseInt(p, 10)).filter((n) => !Number.isNaN(n));
   return {
     top: parts[0] ?? 0,
-    child: parts.length > 1 ? parts[1] : null
+    child: parts.length > 1 ? parts[1] : null,
+    leaf: parts.length > 2 ? parts[2] : null
   };
+}
+
+function formatSectionLabel(code: string): string {
+  const parts = parseCodeParts(code);
+  if (parts.child !== null && parts.child !== 0) {
+    return `Section ${parts.top}.${parts.child}`;
+  }
+  return `Section ${parts.top}`;
 }
 
 function compareCodes(a: string, b: string): number {
@@ -48,17 +57,45 @@ function compareCodes(a: string, b: string): number {
 }
 
 function groupSections(items: ChecklistItem[]): SectionBlock[] {
-  const map = new Map<string, SectionBlock>();
+  const parentTitles = new Map<string, string>();
+  const subTitles = new Map<string, string>();
+
+  // Collect titles from structural rows (parents and subs)
   for (const item of items) {
-    const code = item.section_code.trim();
+    const { top, child, leaf } = parseCodeParts(item.section_code.trim());
+    if (leaf !== null) continue;
+    if (child === null) {
+      parentTitles.set(String(top), item.title.trim());
+    } else {
+      subTitles.set(`${top}.${child}`, item.title.trim());
+    }
+  }
+
+  const map = new Map<string, SectionBlock>();
+
+  for (const item of items) {
+    const rawCode = item.section_code.trim();
+    const parts = parseCodeParts(rawCode);
+    // Skip structural rows for items (parents/subs are only labels)
+    if (parts.leaf === null) continue;
+
+    // Determine the sub bucket; if no real subcategory (child === 0), bucket under the parent
+    const code =
+      parts.child !== null && parts.child !== 0 ? `${parts.top}.${parts.child}` : `${parts.top}.0`;
     const existing = map.get(code);
     if (existing) {
       existing.items.push(item);
     } else {
-      const { top } = parseCodeParts(code);
+      const top = parts.top;
+      const explicitTitle = subTitles.get(code) ?? null;
+      const label =
+        explicitTitle ??
+        (parts.child !== null && parts.child !== 0
+          ? `Section ${parts.top}.${parts.child}`
+          : "Checklist");
       map.set(code, {
         code,
-        name: item.section_name,
+        name: label,
         items: [item],
         topCode: String(top),
         chunkKey: `${code}-0`
@@ -69,7 +106,14 @@ function groupSections(items: ChecklistItem[]): SectionBlock[] {
   return Array.from(map.values())
     .map((section) => ({
       ...section,
-      items: section.items.sort((a, b) => a.position - b.position || a.title.localeCompare(b.title))
+      items: section.items.sort((a, b) => {
+        const pa = parseCodeParts(a.section_code);
+        const pb = parseCodeParts(b.section_code);
+        const leafA = pa.leaf ?? 0;
+        const leafB = pb.leaf ?? 0;
+        if (leafA !== leafB) return leafA - leafB;
+        return a.title.localeCompare(b.title);
+      })
     }))
     .sort((a, b) => compareCodes(a.code, b.code));
 }
@@ -186,7 +230,8 @@ function chunkSectionsByHeight(
 
 function buildColumns(
   sections: SectionBlock[],
-  maxHeight: number
+  maxHeight: number,
+  parentTitles: Map<string, string>
 ): ColumnBlock[] {
   const groupedByTop = new Map<string, SectionBlock[]>();
   for (const section of sections) {
@@ -200,8 +245,11 @@ function buildColumns(
 
   for (const topCode of sortedTopCodes) {
     const groupSections = groupedByTop.get(topCode) ?? [];
-    const topLabelSource = groupSections.find((s) => s.code === topCode) ?? groupSections[0];
-    const topLabel = topLabelSource?.name ?? `Section ${topCode}`;
+    const topLabel =
+      parentTitles.get(topCode) ??
+      groupSections.find((s) => s.code === topCode)?.name ??
+      groupSections[0]?.name ??
+      `Section ${topCode}`;
 
     const buckets = chunkSectionsByHeight(groupSections, maxHeight);
     buckets.forEach((bucket, index) => {
@@ -253,7 +301,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     const done = new Map<string, number>();
 
     for (const item of items) {
-      const { top } = parseCodeParts(item.section_code);
+      const parts = parseCodeParts(item.section_code);
+      // Count only leaf items toward progress
+      if (parts.leaf === null) continue;
+      const top = parts.top;
       const key = String(top);
       totals.set(key, (totals.get(key) ?? 0) + 1);
       if (checked.has(item.id)) {
@@ -371,32 +422,23 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     window.dispatchEvent(new CustomEvent("checklist-progress", { detail }));
   }, [slug, checked, items.length]);
 
+  const parentTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of items) {
+      const { top, child, leaf } = parseCodeParts(item.section_code);
+      if (leaf === null && child === null) {
+        map.set(String(top), item.title.trim());
+      }
+    }
+    return map;
+  }, [items]);
+
   const columns = useMemo(() => {
     if (isNarrow) return [];
     const baseHeight = availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
     const maxHeight = Math.max(240, baseHeight - 56); // reserve bottom breathing room
-    return buildColumns(sections, maxHeight);
-  }, [sections, availableHeight, containerHeight, isNarrow]);
-
-  const groupedSections = useMemo(() => {
-    const grouped = new Map<string, { topLabel: string; sections: SectionBlock[] }>();
-    for (const section of sections) {
-      const topKey = section.topCode;
-      const entry = grouped.get(topKey) ?? { topLabel: section.name, sections: [] };
-      entry.sections.push(section);
-      if (!grouped.has(topKey)) {
-        entry.topLabel = section.code === topKey ? section.name : entry.topLabel;
-      }
-      grouped.set(topKey, entry);
-    }
-    return Array.from(grouped.entries())
-      .sort((a, b) => Number(a[0]) - Number(b[0]))
-      .map(([topCode, value]) => ({
-        topCode,
-        topLabel: value.topLabel || `Section ${topCode}`,
-        sections: value.sections
-      }));
-  }, [sections]);
+    return buildColumns(sections, maxHeight, parentTitles);
+  }, [sections, availableHeight, containerHeight, isNarrow, parentTitles]);
 
   const setSectionRef = (code: string) => (node: HTMLDivElement | null) => {
     sectionRefs.current.set(code, node);
@@ -627,10 +669,12 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
               <div className="flex flex-col gap-4">
                 {group.sections.map((section) => (
                   <div key={`${group.topCode}-${section.code}`} className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-                      <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">{section.code}</span>
-                      <span className="text-sm font-semibold text-foreground">{section.name}</span>
-                    </div>
+                    {!section.code.endsWith(".0") ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                        <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">{section.code}</span>
+                        <span className="text-sm font-semibold text-foreground">{section.name}</span>
+                      </div>
+                    ) : null}
                     <div className="space-y-3">
                       {section.items.map((item) => {
                         const isChecked = checked.has(item.id);
@@ -824,7 +868,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                               style={{ minWidth: `${spanWidth}px` }}
                             >
                               {/* Section header spanning all columns - only show if section is split across multiple columns */}
-                              {sg.cols.length > 1 && (
+                              {sg.cols.length > 1 && !sg.code.endsWith(".0") && (
                                 <div className="space-y-1 px-1">
                                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                     <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
@@ -852,7 +896,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                           className="space-y-3"
                                         >
                                           {/* Show section header only if section is NOT split across multiple columns */}
-                                          {!section.continuation && sg.cols.length === 1 && (
+                                          {!section.continuation && sg.cols.length === 1 && !sg.code.endsWith(".0") && (
                                             <div className="space-y-1 px-1">
                                               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                                 <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">

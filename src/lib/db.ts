@@ -182,11 +182,9 @@ export type ChecklistItem = {
   id: string;
   page_id: string;
   section_code: string;
-  section_name: string;
   title: string;
   description: string | null;
   is_required: boolean;
-  position: number;
   created_at: string;
   updated_at: string;
 };
@@ -519,8 +517,7 @@ const cachedGetChecklistPageBySlug = unstable_cache(
       .from("checklist_items")
       .select("*")
       .eq("page_id", (page as any).id)
-      .order("section_code", { ascending: true })
-      .order("position", { ascending: true });
+      .order("section_code", { ascending: true });
 
     if (itemsError) throw itemsError;
 

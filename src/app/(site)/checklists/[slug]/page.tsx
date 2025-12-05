@@ -40,7 +40,8 @@ export default async function ChecklistPage({ params }: PageProps) {
   const canonicalUrl = `${SITE_URL}/checklists/${page.slug}`;
   const descriptionPlain = SITE_DESCRIPTION;
   const descriptionHtml = page.description_md ? await renderMarkdown(page.description_md) : null;
-  const itemListElements = items.map((item, index) => ({
+  const leafItems = items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3);
+  const itemListElements = leafItems.map((item, index) => ({
     "@type": "ListItem",
     position: index + 1,
     item: {
@@ -56,14 +57,14 @@ export default async function ChecklistPage({ params }: PageProps) {
     name: `${page.title} Checklist`,
     description: descriptionPlain,
     url: canonicalUrl,
-    numberOfItems: items.length,
+    numberOfItems: leafItems.length,
     itemListOrder: "Ascending",
     itemListElement: itemListElements
   };
 
   return (
     <div className="flex flex-col gap-1 pb-2 md:gap-0 -mt-4 md:-mt-6">
-      <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={items.length} />
+      <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={leafItems.length} />
       <div
         className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)] [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         data-checklist-scroll
