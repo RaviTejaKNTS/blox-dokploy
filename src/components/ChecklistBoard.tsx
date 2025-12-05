@@ -433,6 +433,23 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     return map;
   }, [items]);
 
+  const groupedSections = useMemo(() => {
+    const grouped = new Map<string, { topLabel: string; sections: SectionBlock[] }>();
+    for (const section of sections) {
+      const topKey = section.topCode;
+      const entry = grouped.get(topKey) ?? { topLabel: parentTitles.get(topKey) ?? section.name, sections: [] };
+      entry.sections.push(section);
+      grouped.set(topKey, entry);
+    }
+    return Array.from(grouped.entries())
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([topCode, value]) => ({
+        topCode,
+        topLabel: value.topLabel || `Section ${topCode}`,
+        sections: value.sections
+      }));
+  }, [sections, parentTitles]);
+
   const columns = useMemo(() => {
     if (isNarrow) return [];
     const baseHeight = availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
