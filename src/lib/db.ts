@@ -129,6 +129,8 @@ export type GameList = {
   meta_title: string | null;
   meta_description: string | null;
   display_name: string | null;
+  primary_metric_key?: string | null;
+  primary_metric_label?: string | null;
   cover_image: string | null;
   list_type: "sql" | "manual" | "hybrid";
   filter_config: Record<string, unknown> | null;
@@ -146,6 +148,8 @@ export type GameListEntry = {
   game_id: string | null;
   rank: number;
   metric_value: number | null;
+  metric_key?: string | null;
+  metric_label?: string | null;
   reason: string | null;
   extra: Record<string, unknown> | null;
 };
@@ -157,6 +161,7 @@ type GamePreview = Pick<Game, "id" | "slug" | "name" | "universe_id"> & {
 export type GameListUniverseEntry = GameListEntry & {
   universe: ListUniverseDetails;
   game: GamePreview | null;
+  badges?: UniverseListBadge[] | null;
 };
 
 export type UniverseListBadge = {
@@ -178,6 +183,9 @@ export type ChecklistPage = {
   is_public: boolean;
   created_at: string;
   updated_at: string;
+  item_count?: number;
+  content_updated_at?: string | null;
+  universe?: UniverseSummary | null;
 };
 
 export type ChecklistItem = {
@@ -367,6 +375,13 @@ export async function getGameListBySlug(
       const record = entry as Record<string, unknown>;
       const universe = (record.universe ?? null) as ListUniverseDetails | null;
       const game = (record.game ?? null) as GamePreview | null;
+      const badges = Array.isArray((record as any).badges) ? ((record as any).badges as UniverseListBadge[]) : null;
+      const metricKey =
+        (record as { metric_key?: unknown }).metric_key ??
+        ((record as { extra?: Record<string, unknown> | null }).extra?.metric as unknown);
+      const metricLabel =
+        (record as { metric_label?: unknown }).metric_label ??
+        ((record as { extra?: Record<string, unknown> | null }).extra?.metric_label as unknown);
       if (!universe) return null;
       return {
         list_id: (record.list_id as string) ?? list.id,
@@ -374,13 +389,52 @@ export async function getGameListBySlug(
         game_id: (record.game_id as string | null) ?? null,
         rank: (record.rank as number) ?? 0,
         metric_value: (record.metric_value as number | null) ?? null,
+        metric_key: (typeof metricKey === "string" ? metricKey : null),
+        metric_label: (typeof metricLabel === "string" ? metricLabel : null),
         reason: (record.reason as string | null) ?? null,
         extra: (record.extra as Record<string, unknown> | null) ?? null,
         universe,
-        game
+        game,
+        badges: badges && badges.length ? badges : undefined
       } as GameListUniverseEntry;
     })
     .filter((entry): entry is GameListUniverseEntry => Boolean(entry));
+
+  // If the view did not include active counts, hydrate them in a single fetch
+  const missingGameIds = entries
+    .map((entry) => entry.game?.id)
+    .filter((id): id is string => Boolean(id))
+    .filter((id, idx, arr) => arr.indexOf(id) === idx)
+    .filter((id) => {
+      const game = entries.find((e) => e.game?.id === id)?.game;
+      return game && (game.active_count === null || game.active_count === undefined);
+    });
+
+  if (missingGameIds.length) {
+    const withCounts = await listGamesWithActiveCountsForIds(missingGameIds);
+    const map = new Map(withCounts.map((g) => [g.id, g]));
+    for (const entry of entries) {
+      const gid = entry.game?.id;
+      if (gid && map.has(gid)) {
+        entry.game = { ...entry.game, ...map.get(gid)! };
+      }
+    }
+  }
+
+  // If badges are missing, hydrate them in one query
+  const missingBadgeUniverseIds = entries
+    .filter((entry) => !entry.badges || entry.badges.length === 0)
+    .map((entry) => entry.universe_id)
+    .filter((id, idx, arr) => arr.indexOf(id) === idx);
+
+  if (missingBadgeUniverseIds.length) {
+    const badgeMap = await listRanksForUniverses(missingBadgeUniverseIds, list.id);
+    for (const entry of entries) {
+      if (!entry.badges || entry.badges.length === 0) {
+        entry.badges = badgeMap.get(entry.universe_id) ?? undefined;
+      }
+    }
+  }
 
   return { list, entries };
 }
@@ -505,14 +559,29 @@ const cachedGetChecklistPageBySlug = unstable_cache(
     const normalizedSlug = slug.trim().toLowerCase();
     const sb = supabaseAdmin();
 
-    const { data: page, error: pageError } = await sb
-      .from("checklist_pages")
+    let page: ChecklistPage | null = null;
+
+    // Prefer the view; fall back to the base table if needed
+    const { data: viewPage, error: viewError } = await sb
+      .from("checklist_pages_view")
       .select("*")
       .eq("slug", normalizedSlug)
       .eq("is_public", true)
       .maybeSingle();
 
-    if (pageError) throw pageError;
+    if (!viewError && viewPage) {
+      page = viewPage as ChecklistPage;
+    } else {
+      const { data: tablePage, error: tableError } = await sb
+        .from("checklist_pages")
+        .select("*")
+        .eq("slug", normalizedSlug)
+        .eq("is_public", true)
+        .maybeSingle();
+      if (tableError) throw tableError;
+      page = (tablePage as ChecklistPage) ?? null;
+    }
+
     if (!page) return null;
 
     const { data: items, error: itemsError } = await sb
@@ -524,7 +593,7 @@ const cachedGetChecklistPageBySlug = unstable_cache(
     if (itemsError) throw itemsError;
 
     return {
-      page: page as ChecklistPage,
+      page,
       items: (items ?? []) as ChecklistItem[]
     };
   },
@@ -571,6 +640,8 @@ type ChecklistSummaryRow = {
   published_at?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
+  content_updated_at?: string | null;
+  item_count?: number;
   universe?: {
     display_name?: string | null;
     name?: string | null;
@@ -583,6 +654,17 @@ type ChecklistSummaryRow = {
 export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
+    .from("checklist_pages_view")
+    .select("id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, universe")
+    .eq("is_public", true)
+    .order("content_updated_at", { ascending: false });
+
+  if (!error && data) {
+    return (data ?? []) as ChecklistSummaryRow[];
+  }
+
+  // Fallback to base table if the view is unavailable
+  const { data: fallback, error: fallbackError } = await sb
     .from("checklist_pages")
     .select(
       `
@@ -594,16 +676,15 @@ export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> 
         published_at,
         updated_at,
         created_at,
-        universe:roblox_universes(display_name, name, icon_url, thumbnail_urls),
-        items:checklist_items(count)
+        universe:roblox_universes(display_name, name, icon_url, thumbnail_urls)
       `
     )
     .eq("is_public", true)
     .order("updated_at", { ascending: false });
 
-  if (error) throw error;
+  if (fallbackError) throw fallbackError;
 
-  return (data ?? []) as ChecklistSummaryRow[];
+  return (fallback ?? []) as ChecklistSummaryRow[];
 }
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {

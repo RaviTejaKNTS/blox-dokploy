@@ -21,49 +21,73 @@ export type ToolContent = {
   published_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  content_updated_at?: string | null;
 };
 
 const TOOL_SELECT_FIELDS =
-  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at";
-const TOOL_INDEX_FIELDS = "id, code, title, seo_title, meta_description, intro_md, thumb_url, published_at, created_at, updated_at";
+  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at, content_updated_at";
+const TOOL_INDEX_FIELDS =
+  "id, code, title, seo_title, meta_description, intro_md, thumb_url, published_at, created_at, updated_at, content_updated_at";
 
 export async function getToolContent(code: string): Promise<ToolContent | null> {
   const supabase = supabaseAdmin();
   const { data, error } = await supabase
+    .from("tools_view")
+    .select(TOOL_SELECT_FIELDS)
+    .eq("code", code)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (!error && data) {
+    return data as ToolContent;
+  }
+
+  // Fallback to the base table if the view is unavailable
+  const { data: fallback, error: fallbackError } = await supabase
     .from("tools")
     .select(TOOL_SELECT_FIELDS)
     .eq("code", code)
     .eq("is_published", true)
     .maybeSingle();
 
-  if (error) {
-    console.error("Error fetching tool content", error);
+  if (fallbackError) {
+    console.error("Error fetching tool content", fallbackError);
     return null;
   }
 
-  return (data as ToolContent) ?? null;
+  return (fallback as ToolContent) ?? null;
 }
 
 export type ToolListEntry = Pick<
   ToolContent,
   "id" | "code" | "title" | "seo_title" | "meta_description" | "intro_md" | "thumb_url" | "published_at"
-> & { created_at?: string; updated_at?: string };
+> & { created_at?: string; updated_at?: string; content_updated_at?: string | null };
 
 const cachedListPublishedTools = unstable_cache(
   async () => {
     const supabase = supabaseAdmin();
     const { data, error } = await supabase
+      .from("tools_view")
+      .select(TOOL_INDEX_FIELDS)
+      .eq("is_published", true)
+      .order("content_updated_at", { ascending: false });
+
+    if (!error && data) {
+      return (data ?? []) as ToolListEntry[];
+    }
+
+    const { data: fallback, error: fallbackError } = await supabase
       .from("tools")
       .select(TOOL_INDEX_FIELDS)
       .eq("is_published", true)
       .order("updated_at", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching tools index", error);
+    if (fallbackError) {
+      console.error("Error fetching tools index", fallbackError);
       return [];
     }
 
-    return (data ?? []) as ToolListEntry[];
+    return (fallback ?? []) as ToolListEntry[];
   },
   ["listPublishedTools"],
   {

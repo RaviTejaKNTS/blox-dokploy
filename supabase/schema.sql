@@ -414,6 +414,7 @@ create table if not exists public.game_lists (
   id uuid primary key default uuid_generate_v4(),
   slug text not null unique,
   title text not null,
+  display_name text,
   hero_md text,
   intro_md text,
   outro_md text,

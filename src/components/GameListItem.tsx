@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FiUsers, FiEye, FiStar, FiThumbsUp, FiClock, FiMonitor, FiSmartphone, FiTablet, FiTv, FiShield, FiHash } from "react-icons/fi";
+import { FiUsers, FiEye, FiStar, FiThumbsUp, FiClock, FiMonitor, FiSmartphone, FiTablet, FiTv, FiShield, FiHash, FiTrendingUp } from "react-icons/fi";
 import { TbAugmentedReality } from "react-icons/tb";
 import type { GameListUniverseEntry, ListUniverseDetails, UniverseListBadge } from "@/lib/db";
 import { FaCrown, FaMedal, FaTrophy } from "react-icons/fa";
@@ -28,6 +28,71 @@ function formatRatio(likes: number | null | undefined, dislikes: number | null |
   if (total <= 0) return "—";
   const percent = Math.round((like / total) * 100);
   return `${percent}%`;
+}
+
+function formatPrimaryMetric(
+  metricKey: string | null | undefined,
+  metricLabel: string | null | undefined,
+  metricValue: number | null | undefined,
+  universe: ListUniverseDetails
+): { label: string; value: string; raw: string } | null {
+  const key = metricKey?.trim().toLowerCase() || null;
+  const friendlyLabel =
+    metricLabel ??
+    (key === "playing"
+      ? "Playing now"
+      : key === "visits"
+        ? "Visits"
+        : key === "visits_7d_change_pct"
+          ? "7d gain"
+          : key === "visits_7d_change"
+            ? "7d change"
+            : key === "likes_ratio"
+              ? "Like ratio"
+              : key ?? null);
+
+  let value: number | null | undefined = metricValue;
+  if ((value === null || value === undefined) && key) {
+    if (key === "playing") value = universe.playing ?? null;
+    else if (key === "visits") value = universe.visits ?? null;
+  }
+
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    // fall back to playing or visits if no key was provided
+    if (!key) {
+      if (typeof universe.playing === "number") {
+        const raw = universe.playing.toLocaleString("en-US");
+        return { label: "Playing now", value: formatNumber(universe.playing), raw };
+      }
+      if (typeof universe.visits === "number") {
+        const raw = universe.visits.toLocaleString("en-US");
+        return { label: "Visits", value: formatNumber(universe.visits), raw };
+      }
+    }
+    return null;
+  }
+
+  const isPercent = key?.includes("pct");
+  const isDelta = key?.includes("change") || key?.includes("delta");
+  let formatted: string;
+
+  if (isPercent) {
+    const digits = Math.abs(value) >= 10 ? 0 : 1;
+    const raw = `${value >= 0 ? "+" : ""}${value.toLocaleString("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    })}%`;
+    formatted = `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
+    return { label: friendlyLabel ?? "Metric", value: formatted, raw };
+  } else if (isDelta) {
+    const raw = `${value >= 0 ? "+" : ""}${Math.abs(value).toLocaleString("en-US")}`;
+    formatted = `${value >= 0 ? "+" : ""}${formatNumber(Math.abs(value))}`;
+    return { label: friendlyLabel ?? "Metric", value: formatted, raw };
+  } else {
+    const raw = value.toLocaleString("en-US");
+    formatted = formatNumber(value);
+    return { label: friendlyLabel ?? "Metric", value: formatted, raw };
+  }
 }
 
 function DeviceBadge({ label, icon: Icon, enabled }: { label: string; icon: ComponentType<{ className?: string }>; enabled?: boolean | null }) {
@@ -107,6 +172,13 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
   const badges = (entry as any).badges as UniverseListBadge[] | undefined;
   const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);
   const gameDescription = universe.game_description_md || universe.description;
+  const metricKey = (entry as any).metric_key ?? (entry.extra as any)?.metric ?? null;
+  const metricLabelResolved =
+    metricLabel ??
+    (entry as any).metric_label ??
+    (entry.extra as any)?.metric_label ??
+    null;
+  const primaryMetric = formatPrimaryMetric(metricKey, metricLabelResolved, entry.metric_value, universe);
 
   return (
     <article className="rounded-[var(--radius-xl)] border border-border/60 bg-surface/80 p-4 shadow-soft transition hover:border-accent hover:shadow-[0_24px_45px_-35px_rgba(59,70,128,0.65)] sm:p-5">
@@ -125,23 +197,13 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
             </p>
           </div>
         </div>
-        {visibleBadges?.length ? (
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            {visibleBadges.slice(0, 3).map((badge) => {
-              const Icon = badgeIconForRank(badge.rank);
-              const label = `#${badge.rank} on ${badge.list_title}`;
-              return (
-                <Link
-                  key={`${badge.list_id}-${badge.rank}`}
-                  href={`/lists/${badge.list_slug}`}
-                  prefetch={false}
-                  className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
-                >
-                  <Icon className="h-4 w-4 text-accent" aria-hidden />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+        {primaryMetric ? (
+          <div className="flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs font-semibold text-foreground sm:justify-end">
+            <FiTrendingUp className="h-4 w-4 text-accent" aria-hidden />
+            <span className="text-foreground">
+              {primaryMetric.value} <span className="text-muted">[{primaryMetric.raw}]</span>
+            </span>
+            <span className="text-muted">{primaryMetric.label}</span>
           </div>
         ) : null}
       </div>
@@ -202,6 +264,30 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
               <p className="text-sm text-muted" suppressHydrationWarning>
                 {gameDescription}
               </p>
+            ) : null}
+            {visibleBadges?.length ? (
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                {visibleBadges.slice(0, 3).map((badge) => {
+                  const Icon = badgeIconForRank(badge.rank);
+                  const labelBase =
+                    (badge as any).list_display_name ||
+                    badge.list_title ||
+                    badge.list_slug ||
+                    universeTitle(universe);
+                  const label = `#${badge.rank} on ${labelBase}`;
+                  return (
+                    <Link
+                      key={`${badge.list_id}-${badge.rank}`}
+                      href={`/lists/${badge.list_slug}`}
+                      prefetch={false}
+                      className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                    >
+                      <Icon className="h-4 w-4 text-accent" aria-hidden />
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             ) : null}
           </div>
         </div>
