@@ -392,6 +392,30 @@ create index if not exists idx_articles_author on public.articles (author_id, is
 create index if not exists idx_articles_universe on public.articles (universe_id);
 create index if not exists idx_articles_published_published_at on public.articles (is_published, published_at desc);
 
+-- Images collected from article sources
+create table if not exists public.article_source_images (
+  id uuid primary key default uuid_generate_v4(),
+  article_id uuid not null references public.articles(id) on delete cascade,
+  source_url text not null,
+  source_host text not null,
+  name text not null,
+  original_url text not null,
+  uploaded_path text not null,
+  public_url text,
+  table_key text,
+  row_text text,
+  alt_text text,
+  caption text,
+  context text,
+  is_table boolean not null default false,
+  width int,
+  height int,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_article_source_images_article on public.article_source_images (article_id);
+create index if not exists idx_article_source_images_source on public.article_source_images (source_host, source_url);
+
 -- Queue table for revalidation events
 create table if not exists public.revalidation_events (
   id uuid primary key default uuid_generate_v4(),
@@ -693,6 +717,7 @@ alter table public.roblox_universe_sort_definitions enable row level security;
 alter table public.roblox_universe_sort_entries enable row level security;
 alter table public.roblox_universe_search_snapshots enable row level security;
 alter table public.roblox_universe_place_servers enable row level security;
+alter table public.article_source_images enable row level security;
 
 -- Policy: allow read of published games and their codes to anon
 drop policy if exists "read_published_games" on public.games;
@@ -739,6 +764,20 @@ create policy "read_authors" on public.authors
 
 drop policy if exists "admin_manage_authors" on public.authors;
 create policy "admin_manage_authors" on public.authors
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin_manage_article_source_images" on public.article_source_images;
+create policy "admin_manage_article_source_images" on public.article_source_images
   for all
   using (
     exists (

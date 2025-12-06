@@ -198,10 +198,10 @@
 
 .prose td img,
 .game-copy td img {
-  max-width: 100%;
+  max-width: min(340px, 100%);
   height: auto;
-  max-height: 120px;
-  border-radius: var(--radius-md);
+  max-height: 340px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
   border: 1px solid rgba(18, 22, 40, 0.1);
   display: block;

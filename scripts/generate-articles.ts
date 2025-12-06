@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { JSDOM } from "jsdom";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 
 import { slugify } from "@/lib/slug";
 
@@ -25,12 +26,25 @@ type SearchResult = {
   snippet?: string;
 };
 
+type SourceImage = {
+  name: string;
+  originalUrl: string;
+  altText: string | null;
+  caption: string | null;
+  context: string | null;
+  isTable: boolean;
+  width: number | null;
+  height: number | null;
+  rowText?: string | null;
+};
+
 type SourceDocument = {
   title: string;
   url: string;
   content: string;
   host: string;
   isForum: boolean;
+  images: SourceImage[];
   verification?: "Yes" | "No";
 };
 
@@ -40,12 +54,28 @@ type DraftArticle = {
   meta_description: string;
 };
 
+type RelatedPage = {
+  type: "article" | "codes" | "checklist" | "tool";
+  title: string;
+  url: string;
+  description?: string | null;
+  updatedAt?: string | null;
+};
+
+type ImagePlacement = {
+  name: string;
+  publicUrl: string;
+  tableKey: string | null;
+  context: string | null;
+};
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const AUTHOR_ID = process.env.ARTICLE_AUTHOR_ID ?? "4fc99a58-83da-46f6-9621-7816e36b4088";
 const SUPABASE_MEDIA_BUCKET = process.env.SUPABASE_MEDIA_BUCKET;
+const SITE_URL = (process.env.SITE_URL ?? "https://bloxodes.com").replace(/\/$/, "");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE.");
@@ -140,6 +170,58 @@ function isVideoHost(hostname: string): boolean {
   return base.includes("youtube.com") || base.includes("youtu.be") || base.includes("vimeo.com") || base.includes("dailymotion.com");
 }
 
+function isFandomHost(hostname: string): boolean {
+  const base = hostname.replace(/^www\./i, "").toLowerCase();
+  return base === "fandom.com" || base.endsWith(".fandom.com") || base.endsWith(".fandomwiki.com");
+}
+
+function cleanText(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length ? normalized : null;
+}
+
+function hashForPath(value: string): string {
+  return createHash("md5").update(value).digest("hex").slice(0, 8);
+}
+
+function normalizeImageFileBase(name: string): string {
+  const normalized = slugify(name);
+  return normalized && normalized.length > 0 ? normalized : "image";
+}
+
+function escapeForSvg(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function normalizeOverlayTitle(value: string | null | undefined, limit = 70): string | null {
+  if (!value) return null;
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned.length > limit ? `${cleaned.slice(0, limit - 1)}…` : cleaned;
+}
+
+function pickOverlayFontSize(text: string): number {
+  const len = text.length;
+  if (len > 55) return 40;
+  if (len > 42) return 48;
+  if (len > 30) return 56;
+  return 64;
+}
+
+function truncateForPrompt(value: string | null | undefined, limit = 240): string | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  if (normalized.length > limit) return `${normalized.slice(0, limit)}…`;
+  return normalized;
+}
+
 function estimateWordCount(markdown: string): number {
   const text = markdown
     .replace(/```[\s\S]*?```/g, " ")
@@ -199,6 +281,268 @@ function normalizeThumbnailUrls(value: unknown): string[] {
     .filter((url): url is string => typeof url === "string" && url.trim().length > 0);
 }
 
+function pickFromSrcset(value: string | null): string | null {
+  if (!value) return null;
+  const candidates = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  let best: { url: string; width: number } | null = null;
+  for (const candidate of candidates) {
+    const [maybeUrl, size] = candidate.split(/\s+/);
+    const width = size?.endsWith("w") ? Number.parseInt(size.replace(/[^\d]/g, ""), 10) : Number.NaN;
+    const normalizedUrl = maybeUrl?.trim();
+    if (!normalizedUrl) continue;
+    const isFiniteWidth: boolean = Number.isFinite(width);
+    if (!best || (isFiniteWidth && width > best.width)) {
+      const fallbackWidth: number = best ? best.width : 0;
+      best = { url: normalizedUrl, width: isFiniteWidth ? width : fallbackWidth };
+    }
+  }
+
+  if (best?.url) return best.url;
+  const firstUrl = candidates[0]?.split(/\s+/)[0];
+  return firstUrl ?? null;
+}
+
+function resolveAbsoluteUrl(url: string | null, base: string): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url, base).toString();
+  } catch {
+    return null;
+  }
+}
+
+function deriveImageNameForRecord(alt: string | null, caption: string | null, imageUrl: string): string {
+  const fromAlt = cleanText(alt);
+  const fromCaption = cleanText(caption);
+
+  if (fromAlt) return fromAlt.slice(0, 200);
+  if (fromCaption) return fromCaption.slice(0, 200);
+
+  try {
+    const parsed = new URL(imageUrl);
+    const last = parsed.pathname.split("/").filter(Boolean).pop() ?? "image";
+    const withoutExt = last.replace(/\.[a-z0-9]+$/i, "");
+    const decoded = decodeURIComponent(withoutExt);
+    const cleaned = cleanText(decoded);
+    if (cleaned) return cleaned.slice(0, 200);
+  } catch {
+    // ignore
+  }
+
+  return "image";
+}
+
+function parseBackgroundUrl(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/url\((['"]?)(.*?)\1\)/i);
+  if (match && match[2]) {
+    return match[2].trim();
+  }
+  return null;
+}
+
+function isTableContext(el: Element | null): boolean {
+  if (!el) return false;
+  if (el.closest("table")) return true;
+  const tableLikes = [".table", ".table-responsive", ".wp-block-table", ".wikitable", ".infobox", "[role='table']"];
+  return tableLikes.some((selector) => Boolean(el.closest(selector)));
+}
+
+function resolveImageAttribute(el: Element, baseUrl: string): string | null {
+  const attributeCandidates = [
+    "data-srcset",
+    "srcset",
+    "data-src",
+    "data-original",
+    "data-image-src",
+    "data-url",
+    "data-lazy-src",
+    "data-lazyload",
+    "data-lazy",
+    "data-llsrc",
+    "data-ll-src",
+    "data-img",
+    "data-cfsrc",
+    "src"
+  ];
+
+  for (const attr of attributeCandidates) {
+    const raw = el.getAttribute(attr);
+    if (!raw) continue;
+    const fromSrcset = attr.includes("srcset") ? pickFromSrcset(raw) : raw;
+    const absolute = resolveAbsoluteUrl(fromSrcset, baseUrl);
+    if (absolute) return absolute;
+  }
+
+  return null;
+}
+
+function buildTableRowText(el: Element | null): string | null {
+  if (!el) return null;
+  const row = el.closest("tr");
+  if (!row) return null;
+  const cells = Array.from(row.querySelectorAll("th,td")).map((cell) => cleanText(cell.textContent ?? "")).filter(Boolean) as string[];
+  if (!cells.length) return null;
+  return cells.join(" | ");
+}
+
+function extractImagesFromDocument(
+  document: Document,
+  options: { sourceUrl: string; sourceHost: string; allowAllImages: boolean }
+): SourceImage[] {
+  const images: SourceImage[] = [];
+  const seen = new Set<string>();
+
+  const addImageFromElement = (el: Element, absoluteUrl: string, isTable: boolean) => {
+    if (seen.has(absoluteUrl)) return;
+    seen.add(absoluteUrl);
+
+    const alt =
+      cleanText(el.getAttribute("alt")) ??
+      cleanText(el.getAttribute("aria-label")) ??
+      cleanText(el.getAttribute("title"));
+
+    const tableAncestor = el.closest("table");
+    const caption = tableAncestor
+      ? cleanText(tableAncestor.querySelector("caption")?.textContent ?? "")
+      : cleanText(el.closest("figure")?.querySelector("figcaption")?.textContent ?? "");
+
+    const name = deriveImageNameForRecord(alt, caption, absoluteUrl);
+
+    let context: string | null = null;
+    if (isTable) {
+      const cell = el.closest("td,th");
+      const row = el.closest("tr");
+      const header = row ? cleanText(row.querySelector("th")?.textContent ?? "") : null;
+      const dataLabel = cell ? cleanText(cell.getAttribute("data-label")) : null;
+      const cellText = cell ? cleanText(cell.textContent ?? "") : null;
+      const parts = [caption, dataLabel, header, cellText].filter(Boolean) as string[];
+      context = parts.length ? parts.join(" | ").slice(0, 500) : null;
+    } else if (options.allowAllImages) {
+      context = caption;
+    }
+
+    const widthAttr = Number.parseInt((el as HTMLElement).getAttribute?.("width") ?? "", 10);
+    const heightAttr = Number.parseInt((el as HTMLElement).getAttribute?.("height") ?? "", 10);
+    const width = Number.isFinite(widthAttr) ? widthAttr : null;
+    const height = Number.isFinite(heightAttr) ? heightAttr : null;
+    const rowText = buildTableRowText(el);
+
+    images.push({
+      name,
+      originalUrl: absoluteUrl,
+      altText: alt,
+      caption,
+      context,
+      isTable,
+      width,
+      height,
+      rowText
+    });
+  };
+
+  const shouldKeep = (el: Element, isTable: boolean) => isTable || options.allowAllImages;
+
+  // Regular <img> tags
+  const imgNodes = Array.from(document.querySelectorAll("img"));
+  for (const node of imgNodes) {
+    const img = node as HTMLImageElement;
+    const isTable = isTableContext(img);
+    if (!shouldKeep(img, isTable)) continue;
+
+    const absoluteUrl = resolveImageAttribute(img, options.sourceUrl);
+    if (!absoluteUrl) continue;
+
+    const lowerUrl = absoluteUrl.toLowerCase();
+    if (!lowerUrl.startsWith("http://") && !lowerUrl.startsWith("https://")) continue;
+    if (lowerUrl.startsWith("data:") || lowerUrl.startsWith("blob:")) continue;
+    if (lowerUrl.includes("sprite") || lowerUrl.includes("spacer") || lowerUrl.includes("blank.") || lowerUrl.includes("pixel")) continue;
+
+    addImageFromElement(img, absoluteUrl, isTable);
+  }
+
+  // <source> tags (e.g., inside <picture>) so we don't miss table images without an <img> tag
+  const sourceNodes = Array.from(document.querySelectorAll("source"));
+  for (const srcNode of sourceNodes) {
+    const isTable = isTableContext(srcNode);
+    if (!shouldKeep(srcNode, isTable)) continue;
+
+    const rawSrc = pickFromSrcset(srcNode.getAttribute("data-srcset") ?? srcNode.getAttribute("srcset"));
+    const absoluteUrl = resolveAbsoluteUrl(rawSrc, options.sourceUrl);
+    if (!absoluteUrl) continue;
+
+    const lowerUrl = absoluteUrl.toLowerCase();
+    if (!lowerUrl.startsWith("http://") && !lowerUrl.startsWith("https://")) continue;
+    if (lowerUrl.startsWith("data:") || lowerUrl.startsWith("blob:")) continue;
+    if (lowerUrl.includes("sprite") || lowerUrl.includes("spacer") || lowerUrl.includes("blank.") || lowerUrl.includes("pixel")) continue;
+
+    addImageFromElement(srcNode, absoluteUrl, isTable);
+  }
+
+  // Background images inside tables (or anywhere if allowAllImages)
+  const bgSelector = options.allowAllImages
+    ? "[style*='background-image'],[data-bg],[data-background],[data-bg-src],[data-lazy-bg]"
+    : "table [style*='background-image'],table [data-bg],table [data-background],table [data-bg-src],table [data-lazy-bg], .table [style*='background-image'], .wp-block-table [style*='background-image']";
+  const bgNodes = Array.from(document.querySelectorAll(bgSelector));
+
+  for (const node of bgNodes) {
+    const el = node as HTMLElement;
+    const isTable = isTableContext(el);
+    if (!shouldKeep(el, isTable)) continue;
+
+    const styleUrl = parseBackgroundUrl(el.getAttribute("style"));
+    const dataUrl =
+      el.getAttribute("data-bg") ||
+      el.getAttribute("data-background") ||
+      el.getAttribute("data-bg-src") ||
+      el.getAttribute("data-lazy-bg");
+
+    const absoluteUrl = resolveAbsoluteUrl(styleUrl ?? dataUrl, options.sourceUrl);
+    if (!absoluteUrl) continue;
+
+    const lowerUrl = absoluteUrl.toLowerCase();
+    if (!lowerUrl.startsWith("http://") && !lowerUrl.startsWith("https://")) continue;
+    if (lowerUrl.startsWith("data:") || lowerUrl.startsWith("blob:")) continue;
+    if (lowerUrl.includes("sprite") || lowerUrl.includes("spacer") || lowerUrl.includes("blank.") || lowerUrl.includes("pixel")) continue;
+
+    addImageFromElement(el, absoluteUrl, isTable);
+  }
+
+  // AMP images and lazy noscript fallbacks inside table contexts
+  const ampNodes = Array.from(document.querySelectorAll("amp-img"));
+  for (const amp of ampNodes) {
+    const isTable = isTableContext(amp);
+    if (!shouldKeep(amp, isTable)) continue;
+    const absoluteUrl = resolveImageAttribute(amp, options.sourceUrl);
+    if (!absoluteUrl) continue;
+    addImageFromElement(amp, absoluteUrl, isTable);
+  }
+
+  const noscripts = Array.from(document.querySelectorAll("noscript"));
+  for (const ns of noscripts) {
+    if (!isTableContext(ns)) continue;
+    const html = ns.innerHTML;
+    if (!html || !html.includes("<img")) continue;
+    try {
+      const fragDom = new JSDOM(html, { url: options.sourceUrl });
+      const fragImgs = Array.from(fragDom.window.document.querySelectorAll("img"));
+      for (const img of fragImgs) {
+        const absoluteUrl = resolveImageAttribute(img, options.sourceUrl);
+        if (!absoluteUrl) continue;
+        addImageFromElement(img, absoluteUrl, true);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  return images;
+}
+
 async function pickUniverseThumbnail(universeId: number): Promise<{ url: string; gameName?: string } | null> {
   const { data, error } = await supabase
     .from("roblox_universes")
@@ -233,6 +577,7 @@ async function downloadResizeAndUploadCover(params: {
   imageUrl: string;
   slug: string;
   fileBase?: string;
+  overlayTitle?: string | null;
 }): Promise<string | null> {
   if (!SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
@@ -254,8 +599,29 @@ async function downloadResizeAndUploadCover(params: {
 
     const buffer = Buffer.from(await response.arrayBuffer());
 
+    const overlayText = normalizeOverlayTitle(params.overlayTitle ?? null);
+    const overlayGroup = overlayText
+      ? `
+        <g>
+          <rect x="110" y="520" width="980" height="130" rx="28" fill="rgba(0,0,0,0.6)" stroke="rgba(255,255,255,0.4)" stroke-width="3"/>
+          <text x="50%" y="590" text-anchor="middle" fill="#f8f9fb" font-size="${pickOverlayFontSize(
+            overlayText
+          )}" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" letter-spacing="1.5" dominant-baseline="middle">${escapeForSvg(
+            overlayText
+          )}</text>
+        </g>`
+      : "";
+
+    const svgOverlay = Buffer.from(
+      `<svg width="1200" height="675" xmlns="http://www.w3.org/2000/svg" role="presentation">${overlayGroup}</svg>`.replace(
+        /\s+/g,
+        " "
+      )
+    );
+
     const resized = await sharp(buffer)
       .resize(1200, 675, { fit: "cover", position: "attention" })
+      .composite([{ input: svgOverlay, blend: "over" }])
       .webp({ quality: 90, effort: 4 })
       .toBuffer();
 
@@ -287,7 +653,7 @@ async function downloadResizeAndUploadCover(params: {
   }
 }
 
-async function uploadUniverseCoverImage(universeId: number, slug: string): Promise<string | null> {
+async function uploadUniverseCoverImage(universeId: number, slug: string, overlayTitle?: string | null): Promise<string | null> {
   if (!SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
     return null;
@@ -298,7 +664,8 @@ async function uploadUniverseCoverImage(universeId: number, slug: string): Promi
   return downloadResizeAndUploadCover({
     imageUrl: pick.url,
     slug,
-    fileBase: pick.gameName ?? `universe-${universeId}`
+    fileBase: pick.gameName ?? `universe-${universeId}`,
+    overlayTitle: overlayTitle ?? pick.gameName ?? null
   });
 }
 
@@ -403,9 +770,24 @@ async function perplexitySearch(query: string, limit: number): Promise<SearchRes
 type ParsedArticle = {
   content: string;
   title: string | null;
+  html: string;
+  images: SourceImage[];
+  host: string;
 };
 
-async function fetchArticleContent(url: string): Promise<ParsedArticle | null> {
+async function fetchArticleContent(
+  url: string,
+  options: { allowAllImages?: boolean; sourceHost?: string } = {}
+): Promise<ParsedArticle | null> {
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    host = options.sourceHost ?? "";
+  }
+
+  const allowAllImages = options.allowAllImages ?? isFandomHost(host);
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -422,6 +804,12 @@ async function fetchArticleContent(url: string): Promise<ParsedArticle | null> {
 
     const html = await response.text();
     const dom = new JSDOM(html, { url });
+    // Extract images before Readability mutates the DOM
+    const images = extractImagesFromDocument(dom.window.document, {
+      sourceUrl: url,
+      sourceHost: host || options.sourceHost || "",
+      allowAllImages
+    });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
@@ -440,7 +828,10 @@ async function fetchArticleContent(url: string): Promise<ParsedArticle | null> {
 
     return {
       content: normalized.slice(0, SOURCE_CHAR_LIMIT),
-      title: derivedTitle
+      title: derivedTitle,
+      html,
+      images,
+      host
     };
   } catch (error) {
     console.warn(`   • Failed to fetch ${url}:`, (error as Error).message);
@@ -481,7 +872,7 @@ async function collectFromResults(
     const hostCount = hostCounts.get(host) ?? 0;
     if (hostCount >= hostLimit) continue;
 
-    const parsedContent = await fetchArticleContent(result.url);
+    const parsedContent = await fetchArticleContent(result.url, { allowAllImages: isFandomHost(host), sourceHost: host });
     if (!parsedContent) continue;
 
     collected.push({
@@ -489,7 +880,8 @@ async function collectFromResults(
       url: result.url,
       content: parsedContent.content,
       host,
-      isForum
+      isForum,
+      images: parsedContent.images
     });
 
     options.seenUrls.add(result.url);
@@ -546,7 +938,7 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
     const hostCount = hostCounts.get(host) ?? 0;
     if (hostCount >= hostLimit) continue;
 
-    const parsedContent = await fetchArticleContent(url);
+    const parsedContent = await fetchArticleContent(url, { allowAllImages: isFandomHost(host), sourceHost: host });
     if (!parsedContent) continue;
 
     collected.push({
@@ -554,7 +946,8 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
       url,
       content: parsedContent.content,
       host,
-      isForum
+      isForum,
+      images: parsedContent.images
     });
 
     seenUrls.add(url);
@@ -599,7 +992,8 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
         url: "perplexity:sonar-notes",
         content: notes.slice(0, SOURCE_CHAR_LIMIT),
         host: "perplexity.ai",
-        isForum: false
+        isForum: false,
+        images: []
       });
       console.log(`source_${collected.length}: perplexity.ai [sonar notes]`);
     }
@@ -677,34 +1071,35 @@ function buildArticlePrompt(topic: string, sources: SourceDocument[]): string {
   return `
 Use the research below to write a Roblox article.
 
-Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional content writer who also plays Roblox. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
+Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing is Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
 
-Start with an small intro that's engaging and is not templated style. Don't start the intro with a generic template style opening. Don't start with "If you ever" or other clichéd phrases.
+Start with an small intro that hooks the audience into reading the entire article. Keep it direct, focused and on-point. Write a unique, conventional and on point intro that's very human and relatable. Do not repeat the same info template again and again. 
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally. This should be just a small para only covering the most important aspect like in 2-3 lines long. Instead you can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
-Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally. This should be just a small para only covering the most important aspect that like 2-3 lines long. Can use bullet points here if you think that will make it easier to scan.
+After that, start with a H2 heading and then write the main content following these rules:
+ - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
+ - Keep the article information dense, and communicate it in a way that is easy to understand. 
+ - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
+ - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
+ - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
+ - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
+ - Write in-depth and make sure everything is covered, but write in as less words as possible. 
+ - Use full sentences and explain things clearly without any repetations or useless information. 
+ - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
+ - Use numbered steps when explaining a process.  
+ - Before any tables, bullet points, or steps, write a short paragraph that sets the context.
+ - Write first-hand experience like roblox player sharing their knowledge/experience. Do not directly state it, instead you can talk like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable.
+ - Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
+ - Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
-Use full sentences and explain things clearly without fluff or repetition. Keep the article information dense but readable. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
-
-Make sure you are covering everything related to the topic and not missing any important points. Don't drag and explain things that are very obvious to the reader. Do not focus on generic stuff or repeat what's already clear. The structure of article should be clean, focused and easy to scan. Structure itself should have a story like flow from one to other. Even keep the headings very casual and conversation-like.
-
-Use only H2 headings for sections. Bullet points or tables are fine when they make information easier to scan. For step by step instructions, always use numbered steps. Before any bullets, tables, or steps, write a short paragraph that sets the context.
-
-Keep the tone friendly and relatable, like a Roblox player sharing their knowledge. Do not use over technical language. Focus on solving the user’s intent completely so they leave with zero confusion. 
-
-Sprinkle in some first hand experience where ever matters and needed. Do not blatently write like "from my experience" or "when I played". Give experience instead like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
-
-If the article is a listicle or has any lists that you can give, present them in clear, easy-to-scan formats like tables or bullet points.
-
-Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. End with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
-
-Topic: "${topic}"
+ Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
 
 Sources:
 ${sourceBlock}
 
 Return JSON:
 {
-  "title": "A simple title that's easy to scan and understand. Keep it short with keyword and conversational. Don't write like key-value pairs. Just a simple title that people search on Google is what we need",
+  "title": "A small simple title that's easy to scan and understand. Keep it short and on-point and no key:value pairs",
   "meta_description": "150-160 character summary",
   "content_md": "Full Markdown article"
 }
@@ -782,42 +1177,6 @@ ${article.content_md}
   return feedback;
 }
 
-async function checkArticleCoverage(topic: string, article: DraftArticle): Promise<string> {
-  const prompt = `
-Does this Roblox article fully cover the topic with the right level of detail and no off-topic filler? If it is complete, reply exactly: Yes
-If anything is missing, reply starting with: No
-Then list the information that needs to be added and where to add it (e.g., which section or after which paragraph).
-
-Topic: "${topic}"
-
-Article Title: ${article.title}
-Meta Description: ${article.meta_description}
-Article Markdown:
-${article.content_md}
-`.trim();
-
-  const completion = await perplexity.chat.completions.create({
-    model: "sonar",
-    temperature: 0,
-    max_tokens: 1200,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You evaluate completeness. Reply exactly 'Yes' if the article is detailed enough and fully on-topic. Otherwise start with 'No' and describe what to add and where to add it."
-      },
-      { role: "user", content: prompt }
-    ]
-  });
-
-  const feedback = completion.choices[0]?.message?.content?.trim();
-  if (!feedback) {
-    throw new Error("Coverage check returned empty feedback.");
-  }
-
-  return feedback;
-}
-
 async function reviseArticleWithFeedback(
   topic: string,
   article: DraftArticle,
@@ -890,6 +1249,268 @@ Return JSON:
   };
 }
 
+async function fetchRelatedPagesForUniverse(params: {
+  universeId: number | null;
+  excludeSlug?: string | null;
+}): Promise<RelatedPage[]> {
+  const { universeId, excludeSlug } = params;
+
+  const related: RelatedPage[] = [];
+  const seen = new Set<string>();
+  const addPage = (page: RelatedPage) => {
+    if (seen.has(page.url)) return;
+    related.push(page);
+    seen.add(page.url);
+  };
+
+  try {
+    let articleQuery = supabase
+      .from("articles")
+      .select("title, slug, meta_description, published_at, updated_at")
+      .eq("is_published", true);
+
+    if (universeId) {
+      articleQuery = articleQuery.eq("universe_id", universeId);
+    }
+
+    if (excludeSlug) {
+      articleQuery = articleQuery.neq("slug", excludeSlug);
+    }
+
+    const { data, error } = await articleQuery.order("published_at", { ascending: false }).limit(25);
+    if (error) {
+      console.warn("⚠️ Failed to fetch related articles:", error.message);
+    } else {
+      for (const row of data ?? []) {
+        if (!row?.slug || !row?.title) continue;
+        addPage({
+          type: "article",
+          title: row.title,
+          url: `${SITE_URL}/articles/${row.slug}`,
+          description: truncateForPrompt((row as any).meta_description),
+          updatedAt: (row as any).published_at ?? (row as any).updated_at ?? null
+        });
+      }
+    }
+
+    const hadUniverseArticles = related.some((entry) => entry.type === "article" && universeId !== null);
+
+    if ((!universeId || !hadUniverseArticles) && related.filter((p) => p.type === "article").length === 0) {
+      const { data: fallbackArticles, error: fallbackError } = await supabase
+        .from("articles")
+        .select("title, slug, meta_description, published_at, updated_at")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(25);
+
+      if (fallbackError) {
+        console.warn("⚠️ Fallback article lookup failed:", fallbackError.message);
+      } else {
+        for (const row of fallbackArticles ?? []) {
+          if (!row?.slug || !row?.title) continue;
+          if (excludeSlug && row.slug === excludeSlug) continue;
+          addPage({
+            type: "article",
+            title: row.title,
+            url: `${SITE_URL}/articles/${row.slug}`,
+            description: truncateForPrompt((row as any).meta_description),
+            updatedAt: (row as any).published_at ?? (row as any).updated_at ?? null
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Related articles lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  if (universeId) {
+    try {
+      const { data, error } = await supabase
+        .from("games")
+        .select("name, slug, seo_description, updated_at")
+        .eq("universe_id", universeId)
+        .eq("is_published", true)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("⚠️ Failed to fetch codes page:", error.message);
+      } else if (data?.slug) {
+        addPage({
+          type: "codes",
+          title: `${data.name ?? "Game"} codes`,
+          url: `${SITE_URL}/codes/${data.slug}`,
+          description: truncateForPrompt((data as any).seo_description),
+          updatedAt: (data as any).updated_at ?? null
+        });
+      }
+    } catch (error) {
+      console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("checklist_pages_view")
+        .select("title, slug, description_md, content_updated_at")
+        .eq("universe_id", universeId)
+        .eq("is_public", true)
+        .order("content_updated_at", { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.warn("⚠️ Failed to fetch checklist pages:", error.message);
+      } else {
+        for (const row of data ?? []) {
+          if (!row?.slug || !row?.title) continue;
+          addPage({
+            type: "checklist",
+            title: row.title,
+            url: `${SITE_URL}/checklists/${row.slug}`,
+            description: truncateForPrompt((row as any).description_md),
+            updatedAt: (row as any).content_updated_at ?? null
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("tools_view")
+      .select("code, title, meta_description, content_updated_at")
+      .eq("is_published", true)
+      .order("content_updated_at", { ascending: false })
+      .limit(3);
+
+    if (error) {
+      console.warn("⚠️ Failed to fetch tools:", error.message);
+    } else {
+      for (const row of data ?? []) {
+        if (!row?.code || !row?.title) continue;
+        addPage({
+          type: "tool",
+          title: row.title,
+          url: `${SITE_URL}/tools/${row.code}`,
+          description: truncateForPrompt((row as any).meta_description),
+          updatedAt: (row as any).content_updated_at ?? null
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Tools lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  return related;
+}
+
+async function interlinkArticleWithRelatedPages(
+  topic: string,
+  article: DraftArticle,
+  pages: RelatedPage[]
+): Promise<DraftArticle> {
+  if (pages.length < 2) return article;
+
+  const pageBlock = pages
+    .map(
+      (page, idx) =>
+        `PAGE ${idx + 1}\nType: ${page.type}\nTitle: ${page.title}\nURL: ${page.url}\nDetails: ${page.description ?? "n/a"}\nUpdated: ${
+          page.updatedAt ?? "n/a"
+        }`
+    )
+    .join("\n\n");
+
+  const prompt = `
+Sprinkle 3-4 short internal links throughout the article where they naturally fit. Place them inline across separate, relevant sentences—not all in one sentence or paragraph. No new headings or lists.
+- Use inline Markdown links: [label](url).
+- Prefer the most relevant same-universe pages: codes page, checklist, and older articles. Use tools only if they genuinely help the reader.
+- If fewer than 3 pages are a good fit, add as many as make sense (at least 2) or leave the article unchanged if nothing fits.
+- Anchor text can be rephrased; make it read naturally in context instead of matching titles verbatim.
+- Use the provided URLs exactly; they are on bloxodes.com. Do not invent links.
+- Keep the existing tone and structure; avoid rewrites outside the linked spots.
+
+Topic: "${topic}"
+
+Internal pages:
+${pageBlock}
+
+Article Markdown:
+${article.content_md}
+
+Return JSON:
+{
+  "title": "${article.title}",
+  "meta_description": "${article.meta_description}",
+  "content_md": "Markdown with the internal links inserted where they naturally fit, or unchanged if not enough relevant pages"
+}
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0.25,
+    max_tokens: 3000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "You add natural internal links in-line. Always return valid JSON with title, content_md, and meta_description."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Interlinking step did not return valid JSON: ${(error as Error).message}`);
+  }
+
+  const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
+  if (!title || !content_md || !meta_description) {
+    throw new Error("Interlinking step missing required fields.");
+  }
+
+  return {
+    title: title.trim(),
+    content_md: content_md.trim(),
+    meta_description: meta_description.trim()
+  };
+}
+
+async function buildShortCoverTitle(title: string, topic: string): Promise<string> {
+  const prompt = `
+Create a short, punchy 3-6 word version of this Roblox article title to overlay on a cover image. Keep it clear and scannable. Avoid quotes or extra punctuation.
+
+Title: ${title}
+Topic: ${topic}
+Return only the shortened title text.
+`.trim();
+
+  try {
+    const completion = await perplexity.chat.completions.create({
+      model: "sonar",
+      temperature: 0.2,
+      max_tokens: 50,
+      messages: [
+        { role: "system", content: "Return only the shortened title text, no quotes or labels." },
+        { role: "user", content: prompt }
+      ]
+    });
+
+    const shortText = completion.choices[0]?.message?.content?.trim() ?? "";
+    const normalized = normalizeOverlayTitle(shortText);
+    if (normalized) return normalized;
+  } catch (error) {
+    console.warn("⚠️ Short title generation failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  return normalizeOverlayTitle(title) ?? "Roblox";
+}
+
 async function insertArticleDraft(
   article: DraftArticle,
   options: { slug?: string; universeId?: number | null; coverImage?: string | null } = {}
@@ -923,6 +1544,240 @@ async function insertArticleDraft(
   }
 
   return { id: data.id as string, slug: data.slug as string };
+}
+
+async function updateArticleContent(articleId: string, article: DraftArticle): Promise<boolean> {
+  const wordCount = estimateWordCount(article.content_md);
+  const { error } = await supabase
+    .from("articles")
+    .update({
+      title: article.title,
+      meta_description: article.meta_description,
+      content_md: article.content_md,
+      word_count: wordCount
+    })
+    .eq("id", articleId);
+
+  if (error) {
+    console.warn("⚠️ Failed to update article with images:", error.message);
+    return false;
+  }
+  return true;
+}
+
+async function downloadAndConvertSourceImage(
+  imageUrl: string
+): Promise<{ buffer: Buffer; width: number | null; height: number | null } | null> {
+  try {
+    const response = await fetch(imageUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+      },
+      redirect: "follow"
+    });
+
+    if (!response.ok) {
+      console.warn(`⚠️ Failed to download source image ${imageUrl}: ${response.statusText}`);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const metadata = await sharp(buffer).metadata();
+    const webpBuffer = await sharp(buffer)
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer();
+
+    return {
+      buffer: webpBuffer,
+      width: metadata.width ?? null,
+      height: metadata.height ?? null
+    };
+  } catch (error) {
+    console.warn(`⚠️ Could not process source image ${imageUrl}:`, error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+async function uploadSourceImagesForArticle(params: {
+  articleId: string;
+  slug: string;
+  sources: SourceDocument[];
+}): Promise<{ uploaded: number; images: { name: string; publicUrl: string; tableKey: string | null; context: string | null }[] }> {
+  if (!SUPABASE_MEDIA_BUCKET) {
+    console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping source image uploads.");
+    return { uploaded: 0, images: [] };
+  }
+
+  const storageClient = supabase.storage.from(SUPABASE_MEDIA_BUCKET);
+  const seen = new Set<string>();
+  const rows: {
+    article_id: string;
+    source_url: string;
+    source_host: string;
+    name: string;
+    original_url: string;
+    uploaded_path: string;
+    public_url: string | null;
+    table_key: string | null;
+    row_text: string | null;
+    alt_text: string | null;
+    caption: string | null;
+    context: string | null;
+    is_table: boolean;
+    width: number | null;
+    height: number | null;
+  }[] = [];
+
+  for (const source of params.sources) {
+    const images = source.images ?? [];
+    console.log(`source_images_found host=${source.host} count=${images.length} url=${source.url}`);
+    if (!Array.isArray(images) || images.length === 0) continue;
+
+    for (const image of images) {
+      const dedupeKey = `${source.url}|${image.originalUrl}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      const converted = await downloadAndConvertSourceImage(image.originalUrl);
+      if (!converted) continue;
+
+      if (
+        converted.width !== null &&
+        converted.height !== null &&
+        (converted.width < 20 || converted.height < 20)
+      ) {
+        console.warn(`⚠️ Skipping tiny source image ${image.originalUrl} (${converted.width}x${converted.height})`);
+        continue;
+      }
+
+      const fileBase = normalizeImageFileBase(image.name);
+      const suffix = hashForPath(`${source.url}-${image.originalUrl}`);
+      const path = `articles/${params.slug}/sources/${fileBase}-${suffix}.webp`;
+
+      const uploadResult = await storageClient.upload(path, converted.buffer, {
+        contentType: "image/webp",
+        upsert: true
+      });
+
+      if (uploadResult.error) {
+        console.warn(`⚠️ Failed to upload source image ${image.originalUrl}:`, uploadResult.error.message);
+        continue;
+      }
+
+      const publicUrl = storageClient.getPublicUrl(path).data.publicUrl ?? null;
+      const tableKey = image.isTable ? normalizeImageFileBase(image.name) : null;
+
+      rows.push({
+        article_id: params.articleId,
+        source_url: source.url,
+        source_host: source.host,
+        name: image.name,
+        original_url: image.originalUrl,
+        uploaded_path: path,
+        public_url: publicUrl,
+        table_key: tableKey,
+        row_text: image.rowText ?? null,
+        alt_text: image.altText,
+        caption: image.caption,
+        context: image.context ?? image.rowText ?? null,
+        is_table: image.isTable,
+        width: converted.width ?? image.width ?? null,
+        height: converted.height ?? image.height ?? null
+      });
+    }
+  }
+
+  if (rows.length === 0) {
+    console.log("source_image_upload_skipped reason=no_images_found");
+    return { uploaded: 0, images: [] };
+  }
+
+  const { error } = await supabase.from("article_source_images").insert(rows);
+  if (error) {
+    throw new Error(`Failed to save article source images: ${error.message}`);
+  }
+
+  const imagesOut = rows
+    .filter((row) => row.public_url)
+    .map((row) => ({
+      name: row.name,
+      publicUrl: row.public_url as string,
+      tableKey: row.table_key,
+      context: row.context ?? row.row_text ?? null
+    }));
+
+  return { uploaded: rows.length, images: imagesOut };
+}
+
+async function reviseArticleWithImages(article: DraftArticle, images: ImagePlacement[]): Promise<DraftArticle> {
+  if (!images.length) return article;
+
+  const imagesBlock = images
+    .map(
+      (img, idx) =>
+        `IMAGE ${idx + 1}\nname: ${img.name}\nurl: ${img.publicUrl}\ntable_key: ${img.tableKey ?? "n/a"}\ncontext: ${img.context ?? "n/a"}`
+    )
+    .join("\n\n");
+
+  const prompt = `
+You will insert provided images into the article's Markdown tables. Rules:
+- Use only the given image URLs. Do not invent or fetch anything else.
+- Match images to table rows by name/table_key/context. If you can't confidently place an image, leave the table as-is.
+- Always place the image in a new column of the matching row.
+- To add images you can convert the existing info to table and add the images. 
+- Prefer putting the image in the first column of the matching row using Markdown image syntax: ![Alt](URL)
+- Keep all existing text; add images, do not delete content. Maintain table structure.
+- Do not add a new section; only modify existing tables where a match is clear.
+- If multiple images match a row, pick one.
+
+Images:
+${imagesBlock}
+
+Article Markdown:
+${article.content_md}
+
+Return JSON:
+{
+  "title": "${article.title}",
+  "meta_description": "${article.meta_description}",
+  "content_md": "Updated Markdown with images inserted into the appropriate table rows"
+}
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0.2,
+    max_tokens: 3000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert Roblox content editor. Always return valid JSON with title, content_md, and meta_description."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Image insertion step did not return valid JSON: ${(error as Error).message}`);
+  }
+
+  const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
+  if (!title || !content_md || !meta_description) {
+    throw new Error("Image insertion missing required fields.");
+  }
+
+  return {
+    title: title.trim(),
+    content_md: content_md.trim(),
+    meta_description: meta_description.trim()
+  };
 }
 
 async function main() {
@@ -960,24 +1815,16 @@ async function main() {
     const factCheckedDraft = await reviseArticleWithFeedback(topic, draft, verifiedSources, factCheckFeedback, "fact-check feedback");
     console.log(`fact_checked_title="${factCheckedDraft.title}" word_count=${estimateWordCount(factCheckedDraft.content_md)}`);
 
-    const coverageFeedback = await checkArticleCoverage(topic, factCheckedDraft);
-    const coverageLog = coverageFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`coverage_check="${coverageLog}${coverageFeedback.length > 200 ? "..." : ""}"`);
+    const relatedPages = await fetchRelatedPagesForUniverse({
+      universeId: queueEntry.universe_id,
+      excludeSlug: slugify(factCheckedDraft.title)
+    });
+    console.log(`interlink_candidates=${relatedPages.length}`);
 
-    const coverageDraft = await reviseArticleWithFeedback(topic, factCheckedDraft, verifiedSources, coverageFeedback, "coverage feedback");
-    console.log(`coverage_title="${coverageDraft.title}" word_count=${estimateWordCount(coverageDraft.content_md)}`);
+    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, factCheckedDraft, relatedPages);
+    console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
 
-    const finalFactCheckFeedback = await factCheckArticle(topic, coverageDraft, verifiedSources);
-    const finalFactCheckLog = finalFactCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`final_fact_check="${finalFactCheckLog}${finalFactCheckFeedback.length > 200 ? "..." : ""}"`);
-
-    const finalDraft = await reviseArticleWithFeedback(
-      topic,
-      coverageDraft,
-      verifiedSources,
-      finalFactCheckFeedback,
-      "final fact-check feedback"
-    );
+    const finalDraft = interlinkedDraft;
     console.log(`final_title="${finalDraft.title}" word_count=${estimateWordCount(finalDraft.content_md)}`);
 
     if (finalDraft.content_md.length < 400) {
@@ -989,7 +1836,13 @@ async function main() {
     let coverImage: string | null = null;
     if (queueEntry.universe_id) {
       console.log(`🖼️ Attaching universe cover from ${queueEntry.universe_id}...`);
-      coverImage = await uploadUniverseCoverImage(queueEntry.universe_id, slug);
+      let coverTitle: string | null = null;
+      try {
+        coverTitle = await buildShortCoverTitle(finalDraft.title, topic);
+      } catch (titleError) {
+        console.warn("⚠️ Cover title generation failed:", titleError instanceof Error ? titleError.message : String(titleError));
+      }
+      coverImage = await uploadUniverseCoverImage(queueEntry.universe_id, slug, coverTitle);
     }
 
     const article = await insertArticleDraft(finalDraft, {
@@ -999,6 +1852,23 @@ async function main() {
     });
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
+
+    const imageUploadResult = await uploadSourceImagesForArticle({
+      articleId: article.id,
+      slug,
+      sources: verifiedSources
+    });
+    console.log(`source_images_uploaded=${imageUploadResult.uploaded}`);
+
+    if (imageUploadResult.images.length > 0) {
+      try {
+        const withImages = await reviseArticleWithImages(finalDraft, imageUploadResult.images);
+        const updated = await updateArticleContent(article.id, withImages);
+        console.log(`images_injected word_count=${estimateWordCount(withImages.content_md)} updated=${updated}`);
+      } catch (imageError) {
+        console.warn("⚠️ Failed to inject images into article:", imageError instanceof Error ? imageError.message : String(imageError));
+      }
+    }
 
     await updateQueueStatus(queueEntry.id, "completed", null);
   } catch (error) {
