@@ -318,7 +318,6 @@ export function ListPageView({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
                 <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">{pageTitle}</h1>
               </div>
               {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
