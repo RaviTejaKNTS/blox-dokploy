@@ -46,6 +46,7 @@ type SourceDocument = {
   isForum: boolean;
   images: SourceImage[];
   verification?: "Yes" | "No";
+  fromQueue?: boolean;
 };
 
 type DraftArticle = {
@@ -212,6 +213,10 @@ function pickOverlayFontSize(text: string): number {
   if (len > 42) return 48;
   if (len > 30) return 56;
   return 64;
+}
+
+function replaceEmDashes(value: string): string {
+  return value.replace(/—\s*/g, ": ");
 }
 
 function truncateForPrompt(value: string | null | undefined, limit = 240): string | null {
@@ -820,8 +825,7 @@ async function fetchArticleContent(
 
     const normalized = article.textContent.replace(/\s+/g, " ").trim();
     if (normalized.length < 250) {
-      console.warn(`   • Content too short for ${url}`);
-      return null;
+      console.warn(`   • Content short for ${url} (length=${normalized.length}), keeping anyway`);
     }
 
     const derivedTitle = article.title?.trim() || dom.window.document.title?.trim() || null;
@@ -947,7 +951,8 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
       content: parsedContent.content,
       host,
       isForum,
-      images: parsedContent.images
+      images: parsedContent.images,
+      fromQueue: true
     });
 
     seenUrls.add(url);
@@ -1041,6 +1046,12 @@ async function verifySources(topic: string, sources: SourceDocument[]): Promise<
   const verified: SourceDocument[] = [];
 
   for (const source of sources) {
+    if (source.fromQueue) {
+      source.verification = "Yes";
+      verified.push(source);
+      continue;
+    }
+
     const decision = await verifySourceWithPerplexity(topic, source);
     source.verification = decision;
     console.log(`verify_source host=${source.host} verdict=${decision}`);
@@ -1102,8 +1113,60 @@ Return JSON:
   "title": "A small simple title that's easy to scan and understand. Keep it short and on-point and no key:value pairs",
   "meta_description": "150-160 character summary",
   "content_md": "Full Markdown article"
+  }
+  `.trim();
 }
-`.trim();
+
+async function buildArticlePromptWithSonar(topic: string, sources: SourceDocument[]): Promise<string> {
+  const sourceBlock = formatSourcesForPrompt(sources);
+  const sonarPrompt = `
+Create a single, detailed prompt that I can give to an AI model to write a Roblox article.
+
+Topic: "${topic}"
+
+Use all the research below to tune the prompt:
+${sourceBlock}
+
+Requirements in the article so you need to tune the prompt accordingly: 
+
+1. Article needs to be simple english and easy to understand style. Use a conversational tone like a professional Roblox gaming writer sharing is Roblox knowledge/experience.
+2. Needs to be factual, grounded, engaging and helpful. The article should flow like a story from start to end.
+3. Should explain everything related to the topic in depth
+4. Should not drag the article and need to be as less words as possible. 
+5. Use H2 headings and then H3 Headings. However use only when it drives the narrative forward. This less number of headings will help user to understand the entire structure easily. Also Headings should be conversational like a casual sentence talking to the user.  
+6. No need for title, start with intro directly. 
+7. Intro should be unique to the article topic and need to be small and should hook the reader. Keep things grounded and simple.
+8. Right after the intro, give a small section with no headings that give away the entire article. Can write like just 2-3 lines in para format or use 2-3 bullet points whichever works best for the topic. Prefer paras mostly. Start with section with something like "First things first" or "Here's a quick answer" or anything that flows naturally. 
+9. Entire article should be written in full sentences, engaging with as less words as possible. 
+10. Sprinkle in some first hand experiences that are unique and related to the topic. 
+11. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
+12. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process.  
+12. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident.
+
+Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
+
+Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere.
+
+Just directly start and give me the prompt and nothing more. Instead of just a vague prompt, you can include what can be said in the intro that's very small but hooking, what examples can be considered to state them. Give a line or two about the topics that need to be included.  And ask the AI model to feel free to experiment to make the article perfect.`.trim();
+
+  try {
+    const completion = await perplexity.chat.completions.create({
+      model: "sonar",
+      temperature: 0.2,
+      max_tokens: 600,
+      messages: [
+        { role: "system", content: "Return only the crafted prompt text, nothing else." },
+        { role: "user", content: sonarPrompt }
+      ]
+    });
+
+    const generated = completion.choices[0]?.message?.content?.trim();
+    if (generated) return generated;
+  } catch (error) {
+    console.warn("⚠️ Sonar prompt generation failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  return buildArticlePrompt(topic, sources);
 }
 
 async function draftArticle(prompt: string): Promise<DraftArticle> {
@@ -1115,7 +1178,8 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
     messages: [
       {
         role: "system",
-        content: "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description."
+        content:
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
       },
       { role: "user", content: prompt }
     ]
@@ -1223,7 +1287,8 @@ Return JSON:
     messages: [
       {
         role: "system",
-        content: "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description."
+        content:
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
       },
       { role: "user", content: prompt }
     ]
@@ -1411,7 +1476,12 @@ async function interlinkArticleWithRelatedPages(
   article: DraftArticle,
   pages: RelatedPage[]
 ): Promise<DraftArticle> {
-  if (pages.length < 2) return article;
+  const cleanedArticle: DraftArticle = {
+    ...article,
+    content_md: replaceEmDashes(article.content_md)
+  };
+
+  if (pages.length < 2) return cleanedArticle;
 
   const pageBlock = pages
     .map(
@@ -1437,7 +1507,7 @@ Internal pages:
 ${pageBlock}
 
 Article Markdown:
-${article.content_md}
+${cleanedArticle.content_md}
 
 Return JSON:
 {
@@ -1754,7 +1824,8 @@ Return JSON:
     messages: [
       {
         role: "system",
-        content: "You are an expert Roblox content editor. Always return valid JSON with title, content_md, and meta_description."
+        content:
+          "You are an expert Roblox content editor. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
       },
       { role: "user", content: prompt }
     ]
@@ -1804,7 +1875,8 @@ async function main() {
     const verifiedSources = await verifySources(topic, collectedSources);
     console.log(`sources_verified=${verifiedSources.length}`);
 
-    const prompt = buildArticlePrompt(topic, verifiedSources);
+    const prompt = await buildArticlePromptWithSonar(topic, verifiedSources);
+    console.log(`draft_prompt=\n${prompt}`);
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
