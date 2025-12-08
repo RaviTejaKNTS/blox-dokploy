@@ -275,6 +275,7 @@ Rules:
 - Do not include any generic or templated writing.
 - Keep things engaging and flow the information in a way that is easy to consume for the users.
 - Write with a story like flow, hook the audience right from the start and keep the engagement flowing throughout.
+- Sprinkle in some first hand experience that only a gamer who played the game would know. 
 
 Existing article (for context):
 ${existingArticle}
@@ -284,7 +285,7 @@ ${sources}
 
 Return valid JSON with these keys:
 {
-  "intro_md": "Just casually talk to the user with a small intro giving clear context to the user in simple english and clean story like flow. Talk about the game, codes, rewards or anything that hooks the audience into reading the entire article. Don't drag and make sure every sentence adds more value to the user and avoid any generic claims. Keep things grounded, friendly, factual and bit professional.  Write like a Roblox ${gameName} player that is writing for another player who plays the game. Write as less words as possible, but make sure you have given clean context in a relaxed way. Include the keyword ${gameName} codes only one time in a natural way.",
+  "intro_md": "Just casually talk to the user with a small intro giving clear context to the user. Write in simple english, easy to understand style and clean story like flow. Talk about the game, what's it about, codes, rewards or anything that hooks the audience into reading the entire article. Don't drag and make sure every sentence adds more value to the user and avoid any generic claims. Keep things grounded, friendly, factual and bit professional.  Write like a Roblox ${gameName} player that is writing for another player who plays the game. Include the keyword ${gameName} codes only one time in a natural way.",
   "rewards_md": "Start with ${JSON.stringify(rewardsHeading)} then Create a table of typical rewards (from the sources). Include all the reward types we get for this game with clear details,and a small description of each reward. Keep it very informational, full sentences, clean to understand, but write in as less words as possible. Before the table, write a line or two to give cue to the users. Do not include any generic or templated writing. Always write things that are unique to the game and leave out everything that is generic in nature like rewards help you progress faster. Leave out the ovbious and focus on the depth and information.",
   "troubleshoot_md": "Start with ${JSON.stringify(troubleshootHeading)} and write why codes might fail and how to fix it. Anything that is generic in nature should be just covered in para style and in one word. But if there are any game specific issues like reaching a specific level or something like that, only then it needs to include them in the bullet list. Even if the list only has 1, include only the unique ones and do not repeat anything. Always keep things direct and try to tell in as less words as possible. (No generic reasons should get into bullet points"
   "meta_description": "150-160 character, plain sentence mentioning ${gameName} codes and the value players get. No generic claims, write unconvetional and very human and unique meta descriptions for each game.",
