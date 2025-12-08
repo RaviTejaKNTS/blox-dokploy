@@ -733,6 +733,7 @@ Rules:
 - Write full sentences and easy to read and understand style, but write in as less words as possible.
 - Do not hype up things, keep it informational, friendly and engaging.
 - Do not include any generic or templated writing.
+- Spinkle in some first-hand experience that only a player who played the game would know. 
 - Only use the placeholder [[roblox_link|Launch ${gameName}]] when telling players to start the game in the redeem/how-to steps. Do not use any other placeholders; use plain text everywhere else (including social mentions).
 
 Source excerpts:
