@@ -1140,8 +1140,10 @@ Requirements in the article so you need to tune the prompt accordingly:
 9. Entire article should be written in full sentences, engaging with as less words as possible. 
 10. Sprinkle in some first hand experiences that are unique and related to the topic. 
 11. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
-12. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process.  
-12. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident.
+12. When writing, you can casually use words like I, You and explain things in a simple way that everyone can understand. 
+13. Do not use any AI-ish anecdotes like "This is not just X, this is also y". Just talk directly without enthusiasm and less hype. Keep things grounded and natual.  
+14. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process.  
+15. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
 
 Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
 
