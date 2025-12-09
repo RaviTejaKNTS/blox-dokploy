@@ -180,12 +180,16 @@ export default function PrivacyPolicyPage() {
             ads, and protect against fraud.
           </p>
           <p>
-            You can block or delete cookies via your browser settings. If you block non-essential cookies, some analytics and ad features may
-            be limited.
+            You can block or delete cookies via your browser settings. If you block non-essential cookies, some analytics and ad features
+            may be limited.
           </p>
           <p>
             To minimize repeated prompts, we store your cookie consent preference so we do not ask again on every visit. You can change this
-            preference any time through the cookie banner.
+            preference any time through the cookie banner or on our{" "}
+            <a href="/cookie-settings" className="text-primary underline-offset-4 hover:underline">
+              cookie settings
+            </a>{" "}
+            page.
           </p>
         </section>
 

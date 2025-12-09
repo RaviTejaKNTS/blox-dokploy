@@ -37,7 +37,7 @@ export function ConsentBanner() {
           <button
             type="button"
             onClick={acceptAll}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 sm:w-auto"
+            className="w-full rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
           >
             Accept all
           </button>
@@ -55,12 +55,6 @@ export function ConsentBanner() {
           >
             {showOptions ? "Hide options" : "Manage choices"}
           </button>
-          <Link
-            href="/cookie-settings"
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Cookie settings
-          </Link>
           <Link
             href="/privacy-policy"
             className="text-sm font-medium text-primary underline-offset-4 hover:underline"
