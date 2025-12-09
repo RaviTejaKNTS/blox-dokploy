@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useConsent } from "./consent/ConsentProvider";
 
 type GoogleAdSenseProps = {
   clientId?: string;
@@ -43,14 +44,22 @@ export function GoogleAdSense({
 }: GoogleAdSenseProps) {
   const pathname = usePathname();
   const [shouldLoad, setShouldLoad] = useState(false);
+  // Respect marketing consent (ads) before loading.
+  const { requiresConsent, state, shouldShowBanner } = useConsent();
 
   const isBlockedRoute = useMemo(() => {
     if (!excludePrefix) return false;
     return Boolean(pathname && pathname.startsWith(excludePrefix));
   }, [pathname, excludePrefix]);
 
+  const marketingAllowed = useMemo(() => {
+    if (!requiresConsent) return true;
+    if (shouldShowBanner) return false;
+    return state.marketing;
+  }, [requiresConsent, shouldShowBanner, state.marketing]);
+
   useEffect(() => {
-    if (!clientId || isBlockedRoute) {
+    if (!clientId || isBlockedRoute || !marketingAllowed) {
       return;
     }
 
@@ -66,10 +75,10 @@ export function GoogleAdSense({
       cancelled = true;
       cancel();
     };
-  }, [clientId, idleDelay, isBlockedRoute]);
+  }, [clientId, idleDelay, isBlockedRoute, marketingAllowed]);
 
   useEffect(() => {
-    if (!shouldLoad || !clientId) {
+    if (!shouldLoad || !clientId || !marketingAllowed) {
       return;
     }
 
@@ -91,7 +100,11 @@ export function GoogleAdSense({
     return () => {
       // We intentionally keep the script once loaded to avoid repeated network work.
     };
-  }, [shouldLoad, clientId]);
+  }, [shouldLoad, clientId, marketingAllowed]);
+
+  if (!marketingAllowed || !clientId) {
+    return null;
+  }
 
   return null;
 }

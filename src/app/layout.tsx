@@ -1,9 +1,13 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { ConsentProvider } from "@/components/consent/ConsentProvider";
+import { ConsentBanner } from "@/components/consent/ConsentBanner";
+import { ConsentGate } from "@/components/consent/ConsentGate";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const GlobalSearchOverlay = dynamic(
@@ -112,6 +116,9 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const headerList = headers();
+  const requiresConsent = headerList.get("x-require-consent") === "1";
+
   return (
     <html lang="en" suppressHydrationWarning className="dark" data-theme="dark">
       <head>
@@ -125,11 +132,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
-        <GoogleAnalytics measurementId={googleAnalyticsId} />
-        <Analytics />
-        <SpeedInsights />
-        <GlobalSearchOverlay />
-        {children}
+        <ConsentProvider requiresConsent={requiresConsent}>
+          <ConsentBanner />
+          <ConsentGate category="analytics">
+            <GoogleAnalytics measurementId={googleAnalyticsId} />
+            <Analytics />
+            <SpeedInsights />
+          </ConsentGate>
+          <GlobalSearchOverlay />
+          {children}
+        </ConsentProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
-import "@/styles/article-content.css";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import "@/styles/article-content.css";
 import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { getChecklistPageBySlug } from "@/lib/db";
@@ -90,25 +91,43 @@ export default async function ChecklistPage({ params }: PageProps) {
   };
 
   return (
-    <div className="flex flex-col gap-1 pb-2 md:gap-0 -mt-4 md:-mt-6">
-      <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={leafItems.length} />
-      <div
-        className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)] [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        data-checklist-scroll
-      >
-        <div className="w-full pr-6 md:min-w-max">
-          <ChecklistBoard
-            slug={page.slug}
-            items={items}
-            descriptionHtml={descriptionHtml}
-            className="w-auto min-w-max"
-          />
+    <>
+      <div className="flex flex-col gap-1 pb-2 md:gap-0 -mt-4 md:-mt-6">
+        <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={leafItems.length} />
+        <div
+          className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)] [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          data-checklist-scroll
+        >
+          <div className="w-full pr-6 md:min-w-max">
+            <ChecklistBoard
+              slug={page.slug}
+              items={items}
+              descriptionHtml={descriptionHtml}
+              className="w-auto min-w-max"
+            />
+          </div>
         </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(checklistSchema) }}
+        />
       </div>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(checklistSchema) }}
-      />
-    </div>
+
+      <div className="fixed bottom-3 right-3 z-30 flex items-center gap-2 rounded-full bg-surface/90 px-3 py-1 text-[11px] text-muted shadow-lg backdrop-blur">
+        <span>© 2025 Bloxodes</span>
+        <span aria-hidden="true">•</span>
+        <Link href="/privacy-policy" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
+          Privacy
+        </Link>
+        <span aria-hidden="true">•</span>
+        <Link href="/about" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
+          About
+        </Link>
+        <span aria-hidden="true">•</span>
+        <Link href="/contact" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
+          Contact
+        </Link>
+      </div>
+    </>
   );
 }

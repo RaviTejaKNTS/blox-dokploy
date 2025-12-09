@@ -1142,12 +1142,11 @@ Requirements in the article so you need to tune the prompt accordingly:
 11. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
 12. When writing, you can casually use words like I, You and explain things in a simple way that everyone can understand. 
 13. Do not use any AI-ish anecdotes like "This is not just X, this is also y". Just talk directly without enthusiasm and less hype. Keep things grounded and natual.  
-14. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process.  
-15. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
-
-Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
-
-Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere.
+14. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process. 
+15. Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. 
+16. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
+17. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. The idea is to create an editorial article that values people's time and help them love reading with flow rather than just a information dump. 
+18. Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. This step is very important. 
 
 Just directly start and give me the prompt and nothing more. Instead of just a vague prompt, you can include what can be said in the intro that's very small but hooking, what examples can be considered to state them. Give a line or two about the topics that need to be included.  And ask the AI model to feel free to experiment to make the article perfect.`.trim();
 
@@ -1205,6 +1204,48 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
   };
+}
+
+function isNoCoverageFeedback(feedback: string): boolean {
+  const normalized = feedback.trim().toLowerCase();
+  return normalized === "no" || normalized === "no." || normalized === '"no"' || normalized === "'no'";
+}
+
+async function checkArticleCoverage(topic: string, article: DraftArticle, sources: SourceDocument[]): Promise<string> {
+  const prompt = `
+Check if this Roblox article misses any crucial information that readers expect for the topic. Only consider topics that are very close to "${topic}" and crucial for the intent—skip tangents or nice-to-haves. If the article already covers everything important, reply exactly: No
+If something critical is missing, list the missing pieces and the exact info to add so it can be inserted as-is. Keep it concise and actionable.
+
+Topic: "${topic}"
+
+Article Title: ${article.title}
+Article Markdown:
+${article.content_md}
+
+Relevant research:
+${formatSourcesForPrompt(sources)}
+`.trim();
+
+  const completion = await perplexity.chat.completions.create({
+    model: "sonar",
+    temperature: 0,
+    max_tokens: 600,
+    messages: [
+      {
+        role: "system",
+        content:
+          'You judge coverage completeness for Roblox articles. Only flag items that are very close to the topic and crucial to its intent. If nothing critical is missing, reply exactly "No". Otherwise, provide only the missing items with the information to add. Do not suggest tangential ideas.'
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const feedback = completion.choices[0]?.message?.content?.trim();
+  if (!feedback) {
+    throw new Error("Coverage check returned empty feedback.");
+  }
+
+  return feedback;
 }
 
 async function factCheckArticle(topic: string, article: DraftArticle, sources: SourceDocument[]): Promise<string> {
@@ -1882,11 +1923,26 @@ async function main() {
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
-    const factCheckFeedback = await factCheckArticle(topic, draft, verifiedSources);
+    const coverageFeedback = await checkArticleCoverage(topic, draft, verifiedSources);
+    const coverageLog = coverageFeedback.replace(/\s+/g, " ").slice(0, 200);
+    console.log(`coverage_check="${coverageLog}${coverageFeedback.length > 200 ? "..." : ""}"`);
+
+    const coverageDraft = isNoCoverageFeedback(coverageFeedback)
+      ? draft
+      : await reviseArticleWithFeedback(topic, draft, verifiedSources, coverageFeedback, "coverage feedback");
+    console.log(`coverage_title="${coverageDraft.title}" word_count=${estimateWordCount(coverageDraft.content_md)}`);
+
+    const factCheckFeedback = await factCheckArticle(topic, coverageDraft, verifiedSources);
     const factCheckLog = factCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
     console.log(`fact_check="${factCheckLog}${factCheckFeedback.length > 200 ? "..." : ""}"`);
 
-    const factCheckedDraft = await reviseArticleWithFeedback(topic, draft, verifiedSources, factCheckFeedback, "fact-check feedback");
+    const factCheckedDraft = await reviseArticleWithFeedback(
+      topic,
+      coverageDraft,
+      verifiedSources,
+      factCheckFeedback,
+      "fact-check feedback"
+    );
     console.log(`fact_checked_title="${factCheckedDraft.title}" word_count=${estimateWordCount(factCheckedDraft.content_md)}`);
 
     const relatedPages = await fetchRelatedPagesForUniverse({
