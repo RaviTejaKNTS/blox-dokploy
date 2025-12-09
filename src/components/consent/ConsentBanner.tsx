@@ -24,10 +24,10 @@ export function ConsentBanner() {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 w-[95vw] max-w-3xl -translate-x-1/2 rounded-xl border border-border bg-background p-4 shadow-2xl">
+    <div className="fixed bottom-4 right-4 z-50 w-[95vw] max-w-lg rounded-xl border border-border bg-background p-4 shadow-2xl sm:w-[440px]">
       <div className="flex flex-col gap-3 text-sm leading-6">
         <div className="flex flex-col gap-1">
-          <p className="text-base font-semibold">We use cookies to improve your experience</p>
+          <p className="text-base font-semibold">We use cookies</p>
           <p className="text-muted-foreground">
             In GDPR regions we only run analytics and ads after you accept. Necessary cookies always stay on.
           </p>
@@ -37,14 +37,14 @@ export function ConsentBanner() {
           <button
             type="button"
             onClick={acceptAll}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 sm:w-auto"
           >
             Accept all
           </button>
           <button
             type="button"
             onClick={rejectAll}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+            className="w-full rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
           >
             Reject non-essential
           </button>
@@ -55,6 +55,12 @@ export function ConsentBanner() {
           >
             {showOptions ? "Hide options" : "Manage choices"}
           </button>
+          <Link
+            href="/cookie-settings"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Cookie settings
+          </Link>
           <Link
             href="/privacy-policy"
             className="text-sm font-medium text-primary underline-offset-4 hover:underline"
