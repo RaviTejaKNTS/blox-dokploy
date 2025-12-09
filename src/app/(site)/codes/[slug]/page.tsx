@@ -146,6 +146,17 @@ function summarize(text: string | null | undefined, fallback: string): string {
   return `${lastSpace > 120 ? slice.slice(0, lastSpace) : slice}…`;
 }
 
+function normalizeLinkForDedup(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeCategory(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim().toLowerCase();
@@ -511,11 +522,23 @@ export default async function GamePage({ params }: Params) {
       : null
   ].filter((link): link is SocialLinkButton => Boolean(link));
 
-  const socialLinksToDisplay = normalizedUniverseSocialLinks.length
-    ? robloxSocialButtons
-    : fallbackSocialLinks.length
-    ? [...(creatorProfileLink ? [creatorProfileLink] : []), ...fallbackSocialLinks]
-    : robloxSocialButtons;
+  const dedupedLinks = (() => {
+    const ordered = [
+      ...normalizedUniverseSocialLinks,
+      ...(creatorProfileLink ? [creatorProfileLink] : []),
+      ...fallbackSocialLinks
+    ];
+    const map = new Map<string, SocialLinkButton>();
+    for (const link of ordered) {
+      const key = normalizeLinkForDedup(link.url);
+      if (!key) continue;
+      if (map.has(key)) continue;
+      map.set(key, link);
+    }
+    return Array.from(map.values());
+  })();
+
+  const socialLinksToDisplay = dedupedLinks;
   const shouldShowSocialSection = Boolean(universe || socialLinksToDisplay.length);
 
   const introMarkdown = game.intro_md ? replaceLinkPlaceholders(game.intro_md, linkMap) : "";
