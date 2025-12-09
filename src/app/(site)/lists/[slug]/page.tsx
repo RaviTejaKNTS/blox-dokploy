@@ -12,6 +12,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd 
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
+import { ListCard } from "@/components/ListCard";
 
 export const revalidate = 86400; // daily
 
@@ -20,7 +21,16 @@ type PageProps = {
 };
 
 type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
-type OtherListLink = { id: string; slug: string; title: string };
+type OtherListLink = {
+  id: string;
+  slug: string;
+  title: string;
+  display_name?: string | null;
+  cover_image?: string | null;
+  top_entry_image?: string | null;
+  refreshed_at?: string | null;
+  updated_at?: string | null;
+};
 
 export const PAGE_SIZE = 10;
 
@@ -244,6 +254,16 @@ export function ListPageView({
   const canonicalPath = page === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${page}`;
   const canonicalUrl = `${SITE_URL}${canonicalPath}`;
   const otherLists = allLists.filter((item) => item.slug !== slug).slice(0, 6);
+  const otherListCards = otherLists.map((other) => ({
+    displayName: other.display_name ?? other.title,
+    title: other.title,
+    slug: other.slug,
+    coverImage:
+      (other.cover_image && other.cover_image.trim()) ||
+      (other.top_entry_image && other.top_entry_image.trim()) ||
+      `${SITE_URL}/og-image.png`,
+    updatedAt: other.updated_at ?? other.refreshed_at ?? null
+  }));
 
   const listDescription =
     list.meta_description ??
@@ -408,22 +428,25 @@ export function ListPageView({
           <div className="hidden lg:block">
             <SidebarNav slug={slug} entries={entries} />
           </div>
-          <div className="rounded-2xl border border-border/60 bg-surface p-5">
-            <h2 className="text-lg font-semibold text-foreground">Lists library</h2>
-            <p className="mb-3 text-sm text-muted">More curated Roblox game picks.</p>
-            <div className="flex flex-col gap-3">
-              {otherLists.map((other) => (
-                <a
-                  key={other.id}
-                  href={`/lists/${other.slug}`}
-                  className="rounded-lg border border-border/60 px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
-                >
-                  {other.title}
-                </a>
-              ))}
-            </div>
-          </div>
-          <SocialShare url={canonicalUrl} title={pageTitle} />
+          {otherListCards.length ? (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground">Lists library</h2>
+              <p className="text-sm text-muted">More curated Roblox game picks.</p>
+              <div className="space-y-3">
+                {otherListCards.map((card) => (
+                  <ListCard
+                    key={card.slug}
+                    displayName={card.displayName}
+                    title={card.title}
+                    slug={card.slug}
+                    coverImage={card.coverImage}
+                    updatedAt={card.updatedAt}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+          <SocialShare url={canonicalUrl} title={pageTitle} heading="Share this list with your friends" />
         </div>
       </div>
 

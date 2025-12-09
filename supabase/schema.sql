@@ -1206,8 +1206,21 @@ select
         l2.id,
         l2.slug,
         l2.title,
-        l2.updated_at
+        l2.display_name,
+        l2.cover_image,
+        l2.refreshed_at,
+        l2.updated_at,
+        te.top_image as top_entry_image
       from public.game_lists l2
+      left join lateral (
+        select coalesce(g3.cover_image, u3.icon_url) as top_image
+        from public.game_list_entries gle3
+        left join public.games g3 on g3.id = gle3.game_id
+        left join public.roblox_universes u3 on u3.universe_id = gle3.universe_id
+        where gle3.list_id = l2.id
+        order by gle3.rank asc
+        limit 1
+      ) te on true
       where l2.is_published = true
         and l2.id <> l.id
       order by l2.updated_at desc

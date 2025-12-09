@@ -198,16 +198,77 @@ export default async function HomePage() {
 
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Trending Roblox Code Guides",
-    description: SITE_DESCRIPTION,
-    itemListElement: games.slice(0, 12).map((game, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: `${game.name} codes`,
-      url: `${SITE_URL}/codes/${game.slug}`,
-      dateModified: game.content_updated_at ?? game.updated_at
-    }))
+    "@type": "CollectionPage",
+    name: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    url: SITE_URL,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_URL },
+    hasPart: [
+      {
+        "@type": "ItemList",
+        name: "Latest articles",
+        numberOfItems: articleCards.length,
+        itemListElement: articleCards.map((article, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: article.title,
+          url: `${SITE_URL}/articles/${article.slug}`,
+          image: article.cover_image ?? undefined,
+          datePublished: article.published_at,
+          dateModified: article.updated_at
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Checklists",
+        numberOfItems: checklistCards.length,
+        itemListElement: checklistCards.map((card, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: card.title,
+          url: `${SITE_URL}/checklists/${card.slug}`,
+          description: card.summary,
+          dateModified: card.updatedAt ?? undefined
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Tools and calculators",
+        numberOfItems: toolCards.length,
+        itemListElement: toolCards.map((tool, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: tool.title,
+          url: `${SITE_URL}/tools/${tool.code}`,
+          description: tool.meta_description,
+          dateModified: tool.content_updated_at ?? tool.updated_at ?? tool.published_at ?? undefined
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Latest codes",
+        numberOfItems: featuredGames.length,
+        itemListElement: featuredGames.map(({ data: game }, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: `${game.name} codes`,
+          url: `${SITE_URL}/codes/${game.slug}`,
+          dateModified: game.content_updated_at ?? game.updated_at
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Game lists",
+        numberOfItems: listCards.length,
+        itemListElement: listCards.map((list, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: list.displayName ?? list.title,
+          url: `${SITE_URL}/lists/${list.slug}`,
+          dateModified: list.updatedAt ?? undefined
+        }))
+      }
+    ]
   });
 
   return (
