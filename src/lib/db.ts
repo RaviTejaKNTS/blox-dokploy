@@ -89,6 +89,9 @@ export type UniverseSummary = {
   slug: string | null;
   display_name: string | null;
   name: string | null;
+  icon_url?: string | null;
+  genre_l1?: string | null;
+  genre_l2?: string | null;
 };
 
 export type ArticleWithRelations = Article & {
