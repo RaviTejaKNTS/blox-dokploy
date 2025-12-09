@@ -1,18 +1,12 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 
-type SearchGame = {
-  id: string;
-  name: string;
-  slug: string;
-  activeCount: number;
-  articleUpdated: string | null;
-};
+import type { SearchItem } from "./UnifiedSearch";
 
-const GameSearch = dynamic(() => import("@/components/GameSearch").then((mod) => mod.GameSearch), {
+const UnifiedSearch = dynamic(() => import("@/components/UnifiedSearch").then((mod) => mod.UnifiedSearch), {
   ssr: false,
   loading: () => (
     <div className="space-y-3">
@@ -29,7 +23,7 @@ const GameSearch = dynamic(() => import("@/components/GameSearch").then((mod) =>
 export function GlobalSearchOverlay() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [games, setGames] = useState<SearchGame[]>([]);
+  const [items, setItems] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const fetchedRef = useRef(false);
   const previousActiveElement = useRef<HTMLElement | null>(null);
@@ -67,14 +61,14 @@ export function GlobalSearchOverlay() {
     if (!isOpen || fetchedRef.current) return;
 
     let cancelled = false;
-    async function fetchGames() {
+    async function fetchItems() {
       try {
         setLoading(true);
-        const response = await fetch("/api/search/games", { cache: "no-store" });
+        const response = await fetch("/api/search/all", { cache: "no-store" });
         if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-        const payload = (await response.json()) as { games: SearchGame[] };
+        const payload = (await response.json()) as { items: SearchItem[] };
         if (!cancelled) {
-          setGames(payload.games);
+          setItems(payload.items);
           fetchedRef.current = true;
         }
       } catch (error) {
@@ -86,7 +80,7 @@ export function GlobalSearchOverlay() {
       }
     }
 
-    fetchGames();
+    fetchItems();
 
     return () => {
       cancelled = true;
@@ -151,7 +145,7 @@ export function GlobalSearchOverlay() {
         className="relative w-full max-w-3xl rounded-[var(--radius-lg)] border border-border/60 bg-surface p-6 shadow-soft max-h-[85vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-foreground">Search Roblox games</h2>
+          <h2 className="text-lg font-semibold text-foreground">Search Bloxodes</h2>
           <button
             type="button"
             onClick={closeOverlay}
@@ -162,7 +156,7 @@ export function GlobalSearchOverlay() {
           </button>
         </div>
         <div className="mt-4">
-          {loading && games.length === 0 ? (
+          {loading && items.length === 0 ? (
             <div className="space-y-3">
               <div className="h-10 rounded-[var(--radius-lg)] border border-border/60 bg-surface-muted animate-pulse" />
               <div className="space-y-2">
@@ -172,16 +166,7 @@ export function GlobalSearchOverlay() {
               </div>
             </div>
           ) : (
-            <GameSearch
-              games={games.map((game) => ({
-                id: game.id,
-                name: game.name,
-                slug: game.slug,
-                activeCount: game.activeCount,
-                articleUpdatedAt: game.articleUpdated
-              }))}
-              autoFocus
-            />
+            <UnifiedSearch items={items} autoFocus />
           )}
         </div>
       </div>

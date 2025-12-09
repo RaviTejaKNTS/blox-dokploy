@@ -5,7 +5,7 @@ import "@/styles/article-content.css";
 import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { getChecklistPageBySlug } from "@/lib/db";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
@@ -20,7 +20,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { page } = data;
   const titleBase = page.seo_title ?? page.title;
-  const description = page.seo_description || SITE_DESCRIPTION;
+  const description =
+    page.seo_description ||
+    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : SITE_DESCRIPTION);
   const canonical = `${SITE_URL}/checklists/${page.slug}`;
   const publishedTime = page.published_at ? new Date(page.published_at).toISOString() : undefined;
   const updatedTime = page.updated_at ? new Date(page.updated_at).toISOString() : undefined;
@@ -54,7 +56,10 @@ export default async function ChecklistPage({ params }: PageProps) {
 
   const { page, items } = data;
   const canonicalUrl = `${SITE_URL}/checklists/${page.slug}`;
-  const descriptionPlain = page.seo_description || SITE_DESCRIPTION;
+  const descriptionPlain =
+    page.seo_description ||
+    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : SITE_DESCRIPTION);
+  const coverImage = page.universe?.icon_url || `${SITE_URL}/og-image.png`;
   const descriptionHtml = page.description_md ? await renderMarkdown(page.description_md) : null;
   const leafItems = items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3);
   const latestItemUpdated = items.reduce<Date | null>((latest, item) => {
@@ -77,10 +82,18 @@ export default async function ChecklistPage({ params }: PageProps) {
       identifier: item.section_code
     }
   }));
-  const checklistSchema = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
+  const webApplicationSchema = {
+    "@type": "WebApplication",
     name: `${page.title} Checklist`,
+    url: canonicalUrl,
+    description: descriptionPlain,
+    operatingSystem: "Web",
+    applicationCategory: "UtilityApplication",
+    image: coverImage
+  };
+  const itemListSchema = {
+    "@type": "ItemList",
+    name: `${page.title} Checklist Items`,
     description: descriptionPlain,
     url: canonicalUrl,
     datePublished: publishedDate.toISOString(),
@@ -88,6 +101,18 @@ export default async function ChecklistPage({ params }: PageProps) {
     numberOfItems: leafItems.length,
     itemListOrder: "Ascending",
     itemListElement: itemListElements
+  };
+  const webPageSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: page.title,
+    url: canonicalUrl,
+    description: descriptionPlain,
+    datePublished: publishedDate.toISOString(),
+    dateModified: updatedDate.toISOString(),
+    image: coverImage,
+    mainEntity: webApplicationSchema,
+    hasPart: [itemListSchema]
   };
 
   return (
@@ -109,7 +134,7 @@ export default async function ChecklistPage({ params }: PageProps) {
         </div>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(checklistSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }}
         />
       </div>
 
