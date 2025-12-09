@@ -1,25 +1,32 @@
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
+import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { listGamesWithActiveCounts, listPublishedArticles } from "@/lib/db";
+import {
+  getChecklistPageBySlug,
+  listGamesWithActiveCounts,
+  listPublishedArticles,
+  listPublishedChecklists,
+  listPublishedGameLists
+} from "@/lib/db";
+import { listPublishedTools } from "@/lib/tools";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ChecklistCard } from "@/components/ChecklistCard";
+import { ListCard } from "@/components/ListCard";
+import { ToolCard } from "@/components/ToolCard";
 
-const INITIAL_FEATURED_COUNT = 12;
-
-const LazyMoreGames = dynamic(() => import("@/components/MoreGames").then((mod) => mod.MoreGames), {
-  ssr: false,
-  loading: () => (
-    <div className="flex justify-center py-6 text-sm text-muted">Preparing more games…</div>
-  )
-});
+const INITIAL_FEATURED_GAMES = 8;
+const INITIAL_ARTICLES = 8;
+const INITIAL_CHECKLISTS = 6;
+const INITIAL_LISTS = 6;
+const INITIAL_TOOLS = 6;
 
 export const revalidate = 21600; // 6 hours
 
-const PAGE_TITLE = `${SITE_NAME} — Check Latest Roblox Game Codes`;
+const PAGE_TITLE = `${SITE_NAME} | Roblox codes, guides, checklists, and tools`;
 const PAGE_DESCRIPTION =
-  "Find the latest Roblox codes for all your favorite games in one place. Updated daily with active promo codes, rewards, and freebies to help you unlock items, boosts, and more.";
+  "Your Roblox hub for guides, checklists, tools, active codes, and live ranking lists. Updated throughout the day with fresh data.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -29,10 +36,12 @@ export const metadata: Metadata = {
     "Roblox promo codes",
     "free Roblox rewards",
     "Bloxodes",
-    "updated Roblox codes"
+    "updated Roblox codes",
+    "Roblox checklists",
+    "Roblox tools"
   ],
   alternates: {
-    canonical: SITE_URL,
+    canonical: SITE_URL
   },
   openGraph: {
     title: PAGE_TITLE,
@@ -57,9 +66,56 @@ export const metadata: Metadata = {
   }
 };
 
+type ChecklistCardData = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  universeName: string | null;
+  coverImage: string | null;
+  updatedAt: string | null;
+  itemsCount: number | null;
+};
+
+type ListEntryPreview = {
+  game?: { cover_image?: string | null } | null;
+  universe?: { icon_url?: string | null } | null;
+};
+
+function pickThumbnail(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "string" && entry.trim()) return entry;
+      if (entry && typeof entry === "object" && "url" in entry) {
+        const url = (entry as { url?: unknown }).url;
+        if (typeof url === "string" && url.trim()) return url;
+      }
+    }
+  }
+  return null;
+}
+
+function summarize(descriptionMd: string | null | undefined, fallback: string): string {
+  if (!descriptionMd) return fallback;
+  const plain = descriptionMd.replace(/[#>*_`~[\]]/g, " ").replace(/\s+/g, " ").trim();
+  if (!plain) return fallback;
+  if (plain.length <= 160) return plain;
+  const slice = plain.slice(0, 157);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${lastSpace > 120 ? slice.slice(0, lastSpace) : slice}…`;
+}
+
 export default async function HomePage() {
-  const games = await listGamesWithActiveCounts();
-  const articles = await listPublishedArticles(9);
+  const [games, articles, checklistRows, lists, tools] = await Promise.all([
+    listGamesWithActiveCounts(),
+    listPublishedArticles(12),
+    listPublishedChecklists(),
+    listPublishedGameLists(),
+    listPublishedTools()
+  ]);
+
   const sortedGames = [...games].sort((a, b) => {
     const aTime = new Date(a.content_updated_at ?? a.updated_at).getTime();
     const bTime = new Date(b.content_updated_at ?? b.updated_at).getTime();
@@ -68,25 +124,77 @@ export default async function HomePage() {
     if (Number.isNaN(bTime)) return -1;
     return bTime - aTime;
   });
+
   const totalActiveCodes = games.reduce((sum, game) => sum + (game.active_count ?? 0), 0);
   const mostRecentGame = sortedGames[0];
   const mostRecentUpdate = mostRecentGame
     ? new Date(mostRecentGame.content_updated_at ?? mostRecentGame.updated_at)
     : null;
-  const refreshedLabel = mostRecentUpdate
-    ? formatDistanceToNow(mostRecentUpdate, { addSuffix: true })
-    : null;
-  const gamesByUpdatedAt = sortedGames;
+  const refreshedLabel = mostRecentUpdate ? formatDistanceToNow(mostRecentUpdate, { addSuffix: true }) : null;
 
-  const featuredGames = gamesByUpdatedAt.slice(0, INITIAL_FEATURED_COUNT).map((game) => ({
+  const featuredGames = sortedGames.slice(0, INITIAL_FEATURED_GAMES).map((game) => ({
     data: game,
     articleUpdatedAt: game.content_updated_at ?? game.updated_at ?? null
   }));
 
-  const remainingGames = gamesByUpdatedAt.slice(INITIAL_FEATURED_COUNT).map((game) => ({
-    data: game,
-    articleUpdatedAt: game.content_updated_at ?? game.updated_at ?? null
-  }));
+  const checklistCards: ChecklistCardData[] = await Promise.all(
+    checklistRows.slice(0, INITIAL_CHECKLISTS).map(async (row) => {
+      const universeName = row.universe?.display_name ?? row.universe?.name ?? null;
+      const thumb = pickThumbnail(row.universe?.thumbnail_urls);
+      const coverImage = row.universe?.icon_url || thumb || `${SITE_URL}/og-image.png`;
+      const updatedAt = row.updated_at || row.published_at || row.created_at || null;
+
+      let leafCount: number | null = null;
+      try {
+        const data = await getChecklistPageBySlug(row.slug);
+        if (data?.items) {
+          leafCount = data.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length;
+        }
+      } catch {
+        leafCount = null;
+      }
+
+      const itemsCount =
+        typeof leafCount === "number"
+          ? leafCount
+          : Array.isArray(row.items)
+            ? row.items[0]?.count ?? null
+            : typeof row.item_count === "number"
+              ? row.item_count
+              : null;
+      const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
+
+      return {
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        summary,
+        universeName,
+        coverImage,
+        updatedAt,
+        itemsCount
+      };
+    })
+  );
+
+  const listCards = (lists ?? []).slice(0, INITIAL_LISTS).map((list) => {
+    const entries = Array.isArray(list.entries) ? (list.entries as ListEntryPreview[]) : [];
+    const topEntry = entries[0] ?? null;
+    const topImage = topEntry?.game?.cover_image ?? topEntry?.universe?.icon_url ?? null;
+    const displayName = list.display_name || list.title;
+    return {
+      id: list.id,
+      title: list.title,
+      displayName,
+      slug: list.slug,
+      coverImage: list.cover_image || topImage || `${SITE_URL}/og-image.png`,
+      updatedAt: list.updated_at ?? list.refreshed_at ?? list.created_at,
+      itemsCount: typeof list.limit_count === "number" ? list.limit_count : null
+    };
+  });
+
+  const toolCards = tools.slice(0, INITIAL_TOOLS);
+  const articleCards = articles.slice(0, INITIAL_ARTICLES);
 
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
@@ -103,58 +211,112 @@ export default async function HomePage() {
   });
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-12 -mt-10 md:-mt-12">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
 
       <header className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Codes Hub</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Hub</p>
         <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          Fresh Roblox game codes, updated as soon as they drop
+          Roblox hub for guides, checklists, tools, active codes, and live ranking game lists
         </h1>
-        <p className="max-w-2xl text-base text-muted md:text-lg">
-          {PAGE_DESCRIPTION}
+        <p className="max-w-3xl text-base text-muted md:text-lg">
+          Guides, checklists, tools, active codes, and live data-driven lists in one place. Updated throughout the day with fresh rewards,
+          tips, and insights.
         </p>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
-          <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-            Tracking {games.length} games · {totalActiveCodes} active rewards
-          </span>
-          {refreshedLabel ? (
-            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-              Last updated {refreshedLabel}
-            </span>
-          ) : null}
-        </div>
       </header>
-
-      <section className="space-y-6">
-        <h2 className="text-xl font-semibold text-foreground">Trending Roblox games</h2>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {featuredGames.map(({ data: game, articleUpdatedAt }, index) => (
-            <GameCard
-              key={game.id}
-              game={game}
-              priority={index === 0}
-              articleUpdatedAt={articleUpdatedAt}
-            />
-          ))}
-        </div>
-        {remainingGames.length ? (
-          <LazyMoreGames games={remainingGames} />
-        ) : null}
-      </section>
 
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Latest articles</h2>
-          <a href="/articles" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
-            View all articles →
-          </a>
+          <Link href="/articles" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all articles
+          </Link>
         </div>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
+        {articleCards.length ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {articleCards.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Articles will appear here after publication.</p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Checklists</h2>
+          <Link href="/checklists" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all checklists
+          </Link>
+        </div>
+        {checklistCards.length ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {checklistCards.map((card) => (
+              <ChecklistCard key={card.id} {...card} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No public checklists yet. Check back soon.</p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Tools and calculators</h2>
+          <Link href="/tools" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all tools
+          </Link>
+        </div>
+        {toolCards.length ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {toolCards.map((tool) => (
+              <ToolCard key={tool.id ?? tool.code} tool={tool} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No tools have been published yet. Check back soon.</p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Latest codes</h2>
+          <Link href="/codes" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all codes
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {featuredGames.map(({ data: game, articleUpdatedAt }, index) => (
+            <GameCard key={game.id} game={game} priority={index === 0} articleUpdatedAt={articleUpdatedAt} />
           ))}
         </div>
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Game lists</h2>
+          <Link href="/lists" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all lists
+          </Link>
+        </div>
+        {listCards.length ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {listCards.map((card) => (
+              <ListCard
+                key={card.id}
+                displayName={card.displayName}
+                title={card.title}
+                slug={card.slug}
+                coverImage={card.coverImage}
+                updatedAt={card.updatedAt}
+                itemsCount={card.itemsCount}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No published lists yet. Check back soon.</p>
+        )}
       </section>
     </section>
   );

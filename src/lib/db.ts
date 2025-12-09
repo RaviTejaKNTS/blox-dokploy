@@ -254,6 +254,8 @@ export type GameWithCounts = GameSummaryFields & {
   active_count: number;
   latest_code_first_seen_at: string | null;
   content_updated_at: string | null;
+  genre_l1?: string | null;
+  genre_l2?: string | null;
 };
 
 
@@ -271,6 +273,9 @@ type CodePageSummary = GameSummaryFields & {
   active_code_count?: number | null;
   latest_code_first_seen_at?: string | null;
   content_updated_at?: string | null;
+  genre_l1?: string | null;
+  genre_l2?: string | null;
+  universe?: { genre_l1?: string | null; genre_l2?: string | null } | null;
 };
 
 function mapCodePageRowToCounts(row: CodePageSummary): GameWithCounts {
@@ -278,7 +283,9 @@ function mapCodePageRowToCounts(row: CodePageSummary): GameWithCounts {
     ...row,
     active_count: row.active_code_count ?? 0,
     latest_code_first_seen_at: row.latest_code_first_seen_at ?? null,
-    content_updated_at: row.content_updated_at ?? row.updated_at ?? null
+    content_updated_at: row.content_updated_at ?? row.updated_at ?? null,
+    genre_l1: row.genre_l1 ?? row.universe?.genre_l1 ?? null,
+    genre_l2: row.genre_l2 ?? row.universe?.genre_l2 ?? null
   };
 }
 
@@ -286,7 +293,7 @@ async function fetchGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("code_pages_view")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
     .eq("is_published", true)
     .order("content_updated_at", { ascending: false });
   if (error) throw error;
@@ -316,7 +323,7 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("code_pages_view")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
     .eq("is_published", true)
     .in("id", uniqueIds);
   if (error) throw error;
@@ -330,6 +337,19 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
   const map = new Map(withCounts.map((game) => [game.id, game]));
 
   return gameIds.map((id) => map.get(id)).filter((game): game is GameWithCounts => Boolean(game));
+}
+
+export async function listGamesWithActiveCountsByUniverseId(universeId: number, limit = 1): Promise<GameWithCounts[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("code_pages_view")
+    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
+    .eq("is_published", true)
+    .eq("universe_id", universeId)
+    .order("content_updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
 }
 
 export async function listPublishedGameLists(): Promise<GameList[]> {
@@ -508,6 +528,24 @@ export async function listPublishedArticles(limit = 20, offset = 0): Promise<Art
   return cachedListPublishedArticles(limit, offset);
 }
 
+export async function listPublishedArticlesByUniverseId(
+  universeId: number,
+  limit = 3,
+  offset = 0
+): Promise<ArticleWithRelations[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("article_pages_view")
+    .select("*")
+    .eq("is_published", true)
+    .eq("universe_id", universeId)
+    .order("published_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+  return (data ?? []) as ArticleWithRelations[];
+}
+
 export async function getArticleBySlug(slug: string): Promise<ArticleWithRelations | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
@@ -641,7 +679,9 @@ type ChecklistSummaryRow = {
   updated_at?: string | null;
   created_at?: string | null;
   content_updated_at?: string | null;
+  universe_id?: number | null;
   item_count?: number;
+  leaf_item_count?: number;
   universe?: {
     display_name?: string | null;
     name?: string | null;
@@ -655,7 +695,7 @@ export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> 
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("checklist_pages_view")
-    .select("id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, universe")
+    .select("id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, leaf_item_count, universe, universe_id")
     .eq("is_public", true)
     .order("content_updated_at", { ascending: false });
 
@@ -685,6 +725,20 @@ export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> 
   if (fallbackError) throw fallbackError;
 
   return (fallback ?? []) as ChecklistSummaryRow[];
+}
+
+export async function listPublishedChecklistsByUniverseId(universeId: number, limit = 1): Promise<ChecklistSummaryRow[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("checklist_pages_view")
+    .select("id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, leaf_item_count, universe, universe_id")
+    .eq("is_public", true)
+    .eq("universe_id", universeId)
+    .order("content_updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as ChecklistSummaryRow[];
 }
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {

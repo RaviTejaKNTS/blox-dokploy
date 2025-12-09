@@ -19,10 +19,16 @@ import {
 } from "@/lib/seo";
 import {
   getArticleBySlug,
+  getChecklistPageBySlug,
   type ArticleWithRelations,
-  type Author
+  type Author,
+  listPublishedChecklistsByUniverseId,
+  listGamesWithActiveCountsByUniverseId
 } from "@/lib/db";
 import { extractHowToSteps } from "@/lib/how-to";
+import { ChecklistCard } from "@/components/ChecklistCard";
+import { GameCard } from "@/components/GameCard";
+import { ArticleCard } from "@/components/ArticleCard";
 
 export const revalidate = 604800; // weekly
 
@@ -180,6 +186,30 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const processedArticleHtml = processHtmlLinks(articleHtml);
   const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
 
+  const universeLabel = article.universe?.display_name ?? article.universe?.name ?? article.title;
+  const universeId = (article as any).universe_id ?? null;
+  const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
+  const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
+  const relatedChecklistCards = await Promise.all(
+    relatedChecklists.map(async (row) => {
+      const checklistData = await getChecklistPageBySlug(row.slug);
+      const leafCount = checklistData?.items
+        ? checklistData.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length
+        : null;
+      const summaryPlain = markdownToPlainText(row.seo_description ?? row.description_md ?? "") || SITE_DESCRIPTION;
+      return {
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        summary: summaryPlain,
+        universeName: row.universe?.display_name ?? row.universe?.name ?? null,
+        coverImage: row.universe?.icon_url ?? `${SITE_URL}/og-image.png`,
+        updatedAt: row.updated_at || row.published_at || row.created_at || null,
+        itemsCount: typeof leafCount === "number" ? leafCount : row.item_count ?? null
+      };
+    })
+  );
+
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="min-w-0">
@@ -273,25 +303,34 @@ async function renderArticlePage(article: ArticleWithRelations) {
           <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
         </section>
 
+        {relatedCodes.length ? (
+          <section className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">Codes for {universeLabel}</h3>
+            <div className="grid gap-3">
+              {relatedCodes.map((g) => (
+                <GameCard key={g.id} game={g} titleAs="p" />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {relatedChecklistCards.length ? (
+          <section className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
+            <div className="space-y-3">
+              {relatedChecklistCards.map((card) => (
+                <ChecklistCard key={card.id} {...card} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {relatedArticles.length ? (
-          <section className="panel space-y-3 px-4 py-5">
+          <section className="space-y-3">
             {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
             <div className="space-y-4">
               {relatedArticles.slice(0, 5).map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-[var(--radius-sm)] border border-border/60 bg-surface px-4 py-3"
-                >
-                  <Link
-                    href={`/articles/${item.slug}`}
-                    className="text-sm font-semibold text-foreground transition hover:text-accent"
-                  >
-                    {item.title}
-                  </Link>
-                  <div className="mt-1 text-xs text-muted">
-                    {new Date(item.published_at).toLocaleDateString("en-US")}
-                  </div>
-                </article>
+                <ArticleCard key={item.id} article={item} />
               ))}
             </div>
           </section>

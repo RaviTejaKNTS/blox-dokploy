@@ -23,7 +23,11 @@ import { collectAuthorSocials } from "@/lib/author-socials";
 import { isCodeWithinNewThreshold, sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
-  listGamesWithActiveCounts
+  listGamesWithActiveCounts,
+  listGamesWithActiveCountsByUniverseId,
+  listPublishedArticlesByUniverseId,
+  listPublishedChecklistsByUniverseId,
+  getChecklistPageBySlug
 } from "@/lib/db";
 import type { Code, GameWithCounts } from "@/lib/db";
 import {
@@ -34,6 +38,8 @@ import {
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
+import { ChecklistCard } from "@/components/ChecklistCard";
+import { ArticleCard } from "@/components/ArticleCard";
 
 export const revalidate = 86400; // daily
 
@@ -128,6 +134,61 @@ function normalizeUrl(value?: string | null): string | null {
 
   // Validate the URL before returning
   return isValidUrl(trimmed) ? trimmed : null;
+}
+
+function summarize(text: string | null | undefined, fallback: string): string {
+  if (!text) return fallback;
+  const plain = markdownToPlainText(text).trim();
+  if (!plain) return fallback;
+  if (plain.length <= 160) return plain;
+  const slice = plain.slice(0, 157);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${lastSpace > 120 ? slice.slice(0, lastSpace) : slice}…`;
+}
+
+function normalizeCategory(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed || null;
+}
+
+function pickSuggestedCodes(
+  allGames: GameWithCounts[],
+  currentGameId: string,
+  genreL1: string | null,
+  genreL2: string | null
+): GameWithCounts[] {
+  const pool = allGames.filter((g) => g.id !== currentGameId);
+  const sorted = [...pool].sort((a, b) => {
+    const aDate = a.content_updated_at || a.updated_at || a.created_at;
+    const bDate = b.content_updated_at || b.updated_at || b.created_at;
+    const aTime = aDate ? new Date(aDate).getTime() : 0;
+    const bTime = bDate ? new Date(bDate).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const result: GameWithCounts[] = [];
+  const seen = new Set<string>();
+  const add = (items: GameWithCounts[]) => {
+    for (const item of items) {
+      if (seen.has(item.id)) continue;
+      result.push(item);
+      seen.add(item.id);
+      if (result.length >= 3) break;
+    }
+  };
+
+  if (genreL2) {
+    add(sorted.filter((g) => normalizeCategory((g as any).genre_l2 ?? null) === genreL2));
+  }
+  if (result.length < 3 && genreL1) {
+    add(sorted.filter((g) => normalizeCategory((g as any).genre_l1 ?? null) === genreL1));
+  }
+  if (result.length < 3) {
+    add(sorted);
+  }
+
+  return result.slice(0, 3);
 }
 
 type UniverseSocialLink = {
@@ -320,13 +381,9 @@ async function fetchGameData(slug: string) {
     if (!game || !game.is_published) return { error: 'NOT_FOUND' as const };
 
     const codes = Array.isArray((game as any).codes) ? ((game as any).codes as Code[]) : [];
-    const recommended = Array.isArray((game as any).recommended_games)
-      ? ((game as any).recommended_games as GameWithCounts[])
-      : [];
-    const allGames = recommended;
     const universe = (game as any).universe ?? null;
 
-    return { game, codes, allGames, universe };
+    return { game, codes, universe };
   } catch (error) {
     logger.error('Failed to fetch game data', {
       slug,
@@ -348,7 +405,7 @@ export default async function GamePage({ params }: Params) {
     throw new Error('Failed to load game data. Please try again later.');
   }
   
-  const { game, codes, allGames, universe } = result;
+  const { game, codes, universe } = result;
   const active = codes.filter(c => c.status === "active");
   const nowMs = Date.now();
   const sortedActive = sortCodesByFirstSeenDesc(active);
@@ -372,12 +429,10 @@ export default async function GamePage({ params }: Params) {
   });
 
   const lastChecked = codes.reduce((acc, c) => (acc > c.last_seen_at ? acc : c.last_seen_at), game.updated_at);
-  const recommended = (allGames ?? [])
-    .filter((g) => g.id !== game.id)
-    .map((g) => ({
-      game: g,
-      articleUpdatedAt: (g as any).content_updated_at ?? (g as any).updated_at ?? null
-    }));
+  const allCodePages = await listGamesWithActiveCounts();
+  const currentGenreL2 = normalizeCategory(universe?.genre_l2 ?? (game as any).genre_l2 ?? null);
+  const currentGenreL1 = normalizeCategory(universe?.genre_l1 ?? (game as any).genre_l1 ?? null);
+  const suggestedCodes = pickSuggestedCodes(allCodePages, game.id, currentGenreL1, currentGenreL2);
 
   const lastCheckedDate = new Date(lastChecked);
   const lastCheckedDatePart = lastCheckedDate.toLocaleDateString("en-US", {
@@ -568,6 +623,33 @@ export default async function GamePage({ params }: Params) {
     const answer = markdownToPlainText(descriptionMarkdown).trim();
     if (answer) faqEntries.push({ question: `About ${game.name}`, answer });
   }
+
+  const universeLabel = universe?.display_name ?? universe?.name ?? game.name;
+  const universeId = game.universe_id ?? null;
+  const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
+  const relatedArticles = universeId ? await listPublishedArticlesByUniverseId(universeId, 3) : [];
+  const relatedGame = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
+
+  const relatedChecklistCards = await Promise.all(
+    relatedChecklists.map(async (row) => {
+      const checklistData = await getChecklistPageBySlug(row.slug);
+      const leafCount = checklistData?.items
+        ? checklistData.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length
+        : null;
+      const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
+      return {
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        summary,
+        universeName: row.universe?.display_name ?? row.universe?.name ?? null,
+        coverImage: row.universe?.icon_url ?? `${SITE_URL}/og-image.png`,
+        updatedAt: row.updated_at || row.published_at || row.created_at || null,
+        itemsCount: typeof leafCount === "number" ? leafCount : row.item_count ?? null
+      };
+    })
+  );
+
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="min-w-0">
@@ -870,59 +952,87 @@ export default async function GamePage({ params }: Params) {
         <LazyCodeBlockEnhancer />
       </article>
 
-      {recommended.length > 0 ? (
+      {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0) ? (
         <aside className="space-y-4">
           <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
-          <section className="panel space-y-3 px-4 py-5">
-            <h3 className="text-lg font-semibold text-foreground">Get Roblox codes directly on</h3>
-            <div className="space-y-2 text-sm">
-              <Link
-                href="https://t.me/bloxodes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="flex items-center gap-2">
-                  <FaTelegramPlane className="h-4 w-4" aria-hidden />
-                  Telegram
-                </span>
-                <span className="text-xs text-muted">@bloxodes</span>
-              </Link>
-              <Link
-                href="https://x.com/bloxodes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="flex items-center gap-2">
-                  <RiTwitterXLine className="h-4 w-4" aria-hidden />
-                  X (Twitter)
-                </span>
-                <span className="text-xs text-muted">@bloxodes</span>
-              </Link>
-              <Link
-                href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc?authuser=0&hl=en"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="flex items-center gap-2">
-                  <SiGooglechrome className="h-4 w-4" aria-hidden />
-                  Chrome Extension
-                </span>
-                <span className="text-xs text-muted">Add to Chrome</span>
-              </Link>
-            </div>
-          </section>
-          <div className="space-y-2 p-2">
-            <h3 className="text-lg font-semibold text-foreground">More games with codes</h3>
-            <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
-          </div>
-          <div className="grid gap-4">
-            {recommended.map(({ game: g, articleUpdatedAt }) => (
-              <GameCard key={g.id} game={g} titleAs="p" articleUpdatedAt={articleUpdatedAt} />
-            ))}
-          </div>
+
+          {relatedChecklistCards.length ? (
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
+              <div className="space-y-4">
+                {relatedChecklistCards.map((card) => (
+                  <ChecklistCard key={card.id} {...card} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {relatedArticles.length ? (
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">Articles on {universeLabel}</h3>
+              <div className="space-y-4">
+                {relatedArticles.slice(0, 3).map((item) => (
+                  <ArticleCard key={item.id} article={item} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {suggestedCodes.length > 0 ? (
+            <>
+              <section className="panel space-y-3 px-4 py-5">
+                <h3 className="text-lg font-semibold text-foreground">Get Roblox codes directly on</h3>
+                <div className="space-y-2 text-sm">
+                  <Link
+                    href="https://t.me/bloxodes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FaTelegramPlane className="h-4 w-4" aria-hidden />
+                      Telegram
+                    </span>
+                    <span className="text-xs text-muted">@bloxodes</span>
+                  </Link>
+                  <Link
+                    href="https://x.com/bloxodes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <RiTwitterXLine className="h-4 w-4" aria-hidden />
+                      X (Twitter)
+                    </span>
+                    <span className="text-xs text-muted">@bloxodes</span>
+                  </Link>
+                  <Link
+                    href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc?authuser=0&hl=en"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-4 rounded-md border border-border px-4 py-3 font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <SiGooglechrome className="h-4 w-4" aria-hidden />
+                      Chrome Extension
+                    </span>
+                    <span className="text-xs text-muted">Add to Chrome</span>
+                  </Link>
+                </div>
+              </section>
+
+              <div className="space-y-2 p-2">
+                <h3 className="text-lg font-semibold text-foreground">More games with codes</h3>
+                <p className="text-sm text-muted">Discover other Roblox games that currently have active rewards.</p>
+              </div>
+              <div className="grid gap-4">
+                {suggestedCodes.map((g) => (
+                  <GameCard key={g.id} game={g} titleAs="p" articleUpdatedAt={g.content_updated_at} />
+                ))}
+              </div>
+            </>
+          ) : null}
         </aside>
       ) : null}
     </div>

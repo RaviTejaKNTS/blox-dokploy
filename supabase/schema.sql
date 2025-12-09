@@ -949,6 +949,8 @@ select
   g.re_rewritten_at,
   g.created_at,
   g.updated_at,
+  u.genre_l1,
+  u.genre_l2,
   coalesce(cs.codes, '[]'::jsonb) as codes,
   coalesce(cs.active_code_count, 0) as active_code_count,
   cs.latest_code_first_seen_at,
@@ -984,6 +986,8 @@ select
     'creator_type', u.creator_type,
     'social_links', u.social_links,
     'icon_url', u.icon_url,
+    'genre_l1', u.genre_l1,
+    'genre_l2', u.genre_l2,
     'playing', u.playing,
     'visits', u.visits,
     'favorites', u.favorites,
@@ -1012,9 +1016,12 @@ select
         g2.cover_image,
         coalesce(cs2.active_code_count, 0) as active_code_count,
         greatest(coalesce(cs2.latest_code_first_seen_at, g2.updated_at), g2.updated_at) as content_updated_at,
-        g2.updated_at
+        g2.updated_at,
+        u2.genre_l1,
+        u2.genre_l2
       from public.games g2
       left join code_stats cs2 on cs2.game_id = g2.id
+      left join public.roblox_universes u2 on u2.universe_id = g2.universe_id
       where g2.is_published = true
         and g2.id <> g.id
       order by coalesce(cs2.active_code_count, 0) desc, g2.updated_at desc
@@ -1026,6 +1033,37 @@ from public.games g
 left join code_stats cs on cs.game_id = g.id
 left join public.authors a on a.id = g.author_id
 left join public.roblox_universes u on u.universe_id = g.universe_id;
+
+-- Checklist view with item counts and universe info
+drop view if exists public.checklist_pages_view;
+create or replace view public.checklist_pages_view as
+with item_stats as (
+  select
+    page_id,
+    count(*) as item_count,
+    count(*) filter (where cardinality(string_to_array(section_code, '.')) >= 3) as leaf_item_count,
+    max(updated_at) as latest_item_at
+  from public.checklist_items
+  group by page_id
+)
+select
+  cp.*,
+  coalesce(stats.item_count, 0) as item_count,
+  coalesce(stats.leaf_item_count, 0) as leaf_item_count,
+  coalesce(stats.latest_item_at, cp.updated_at) as content_updated_at,
+  case when u.universe_id is null then null else jsonb_build_object(
+    'universe_id', u.universe_id,
+    'slug', u.slug,
+    'display_name', u.display_name,
+    'name', u.name,
+    'icon_url', u.icon_url,
+    'thumbnail_urls', u.thumbnail_urls,
+    'genre_l1', u.genre_l1,
+    'genre_l2', u.genre_l2
+  ) end as universe
+from public.checklist_pages cp
+left join item_stats stats on stats.page_id = cp.id
+left join public.roblox_universes u on u.universe_id = cp.universe_id;
 
 -- Articles view: article + author + universe JSON + related articles
 create or replace view public.article_pages_view as
@@ -1053,7 +1091,10 @@ select
     'universe_id', u.universe_id,
     'slug', u.slug,
     'display_name', u.display_name,
-    'name', u.name
+    'name', u.name,
+    'icon_url', u.icon_url,
+    'genre_l1', u.genre_l1,
+    'genre_l2', u.genre_l2
   ) end as universe,
   (
     select coalesce(

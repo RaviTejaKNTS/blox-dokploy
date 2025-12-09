@@ -1,3 +1,4 @@
+import { formatDistanceToNow } from "date-fns";
 import { listPublishedGameLists } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ListCard } from "@/components/ListCard";
@@ -37,57 +38,55 @@ export default async function ListsPage() {
     })
   );
 
-  if (!cards.length) {
-    return (
-      <div className="space-y-8">
-        <header className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
-          <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Roblox Game Lists</h1>
-          <p className="text-sm text-muted max-w-3xl">
-            Curated rankings and collections of Roblox experiences — updated regularly.
-          </p>
-        </header>
-        <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
-          No published lists yet. Check back soon.
-        </div>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "CollectionPage",
-              name: "Roblox Game Lists",
-              description: SITE_DESCRIPTION,
-              url: `${SITE_URL}/lists`
-            })
-          }}
-        />
-      </div>
-    );
-  }
+  const latest = cards.reduce<Date | null>((latestDate, card) => {
+    if (!card.updatedAt) return latestDate;
+    const candidate = new Date(card.updatedAt);
+    if (!latestDate || candidate > latestDate) return candidate;
+    return latestDate;
+  }, null);
+  const refreshedLabel = latest ? formatDistanceToNow(latest, { addSuffix: true }) : null;
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-muted">Roblox Game Lists</p>
-        <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Roblox Game Lists</h1>
-        <p className="text-sm text-muted max-w-3xl">
-          Curated rankings and collections of Roblox experiences — updated regularly.
+      <header className="space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Game Lists</p>
+        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+          Roblox game lists powered by live data, updated regularly
+        </h1>
+        <p className="max-w-2xl text-base text-muted md:text-lg">
+          Rankings and collections driven by live Roblox data and refreshed regularly to help you discover what to play next.
         </p>
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
+          <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
+            {cards.length} published lists
+          </span>
+          {refreshedLabel ? (
+            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
+              Last updated {refreshedLabel}
+            </span>
+          ) : null}
+        </div>
       </header>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cards.map((card) => (
-          <ListCard
-            key={card.id}
-            displayName={card.displayName}
-            title={card.title}
-            slug={card.slug}
-            coverImage={card.coverImage}
-            updatedAt={card.updatedAt}
-            itemsCount={card.itemsCount}
-          />
-        ))}
-      </div>
+
+      {cards.length ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {cards.map((card) => (
+            <ListCard
+              key={card.id}
+              displayName={card.displayName}
+              title={card.title}
+              slug={card.slug}
+              coverImage={card.coverImage}
+              updatedAt={card.updatedAt}
+              itemsCount={card.itemsCount}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-surface/60 p-8 text-center text-muted">
+          No published lists yet. Check back soon.
+        </div>
+      )}
 
       <script
         type="application/ld+json"

@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { FiArrowUpRight, FiClock } from "react-icons/fi";
 import type { ToolListEntry } from "@/lib/tools";
 
 type ToolCardProps = {
@@ -28,18 +27,6 @@ export function ToolCard({ tool }: ToolCardProps) {
         </div>
 
         <div className="relative flex flex-1 flex-col gap-4 p-5">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-muted">
-            <span className="inline-flex items-center gap-2 rounded-full bg-background/70 px-3 py-1 text-[10px] font-semibold text-foreground/80 shadow-sm ring-1 ring-border/60">
-              Roblox Tool
-            </span>
-            {updatedLabel ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-muted">
-                <FiClock className="h-3 w-3" aria-hidden />
-                <span>Updated {updatedLabel}</span>
-              </span>
-            ) : null}
-          </div>
-
           <div className="flex items-start gap-4">
             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border/60 bg-background/60 shadow-inner">
               <Image
@@ -55,18 +42,14 @@ export function ToolCard({ tool }: ToolCardProps) {
                 {tool.title}
               </h3>
               <p className="line-clamp-2 text-sm text-muted">{description}</p>
+              {updatedLabel ? (
+                <p className="flex items-center gap-1 text-xs font-semibold text-muted">
+                  Updated {updatedLabel}
+                </p>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-auto flex items-center justify-between pt-2 text-sm font-semibold text-accent">
-            <span className="inline-flex items-center gap-2">
-              Launch tool
-              <FiArrowUpRight aria-hidden className="h-4 w-4 transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </span>
-            <span className="rounded-full bg-border/60 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-foreground/80">
-              {tool.code.replace(/-/g, " ")}
-            </span>
-          </div>
         </div>
       </article>
     </Link>

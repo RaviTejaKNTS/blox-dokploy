@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 type ChecklistCardProps = {
@@ -12,6 +15,8 @@ type ChecklistCardProps = {
   itemsCount: number | null;
 };
 
+type Progress = { done: number; total: number; percent: number };
+
 function formatUpdatedLabel(updatedAt: string | null): string | null {
   if (!updatedAt) return null;
   try {
@@ -19,6 +24,31 @@ function formatUpdatedLabel(updatedAt: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+function storageKey(slug: string) {
+  return `checklist:${slug}`;
+}
+
+function computeProgress(slug: string, totalItems: number): Progress {
+  let done = 0;
+  try {
+    const raw = localStorage.getItem(storageKey(slug));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        done = parsed.filter((id) => typeof id === "string").length;
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  const clampedDone = Math.min(done, totalItems);
+  return {
+    done: clampedDone,
+    total: totalItems,
+    percent: totalItems ? Math.round((clampedDone / totalItems) * 100) : 0
+  };
 }
 
 export function ChecklistCard({
@@ -31,7 +61,43 @@ export function ChecklistCard({
   itemsCount
 }: ChecklistCardProps) {
   const updatedLabel = formatUpdatedLabel(updatedAt);
-  const tasksLabel = typeof itemsCount === "number" ? `${itemsCount} step${itemsCount === 1 ? "" : "s"}` : "Checklist";
+  const totalItems = typeof itemsCount === "number" ? itemsCount : 0;
+  const [progress, setProgress] = useState<Progress>(() => ({
+    done: 0,
+    total: totalItems,
+    percent: totalItems ? 0 : 0
+  }));
+
+  useEffect(() => {
+    setProgress(computeProgress(slug, totalItems));
+  }, [slug, totalItems]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === storageKey(slug)) {
+        setProgress(computeProgress(slug, totalItems));
+      }
+    };
+    const handleProgressEvent = (event: Event) => {
+      const custom = event as CustomEvent<{ slug: string; checkedCount: number; totalCount: number }>;
+      const detail = custom.detail;
+      if (!detail || detail.slug !== slug) return;
+      const total = totalItems || detail.totalCount || 0;
+      const done = Math.min(detail.checkedCount, total);
+      setProgress({
+        done,
+        total,
+        percent: total ? Math.round((done / total) * 100) : 0
+      });
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("checklist-progress", handleProgressEvent as EventListener);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
+    };
+  }, [slug, totalItems]);
 
   return (
     <Link
@@ -63,28 +129,17 @@ export function ChecklistCard({
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
           </div>
           <div className="min-w-0 space-y-1">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
-              {universeName ? universeName : "Roblox Experience"}
-            </p>
-            <h3 className="text-lg font-semibold leading-tight text-foreground line-clamp-2">{title}</h3>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted"></p>
+            <h3 className="text-base font-semibold leading-tight text-foreground line-clamp-2 md:text-lg">{title}</h3>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-dashed border-emerald-400/50 bg-emerald-500/5 p-3">
-          <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-surface to-transparent" />
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-500">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400 bg-white/70 text-[10px] text-emerald-600 shadow-sm">
-              ✓
-            </span>
-            <span>{tasksLabel}</span>
-          </div>
-          <div className="mt-2 text-sm text-muted leading-relaxed line-clamp-3">{summary}</div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-emerald-700/80">
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 font-semibold">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Ready to tick off
-            </span>
-            {updatedLabel ? <span className="text-muted">Updated {updatedLabel}</span> : null}
+        <div className="space-y-2">
+          <div className="text-sm text-muted leading-relaxed line-clamp-3">{summary}</div>
+          <div className="text-[11px] font-semibold text-muted">
+            {progress.total > 0
+              ? `${progress.done}/${progress.total} tasks done · ${progress.percent}% complete`
+              : `${totalItems} ${totalItems === 1 ? "task" : "tasks"}`}
           </div>
         </div>
       </div>
