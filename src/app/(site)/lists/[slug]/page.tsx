@@ -5,6 +5,7 @@ import { SocialShare } from "@/components/SocialShare";
 import {
   getGameListBySlug,
   getGameListMetadata,
+  listOtherGameLists,
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
@@ -51,21 +52,22 @@ function listEntryName(entry: GameListUniverseEntry): string {
   return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name;
 }
 
-export async function buildListData(slug: string) {
-  const data = await getGameListBySlug(slug);
+export async function buildListData(slug: string, page: number) {
+  const pageNumber = Number.isFinite(page) && page > 0 ? page : 1;
+  const data = await getGameListBySlug(slug, pageNumber, PAGE_SIZE);
   if (!data) {
     notFound();
   }
 
-  const { list, entries } = data;
+  const { list, entries, total } = data;
   const entriesWithBadges: GameListEntryWithBadges[] = entries.map((entry) => ({
     ...entry,
     badges: (entry as any).badges ? ((entry as any).badges as UniverseListBadge[]) : []
   }));
 
-  const otherLists = Array.isArray((list as any).other_lists) ? (list as any).other_lists : [];
+  const otherLists = await listOtherGameLists(slug, 6);
 
-  return { list: { ...list, other_lists: otherLists }, entries: entriesWithBadges };
+  return { list: { ...list, other_lists: otherLists }, entries: entriesWithBadges, totalEntries: total };
 }
 
 export async function buildMetadata(slug: string, page: number): Promise<Metadata> {
@@ -231,6 +233,7 @@ export function ListPageView({
   entries,
   allLists,
   currentPage,
+  totalEntries,
   heroHtml,
   introHtml,
   outroHtml
@@ -240,14 +243,15 @@ export function ListPageView({
   entries: GameListEntryWithBadges[];
   allLists: OtherListLink[];
   currentPage: number;
+  totalEntries: number;
   heroHtml: string;
   introHtml: string;
   outroHtml: string;
 }) {
-  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalEntries / PAGE_SIZE));
   const page = Math.min(Math.max(1, currentPage), totalPages);
   const start = (page - 1) * PAGE_SIZE;
-  const pageEntries = entries.slice(start, start + PAGE_SIZE);
+  const pageEntries = entries;
 
   const showIntroOutro = page === 1;
   const pageTitle = page === 1 ? list.title : `${list.title} - Page ${page}`;
@@ -275,10 +279,10 @@ export function ListPageView({
     name: pageTitle,
     description: listDescription,
     url: canonicalUrl,
-    numberOfItems: entries.length,
+    numberOfItems: totalEntries,
     itemListElement: entries.map((entry, index) => ({
       "@type": "ListItem",
-      position: index + 1,
+      position: start + index + 1,
       item: {
         "@type": "VideoGame",
         name: listEntryName(entry),
@@ -347,7 +351,7 @@ export function ListPageView({
               <details className="rounded-xl border border-border/60 bg-surface/70 px-4 py-3">
                 <summary className="flex items-center justify-between text-sm font-semibold text-foreground cursor-pointer">
                   <span>Jump to game</span>
-                  <span className="text-xs text-muted">Top {entries.length}</span>
+                  <span className="text-xs text-muted">Top {totalEntries}</span>
                 </summary>
                 <div className="mt-3 flex flex-col gap-2">
                   {entries.map((entry, index) => {
@@ -458,7 +462,7 @@ export function ListPageView({
 }
 
 export default async function GameListPage({ params }: PageProps) {
-  const data = await buildListData(params.slug);
+  const data = await buildListData(params.slug, 1);
   const [heroHtml, introHtml, outroHtml] = await Promise.all([
     data.list.hero_md ? renderMarkdown(data.list.hero_md) : Promise.resolve(""),
     data.list.intro_md ? renderMarkdown(data.list.intro_md) : Promise.resolve(""),
@@ -472,6 +476,7 @@ export default async function GameListPage({ params }: PageProps) {
       entries={data.entries}
       allLists={(data.list as any).other_lists ?? []}
       currentPage={1}
+      totalEntries={data.totalEntries}
       heroHtml={heroHtml}
       introHtml={introHtml}
       outroHtml={outroHtml}

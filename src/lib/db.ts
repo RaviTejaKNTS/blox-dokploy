@@ -235,7 +235,7 @@ export async function listAuthors(): Promise<Author[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("authors")
-    .select("*")
+    .select("id, name, slug, avatar_url, gravatar_email, bio_md, twitter, youtube, website, facebook, linkedin, instagram, roblox, discord, created_at, updated_at")
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Author[];
@@ -350,8 +350,10 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
 export async function listGamesWithActiveCountsByUniverseId(universeId: number, limit = 1): Promise<GameWithCounts[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("code_pages_view")
-    .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
+    .from("game_pages_index_view")
+    .select(
+      "id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at"
+    )
     .eq("is_published", true)
     .eq("universe_id", universeId)
     .order("content_updated_at", { ascending: false })
@@ -374,8 +376,31 @@ export async function listPublishedGameLists(): Promise<GameList[]> {
 export async function getGameListMetadata(slug: string): Promise<GameList | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("game_lists_view")
-    .select("*")
+    .from("game_lists")
+    .select(
+      `
+        id,
+        slug,
+        title,
+        display_name,
+        hero_md,
+        intro_md,
+        outro_md,
+        meta_title,
+        meta_description,
+        cover_image,
+        primary_metric_key,
+        primary_metric_label,
+        list_type,
+        filter_config,
+        limit_count,
+        is_published,
+        refreshed_at,
+        created_at,
+        updated_at,
+        top_entry_image
+      `
+    )
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
@@ -383,52 +408,93 @@ export async function getGameListMetadata(slug: string): Promise<GameList | null
   return (data as GameList) ?? null;
 }
 
-export async function getGameListBySlug(
-  slug: string
-): Promise<{ list: GameList; entries: GameListUniverseEntry[] } | null> {
+export async function listOtherGameLists(excludeSlug: string, limit = 6): Promise<GameList[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("game_lists_view")
-    .select("*")
-    .eq("slug", slug)
+    .from("game_lists_index_view")
+    .select("id, slug, title, display_name, cover_image, refreshed_at, updated_at, created_at, top_entry_image, is_published")
     .eq("is_published", true)
-    .maybeSingle();
+    .neq("slug", excludeSlug)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
   if (error) throw error;
-  if (!data) return null;
+  return (data ?? []) as GameList[];
+}
 
-  const list = data as GameList & { entries?: unknown[] };
-  const entriesRaw = Array.isArray(list.entries) ? list.entries : [];
-  const entries = entriesRaw
-    .map((entry) => {
-      const record = entry as Record<string, unknown>;
-      const universe = (record.universe ?? null) as ListUniverseDetails | null;
-      const game = (record.game ?? null) as GamePreview | null;
-      const badges = Array.isArray((record as any).badges) ? ((record as any).badges as UniverseListBadge[]) : null;
-      const metricKey =
-        (record as { metric_key?: unknown }).metric_key ??
-        ((record as { extra?: Record<string, unknown> | null }).extra?.metric as unknown);
-      const metricLabel =
-        (record as { metric_label?: unknown }).metric_label ??
-        ((record as { extra?: Record<string, unknown> | null }).extra?.metric_label as unknown);
-      if (!universe) return null;
-      return {
-        list_id: (record.list_id as string) ?? list.id,
-        universe_id: record.universe_id as number,
-        game_id: (record.game_id as string | null) ?? null,
-        rank: (record.rank as number) ?? 0,
-        metric_value: (record.metric_value as number | null) ?? null,
-        metric_key: (typeof metricKey === "string" ? metricKey : null),
-        metric_label: (typeof metricLabel === "string" ? metricLabel : null),
-        reason: (record.reason as string | null) ?? null,
-        extra: (record.extra as Record<string, unknown> | null) ?? null,
-        universe,
-        game,
-        badges: badges && badges.length ? badges : undefined
-      } as GameListUniverseEntry;
-    })
-    .filter((entry): entry is GameListUniverseEntry => Boolean(entry));
+export async function getGameListEntriesPage(
+  listId: string,
+  page: number,
+  pageSize: number
+): Promise<{ entries: GameListUniverseEntry[]; total: number }> {
+  const sb = supabaseAdmin();
+  const offset = Math.max(0, (page - 1) * pageSize);
+  const { data, count, error } = await sb
+    .from("game_list_entries")
+    .select(
+      `
+        list_id,
+        universe_id,
+        game_id,
+        rank,
+        metric_value,
+        metric_key,
+        metric_label,
+        reason,
+        extra,
+        universe:roblox_universes(
+          universe_id,
+          root_place_id,
+          name,
+          display_name,
+          slug,
+          icon_url,
+          playing,
+          visits,
+          favorites,
+          likes,
+          dislikes,
+          age_rating,
+          desktop_enabled,
+          mobile_enabled,
+          tablet_enabled,
+          console_enabled,
+          vr_enabled,
+          updated_at,
+          description,
+          game_description_md
+        ),
+        game:games(
+          id,
+          slug,
+          name,
+          universe_id
+        )
+      `,
+      { count: "exact" }
+    )
+    .eq("list_id", listId)
+    .order("rank", { ascending: true })
+    .range(offset, offset + pageSize - 1);
 
-  // If the view did not include active counts, hydrate them in a single fetch
+  if (error) throw error;
+  return {
+    entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
+    total: count ?? 0
+  };
+}
+
+export async function getGameListBySlug(
+  slug: string,
+  page = 1,
+  pageSize = 10
+): Promise<{ list: GameList; entries: GameListUniverseEntry[]; total: number } | null> {
+  const list = await getGameListMetadata(slug);
+  if (!list) {
+    return null;
+  }
+
+  const { entries, total } = await getGameListEntriesPage(list.id, page, pageSize);
+
   const missingGameIds = entries
     .map((entry) => entry.game?.id)
     .filter((id): id is string => Boolean(id))
@@ -449,22 +515,18 @@ export async function getGameListBySlug(
     }
   }
 
-  // If badges are missing, hydrate them in one query
-  const missingBadgeUniverseIds = entries
-    .filter((entry) => !entry.badges || entry.badges.length === 0)
-    .map((entry) => entry.universe_id)
-    .filter((id, idx, arr) => arr.indexOf(id) === idx);
-
-  if (missingBadgeUniverseIds.length) {
-    const badgeMap = await listRanksForUniverses(missingBadgeUniverseIds, list.id);
+  const universeIds = entries.map((entry) => entry.universe_id).filter((id, idx, arr) => arr.indexOf(id) === idx);
+  if (universeIds.length) {
+    const badgeMap = await listRanksForUniverses(universeIds, list.id);
     for (const entry of entries) {
-      if (!entry.badges || entry.badges.length === 0) {
-        entry.badges = badgeMap.get(entry.universe_id) ?? undefined;
+      const badges = badgeMap.get(entry.universe_id) ?? null;
+      if (badges?.length) {
+        entry.badges = badges;
       }
     }
   }
 
-  return { list, entries };
+  return { list, entries, total };
 }
 
 export async function listRanksForUniverses(
@@ -719,40 +781,56 @@ type ChecklistSummaryRow = {
   items?: Array<{ count?: number }>;
 };
 
-export async function listPublishedChecklists(): Promise<ChecklistSummaryRow[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("checklist_pages_view")
-    .select("id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, leaf_item_count, universe, universe_id")
-    .eq("is_public", true)
-    .order("content_updated_at", { ascending: false });
+const cachedListPublishedChecklists = unstable_cache(
+  async (limit: number, offset: number) => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from("checklist_pages_view")
+      .select(
+        "id, slug, title, description_md, seo_description, published_at, updated_at, created_at, content_updated_at, item_count, leaf_item_count, universe, universe_id"
+      )
+      .eq("is_public", true)
+      .order("content_updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-  if (!error && data) {
-    return (data ?? []) as ChecklistSummaryRow[];
+    if (!error && data) {
+      return (data ?? []) as ChecklistSummaryRow[];
+    }
+
+    const { data: fallback, error: fallbackError } = await sb
+      .from("checklist_pages")
+      .select(
+        `
+          id,
+          slug,
+          title,
+          description_md,
+          seo_description,
+          published_at,
+          updated_at,
+          created_at,
+          universe:roblox_universes(display_name, name, icon_url, thumbnail_urls)
+        `
+      )
+      .eq("is_public", true)
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (fallbackError) throw fallbackError;
+
+    return (fallback ?? []) as ChecklistSummaryRow[];
+  },
+  ["listPublishedChecklists"],
+  {
+    revalidate: 1800,
+    tags: ["checklists-index"]
   }
+);
 
-  // Fallback to base table if the view is unavailable
-  const { data: fallback, error: fallbackError } = await sb
-    .from("checklist_pages")
-    .select(
-      `
-        id,
-        slug,
-        title,
-        description_md,
-        seo_description,
-        published_at,
-        updated_at,
-        created_at,
-        universe:roblox_universes(display_name, name, icon_url, thumbnail_urls)
-      `
-    )
-    .eq("is_public", true)
-    .order("updated_at", { ascending: false });
-
-  if (fallbackError) throw fallbackError;
-
-  return (fallback ?? []) as ChecklistSummaryRow[];
+export async function listPublishedChecklists(limit = 120, offset = 0): Promise<ChecklistSummaryRow[]> {
+  const safeLimit = Math.max(1, limit);
+  const safeOffset = Math.max(0, offset);
+  return cachedListPublishedChecklists(safeLimit, safeOffset);
 }
 
 export async function listPublishedChecklistsByUniverseId(universeId: number, limit = 1): Promise<ChecklistSummaryRow[]> {

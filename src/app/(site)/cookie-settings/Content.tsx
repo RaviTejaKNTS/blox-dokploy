@@ -72,7 +72,7 @@ export function CookieSettingsContent() {
           <div>
             <p className="font-semibold">Analytics</p>
             <p className="text-sm text-muted-foreground">
-              Helps us measure usage (Google Analytics, Vercel Analytics/Speed Insights).
+              Helps us measure usage (Google Analytics).
             </p>
           </div>
         </label>

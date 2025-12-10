@@ -21,8 +21,8 @@ export default async function GameListPageWithPagination({ params }: PageProps) 
     notFound();
   }
 
-  const data = await buildListData(params.slug);
-  const totalPages = Math.max(1, Math.ceil(data.entries.length / PAGE_SIZE));
+  const data = await buildListData(params.slug, pageNumber);
+  const totalPages = Math.max(1, Math.ceil(data.totalEntries / PAGE_SIZE));
   if (pageNumber > totalPages) {
     notFound();
   }
@@ -42,6 +42,7 @@ export default async function GameListPageWithPagination({ params }: PageProps) 
       entries={data.entries}
       allLists={allLists}
       currentPage={pageNumber}
+      totalEntries={data.totalEntries}
       heroHtml={heroHtml}
       introHtml={introHtml}
       outroHtml={outroHtml}

@@ -75,7 +75,7 @@ export function ConsentBanner() {
               <div className="text-sm">
                 <p className="font-semibold">Analytics</p>
                 <p className="text-muted-foreground">
-                  Helps us understand site usage (Google Analytics, Vercel Analytics/Speed Insights).
+                  Helps us understand site usage (Google Analytics).
                 </p>
               </div>
             </label>

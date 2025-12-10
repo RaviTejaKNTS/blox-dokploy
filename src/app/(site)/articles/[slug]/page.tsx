@@ -19,7 +19,6 @@ import {
 } from "@/lib/seo";
 import {
   getArticleBySlug,
-  getChecklistPageBySlug,
   type ArticleWithRelations,
   type Author,
   listPublishedChecklistsByUniverseId,
@@ -190,25 +189,25 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const universeId = (article as any).universe_id ?? null;
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
-  const relatedChecklistCards = await Promise.all(
-    relatedChecklists.map(async (row) => {
-      const checklistData = await getChecklistPageBySlug(row.slug);
-      const leafCount = checklistData?.items
-        ? checklistData.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length
-        : null;
-      const summaryPlain = markdownToPlainText(row.seo_description ?? row.description_md ?? "") || SITE_DESCRIPTION;
-      return {
-        id: row.id,
-        slug: row.slug,
-        title: row.title,
-        summary: summaryPlain,
-        universeName: row.universe?.display_name ?? row.universe?.name ?? null,
-        coverImage: row.universe?.icon_url ?? `${SITE_URL}/og-image.png`,
-        updatedAt: row.updated_at || row.published_at || row.created_at || null,
-        itemsCount: typeof leafCount === "number" ? leafCount : row.item_count ?? null
-      };
-    })
-  );
+  const relatedChecklistCards = relatedChecklists.map((row) => {
+    const summaryPlain = markdownToPlainText(row.seo_description ?? row.description_md ?? "") || SITE_DESCRIPTION;
+    const itemsCount =
+      typeof row.leaf_item_count === "number"
+        ? row.leaf_item_count
+        : typeof row.item_count === "number"
+          ? row.item_count
+          : null;
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      summary: summaryPlain,
+      universeName: row.universe?.display_name ?? row.universe?.name ?? null,
+      coverImage: row.universe?.icon_url ?? `${SITE_URL}/og-image.png`,
+      updatedAt: row.updated_at || row.published_at || row.created_at || null,
+      itemsCount
+    };
+  });
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">

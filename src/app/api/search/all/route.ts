@@ -20,7 +20,7 @@ export async function GET() {
     const [games, articles, checklists, lists, tools] = await Promise.all([
       listGamesWithActiveCounts(),
       listPublishedArticles(120),
-      listPublishedChecklists(),
+      listPublishedChecklists(150),
       listPublishedGameLists(),
       listPublishedTools()
     ]);

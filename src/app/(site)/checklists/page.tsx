@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { getChecklistPageBySlug, listPublishedChecklists } from "@/lib/db";
+import { listPublishedChecklists } from "@/lib/db";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { ChecklistCard } from "@/components/ChecklistCard";
 
@@ -51,29 +51,19 @@ function summarize(descriptionMd: string | null | undefined, fallback: string): 
 }
 
 export default async function ChecklistsPage() {
-  const rows = await listPublishedChecklists();
-  const withLeafCounts = await Promise.all(
-    rows.map(async (row) => {
-      let leafCount: number | null = null;
-      try {
-        const data = await getChecklistPageBySlug(row.slug);
-        if (data?.items) {
-          leafCount = data.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length;
-        }
-      } catch {
-        leafCount = null;
-      }
-      return { ...row, leafCount };
-    })
-  );
+  const rows = await listPublishedChecklists(500);
 
-  const cards: ChecklistCardData[] = withLeafCounts.map((row) => {
+  const cards: ChecklistCardData[] = rows.map((row) => {
     const universeName = row.universe?.display_name ?? row.universe?.name ?? null;
     const thumb = pickThumbnail(row.universe?.thumbnail_urls);
     const coverImage = row.universe?.icon_url || thumb || `${SITE_URL}/og-image.png`;
     const updatedAt = row.updated_at || row.published_at || row.created_at || null;
     const itemsCount =
-      typeof row.leafCount === "number" ? row.leafCount : Array.isArray(row.items) ? row.items[0]?.count ?? null : null;
+      typeof row.leaf_item_count === "number"
+        ? row.leaf_item_count
+        : typeof row.item_count === "number"
+          ? row.item_count
+          : null;
     const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
 
     return {

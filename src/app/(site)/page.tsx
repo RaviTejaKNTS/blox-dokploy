@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import {
-  getChecklistPageBySlug,
   listGamesWithActiveCounts,
   listPublishedArticles,
   listPublishedChecklists,
@@ -111,7 +110,7 @@ export default async function HomePage() {
   const [games, articles, checklistRows, lists, tools] = await Promise.all([
     listGamesWithActiveCounts(),
     listPublishedArticles(12),
-    listPublishedChecklists(),
+    listPublishedChecklists(INITIAL_CHECKLISTS * 2),
     listPublishedGameLists(),
     listPublishedTools()
   ]);
@@ -144,24 +143,12 @@ export default async function HomePage() {
       const coverImage = row.universe?.icon_url || thumb || `${SITE_URL}/og-image.png`;
       const updatedAt = row.updated_at || row.published_at || row.created_at || null;
 
-      let leafCount: number | null = null;
-      try {
-        const data = await getChecklistPageBySlug(row.slug);
-        if (data?.items) {
-          leafCount = data.items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3).length;
-        }
-      } catch {
-        leafCount = null;
-      }
-
       const itemsCount =
-        typeof leafCount === "number"
-          ? leafCount
-          : Array.isArray(row.items)
-            ? row.items[0]?.count ?? null
-            : typeof row.item_count === "number"
-              ? row.item_count
-              : null;
+        typeof row.leaf_item_count === "number"
+          ? row.leaf_item_count
+          : typeof row.item_count === "number"
+            ? row.item_count
+            : null;
       const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
 
       return {

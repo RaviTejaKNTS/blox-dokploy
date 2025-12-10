@@ -136,9 +136,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ConsentBanner />
           <ConsentGate category="analytics">
             <GoogleAnalytics measurementId={googleAnalyticsId} />
-            <Analytics />
-            <SpeedInsights />
           </ConsentGate>
+          <Analytics />
+          <SpeedInsights />
           <GlobalSearchOverlay />
           {children}
         </ConsentProvider>

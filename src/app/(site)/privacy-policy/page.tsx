@@ -83,7 +83,7 @@ export default function PrivacyPolicyPage() {
               <p className="font-medium">We may collect automatically (technical data):</p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Device and network data: IP address, browser type, OS, referral URL, timestamps, pages visited.</li>
-                <li>Usage data: page engagement (via Google Analytics and Vercel).</li>
+                <li>Usage data: page engagement (via Google Analytics). Vercel’s built-in analytics/performance telemetry runs on all visits but is aggregated and not used for marketing.</li>
                 <li>Advertising identifiers: cookie IDs used by ad partners for frequency and fraud protection.</li>
               </ul>
             </div>
@@ -133,8 +133,7 @@ export default function PrivacyPolicyPage() {
             cookies to generate anonymous usage stats. We enable IP anonymization where possible and do not link this data to identities.
           </p>
           <p>
-            <strong>Vercel Analytics and Speed Insights:</strong> used for performance and error monitoring. Data is aggregated and
-            anonymized to help us keep the site fast.
+            <strong>Vercel Analytics and Speed Insights:</strong> used for performance and error monitoring. These run by default for all visitors, are aggregated/anonymized, and are not used for ads or profiling.
           </p>
         </section>
 
@@ -168,7 +167,7 @@ export default function PrivacyPolicyPage() {
           <p>We do not sell personal data. We share technical data only with providers that help run the site:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li>Google (AdSense/Analytics) as an independent controller for ads and measurement.</li>
-            <li>Vercel for secure hosting, edge delivery, and performance monitoring.</li>
+            <li>Vercel for secure hosting, edge delivery, and performance monitoring (Analytics/Speed Insights run by default).</li>
           </ul>
           <p>We may disclose information if required by law or to protect our rights and users.</p>
         </section>
