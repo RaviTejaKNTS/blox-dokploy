@@ -7,6 +7,8 @@ import {
 } from "@/lib/db";
 import { listPublishedTools } from "@/lib/tools";
 
+export const revalidate = 600; // cache search payload at the CDN for 10 minutes
+
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 let cached: { items: any[]; expires: number } | null = null;
 

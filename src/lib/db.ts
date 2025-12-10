@@ -232,13 +232,24 @@ export async function listPublishedGames(): Promise<Game[]> {
 }
 
 export async function listAuthors(): Promise<Author[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("authors")
-    .select("id, name, slug, avatar_url, gravatar_email, bio_md, twitter, youtube, website, facebook, linkedin, instagram, roblox, discord, created_at, updated_at")
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data as Author[];
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("authors")
+        .select("id, name, slug, avatar_url, gravatar_email, bio_md, twitter, youtube, website, facebook, linkedin, instagram, roblox, discord, created_at, updated_at")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Author[];
+    },
+    ["listAuthors"],
+    {
+      revalidate: 2592000, // 30 days
+      tags: ["authors-index"]
+    }
+  );
+
+  return cached();
 }
 
 function articleSelectFields() {
@@ -322,6 +333,38 @@ export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   return cachedListGamesWithActiveCounts();
 }
 
+export async function listGamesWithActiveCountsPage(page: number, pageSize: number): Promise<{ games: GameWithCounts[]; total: number }> {
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePageSize = Math.max(1, pageSize);
+  const offset = (safePage - 1) * safePageSize;
+
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, count, error } = await sb
+        .from("game_pages_index_view")
+        .select(
+          "id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at",
+          { count: "exact" }
+        )
+        .eq("is_published", true)
+        .order("content_updated_at", { ascending: false })
+        .range(offset, offset + safePageSize - 1);
+
+      if (error) throw error;
+      const games = (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
+      return { games, total: count ?? games.length };
+    },
+    [`listGamesWithActiveCountsPage:${safePage}:${safePageSize}`],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["codes-index", "home"]
+    }
+  );
+
+  return cached();
+}
+
 export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promise<GameWithCounts[]> {
   if (!gameIds.length) {
     return [];
@@ -363,62 +406,161 @@ export async function listGamesWithActiveCountsByUniverseId(universeId: number, 
 }
 
 export async function listPublishedGameLists(): Promise<GameList[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("game_lists_index_view")
-    .select("id, slug, title, display_name, cover_image, limit_count, refreshed_at, updated_at, created_at, top_entry_image")
-    .eq("is_published", true)
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as GameList[];
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      try {
+        const { data, error } = await sb
+          .from("game_lists_index_view")
+          .select("id, slug, title, display_name, cover_image, top_entry_image, limit_count, refreshed_at, updated_at, created_at")
+          .eq("is_published", true)
+          .order("updated_at", { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as GameList[];
+      } catch (error: any) {
+        // fall through to base table on missing column/view issues
+      }
+
+      const { data: fallback, error: fallbackError } = await sb
+        .from("game_lists")
+        .select("id, slug, title, display_name, cover_image, limit_count, refreshed_at, updated_at, created_at")
+        .eq("is_published", true)
+        .order("updated_at", { ascending: false });
+      if (fallbackError) throw fallbackError;
+      return (fallback ?? []) as GameList[];
+    },
+    ["listPublishedGameLists"],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["lists-index"]
+    }
+  );
+
+  return cached();
+}
+
+export async function listPublishedGameListsPage(
+  page: number,
+  pageSize: number
+): Promise<{ lists: GameList[]; total: number }> {
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePageSize = Math.max(1, pageSize);
+  const offset = (safePage - 1) * safePageSize;
+
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      try {
+        const { data, count, error } = await sb
+          .from("game_lists_index_view")
+          .select("id, slug, title, display_name, cover_image, top_entry_image, updated_at, created_at", { count: "exact" })
+          .eq("is_published", true)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
+
+        if (error) throw error;
+        const lists = (data ?? []) as GameList[];
+        return { lists, total: count ?? lists.length };
+      } catch (err: any) {
+        if (err?.code !== "42703") {
+          // non-column errors should still bubble
+          throw err;
+        }
+        const { data, count, error } = await sb
+          .from("game_lists")
+          .select("id, slug, title, display_name, cover_image, updated_at, created_at", { count: "exact" })
+          .eq("is_published", true)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
+
+        if (error) throw error;
+        const lists = (data ?? []) as GameList[];
+        return { lists, total: count ?? lists.length };
+      }
+    },
+    [`listPublishedGameListsPage:${safePage}:${safePageSize}`],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["lists-index"]
+    }
+  );
+
+  return cached();
 }
 
 export async function getGameListMetadata(slug: string): Promise<GameList | null> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("game_lists")
-    .select(
-      `
-        id,
-        slug,
-        title,
-        display_name,
-        hero_md,
-        intro_md,
-        outro_md,
-        meta_title,
-        meta_description,
-        cover_image,
-        primary_metric_key,
-        primary_metric_label,
-        list_type,
-        filter_config,
-        limit_count,
-        is_published,
-        refreshed_at,
-        created_at,
-        updated_at,
-        top_entry_image
-      `
-    )
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as GameList) ?? null;
+  const normalizedSlug = slug.trim().toLowerCase();
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("game_lists")
+        .select(
+          `
+            id,
+            slug,
+            title,
+            display_name,
+            hero_md,
+            intro_md,
+            outro_md,
+            meta_title,
+            meta_description,
+            cover_image,
+            primary_metric_key,
+            primary_metric_label,
+            list_type,
+            filter_config,
+            limit_count,
+            is_published,
+            refreshed_at,
+            created_at,
+            updated_at
+          `
+        )
+        .eq("slug", normalizedSlug)
+        .eq("is_published", true)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as GameList) ?? null;
+    },
+    [`getGameListMetadata:${normalizedSlug}`],
+    {
+      revalidate: 86400, // 1 day
+      tags: ["lists-index", `list:${normalizedSlug}`]
+    }
+  );
+
+  return cached();
 }
 
 export async function listOtherGameLists(excludeSlug: string, limit = 6): Promise<GameList[]> {
   const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("game_lists_index_view")
-    .select("id, slug, title, display_name, cover_image, refreshed_at, updated_at, created_at, top_entry_image, is_published")
+  try {
+    const { data, error } = await sb
+      .from("game_lists_index_view")
+      .select("id, slug, title, display_name, cover_image, top_entry_image, refreshed_at, updated_at, created_at, is_published")
+      .eq("is_published", true)
+      .neq("slug", excludeSlug)
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data ?? []) as GameList[];
+  } catch (error: any) {
+    // fall through to base table
+  }
+
+  // Fallback to base table if the view is missing columns (42703) or unavailable
+  const { data: fallback, error: fallbackError } = await sb
+    .from("game_lists")
+    .select("id, slug, title, display_name, cover_image, refreshed_at, updated_at, created_at, is_published")
     .eq("is_published", true)
     .neq("slug", excludeSlug)
     .order("updated_at", { ascending: false })
     .limit(limit);
-  if (error) throw error;
-  return (data ?? []) as GameList[];
+  if (fallbackError) throw fallbackError;
+  return (fallback ?? []) as GameList[];
 }
 
 export async function getGameListEntriesPage(
@@ -428,59 +570,94 @@ export async function getGameListEntriesPage(
 ): Promise<{ entries: GameListUniverseEntry[]; total: number }> {
   const sb = supabaseAdmin();
   const offset = Math.max(0, (page - 1) * pageSize);
-  const { data, count, error } = await sb
-    .from("game_list_entries")
-    .select(
-      `
-        list_id,
-        universe_id,
-        game_id,
-        rank,
-        metric_value,
-        metric_key,
-        metric_label,
-        reason,
-        extra,
-        universe:roblox_universes(
+  try {
+    const { data, count, error } = await sb
+      .from("game_list_entries")
+      .select(
+        `
+          list_id,
           universe_id,
-          root_place_id,
-          name,
-          display_name,
-          slug,
-          icon_url,
-          playing,
-          visits,
-          favorites,
-          likes,
-          dislikes,
-          age_rating,
-          desktop_enabled,
-          mobile_enabled,
-          tablet_enabled,
-          console_enabled,
-          vr_enabled,
-          updated_at,
-          description,
-          game_description_md
-        ),
-        game:games(
-          id,
-          slug,
-          name,
-          universe_id
-        )
-      `,
-      { count: "exact" }
-    )
-    .eq("list_id", listId)
-    .order("rank", { ascending: true })
-    .range(offset, offset + pageSize - 1);
+          game_id,
+          rank,
+          metric_value,
+          reason,
+          extra,
+          universe:roblox_universes(
+            universe_id,
+            root_place_id,
+            name,
+            display_name,
+            slug,
+            icon_url,
+            playing,
+            visits,
+            favorites,
+            likes,
+            dislikes,
+            updated_at,
+            description
+          ),
+          game:games(
+            id,
+            slug,
+            name,
+            universe_id
+          )
+        `,
+        { count: "exact" }
+      )
+      .eq("list_id", listId)
+      .order("rank", { ascending: true })
+      .range(offset, offset + pageSize - 1);
 
-  if (error) throw error;
-  return {
-    entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
-    total: count ?? 0
-  };
+    if (error) throw error;
+    return {
+      entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
+      total: count ?? 0
+    };
+  } catch (error: any) {
+    if (error?.code !== "42703") throw error;
+    // Fallback for environments missing some universe columns
+    const { data, count, error: fallbackError } = await sb
+      .from("game_list_entries")
+      .select(
+        `
+          list_id,
+          universe_id,
+          game_id,
+          rank,
+          metric_value,
+          reason,
+          extra,
+          universe:roblox_universes(
+            universe_id,
+            name,
+            display_name,
+            slug,
+            icon_url,
+            playing,
+            visits,
+            updated_at,
+            description
+          ),
+          game:games(
+            id,
+            slug,
+            name,
+            universe_id
+          )
+        `,
+        { count: "exact" }
+      )
+      .eq("list_id", listId)
+      .order("rank", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (fallbackError) throw fallbackError;
+    return {
+      entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
+      total: count ?? 0
+    };
+  }
 }
 
 export async function getGameListBySlug(
@@ -607,47 +784,111 @@ export async function listPublishedArticles(limit = 20, offset = 0): Promise<Art
   return cachedListPublishedArticles(limit, offset);
 }
 
+export async function listPublishedArticlesPage(
+  page: number,
+  pageSize: number
+): Promise<{ articles: ArticleWithRelations[]; total: number }> {
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePageSize = Math.max(1, pageSize);
+  const offset = (safePage - 1) * safePageSize;
+
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, count, error } = await sb
+        .from("article_pages_index_view")
+        .select(ARTICLE_INDEX_FIELDS, { count: "exact" })
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .range(offset, offset + safePageSize - 1);
+
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      const mapped = rows.map((row) => ({
+        ...row,
+        content_md: "",
+        tags: [],
+        word_count: null,
+        author: (row as any).author ?? null,
+        universe: (row as any).universe ?? null
+      })) as unknown as ArticleWithRelations[];
+      return { articles: mapped, total: count ?? mapped.length };
+    },
+    [`listPublishedArticlesPage:${safePage}:${safePageSize}`],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["articles-index"]
+    }
+  );
+
+  return cached();
+}
+
 export async function listPublishedArticlesByUniverseId(
   universeId: number,
   limit = 3,
   offset = 0
 ): Promise<ArticleWithRelations[]> {
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("article_pages_index_view")
-    .select(ARTICLE_INDEX_FIELDS)
-    .eq("is_published", true)
-    .eq("universe_id", universeId)
-    .order("published_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+  const cacheKey = `listPublishedArticlesByUniverseId:${universeId}:${limit}:${offset}`;
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("article_pages_index_view")
+        .select(ARTICLE_INDEX_FIELDS)
+        .eq("is_published", true)
+        .eq("universe_id", universeId)
+        .order("published_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
-  if (error) throw error;
-  const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
-  const mapped = rows.map((row) => ({
-    ...row,
-    content_md: "",
-    tags: [],
-    word_count: null,
-    author: (row as any).author ?? null,
-    universe: (row as any).universe ?? null
-  })) as unknown as ArticleWithRelations[];
-  return mapped;
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      const mapped = rows.map((row) => ({
+        ...row,
+        content_md: "",
+        tags: [],
+        word_count: null,
+        author: (row as any).author ?? null,
+        universe: (row as any).universe ?? null
+      })) as unknown as ArticleWithRelations[];
+      return mapped;
+    },
+    [cacheKey],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["articles-index"]
+    }
+  );
+
+  return cached();
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleWithRelations | null> {
-  const sb = supabaseAdmin();
-    const { data, error } = await sb
-      .from('article_pages_view')
-      .select(
-        `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id,slug,display_name,name,icon_url,genre_l1,genre_l2)`
-      )
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle();
+  const normalizedSlug = slug.trim().toLowerCase();
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from('article_pages_view')
+        .select(
+          `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id,slug,display_name,name,icon_url,genre_l1,genre_l2)`
+        )
+        .eq('slug', normalizedSlug)
+        .eq('is_published', true)
+        .maybeSingle();
 
-  if (error) throw error;
-  if (!data) return null;
-  return data as unknown as ArticleWithRelations;
+      if (error) throw error;
+      if (!data) return null;
+      return data as unknown as ArticleWithRelations;
+    },
+    [`getArticleBySlug:${normalizedSlug}`],
+    {
+      revalidate: 604800, // 7 days to align with article ISR
+      tags: ["articles-index", `article:${normalizedSlug}`]
+    }
+  );
+
+  return cached();
 }
 
 export async function listRecentArticlesForSitemap(): Promise<ArticleWithRelations[]> {
@@ -759,7 +1000,7 @@ export async function listPublishedChecklistSlugs(): Promise<string[]> {
   return cached();
 }
 
-type ChecklistSummaryRow = {
+export type ChecklistSummaryRow = {
   id: string;
   slug: string;
   title: string;
@@ -808,8 +1049,7 @@ const cachedListPublishedChecklists = unstable_cache(
           seo_description,
           published_at,
           updated_at,
-          created_at,
-          universe:roblox_universes(display_name, name, icon_url, thumbnail_urls)
+          created_at
         `
       )
       .eq("is_public", true)
@@ -831,6 +1071,68 @@ export async function listPublishedChecklists(limit = 120, offset = 0): Promise<
   const safeLimit = Math.max(1, limit);
   const safeOffset = Math.max(0, offset);
   return cachedListPublishedChecklists(safeLimit, safeOffset);
+}
+
+export async function listPublishedChecklistsPage(
+  page: number,
+  pageSize: number
+): Promise<{ checklists: ChecklistSummaryRow[]; total: number }> {
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePageSize = Math.max(1, pageSize);
+  const offset = (safePage - 1) * safePageSize;
+
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      try {
+        const { data, count, error } = await sb
+          .from("checklist_pages_view")
+          .select(
+            "id, slug, title, description_md, seo_description, cover_image, published_at, updated_at, created_at, item_count, leaf_item_count, universe, universe_id",
+            { count: "exact" }
+          )
+          .eq("is_public", true)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
+
+        if (error) throw error;
+        const rows = (data ?? []) as ChecklistSummaryRow[];
+        return { checklists: rows, total: count ?? rows.length };
+      } catch (error: any) {
+        if (error?.code !== "42703") throw error;
+        // Fallback for schemas missing view columns: include universe icon via join
+        const { data, count, error: fallbackError } = await sb
+          .from("checklist_pages")
+          .select(
+            `
+              id,
+              slug,
+              title,
+              published_at,
+              updated_at,
+              created_at,
+              universe:roblox_universes(icon_url, thumbnail_urls, display_name, name),
+              universe_id
+            `,
+            { count: "exact" }
+          )
+          .eq("is_public", true)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
+
+        if (fallbackError) throw fallbackError;
+        const rows = (data ?? []) as ChecklistSummaryRow[];
+        return { checklists: rows, total: count ?? rows.length };
+      }
+    },
+    [`listPublishedChecklistsPage:${safePage}:${safePageSize}`],
+    {
+      revalidate: 1800,
+      tags: ["checklists-index"]
+    }
+  );
+
+  return cached();
 }
 
 export async function listPublishedChecklistsByUniverseId(universeId: number, limit = 1): Promise<ChecklistSummaryRow[]> {

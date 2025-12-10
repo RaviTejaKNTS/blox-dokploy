@@ -36,6 +36,42 @@ const nextConfig = {
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=86400" }
         ]
+      },
+      {
+        source: "/tools/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=21600, stale-while-revalidate=86400" }
+        ]
+      },
+      {
+        source: "/checklists/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=21600, stale-while-revalidate=86400" }
+        ]
+      },
+      {
+        source: "/authors/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=604800, stale-while-revalidate=2592000" }
+        ]
+      },
+      {
+        source: "/sitemap.xml",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=21600, stale-while-revalidate=86400" }
+        ]
+      },
+      {
+        source: "/robots.txt",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=86400, stale-while-revalidate=604800" }
+        ]
+      },
+      {
+        source: "/feed.xml",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=21600, stale-while-revalidate=604800" }
+        ]
       }
     ];
   },

@@ -47,6 +47,8 @@ const GDPR_COUNTRIES = new Set([
 ]);
 
 const CONSENT_HEADER = "x-require-consent";
+const CONSENT_COOKIE = "require-consent";
+const CONSENT_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export function middleware(req: NextRequest) {
   // Prefer Vercel geo (works when DNS is on Vercel), fall back to Cloudflare if proxied.
@@ -64,10 +66,21 @@ export function middleware(req: NextRequest) {
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set(CONSENT_HEADER, requiresConsent ? "1" : "0");
+  res.cookies.set({
+    name: CONSENT_COOKIE,
+    value: requiresConsent ? "1" : "0",
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: CONSENT_MAX_AGE
+  });
 
   return res;
 }
 
 export const config = {
-  matcher: ["/:path*"]
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon-16x16\\.png|favicon-32x32\\.png|favicon-48x48\\.png|android-chrome-192x192\\.png|android-chrome-512x512\\.png|apple-touch-icon\\.png|robots\\.txt|sitemap\\.xml|site\\.webmanifest|og-image\\.png|Bloxodes-dark\\.png|Bloxodes-light\\.png|Bloxodes\\.png).*)"
+  ]
 };

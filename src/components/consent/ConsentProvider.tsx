@@ -19,6 +19,7 @@ type ConsentContextValue = {
 };
 
 const STORAGE_KEY = "gdpr-consent";
+const REQUIRE_CONSENT_COOKIE = "require-consent";
 
 const defaultBlockedState: ConsentState = {
   analytics: false,
@@ -35,6 +36,20 @@ const defaultAllowedState: ConsentState = {
 };
 
 const ConsentContext = createContext<ConsentContextValue | null>(null);
+
+function readRequiresConsentFromCookie(): boolean | null {
+  if (typeof document === "undefined") return null;
+  const cookieString = document.cookie || "";
+  const entries = cookieString.split(";").map((part) => part.trim());
+  for (const entry of entries) {
+    if (!entry) continue;
+    const [name, value] = entry.split("=");
+    if (name === REQUIRE_CONSENT_COOKIE) {
+      return value === "1";
+    }
+  }
+  return null;
+}
 
 function readStoredConsent(): ConsentState | null {
   if (typeof window === "undefined") return null;
@@ -63,25 +78,33 @@ function persist(state: ConsentState) {
   }
 }
 
-export function ConsentProvider({ requiresConsent, children }: { requiresConsent: boolean; children: ReactNode }) {
+export function ConsentProvider({ requiresConsent: initialRequiresConsent = true, children }: { requiresConsent?: boolean; children: ReactNode }) {
+  const [requiresConsent, setRequiresConsent] = useState<boolean>(initialRequiresConsent);
   const [state, setState] = useState<ConsentState>(() =>
-    requiresConsent ? defaultBlockedState : defaultAllowedState
+    initialRequiresConsent ? defaultBlockedState : defaultAllowedState
   );
+  const [hydrated, setHydrated] = useState(false);
 
   // On mount, hydrate from storage or auto-allow if consent is not required.
   useEffect(() => {
+    const cookieValue = readRequiresConsentFromCookie();
+    const shouldRequireConsent = cookieValue ?? initialRequiresConsent;
+    setRequiresConsent(shouldRequireConsent);
+
     const stored = readStoredConsent();
     if (stored) {
       setState(stored);
+      setHydrated(true);
       return;
     }
 
-    if (!requiresConsent) {
+    if (!shouldRequireConsent) {
       setState(defaultAllowedState);
     } else {
       setState(defaultBlockedState);
     }
-  }, [requiresConsent]);
+    setHydrated(true);
+  }, [initialRequiresConsent]);
 
   const setAndPersist = (next: ConsentState) => {
     setState(next);
@@ -119,12 +142,12 @@ export function ConsentProvider({ requiresConsent, children }: { requiresConsent
     () => ({
       state,
       requiresConsent,
-      shouldShowBanner: requiresConsent && !state.decided,
+      shouldShowBanner: hydrated && requiresConsent && !state.decided,
       acceptAll,
       rejectAll,
       updateConsent
     }),
-    [state, requiresConsent]
+    [state, requiresConsent, hydrated]
   );
 
   return <ConsentContext.Provider value={value}>{children}</ConsentContext.Provider>;

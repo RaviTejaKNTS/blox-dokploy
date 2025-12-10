@@ -1,14 +1,12 @@
 import { formatDistanceToNow } from "date-fns";
-import { listPublishedGameLists } from "@/lib/db";
+import { notFound } from "next/navigation";
+import { listPublishedGameListsPage, type GameList } from "@/lib/db";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ListCard } from "@/components/ListCard";
-
-type ListEntryPreview = {
-  game?: { cover_image?: string | null } | null;
-  universe?: { icon_url?: string | null } | null;
-};
+import { PagePagination } from "@/components/PagePagination";
 
 export const revalidate = 86400; // daily
+export const PAGE_SIZE = 20;
 
 export const metadata = {
   title: `Roblox Game Lists | ${SITE_NAME}`,
@@ -18,24 +16,60 @@ export const metadata = {
   }
 };
 
-export default async function ListsPage() {
-  const lists = await listPublishedGameLists();
-  const cards = await Promise.all(
-    (lists ?? []).map(async (list) => {
-      const displayName = list.display_name || list.title;
+type Card = {
+  id: string;
+  title: string;
+  displayName: string;
+  slug: string;
+  coverImage: string | null;
+  updatedAt?: string | null;
+  itemsCount?: number | null;
+};
+
+type PageData = {
+  cards: Card[];
+  total: number;
+  totalPages: number;
+};
+
+async function mapListsToCards(lists: GameList[]): Promise<Card[]> {
+  return Promise.all(
+    lists.map(async (list) => {
+      const displayName = (list as any).display_name || list.title;
       const topImage = (list as any).top_entry_image ?? null;
       return {
         id: list.id,
         title: list.title,
         displayName,
         slug: list.slug,
-        coverImage: list.cover_image || topImage || `${SITE_URL}/og-image.png`,
-        updatedAt: list.updated_at ?? list.refreshed_at ?? list.created_at,
-        itemsCount: typeof list.limit_count === "number" ? list.limit_count : null
+        coverImage: (list as any).cover_image || topImage || `${SITE_URL}/og-image.png`,
+        updatedAt: (list as any).updated_at ?? (list as any).refreshed_at ?? list.created_at,
+        itemsCount: typeof (list as any).limit_count === "number" ? (list as any).limit_count : null
       };
     })
   );
+}
 
+async function loadPage(pageNumber: number): Promise<PageData> {
+  const { lists, total } = await listPublishedGameListsPage(pageNumber, PAGE_SIZE);
+  const cards = await mapListsToCards(lists ?? []);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return { cards, total, totalPages };
+}
+
+function ListsPageView({
+  cards,
+  total,
+  totalPages,
+  currentPage,
+  showHero
+}: {
+  cards: Card[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  showHero: boolean;
+}) {
   const latest = cards.reduce<Date | null>((latestDate, card) => {
     if (!card.updatedAt) return latestDate;
     const candidate = new Date(card.updatedAt);
@@ -46,25 +80,35 @@ export default async function ListsPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Game Lists</p>
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          Roblox game lists powered by live data, updated regularly
-        </h1>
-        <p className="max-w-2xl text-base text-muted md:text-lg">
-          Rankings and collections driven by live Roblox data and refreshed regularly to help you discover what to play next.
-        </p>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
-          <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-            {cards.length} published lists
-          </span>
-          {refreshedLabel ? (
-            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-              Last updated {refreshedLabel}
+      {showHero ? (
+        <header className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Game Lists</p>
+          <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            Roblox game lists powered by live data, updated regularly
+          </h1>
+          <p className="max-w-2xl text-base text-muted md:text-lg">
+            Rankings and collections driven by live Roblox data and refreshed regularly to help you discover what to play next.
+          </p>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
+            <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
+              {total} published lists
             </span>
+            {refreshedLabel ? (
+              <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
+                Last updated {refreshedLabel}
+              </span>
+            ) : null}
+          </div>
+        </header>
+      ) : (
+        <header className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Roblox Game Lists</p>
+          <h1 className="text-3xl font-semibold text-foreground">Game lists</h1>
+          {refreshedLabel ? (
+            <p className="text-sm text-muted">Updated {refreshedLabel} · Page {currentPage} of {totalPages}</p>
           ) : null}
-        </div>
-      </header>
+        </header>
+      )}
 
       {cards.length ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -86,18 +130,39 @@ export default async function ListsPage() {
         </div>
       )}
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            name: "Roblox Game Lists",
-            description: SITE_DESCRIPTION,
-            url: `${SITE_URL}/lists`
-          })
-        }}
-      />
+      <PagePagination basePath="/lists" currentPage={currentPage} totalPages={totalPages} />
+
+      {showHero ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              name: "Roblox Game Lists",
+              description: SITE_DESCRIPTION,
+              url: `${SITE_URL}/lists`
+            })
+          }}
+        />
+      ) : null}
     </div>
   );
+}
+
+export default async function ListsPage() {
+  const { cards, total, totalPages } = await loadPage(1);
+  if (!cards) {
+    notFound();
+  }
+
+  return <ListsPageView cards={cards} total={total} totalPages={totalPages} currentPage={1} showHero />;
+}
+
+export async function loadListsPageData(page: number) {
+  return loadPage(page);
+}
+
+export function renderListsPage(props: Parameters<typeof ListsPageView>[0]) {
+  return <ListsPageView {...props} />;
 }

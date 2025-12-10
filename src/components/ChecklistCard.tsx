@@ -67,6 +67,11 @@ export function ChecklistCard({
     total: totalItems,
     percent: totalItems ? 0 : 0
   }));
+  const fallbackImage = "/og-image.png";
+  const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    if (event.currentTarget.src.endsWith(fallbackImage)) return;
+    event.currentTarget.src = fallbackImage;
+  };
 
   useEffect(() => {
     setProgress(computeProgress(slug, totalItems));
@@ -122,6 +127,7 @@ export function ChecklistCard({
                 className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
+                onError={handleImgError}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted/60">🎯</div>

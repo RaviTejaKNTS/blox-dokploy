@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { listGamesWithActiveCounts } from "@/lib/db";
 
+export const revalidate = 600;
+
 export async function GET() {
   try {
     const games = await listGamesWithActiveCounts();

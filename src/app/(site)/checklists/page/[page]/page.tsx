@@ -1,0 +1,43 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { loadChecklistsPageData, renderChecklistsPage } from "../../page";
+
+export const revalidate = 21600; // 6 hours
+
+type PageProps = {
+  params: { page: string };
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
+  const title = pageNumber > 1 ? `Roblox Checklists - Page ${pageNumber}` : "Roblox Checklists";
+  return {
+    title,
+    description: "Paginated Roblox checklists index",
+    robots: { index: false, follow: true },
+    alternates: {
+      canonical: pageNumber === 1 ? "/checklists" : `/checklists/page/${pageNumber}`
+    }
+  };
+}
+
+export default async function ChecklistsPaginatedPage({ params }: PageProps) {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+    notFound();
+  }
+
+  const { cards, total, totalPages } = await loadChecklistsPageData(pageNumber);
+  if (pageNumber > totalPages) {
+    notFound();
+  }
+
+  return renderChecklistsPage({
+    cards,
+    total,
+    totalPages,
+    currentPage: pageNumber,
+    showHero: pageNumber === 1
+  });
+}

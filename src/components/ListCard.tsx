@@ -21,7 +21,7 @@ export function ListCard({
   variant = "default"
 }: ListCardProps) {
   const updatedLabel = updatedAt ? formatDistanceToNow(new Date(updatedAt), { addSuffix: true }) : null;
-  const heroImage = coverImage ?? null;
+  const heroImage = coverImage && coverImage.trim() ? coverImage : "/og-image.png";
 
   if (variant === "sidebar") {
     return (

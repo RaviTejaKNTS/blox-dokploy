@@ -1,46 +1,59 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
+import { notFound } from "next/navigation";
 import { ToolCard } from "@/components/ToolCard";
-import { listPublishedTools } from "@/lib/tools";
+import { listPublishedToolsPage, type ToolListEntry } from "@/lib/tools";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { PagePagination } from "@/components/PagePagination";
 
 export const revalidate = 21600; // refresh a few times per day
+export const PAGE_SIZE = 20;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const tools = await listPublishedTools();
-  const updatedAt =
-    tools.reduce<string | null>((latest, tool) => {
-      const candidate = tool.updated_at ?? tool.published_at ?? tool.created_at;
-      if (!candidate) return latest;
-      if (!latest || candidate > latest) return candidate;
-      return latest;
-    }, null) ?? null;
-
-  const updatedIso = updatedAt ? new Date(updatedAt).toISOString() : undefined;
-
-  return {
+export const metadata: Metadata = {
+  title: `Roblox Tools & Calculators | ${SITE_NAME}`,
+  description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
+  alternates: {
+    canonical: `${SITE_URL}/tools`
+  },
+  openGraph: {
+    type: "website",
+    url: `${SITE_URL}/tools`,
     title: `Roblox Tools & Calculators | ${SITE_NAME}`,
     description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
-    alternates: {
-      canonical: `${SITE_URL}/tools`
-    },
-    openGraph: {
-      type: "website",
-      url: `${SITE_URL}/tools`,
-      title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-      description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
-      siteName: SITE_NAME
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-      description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`
-    }
-  };
+    siteName: SITE_NAME
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `Roblox Tools & Calculators | ${SITE_NAME}`,
+    description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`
+  }
+};
+
+type PageData = {
+  tools: ToolListEntry[];
+  total: number;
+  totalPages: number;
+};
+
+async function loadPage(pageNumber: number): Promise<PageData> {
+  const { tools, total } = await listPublishedToolsPage(pageNumber, PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return { tools, total, totalPages };
 }
 
-export default async function ToolsPage() {
-  const tools = await listPublishedTools();
+function ToolsPageView({
+  tools,
+  total,
+  totalPages,
+  currentPage,
+  showHero
+}: {
+  tools: ToolListEntry[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  showHero: boolean;
+}) {
   const latest = tools.reduce<Date | null>((latestDate, tool) => {
     const candidate = tool.updated_at ?? tool.published_at ?? tool.created_at;
     if (!candidate) return latestDate;
@@ -52,25 +65,35 @@ export default async function ToolsPage() {
 
   return (
     <div className="space-y-10">
-      <header className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Utilities</p>
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          Roblox tools and calculators to plan faster
-        </h1>
-        <p className="max-w-2xl text-base text-muted md:text-lg">
-          Currency converters, planning helpers, and utilities built to stay current with our latest data and guides.
-        </p>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
-          <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-            {tools.length} tools published
-          </span>
-          {refreshedLabel ? (
-            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-              Last updated {refreshedLabel}
+      {showHero ? (
+        <header className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox Utilities</p>
+          <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            Roblox tools and calculators to plan faster
+          </h1>
+          <p className="max-w-2xl text-base text-muted md:text-lg">
+            Currency converters, planning helpers, and utilities built to stay current with our latest data and guides.
+          </p>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
+            <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
+              {total} tools published
             </span>
+            {refreshedLabel ? (
+              <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
+                Last updated {refreshedLabel}
+              </span>
+            ) : null}
+          </div>
+        </header>
+      ) : (
+        <header className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Roblox Utilities</p>
+          <h1 className="text-3xl font-semibold text-foreground">Roblox utilities</h1>
+          {refreshedLabel ? (
+            <p className="text-sm text-muted">Updated {refreshedLabel} · Page {currentPage} of {totalPages}</p>
           ) : null}
-        </div>
-      </header>
+        </header>
+      )}
 
       {tools.length ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -84,18 +107,47 @@ export default async function ToolsPage() {
         </div>
       )}
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            name: "Roblox Tools & Calculators",
-            description: SITE_DESCRIPTION,
-            url: `${SITE_URL}/tools`
-          })
-        }}
-      />
+      <PagePagination basePath="/tools" currentPage={currentPage} totalPages={totalPages} />
+
+      {showHero ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              name: "Roblox Tools & Calculators",
+              description: SITE_DESCRIPTION,
+              url: `${SITE_URL}/tools`
+            })
+          }}
+        />
+      ) : null}
     </div>
   );
+}
+
+export default async function ToolsPage() {
+  const { tools, total, totalPages } = await loadPage(1);
+  if (!tools) {
+    notFound();
+  }
+
+  return (
+    <ToolsPageView
+      tools={tools}
+      total={total}
+      totalPages={totalPages}
+      currentPage={1}
+      showHero
+    />
+  );
+}
+
+export async function loadToolsPageData(page: number) {
+  return loadPage(page);
+}
+
+export function renderToolsPage(props: Parameters<typeof ToolsPageView>[0]) {
+  return <ToolsPageView {...props} />;
 }
