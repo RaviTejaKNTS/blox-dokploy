@@ -21,6 +21,8 @@ import {
   getArticleBySlug,
   type ArticleWithRelations,
   type Author,
+  listPublishedArticlesByUniverseId,
+  listPublishedArticlesPage,
   listPublishedChecklistsByUniverseId,
   listGamesWithActiveCountsByUniverseId
 } from "@/lib/db";
@@ -98,17 +100,25 @@ async function renderArticlePage(article: ArticleWithRelations) {
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : null;
   const descriptionPlain = (article.meta_description || markdownToPlainText(article.content_md)).trim();
-  const relatedArticlesRaw = Array.isArray((article as any).related_articles)
-    ? ((article as any).related_articles as ArticleWithRelations[])
-    : [];
   const [articleHtml, authorBioHtml] = await Promise.all([
     renderMarkdown(article.content_md),
     article.author?.bio_md ? renderMarkdown(article.author.bio_md) : Promise.resolve("")
   ]);
 
-  const fallbackArticles = relatedArticlesRaw.filter((entry) => entry.id !== article.id);
-  const relatedArticles = fallbackArticles.slice(0, 5);
-  const relatedHeading = relatedArticles.length ? "Latest articles" : null;
+  const universeId = (article as any).universe_id ?? null;
+  const universeLabel = article.universe?.display_name ?? article.universe?.name ?? article.title;
+
+  // Prefer articles in the same universe; fall back to latest articles if none
+  let relatedArticles: ArticleWithRelations[] = [];
+  if (universeId) {
+    const sameUniverse = await listPublishedArticlesByUniverseId(universeId, 6, 0);
+    relatedArticles = sameUniverse.filter((entry) => entry.id !== article.id).slice(0, 5);
+  }
+  if (!relatedArticles.length) {
+    const { articles: latestArticles } = await listPublishedArticlesPage(1, 5);
+    relatedArticles = latestArticles.filter((entry) => entry.id !== article.id).slice(0, 5);
+  }
+  const relatedHeading = relatedArticles.length ? (universeId ? `${universeLabel} articles` : "Latest articles") : null;
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
   const publishedDate = new Date(article.published_at);
   const updatedDate = new Date(article.updated_at);
@@ -185,8 +195,6 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const processedArticleHtml = processHtmlLinks(articleHtml);
   const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
 
-  const universeLabel = article.universe?.display_name ?? article.universe?.name ?? article.title;
-  const universeId = (article as any).universe_id ?? null;
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
   const relatedChecklistCards = relatedChecklists.map((row) => {

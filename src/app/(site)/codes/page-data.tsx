@@ -122,5 +122,8 @@ export function renderCodesPage(props: Parameters<typeof CodesPageView>[0]) {
 
 export const codesMetadata: Metadata = {
   title: "Roblox Game Codes",
-  description: `${SITE_NAME} tracks active codes across Roblox games. Explore every game we cover here.`
+  description: `${SITE_NAME} tracks active codes across Roblox games. Explore every game we cover here.`,
+  alternates: {
+    canonical: `${SITE_URL}/codes`
+  }
 };

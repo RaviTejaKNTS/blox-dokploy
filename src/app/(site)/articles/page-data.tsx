@@ -112,5 +112,8 @@ export function renderArticlesPage(props: Parameters<typeof ArticlesPageView>[0]
 
 export const articlesMetadata: Metadata = {
   title: "Articles & Guides",
-  description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`
+  description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`,
+  alternates: {
+    canonical: `${SITE_URL}/articles`
+  }
 };
