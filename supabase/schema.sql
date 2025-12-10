@@ -1233,6 +1233,105 @@ left join public.roblox_universes u on u.universe_id = e.universe_id
 left join public.games g on g.id = e.game_id
 group by l.id;
 
+-- Lightweight index view for lists (no entries/badges)
+drop view if exists public.game_lists_index_view;
+create or replace view public.game_lists_index_view as
+select
+  l.id,
+  l.slug,
+  l.title,
+  l.display_name,
+  l.cover_image,
+  l.limit_count,
+  l.refreshed_at,
+  l.updated_at,
+  l.created_at,
+  l.is_published,
+  coalesce(
+    (
+      select coalesce(g3.cover_image, u3.icon_url)
+      from public.game_list_entries gle3
+      left join public.games g3 on g3.id = gle3.game_id
+      left join public.roblox_universes u3 on u3.universe_id = gle3.universe_id
+      where gle3.list_id = l.id
+      order by gle3.rank asc
+      limit 1
+    ),
+    null
+  ) as top_entry_image
+from public.game_lists l
+where l.is_published = true;
+
+-- Lightweight games index view
+drop view if exists public.game_pages_index_view;
+create or replace view public.game_pages_index_view as
+select
+  g.id,
+  g.slug,
+  g.name,
+  g.is_published,
+  g.cover_image,
+  g.updated_at,
+  g.created_at,
+  g.author_id,
+  g.universe_id,
+  g.internal_links,
+  coalesce(cs.active_code_count, 0) as active_code_count,
+  cs.latest_code_first_seen_at,
+  greatest(coalesce(cs.latest_code_first_seen_at, g.updated_at), g.updated_at) as content_updated_at,
+  u.genre_l1,
+  u.genre_l2,
+  case when a.id is null then null else jsonb_build_object(
+    'id', a.id,
+    'name', a.name,
+    'slug', a.slug
+  ) end as author
+from public.games g
+left join (
+  select
+    game_id,
+    count(*) filter (where status = 'active') as active_code_count,
+    max(first_seen_at) filter (where status = 'active') as latest_code_first_seen_at
+  from public.codes
+  group by game_id
+) cs on cs.game_id = g.id
+left join public.authors a on a.id = g.author_id
+left join public.roblox_universes u on u.universe_id = g.universe_id
+where g.is_published is not null;
+
+-- Lightweight articles index view
+drop view if exists public.article_pages_index_view;
+create or replace view public.article_pages_index_view as
+select
+  art.id,
+  art.title,
+  art.slug,
+  art.cover_image,
+  art.meta_description,
+  art.published_at,
+  art.created_at,
+  art.updated_at,
+  art.is_published,
+  art.universe_id,
+  case when a.id is null then null else jsonb_build_object(
+    'id', a.id,
+    'name', a.name,
+    'slug', a.slug,
+    'avatar_url', a.avatar_url,
+    'gravatar_email', a.gravatar_email
+  ) end as author,
+  case when u.universe_id is null then null else jsonb_build_object(
+    'universe_id', u.universe_id,
+    'slug', u.slug,
+    'display_name', u.display_name,
+    'name', u.name,
+    'icon_url', u.icon_url
+  ) end as universe
+from public.articles art
+left join public.authors a on a.id = art.author_id
+left join public.roblox_universes u on u.universe_id = art.universe_id
+where art.is_published is not null;
+
 -- tools table for calculator/tool pages
 create table if not exists public.tools (
   id uuid primary key default uuid_generate_v4(),

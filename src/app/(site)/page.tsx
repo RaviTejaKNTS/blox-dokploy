@@ -178,10 +178,8 @@ export default async function HomePage() {
   );
 
   const listCards = (lists ?? []).slice(0, INITIAL_LISTS).map((list) => {
-    const entries = Array.isArray(list.entries) ? (list.entries as ListEntryPreview[]) : [];
-    const topEntry = entries[0] ?? null;
-    const topImage = topEntry?.game?.cover_image ?? topEntry?.universe?.icon_url ?? null;
     const displayName = list.display_name || list.title;
+    const topImage = (list as any).top_entry_image ?? null;
     return {
       id: list.id,
       title: list.title,

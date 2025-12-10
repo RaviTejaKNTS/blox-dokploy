@@ -7,18 +7,26 @@ import {
 } from "@/lib/db";
 import { listPublishedTools } from "@/lib/tools";
 
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let cached: { items: any[]; expires: number } | null = null;
+
 export async function GET() {
   try {
+    const now = Date.now();
+    if (cached && cached.expires > now) {
+      return NextResponse.json({ items: cached.items });
+    }
+
     const [games, articles, checklists, lists, tools] = await Promise.all([
       listGamesWithActiveCounts(),
-      listPublishedArticles(200),
+      listPublishedArticles(120),
       listPublishedChecklists(),
       listPublishedGameLists(),
       listPublishedTools()
     ]);
 
     const items = [
-      ...(games ?? []).map((game) => ({
+      ...(games ?? []).slice(0, 150).map((game) => ({
         id: `game-${game.id}`,
         title: game.name,
         subtitle: "Codes",
@@ -35,7 +43,7 @@ export async function GET() {
         type: "article",
         updatedAt: article.updated_at ?? article.published_at ?? null
       })),
-      ...(checklists ?? []).map((checklist) => ({
+      ...(checklists ?? []).slice(0, 150).map((checklist) => ({
         id: `checklist-${checklist.id}`,
         title: checklist.title,
         subtitle: "Checklist",
@@ -43,7 +51,7 @@ export async function GET() {
         type: "checklist",
         updatedAt: checklist.content_updated_at ?? checklist.updated_at ?? null
       })),
-      ...(lists ?? []).map((list) => ({
+      ...(lists ?? []).slice(0, 80).map((list) => ({
         id: `list-${list.id}`,
         title: list.display_name || list.title,
         subtitle: "List",
@@ -51,7 +59,7 @@ export async function GET() {
         type: "list",
         updatedAt: list.updated_at ?? list.refreshed_at ?? null
       })),
-      ...(tools ?? []).map((tool) => ({
+      ...(tools ?? []).slice(0, 50).map((tool) => ({
         id: `tool-${tool.id ?? tool.code}`,
         title: tool.title,
         subtitle: "Tool",
@@ -60,6 +68,8 @@ export async function GET() {
         updatedAt: tool.content_updated_at ?? tool.updated_at ?? tool.published_at ?? null
       }))
     ];
+
+    cached = { items, expires: now + CACHE_TTL_MS };
 
     return NextResponse.json({ items });
   } catch (error) {

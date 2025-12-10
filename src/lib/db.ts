@@ -99,6 +99,10 @@ export type ArticleWithRelations = Article & {
   universe: UniverseSummary | null;
 };
 
+const ARTICLE_INDEX_FIELDS =
+  `id,title,slug,cover_image,meta_description,published_at,created_at,updated_at,is_published,` +
+  `author,universe`;
+
 export type ListUniverseDetails = {
   universe_id: number;
   root_place_id: number | null;
@@ -142,6 +146,7 @@ export type GameList = {
   refreshed_at: string | null;
   created_at: string;
   updated_at: string;
+  top_entry_image?: string | null;
   entries?: unknown[] | null;
 };
 
@@ -295,7 +300,7 @@ function mapCodePageRowToCounts(row: CodePageSummary): GameWithCounts {
 async function fetchGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("code_pages_view")
+    .from("game_pages_index_view")
     .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
     .eq("is_published", true)
     .order("content_updated_at", { ascending: false });
@@ -325,7 +330,7 @@ export async function listGamesWithActiveCountsForIds(gameIds: string[]): Promis
   const uniqueIds = Array.from(new Set(gameIds));
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("code_pages_view")
+    .from("game_pages_index_view")
     .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
     .eq("is_published", true)
     .in("id", uniqueIds);
@@ -358,8 +363,8 @@ export async function listGamesWithActiveCountsByUniverseId(universeId: number, 
 export async function listPublishedGameLists(): Promise<GameList[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("game_lists_view")
-    .select("*")
+    .from("game_lists_index_view")
+    .select("id, slug, title, display_name, cover_image, limit_count, refreshed_at, updated_at, created_at, top_entry_image")
     .eq("is_published", true)
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -511,14 +516,23 @@ const cachedListPublishedArticles = unstable_cache(
   async (limit: number, offset: number) => {
     const sb = supabaseAdmin();
     const { data, error } = await sb
-      .from('article_pages_view')
-      .select('*')
+      .from('article_pages_index_view')
+      .select(ARTICLE_INDEX_FIELDS)
       .eq('is_published', true)
       .order('published_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return (data ?? []) as unknown as ArticleWithRelations[];
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    const mapped = rows.map((row) => ({
+      ...row,
+      content_md: "",
+      tags: [],
+      word_count: null,
+      author: (row as any).author ?? null,
+      universe: (row as any).universe ?? null
+    })) as unknown as ArticleWithRelations[];
+    return mapped;
   },
   ["listPublishedArticles"],
   {
@@ -538,22 +552,33 @@ export async function listPublishedArticlesByUniverseId(
 ): Promise<ArticleWithRelations[]> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("article_pages_view")
-    .select("*")
+    .from("article_pages_index_view")
+    .select(ARTICLE_INDEX_FIELDS)
     .eq("is_published", true)
     .eq("universe_id", universeId)
     .order("published_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (error) throw error;
-  return (data ?? []) as ArticleWithRelations[];
+  const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+  const mapped = rows.map((row) => ({
+    ...row,
+    content_md: "",
+    tags: [],
+    word_count: null,
+    author: (row as any).author ?? null,
+    universe: (row as any).universe ?? null
+  })) as unknown as ArticleWithRelations[];
+  return mapped;
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleWithRelations | null> {
   const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from('article_pages_view')
-    .select('*')
+    const { data, error } = await sb
+      .from('article_pages_view')
+      .select(
+        `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id,slug,display_name,name,icon_url,genre_l1,genre_l2)`
+      )
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -576,8 +601,8 @@ export async function listPublishedGamesByAuthorWithActiveCounts(
     async () => {
       const sb = supabaseAdmin();
       const { data, error } = await sb
-        .from("code_pages_view")
-        .select("id,name,slug,cover_image,created_at,updated_at,universe_id,active_code_count,latest_code_first_seen_at,content_updated_at")
+        .from("game_pages_index_view")
+        .select("id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at")
         .eq("is_published", true)
         .eq("author_id", authorId)
         .order("name", { ascending: true });
