@@ -9,6 +9,7 @@ type GameRow = {
   id: string;
   name: string;
   slug: string;
+  old_slugs: string[];
   author_id: string | null;
   created_at: string | null;
   intro_md: string | null;
@@ -73,6 +74,8 @@ type CliOptions = {
   dryRun: boolean;
 };
 
+const PAGE_SIZE = 50;
+
 function parseArgs(argv: string[]): CliOptions {
   const slugs: string[] = [];
   let dryRun = false;
@@ -121,6 +124,17 @@ function buildExistingArticleContext(game: GameRow): string {
   const combined = parts.join("\n\n").trim();
   return truncate(combined, MAX_CONTEXT_ARTICLE);
 }
+
+function hasOldSlug(game: GameRow): boolean {
+  const oldSlugs = Array.isArray(game.old_slugs) ? game.old_slugs : [];
+  const canonical = (game.slug || "").toLowerCase();
+  return oldSlugs
+    .map((slug) => slug?.trim().toLowerCase())
+    .filter(Boolean)
+    .some((slug) => slug !== canonical);
+}
+
+const skippedWithoutOldSlug = new Set<string>();
 
 function isAllowedSource(url: string | null | undefined): boolean {
   if (!url) return false;
@@ -367,26 +381,52 @@ async function rewriteGame(game: GameRow, dryRun: boolean): Promise<void> {
   console.log(`✅ Rewrote ${game.slug} (${displayName})`);
 }
 
-async function fetchGames({ slugs }: CliOptions): Promise<GameRow[]> {
-  let query = supabase
-    .from("games")
-    .select(
-      "id, name, slug, author_id, created_at, intro_md, redeem_md, troubleshoot_md, rewards_md, seo_description, description_md, roblox_link, source_url, source_url_2, source_url_3, re_rewritten_at, is_published"
-    )
-    .order("created_at", { ascending: true });
+async function fetchNextGame(options: CliOptions): Promise<GameRow | null> {
+  let page = 0;
 
-  if (slugs.length) {
-    query = query.in("slug", slugs);
-  } else {
-    query = query
-      .eq("is_published", true)
-      .is("re_rewritten_at", null);
+  while (true) {
+    let query = supabase
+      .from("games")
+      .select(
+        "id, name, slug, old_slugs, author_id, created_at, intro_md, redeem_md, troubleshoot_md, rewards_md, seo_description, description_md, roblox_link, source_url, source_url_2, source_url_3, re_rewritten_at, is_published"
+      )
+      .order("created_at", { ascending: true })
+      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+
+    if (options.slugs.length) {
+      query = query.in("slug", options.slugs);
+    } else {
+      query = query
+        .eq("is_published", true)
+        .is("re_rewritten_at", null);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to load games: ${error.message}`);
+
+    const games = (data as GameRow[]) ?? [];
+    if (!games.length) return null;
+
+    const eligible = games.find(hasOldSlug);
+    const skipped = games.filter((game) => !hasOldSlug(game));
+
+    for (const game of skipped) {
+      if (!skippedWithoutOldSlug.has(game.slug)) {
+        console.log(`⏭️  Skipping ${game.slug} (no old slug found).`);
+        skippedWithoutOldSlug.add(game.slug);
+      }
+    }
+
+    if (eligible) {
+      return eligible;
+    }
+
+    if (games.length < PAGE_SIZE) {
+      return null;
+    }
+
+    page += 1;
   }
-
-  const { data, error } = await query.limit(1);
-  if (error) throw new Error(`Failed to load games: ${error.message}`);
-
-  return (data as GameRow[]) ?? [];
 }
 
 async function main() {
@@ -396,18 +436,22 @@ async function main() {
     throw new Error("Missing OPENAI_API_KEY.");
   }
 
-  const games = await fetchGames(options);
-  if (!games.length) {
-    console.log("No games to rewrite.");
-    return;
-  }
+  while (true) {
+    const game = await fetchNextGame(options);
+    if (!game) {
+      console.log("No games to rewrite with an available old slug.");
+      break;
+    }
 
-  for (const game of games) {
     try {
       await rewriteGame(game, options.dryRun);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`❌ Failed to rewrite ${game.slug}: ${message}`);
+    }
+
+    if (options.slugs.length) {
+      break;
     }
   }
 }

@@ -5,6 +5,7 @@ import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { ConsentGate } from "@/components/consent/ConsentGate";
+import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const GlobalSearchOverlay = dynamicImport(
@@ -43,6 +44,8 @@ const structuredData = JSON.stringify({
   "@graph": [siteJsonLd({ siteUrl: SITE_URL }), organizationJsonLd({ siteUrl: SITE_URL })]
 });
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+const googleAdSenseClientId =
+  process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID ?? "ca-pub-5243258773824278";
 export const dynamic = "force-static";
 
 export const metadata = {
@@ -143,6 +146,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <GoogleAnalytics measurementId={googleAnalyticsId} />
             <VercelAnalytics />
             <VercelSpeedInsights />
+          </ConsentGate>
+          <ConsentGate category="marketing">
+            <GoogleAdSense clientId={googleAdSenseClientId} />
           </ConsentGate>
           <GlobalSearchOverlay />
           {children}

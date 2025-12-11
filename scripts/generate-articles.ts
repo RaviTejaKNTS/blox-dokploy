@@ -68,6 +68,7 @@ type ImagePlacement = {
   publicUrl: string;
   tableKey: string | null;
   context: string | null;
+  uploadedPath?: string;
 };
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -1136,7 +1137,7 @@ Requirements in the article so you need to tune the prompt accordingly:
 5. Use H2 headings and then H3 Headings. However use only when it drives the narrative forward. This less number of headings will help user to understand the entire structure easily. Also Headings should be conversational like a casual sentence talking to the user.  
 6. No need for title, start with intro directly. 
 7. Intro should be unique to the article topic and need to be small and should hook the reader. Keep things grounded and simple.
-8. Right after the intro, give a small section with no headings that give away the entire article. Can write like just 2-3 lines in para format or use 2-3 bullet points whichever works best for the topic. Prefer paras mostly. Start with section with something like "First things first" or "Here's a quick answer" or anything that flows naturally. 
+8. Right after the intro, give a small section with no headings that give away everything user needs to know for their search intent. Can write like just 2-3 lines in para format or use 2-3 bullet points whichever works best for the topic. Prefer paras mostly. Start with section with something like "First things first" or "Here's a quick answer" or anything that flows naturally. 
 9. Entire article should be written in full sentences, engaging with as less words as possible. 
 10. Sprinkle in some first hand experiences that are unique and related to the topic. 
 11. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
@@ -1717,7 +1718,7 @@ async function uploadSourceImagesForArticle(params: {
   articleId: string;
   slug: string;
   sources: SourceDocument[];
-}): Promise<{ uploaded: number; images: { name: string; publicUrl: string; tableKey: string | null; context: string | null }[] }> {
+}): Promise<{ uploaded: number; images: ImagePlacement[] }> {
   if (!SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping source image uploads.");
     return { uploaded: 0, images: [] };
@@ -1812,13 +1813,14 @@ async function uploadSourceImagesForArticle(params: {
     throw new Error(`Failed to save article source images: ${error.message}`);
   }
 
-  const imagesOut = rows
+  const imagesOut: ImagePlacement[] = rows
     .filter((row) => row.public_url)
     .map((row) => ({
       name: row.name,
       publicUrl: row.public_url as string,
       tableKey: row.table_key,
-      context: row.context ?? row.row_text ?? null
+      context: row.context ?? row.row_text ?? null,
+      uploadedPath: row.uploaded_path
     }));
 
   return { uploaded: rows.length, images: imagesOut };
@@ -1892,6 +1894,52 @@ Return JSON:
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
   };
+}
+
+async function cleanupUnusedArticleImages(params: {
+  articleId: string;
+  contentMd: string;
+  images: ImagePlacement[];
+}): Promise<void> {
+  if (!SUPABASE_MEDIA_BUCKET || !params.images.length) return;
+
+  const usedUrls = new Set(
+    params.images
+      .filter((img) => typeof img.publicUrl === "string" && params.contentMd.includes(img.publicUrl))
+      .map((img) => img.publicUrl)
+  );
+
+  const pathsToDelete = Array.from(
+    new Set(
+      params.images
+        .filter((img) => !usedUrls.has(img.publicUrl))
+        .map((img) => img.uploadedPath)
+        .filter((path): path is string => Boolean(path))
+    )
+  );
+
+  if (!pathsToDelete.length) {
+    console.log("source_images_cleanup_skipped reason=all_used");
+    return;
+  }
+
+  const storageClient = supabase.storage.from(SUPABASE_MEDIA_BUCKET);
+  const { error: storageError } = await storageClient.remove(pathsToDelete);
+  if (storageError) {
+    console.warn("⚠️ Failed to delete unused source images from storage:", storageError.message);
+  }
+
+  const { error: dbError } = await supabase
+    .from("article_source_images")
+    .delete()
+    .eq("article_id", params.articleId)
+    .in("uploaded_path", pathsToDelete);
+
+  if (dbError) {
+    console.warn("⚠️ Failed to delete unused source image rows:", dbError.message);
+  } else {
+    console.log(`source_images_cleanup_deleted=${pathsToDelete.length}`);
+  }
 }
 
 async function main() {
@@ -1991,13 +2039,21 @@ async function main() {
     console.log(`source_images_uploaded=${imageUploadResult.uploaded}`);
 
     if (imageUploadResult.images.length > 0) {
+      let articleContentForCleanup = finalDraft.content_md;
       try {
         const withImages = await reviseArticleWithImages(finalDraft, imageUploadResult.images);
         const updated = await updateArticleContent(article.id, withImages);
         console.log(`images_injected word_count=${estimateWordCount(withImages.content_md)} updated=${updated}`);
+        articleContentForCleanup = withImages.content_md;
       } catch (imageError) {
         console.warn("⚠️ Failed to inject images into article:", imageError instanceof Error ? imageError.message : String(imageError));
       }
+
+      await cleanupUnusedArticleImages({
+        articleId: article.id,
+        contentMd: articleContentForCleanup,
+        images: imageUploadResult.images
+      });
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);
