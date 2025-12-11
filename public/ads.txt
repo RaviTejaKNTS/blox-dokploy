@@ -1,1 +1,2 @@
 #Ads.txt bloxodes.com
+google.com, ca-pub-5243258773824278, DIRECT, f08c47fec0942fa0
