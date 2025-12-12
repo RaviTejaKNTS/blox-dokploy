@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
-import { getToolContent, type ToolContent } from "@/lib/tools";
+import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { ForgeCalculatorClient } from "./ForgeCalculatorClient";
 
 export const revalidate = 3600;
@@ -15,11 +15,19 @@ async function buildToolContent(): Promise<{
   tool: ToolContent | null;
   introHtml: string;
   howHtml: string;
+  faqHtml: Array<{ q: string; a: string }>;
 }> {
   const tool = (await getToolContent(TOOL_CODE)) ?? null;
   const introHtml = tool?.intro_md ? await renderMarkdown(tool.intro_md) : "";
   const howHtml = tool?.how_it_works_md ? await renderMarkdown(tool.how_it_works_md) : "";
-  return { tool, introHtml, howHtml };
+  const faqEntries: ToolFaqEntry[] = Array.isArray(tool?.faq_json) ? tool.faq_json : [];
+  const faqHtml = await Promise.all(
+    faqEntries.map(async (entry) => ({
+      q: entry.q,
+      a: await renderMarkdown(entry.a ?? "")
+    }))
+  );
+  return { tool, introHtml, howHtml, faqHtml };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -64,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ForgeCalculatorPage() {
-  const { tool, introHtml, howHtml } = await buildToolContent();
+  const { tool, introHtml, howHtml, faqHtml } = await buildToolContent();
   const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
   const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
 
@@ -121,7 +129,12 @@ export default async function ForgeCalculatorPage() {
         </ol>
       </nav>
 
-      <ForgeCalculatorClient title={tool?.title ?? null} introHtml={introHtml || null} howHtml={howHtml || null} />
+      <ForgeCalculatorClient
+        title={tool?.title ?? null}
+        introHtml={introHtml || null}
+        howHtml={howHtml || null}
+        faqHtml={faqHtml}
+      />
     </>
   );
 }

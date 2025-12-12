@@ -140,11 +140,13 @@ function TraitPill({ ore, share, optimal }: { ore: Ore; share: number; optimal: 
 export function ForgeCalculatorClient({
   title,
   introHtml,
-  howHtml
+  howHtml,
+  faqHtml = []
 }: {
   title?: string | null;
   introHtml?: string | null;
   howHtml?: string | null;
+  faqHtml?: Array<{ q: string; a: string }>;
 }) {
   const [mode, setMode] = useState<Mode>("weapon");
   const [armorSlot, setArmorSlot] = useState<ArmorSlot>("Helmet");
@@ -432,13 +434,6 @@ export function ForgeCalculatorClient({
               )}
             </div>
           </div>
-
-          {howHtml ? (
-            <div className="panel space-y-3 p-4">
-              <p className="text-lg font-semibold text-foreground">How this calculator works</p>
-              <div className="prose dark:prose-invert game-copy" dangerouslySetInnerHTML={{ __html: howHtml }} />
-            </div>
-          ) : null}
         </section>
 
         <section className="panel flex h-[80vh] flex-col space-y-4 p-4">
@@ -570,6 +565,30 @@ export function ForgeCalculatorClient({
           </div>
         )}
       </section>
+
+      {howHtml ? (
+        <section className="space-y-3">
+          <p className="text-lg font-semibold text-foreground">How this calculator works</p>
+          <div className="prose dark:prose-invert game-copy" dangerouslySetInnerHTML={{ __html: howHtml }} />
+        </section>
+      ) : null}
+
+      {faqHtml?.length ? (
+        <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
+          <div className="mt-3 space-y-4">
+            {faqHtml.map((faq, idx) => (
+              <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                  <p className="text-base font-semibold text-foreground">{faq.q}</p>
+                </div>
+                <div className="prose mt-2 text-[0.98rem] text-foreground/90" dangerouslySetInnerHTML={{ __html: faq.a }} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
