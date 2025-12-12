@@ -895,6 +895,46 @@ export async function listRecentArticlesForSitemap(): Promise<ArticleWithRelatio
   return listPublishedArticles(200, 0);
 }
 
+export async function listPublishedArticlesByAuthor(
+  authorId: string,
+  limit = 12,
+  offset = 0,
+  authorSlug?: string | null
+): Promise<ArticleWithRelations[]> {
+  const tagSlug = authorSlug?.trim().toLowerCase() ?? null;
+  const cacheKey = `listPublishedArticlesByAuthor:${authorId}:${limit}:${offset}`;
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("article_pages_view")
+        .select("id,title,slug,cover_image,meta_description,published_at,created_at,updated_at,is_published,author,universe,author_id")
+        .eq("is_published", true)
+        .eq("author_id", authorId)
+        .order("published_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      return rows.map((row) => ({
+        ...row,
+        content_md: "",
+        tags: [],
+        word_count: null,
+        author: (row as any).author ?? null,
+        universe: (row as any).universe ?? null
+      })) as unknown as ArticleWithRelations[];
+    },
+    [cacheKey],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["articles-index", tagSlug ? `author:${tagSlug}` : null].filter(Boolean) as string[]
+    }
+  );
+
+  return cached();
+}
+
 export async function listPublishedGamesByAuthorWithActiveCounts(
   authorId: string,
   authorSlug?: string | null

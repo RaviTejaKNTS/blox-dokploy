@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { marked } from "marked";
 import { AuthorSocialLinks } from "@/components/AuthorSocialLinks";
+import { ArticleCard } from "@/components/ArticleCard";
 import { GameCard } from "@/components/GameCard";
 import { authorAvatarUrl } from "@/lib/avatar";
 import {
   getAuthorBySlug,
+  listPublishedArticlesByAuthor,
   listPublishedGamesByAuthorWithActiveCounts
 } from "@/lib/db";
 import {
@@ -36,7 +38,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     return {};
   }
 
-  const title = `${author.name} Roblox Code Guides`;
+  const title = `${author.name} Roblox Guides & Articles`;
   const description = markdownToPlain(author.bio_md) || SITE_DESCRIPTION;
   const canonical = `${SITE_URL}/authors/${author.slug}`;
   const avatar = authorAvatarUrl(author, 256);
@@ -69,10 +71,13 @@ export default async function AuthorPage({ params }: Params) {
     return notFound();
   }
 
-  const games = await listPublishedGamesByAuthorWithActiveCounts(author.id, author.slug);
+  const [games, articles] = await Promise.all([
+    listPublishedGamesByAuthorWithActiveCounts(author.id, author.slug),
+    listPublishedArticlesByAuthor(author.id, 12, 0, author.slug)
+  ]);
   const avatar = authorAvatarUrl(author, 120);
   const bioHtml = author.bio_md ? await marked.parse(author.bio_md) : "";
-  const bioText = markdownToPlain(author.bio_md) || `${author.name} shares the latest Roblox code guides on ${SITE_NAME}.`;
+  const bioText = markdownToPlain(author.bio_md) || `${author.name} shares the latest Roblox guides and articles on ${SITE_NAME}.`;
   const canonical = `${SITE_URL}/authors/${author.slug}`;
   const breadcrumbData = JSON.stringify(
     breadcrumbJsonLd([
@@ -141,6 +146,26 @@ export default async function AuthorPage({ params }: Params) {
         ) : (
           <p className="text-sm text-muted">
             {author.name} hasn't published any guides yet. Check back soon!
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground">Articles & Deep Dives</h2>
+          <p className="text-sm text-muted">
+            Long-form Roblox guides and commentary written by {author.name}.
+          </p>
+        </div>
+        {articles.length ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {articles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            {author.name} hasn't published any articles yet. Check back soon!
           </p>
         )}
       </section>
