@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { ActiveCodes } from "@/components/ActiveCodes";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
+import { ToolCard } from "@/components/ToolCard";
 import { SocialShare } from "@/components/SocialShare";
 import dynamic from "next/dynamic";
 import { monthYear } from "@/lib/date";
@@ -29,6 +30,7 @@ import {
   listPublishedChecklistsByUniverseId
 } from "@/lib/db";
 import type { Code, GameWithCounts } from "@/lib/db";
+import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -650,6 +652,7 @@ export default async function GamePage({ params }: Params) {
   const universeId = game.universe_id ?? null;
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedArticles = universeId ? await listPublishedArticlesByUniverseId(universeId, 3) : [];
+  const relatedTools: ToolListEntry[] = universeId ? await listPublishedToolsByUniverseId(universeId, 3) : [];
   const relatedGame = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
 
   const relatedChecklistCards = relatedChecklists.map((row) => {
@@ -974,7 +977,7 @@ export default async function GamePage({ params }: Params) {
         <LazyCodeBlockEnhancer />
       </article>
 
-      {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0) ? (
+      {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0) ? (
         <aside className="space-y-4">
           <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
 
@@ -995,6 +998,17 @@ export default async function GamePage({ params }: Params) {
               <div className="space-y-4">
                 {relatedArticles.slice(0, 3).map((item) => (
                   <ArticleCard key={item.id} article={item} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {relatedTools.length ? (
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">Tools for {universeLabel}</h3>
+              <div className="space-y-4">
+                {relatedTools.map((tool) => (
+                  <ToolCard key={tool.id ?? tool.code} tool={tool} />
                 ))}
               </div>
             </section>

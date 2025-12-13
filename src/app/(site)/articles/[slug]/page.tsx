@@ -30,6 +30,8 @@ import { extractHowToSteps } from "@/lib/how-to";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ToolCard } from "@/components/ToolCard";
+import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 
 export const revalidate = 604800; // weekly
 
@@ -107,6 +109,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
   const universeId = (article as any).universe_id ?? null;
   const universeLabel = article.universe?.display_name ?? article.universe?.name ?? article.title;
+  const relatedTools: ToolListEntry[] = universeId ? await listPublishedToolsByUniverseId(universeId, 3) : [];
 
   // Prefer articles in the same universe; fall back to latest articles if none
   let relatedArticles: ArticleWithRelations[] = [];
@@ -338,6 +341,17 @@ async function renderArticlePage(article: ArticleWithRelations) {
             <div className="space-y-4">
               {relatedArticles.slice(0, 5).map((item) => (
                 <ArticleCard key={item.id} article={item} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {relatedTools.length ? (
+          <section className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">Tools for {universeLabel}</h3>
+            <div className="space-y-4">
+              {relatedTools.map((tool) => (
+                <ToolCard key={tool.id ?? tool.code} tool={tool} />
               ))}
             </div>
           </section>

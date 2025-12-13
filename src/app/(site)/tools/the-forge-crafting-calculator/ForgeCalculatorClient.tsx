@@ -568,7 +568,6 @@ export function ForgeCalculatorClient({
 
       {howHtml ? (
         <section className="space-y-3">
-          <p className="text-lg font-semibold text-foreground">How this calculator works</p>
           <div className="prose dark:prose-invert game-copy" dangerouslySetInnerHTML={{ __html: howHtml }} />
         </section>
       ) : null}
