@@ -23,6 +23,7 @@
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
+    "scrape:grow-garden-crops": "tsx scripts/scrape-grow-a-garden-crops.ts",
     "lists:refresh": "tsx scripts/refresh-game-lists.ts",
     "update:playing": "tsx scripts/update-universe-playing.ts",
     "update:stats": "tsx scripts/update-universe-stats.ts",
