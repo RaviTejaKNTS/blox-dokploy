@@ -10,6 +10,7 @@ type Props = {
   crops: CropRecord[];
   variants: Variant[];
   mutations: Mutation[];
+  title?: string | null;
 };
 
 const numberFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
