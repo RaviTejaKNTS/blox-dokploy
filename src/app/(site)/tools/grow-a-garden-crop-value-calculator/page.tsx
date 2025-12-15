@@ -5,7 +5,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { getToolContent } from "@/lib/tools";
 import { loadCropDataset } from "@/lib/grow-a-garden/crops";
 import { GrowGardenCropValueCalculatorClient } from "./GrowGardenCropValueCalculatorClient";
-import { GAG_META, GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
+import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
 
 export const revalidate = 43200; // 12 hours
 
@@ -56,36 +56,85 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GrowGardenCropValueCalculatorPage() {
   const [{ tool, introHtml, howHtml }, cropDataset] = await Promise.all([buildContent(), loadCropDataset()]);
 
-  const lastUpdated =
-    cropDataset.dataLastUpdatedOn || GAG_META.dataLastUpdatedOn || tool?.content_updated_at || tool?.updated_at || null;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        name: tool?.title ?? "Grow a Garden Crop Value Calculator",
+        description:
+          tool?.meta_description ??
+          "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown.",
+        url: CANONICAL,
+        datePublished: tool?.published_at ? new Date(tool.published_at).toISOString() : undefined,
+        dateModified: tool?.updated_at ? new Date(tool.updated_at).toISOString() : undefined,
+        breadcrumb: {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Tools", item: `${SITE_URL.replace(/\/$/, "")}/tools` },
+            { "@type": "ListItem", position: 3, name: tool?.title ?? "Grow a Garden Crop Value Calculator" }
+          ]
+        },
+        mainEntity: {
+          "@type": "WebApplication",
+          name: tool?.title ?? "Grow a Garden Crop Value Calculator",
+          description:
+            tool?.meta_description ??
+            "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown.",
+          applicationCategory: "Calculator",
+          operatingSystem: "Web",
+          url: CANONICAL
+        }
+      }
+    ]
+  };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-8 md:px-6 md:py-10">
-      <header className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Roblox • Grow a Garden</p>
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          {tool?.title ?? "Grow a Garden Crop Value Calculator"}
-        </h1>
-        <p className="max-w-3xl text-base text-muted md:text-lg">
-          {tool?.meta_description ??
-            "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown."}
-        </p>
-        {lastUpdated ? (
-          <p className="text-xs font-semibold text-muted">
-            Data last updated on {lastUpdated}
-            {cropDataset.source ? ` • Source: ${cropDataset.source}` : ""}
-          </p>
-        ) : null}
-      </header>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      <GrowGardenCropValueCalculatorClient
-        crops={cropDataset.crops}
-        variants={GAG_VARIANTS}
-        mutations={GAG_MUTATIONS}
-        metaLastUpdated={lastUpdated}
-        introHtml={introHtml}
-        howHtml={howHtml}
-      />
-    </div>
+      <nav aria-label="Breadcrumb" className="mb-6 text-xs uppercase tracking-[0.25em] text-muted">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li className="flex items-center gap-2">
+            <a href="/" className="font-semibold text-muted transition hover:text-accent">
+              Home
+            </a>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <a href="/tools" className="font-semibold text-muted transition hover:text-accent">
+              Tools
+            </a>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="font-semibold text-foreground/80">
+              {tool?.title ?? "Grow a Garden Crop Value Calculator"}
+            </span>
+          </li>
+        </ol>
+      </nav>
+
+      <div className="space-y-6">
+        <header className="space-y-3">
+          <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            {tool?.title ?? "Grow a Garden Crop Value Calculator"}
+          </h1>
+          <p className="max-w-3xl text-base text-muted md:text-lg">
+            {tool?.meta_description ??
+              "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown."}
+          </p>
+        </header>
+
+        <GrowGardenCropValueCalculatorClient
+          crops={cropDataset.crops}
+          variants={GAG_VARIANTS}
+          mutations={GAG_MUTATIONS}
+          introHtml={introHtml}
+          howHtml={howHtml}
+        />
+      </div>
+    </>
   );
 }

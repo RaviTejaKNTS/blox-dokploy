@@ -10,13 +10,15 @@ type Props = {
   crops: CropRecord[];
   variants: Variant[];
   mutations: Mutation[];
-  metaLastUpdated: string | null;
   introHtml?: string;
   howHtml?: string;
 };
 
 const numberFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const wholeFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+type BaseMode = "average" | "baseline";
+type TempMutation = "default" | "Wet" | "Chilled" | "Drenched" | "Frozen";
 
 function formatKg(value: number | null | undefined) {
   if (!Number.isFinite(value ?? NaN)) return "—";
@@ -55,7 +57,7 @@ function VariantOption({
   );
 }
 
-function MutationPill({
+function MutationCard({
   mutation,
   selected,
   onToggle
@@ -64,52 +66,44 @@ function MutationPill({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const badge =
-    mutation.type === "fusion"
-      ? "Fusion"
-      : mutation.type === "standard"
-        ? "Standard"
-        : mutation.type === "limited"
-          ? "Limited"
-          : "Admin";
-
   return (
     <button
       type="button"
       onClick={onToggle}
       className={cn(
-        "flex flex-col gap-1 rounded-lg border px-3 py-2 text-left transition hover:-translate-y-0.5",
-        selected ? "border-accent ring-2 ring-accent/30 bg-accent/5" : "border-border/60 bg-surface"
+        "flex w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border px-4 py-3 text-left transition hover:-translate-y-0.5",
+        selected ? "border-accent ring-2 ring-accent/30 bg-accent/5" : "border-border/70 bg-surface"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-foreground">{mutation.name}</span>
-        <span className="rounded-full bg-surface-muted px-2 py-[2px] text-[11px] font-semibold text-muted">{badge}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span
+          className={cn(
+            "flex h-4 w-4 items-center justify-center rounded border",
+            selected ? "border-accent bg-accent" : "border-border/70 bg-surface"
+          )}
+          aria-hidden
+        >
+          {selected ? <span className="h-2 w-2 rounded-sm bg-white" /> : null}
+        </span>
+        <span className="truncate text-sm font-semibold text-foreground">{mutation.name}</span>
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <span>{mutation.multiplier ? `${mutation.multiplier}x` : "TBA"}</span>
-        {mutation.isVerified ? null : <span className="rounded-full bg-orange-100 px-2 py-[1px] text-[10px] font-semibold text-orange-700">Unverified</span>}
-      </div>
-      {mutation.conflicts.length ? (
-        <p className="text-[11px] text-muted">Conflicts: {mutation.conflicts.join(", ")}</p>
-      ) : null}
+      <span className="shrink-0 rounded-full bg-surface-muted px-2 py-[2px] text-[11px] font-semibold text-muted">
+        ×{mutation.multiplier ?? "?"}
+      </span>
     </button>
   );
 }
 
-export function GrowGardenCropValueCalculatorClient({
-  crops,
-  variants,
-  mutations,
-  metaLastUpdated,
-  introHtml,
-  howHtml
-}: Props) {
+export function GrowGardenCropValueCalculatorClient({ crops, variants, mutations, introHtml, howHtml }: Props) {
   const [cropSearch, setCropSearch] = useState("");
   const [selectedCropName, setSelectedCropName] = useState<string>(crops[0]?.name ?? "");
-  const [weightKg, setWeightKg] = useState<number>(crops[0]?.baseWeightKg ?? 1);
-  const [quantity, setQuantity] = useState<number>(1);
+  const [baseMode, setBaseMode] = useState<BaseMode>("average");
+  const [weightInput, setWeightInput] = useState<string>(
+    crops[0]?.baseWeightKg ? String(crops[0].baseWeightKg) : ""
+  );
+  const [quantityInput, setQuantityInput] = useState<string>("1");
   const [variantName, setVariantName] = useState<string>(variants[0]?.name ?? "None");
+  const [tempMutation, setTempMutation] = useState<TempMutation>("default");
   const [selectedMutations, setSelectedMutations] = useState<string[]>([]);
   const [showUnverified, setShowUnverified] = useState(false);
 
@@ -126,6 +120,18 @@ export function GrowGardenCropValueCalculatorClient({
     [selectedCropName, crops]
   );
 
+  function getBaseWeightFor(crop: CropRecord | undefined, mode: BaseMode) {
+    if (!crop) return 1;
+    if (mode === "baseline" && crop.baseWeightFloorKg) return crop.baseWeightFloorKg;
+    return crop.baseWeightKg;
+  }
+
+  function getBaseValueFor(crop: CropRecord | undefined, mode: BaseMode) {
+    if (!crop) return 0;
+    if (mode === "baseline" && crop.baseValueFloor) return crop.baseValueFloor;
+    return crop.baseValue;
+  }
+
   const filteredCrops = useMemo(() => {
     return crops.filter((crop) => {
       if (!cropSearch) return true;
@@ -135,7 +141,10 @@ export function GrowGardenCropValueCalculatorClient({
   }, [cropSearch, crops]);
 
   const visibleMutations = useMemo(
-    () => mutations.filter((m) => (showUnverified ? true : m.isVerified)),
+    () =>
+      mutations
+        .filter((m) => !["Wet", "Chilled", "Drenched", "Frozen"].includes(m.name))
+        .filter((m) => (showUnverified ? true : m.isVerified)),
     [mutations, showUnverified]
   );
 
@@ -143,19 +152,35 @@ export function GrowGardenCropValueCalculatorClient({
     if (!selectedCrop) {
       return null;
     }
+    const weightKg = Number(weightInput || 0);
+    const quantity = Number(quantityInput || 0);
+    const combinedMutations =
+      tempMutation === "default" ? normalizedMutations : [...normalizedMutations, tempMutation];
     return computeCalculation({
       crop: selectedCrop,
       weightKg,
       quantity,
       variantName,
-      mutationNames: normalizedMutations
+      mutationNames: combinedMutations,
+      baseMode
     });
-  }, [selectedCrop, weightKg, quantity, variantName, normalizedMutations]);
+  }, [selectedCrop, weightInput, quantityInput, variantName, normalizedMutations, baseMode, tempMutation]);
 
   function handleCropChange(name: string) {
     const next = crops.find((c) => c.name === name);
     setSelectedCropName(name);
-    if (next?.baseWeightKg) setWeightKg(next.baseWeightKg);
+    if (next) {
+      const nextWeight = getBaseWeightFor(next, baseMode);
+      setWeightInput(nextWeight ? String(nextWeight) : "");
+    }
+  }
+
+  function handleBaseModeChange(mode: BaseMode) {
+    setBaseMode(mode);
+    if (selectedCrop) {
+      const nextWeight = getBaseWeightFor(selectedCrop, mode);
+      setWeightInput(nextWeight ? String(nextWeight) : "");
+    }
   }
 
   function toggleMutation(name: string) {
@@ -170,8 +195,34 @@ export function GrowGardenCropValueCalculatorClient({
       <div className="grid gap-6 lg:grid-cols-[2fr_1.2fr]">
         <section className="space-y-6">
           <div className="rounded-2xl border border-border/70 bg-surface/50 p-5 shadow-soft">
-            <h2 className="text-lg font-semibold text-foreground">Step 1 · Choose a crop</h2>
-            <p className="text-sm text-muted">Search and pick a crop. We use its average value as Base Value and average weight as Base Weight.</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-foreground">Step 1 · Choose a crop</h2>
+              <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-xs font-semibold shadow-soft">
+                <button
+                  type="button"
+                  onClick={() => handleBaseModeChange("average")}
+                  className={cn(
+                    "px-3 py-2 transition",
+                    baseMode === "average" ? "bg-accent text-white" : "text-foreground"
+                  )}
+                >
+                  Use average
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBaseModeChange("baseline")}
+                  className={cn(
+                    "px-3 py-2 transition",
+                    baseMode === "baseline" ? "bg-accent text-white" : "text-foreground"
+                  )}
+                >
+                  Use baseline
+                </button>
+              </div>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Search and pick a crop. Toggle between average or baseline values for Base Value/Weight.
+            </p>
             <div className="mt-4 flex flex-col gap-3">
               <input
                 type="text"
@@ -199,8 +250,14 @@ export function GrowGardenCropValueCalculatorClient({
                           {crop.tier}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted">Base Value (avg): {formatSheckles(crop.baseValue)} Sheckles</p>
-                      <p className="text-xs text-muted">Base Weight (avg): {formatKg(crop.baseWeightKg)}</p>
+                      <p className="mt-2 text-xs text-muted">
+                        Base Value ({baseMode === "average" ? "avg" : "baseline"}):{" "}
+                        {formatSheckles(getBaseValueFor(crop, baseMode))} Sheckles
+                      </p>
+                      <p className="text-xs text-muted">
+                        Base Weight ({baseMode === "average" ? "avg" : "baseline"}):{" "}
+                        {formatKg(getBaseWeightFor(crop, baseMode))}
+                      </p>
                       {crop.eventType ? (
                         <p className="text-[11px] font-semibold text-accent">Event: {crop.eventType}</p>
                       ) : null}
@@ -217,23 +274,26 @@ export function GrowGardenCropValueCalculatorClient({
               <label className="space-y-2 text-sm text-foreground">
                 <span className="block font-semibold">Crop weight (kg)</span>
                 <input
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(Number(e.target.value) || 0)}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
+                  value={weightInput}
+                  onChange={(e) => setWeightInput(e.target.value)}
                   className="w-full rounded-lg border border-border/70 bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                 />
-                <span className="text-xs text-muted">Base Weight: {formatKg(selectedCrop?.baseWeightKg)}</span>
+                <span className="text-xs text-muted">
+                  Base Weight ({baseMode === "average" ? "avg" : "baseline"}):{" "}
+                  {formatKg(getBaseWeightFor(selectedCrop, baseMode))}
+                </span>
               </label>
               <label className="space-y-2 text-sm text-foreground">
                 <span className="block font-semibold">Quantity</span>
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={quantityInput}
+                  onChange={(e) => setQuantityInput(e.target.value)}
                   className="w-full rounded-lg border border-border/70 bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                 />
               </label>
@@ -241,8 +301,8 @@ export function GrowGardenCropValueCalculatorClient({
           </div>
 
           <div className="rounded-2xl border border-border/70 bg-surface/50 p-5 shadow-soft">
-            <h2 className="text-lg font-semibold text-foreground">Step 3 · Choose a variant</h2>
-            <p className="text-sm text-muted">Only one variant can be active at a time.</p>
+            <h2 className="text-lg font-semibold text-foreground">Step 3 · Choose a Growth Mutation</h2>
+            <p className="text-sm text-muted">Only one growth mutation can be active at a time.</p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {variants.map((variant) => (
                 <VariantOption
@@ -256,26 +316,58 @@ export function GrowGardenCropValueCalculatorClient({
           </div>
 
           <div className="rounded-2xl border border-border/70 bg-surface/50 p-5 shadow-soft">
+            <h2 className="text-lg font-semibold text-foreground">Step 4 · Choose Temperature Mutation</h2>
+            <p className="text-sm text-muted">Pick one temperature mutation. This overrides Wet/Chilled/Drenched/Frozen.</p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {[
+                { name: "default" as TempMutation, label: "Default", multiplier: 0 },
+                { name: "Wet" as TempMutation, label: "Wet", multiplier: 2 },
+                { name: "Chilled" as TempMutation, label: "Chilled", multiplier: 2 },
+                { name: "Drenched" as TempMutation, label: "Drenched", multiplier: 5 },
+                { name: "Frozen" as TempMutation, label: "Frozen", multiplier: 10 }
+              ].map((temp) => {
+                const selected = tempMutation === temp.name;
+                return (
+                  <button
+                    key={temp.name}
+                    type="button"
+                    onClick={() => setTempMutation(temp.name)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition hover:-translate-y-0.5",
+                      selected ? "border-accent ring-2 ring-accent/30 bg-accent/5" : "border-border/70 bg-surface"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "flex h-4 w-4 items-center justify-center rounded-full border",
+                          selected ? "border-accent bg-accent" : "border-border/70 bg-surface"
+                        )}
+                        aria-hidden
+                      >
+                        {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">{temp.label}</span>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-surface-muted px-2 py-[2px] text-[11px] font-semibold text-muted">
+                      ×{temp.multiplier}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/70 bg-surface/50 p-5 shadow-soft">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Step 4 · Apply mutations</h2>
-                <p className="text-sm text-muted">
-                  Conflicts and fusions resolve automatically. Unverified mutations are hidden by default.
-                </p>
+                <h2 className="text-lg font-semibold text-foreground">Step 5 · Apply mutations</h2>
+                <p className="text-sm text-muted">Tap to select mutations. Multipliers stack using the provided formula.</p>
               </div>
-              <label className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <input
-                  type="checkbox"
-                  checked={showUnverified}
-                  onChange={(e) => setShowUnverified(e.target.checked)}
-                  className="h-4 w-4 rounded border-border/70 text-accent focus:ring-accent/40"
-                />
-                Show unverified
-              </label>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleMutations.map((mutation) => (
-                <MutationPill
+                <MutationCard
                   key={mutation.name}
                   mutation={mutation}
                   selected={normalizedMutations.includes(mutation.name)}
@@ -283,25 +375,12 @@ export function GrowGardenCropValueCalculatorClient({
                 />
               ))}
             </div>
-            {normalizedMutations.length ? (
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {normalizedMutations.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => toggleMutation(name)}
-                    className="flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 font-semibold text-accent"
-                  >
-                    {name} <span className="text-[11px]">×</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         </section>
 
         <aside className="space-y-6">
           <div className="rounded-2xl border border-border/70 bg-surface/70 p-5 shadow-soft">
-            <h2 className="text-lg font-semibold text-foreground">Step 5 · Result</h2>
+            <h2 className="text-lg font-semibold text-foreground">Result</h2>
             {calculation ? (
               <div className="mt-4 space-y-4">
                 <div className="flex flex-col gap-2 rounded-xl bg-accent/10 p-4">
@@ -318,7 +397,10 @@ export function GrowGardenCropValueCalculatorClient({
                       <li>Base Value (average): {formatSheckles(calculation.baseValue)} Sheckles</li>
                       <li>Base Weight (average): {formatKg(calculation.baseWeightKg)}</li>
                       <li>Weight factor: (weight/baseWeight)² = {numberFmt.format(calculation.weightFactor)}</li>
-                      <li>Variant multiplier: x{numberFmt.format(calculation.variantMultiplier)}</li>
+                      <li>Growth mutation multiplier: x{numberFmt.format(calculation.variantMultiplier)}</li>
+                      <li>
+                        Temperature mutation: {tempMutation === "default" ? "Default (x0 added to sum)" : tempMutation}
+                      </li>
                       <li>
                         Mutation multiplier: x{numberFmt.format(calculation.mutationMultiplier)}{" "}
                         {calculation.skippedMutations.length
@@ -326,7 +408,7 @@ export function GrowGardenCropValueCalculatorClient({
                           : ""}
                       </li>
                       <li>
-                        Formula: (BaseValue × (Weight/BaseWeight)²) × Variant × Mutation × Quantity
+                        Formula: (BaseValue × (Weight/BaseWeight)²) × GrowthMutation × Mutation × Quantity
                       </li>
                     </ul>
                   </div>
@@ -363,9 +445,6 @@ export function GrowGardenCropValueCalculatorClient({
                 <li>Total = Crop Value × Mutation Multiplier × Quantity.</li>
               </ul>
             )}
-            {metaLastUpdated ? (
-              <p className="mt-3 text-xs font-semibold text-muted">Data last updated on {metaLastUpdated}</p>
-            ) : null}
           </div>
 
           {introHtml ? (

@@ -4,8 +4,13 @@ import path from "node:path";
 export type CropRecord = {
   name: string;
   tier: string;
-  baseValue: number; // average value (Sheckles)
-  baseWeightKg: number; // average weight in kg
+  // Average numbers (default)
+  baseValue: number;
+  baseWeightKg: number;
+  // Baseline (price-floor) numbers
+  baseValueFloor?: number | null;
+  baseWeightFloorKg?: number | null;
+  // Additional metadata
   minWeightKg?: number | null;
   hugeChancePercent?: number | null;
   stock?: string | null;
@@ -99,11 +104,25 @@ export async function loadCropDataset(): Promise<CropDataset> {
     const eventType = eventTypeMatch?.[1] ?? null;
 
     rows.forEach((cells) => {
-      // Expected columns after name:
-      // [price1, price2, price3, averageValue, floorWeight, averageWeight, minWeight, hugeChance, tier, stock, multi, obtainable]
-      if (cells.length < 8) return;
+      // Expected columns (index-based):
+      // 0 name
+      // 1 Sheckle
+      // 2 Sheckles Price
+      // 3 Price-Floor Value (baseline)
+      // 4 Average Value
+      // 5 Price-Floor Weight
+      // 6 Average Weight
+      // 7 Minimum Weight
+      // 8 Huge Chance
+      // 9 Tier
+      // 10 Stock
+      // 11 Multi-Harvest
+      // 12 Obtainable
+      if (cells.length < 12) return;
       const name = cells[0];
+      const baseValueFloor = parseNumber(cells[3]);
       const averageValue = parseNumber(cells[4]);
+      const baseWeightFloor = parseWeight(cells[5]);
       const averageWeight = parseWeight(cells[6]);
       const minWeight = parseWeight(cells[7]);
       const hugeChance = cells[8] ? parsePercent(cells[8]) : null;
@@ -123,6 +142,8 @@ export async function loadCropDataset(): Promise<CropDataset> {
         tier,
         baseValue: averageValue,
         baseWeightKg: averageWeight,
+        baseValueFloor,
+        baseWeightFloorKg: baseWeightFloor,
         minWeightKg: minWeight,
         hugeChancePercent: hugeChance,
         stock,

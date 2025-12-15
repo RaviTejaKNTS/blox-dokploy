@@ -15,6 +15,7 @@ export type CalculationInput = {
   quantity: number;
   variantName: string;
   mutationNames: string[];
+  baseMode: "average" | "baseline";
 };
 
 export type CalculationResult = {
@@ -96,10 +97,9 @@ function applyFusionUpgrades(selected: Set<string>): Set<string> {
 }
 
 export function normalizeMutations(selectedNames: string[]): { names: string[] } {
+  // Simplified: keep unique selections only; no conflict or fusion enforcement.
   const unique = new Set(uniqueList(selectedNames));
-  const withFusions = applyFusionUpgrades(unique);
-  const conflictResolved = stripConflicts(withFusions);
-  return { names: Array.from(conflictResolved) };
+  return { names: Array.from(unique) };
 }
 
 function mutationMultiplier(selectedNames: string[]): {
@@ -129,7 +129,7 @@ function mutationMultiplier(selectedNames: string[]): {
 }
 
 export function computeCalculation(input: CalculationInput): CalculationResult {
-  const { crop, weightKg, quantity, variantName, mutationNames } = input;
+  const { crop, weightKg, quantity, variantName, mutationNames, baseMode } = input;
 
   const safeWeight = Math.max(weightKg, 0);
   const safeQuantity = Math.max(Math.floor(quantity) || 1, 1);
@@ -137,10 +137,14 @@ export function computeCalculation(input: CalculationInput): CalculationResult {
   const normalizedMutations = normalizeMutations(mutationNames);
   const { multiplier: mutationMulti, applied, skipped } = mutationMultiplier(normalizedMutations.names);
 
-  const baseWeight = crop.baseWeightKg || 1;
-  const weightFactor = Math.pow(safeWeight / baseWeight, 2);
+  const useBaseline = baseMode === "baseline";
+  const baseValue = useBaseline ? crop.baseValueFloor ?? crop.baseValue : crop.baseValue;
+  const baseWeight = useBaseline ? crop.baseWeightFloorKg ?? crop.baseWeightKg : crop.baseWeightKg;
 
-  const cropValue = crop.baseValue * weightFactor;
+  const effectiveBaseWeight = baseWeight || 1;
+  const weightFactor = Math.pow(safeWeight / effectiveBaseWeight, 2);
+
+  const cropValue = baseValue * weightFactor;
   const variantMultiplier = variant.multiplier;
   const totalMultiplier = variantMultiplier * mutationMulti;
   const total = cropValue * totalMultiplier * safeQuantity;
@@ -149,8 +153,8 @@ export function computeCalculation(input: CalculationInput): CalculationResult {
     total,
     perCrop: total / safeQuantity,
     weightFactor,
-    baseValue: crop.baseValue,
-    baseWeightKg: baseWeight,
+    baseValue,
+    baseWeightKg: effectiveBaseWeight,
     variantMultiplier,
     mutationMultiplier: mutationMulti,
     appliedMutations: applied,
