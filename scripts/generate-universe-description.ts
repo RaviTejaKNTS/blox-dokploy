@@ -35,9 +35,11 @@ async function googleSearch(query: string, limit = 5): Promise<SearchEntry[]> {
     query
   )}&num=${limit}&key=${GOOGLE_SEARCH_KEY}&cx=${GOOGLE_SEARCH_CX}`;
 
+  console.log(`🔎 Searching: ${query}`);
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Google Search failed: ${res.statusText}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`Google Search failed: ${res.status} ${res.statusText} ${text ? `- ${text}` : ""}`);
   }
 
   const data = (await res.json()) as {
@@ -115,21 +117,20 @@ function truncateToWordLimit(text: string, maxWords = 90): string {
 
 async function buildDescription(gameName: string, sources: string): Promise<string> {
   const prompt = `
-You are a Roblox games writer. Using only the facts from the sources below, write a concise 60–90 word markdown paragraph that:
+You are a Roblox games writer. Using only the facts from the sources below, write a concise 60–90 word paragraph that:
 - Introduces what "${gameName}" is.
 - Explains the core loop/objective and how to play (what to do, how to progress).
 - Avoids speculation, filler, or unnecessary details.
-- Uses plain text (no links, no placeholders) and one paragraph only.
-- No generic sentences like "this is a fun game" or "this is a great game". Write something that is specific to the game and more detailed. 
-- Write in simple english and easy to understand style that everyone can easily understand. Talk like a friend talking to another friend. 
-- Write full sentences that feel complete and make sure every sentences adds more value and info to the user. 
-- Do not start with generic sentences like "{game name} is a roblox game" or "this is a roblox game" or "In this game" Start with something hooking and unconventional. Always start with something that is unique and engaging.Don't repeat the same thing over and over again.
-- Keep the writing engaging in way that gives clear clarity to the user what the game is about.
-- Once read, user should have clean idea of what the game is about and how to play it.
+- Uses plain text (no links, no placeholders, no code fences, no backticks) and one paragraph only.
+- No generic sentences like "this is a fun game" or "this is a great game". Write something that is specific to the game and more detailed.
+- Write in simple english and easy to understand style that everyone can easily understand. Talk like a friend talking to another friend.
+- Write full sentences that feel complete and make sure every sentence adds value to the user.
+- Do not start with generic sentences like "{game name} is a roblox game" or "this is a roblox game" or "In this game". Start with something hooking and unconventional. Always start with something that is unique and engaging. Don't repeat the same thing over and over again.
+- Keep the writing engaging so the user gets a clear idea of what the game is about and how to play it.
 - Still keep the tone professional enough to be a Roblox games writer.
-- Complete the entire description. Do not leave in the middle of sentence at the end. 
-- Write in markdown format.
-- No em-dashes anywhere in the description.
+- Complete the entire description. Do not leave in the middle of a sentence at the end.
+- Do not use em-dashes.
+- Return only the paragraph (no extra formatting, no code fences, no backticks).
 
 Sources:
 ${sources}
@@ -169,21 +170,33 @@ async function main() {
 
   const queries = [
     { q: `"${gameName}" Roblox "how to play"`, filter: (u: string) => true },
-    { q: `"${gameName}" fandom`, filter: (u: string) => /fandom\.com/i.test(u) }
+    { q: `"${gameName}" Roblox guide`, filter: (u: string) => true },
+    { q: `"${gameName}" fandom`, filter: (u: string) => /fandom\.com/i.test(u) },
+    { q: `"${gameName}" roblox wiki`, filter: (u: string) => true }
   ];
 
   const urls: string[] = [];
+  const skipDomains = [/youtube\.com/i, /youtu\.be/i, /roblox\.com\/(home|discover|games)/i, /twitter\.com/i, /x\.com/i];
+
+  const isUsable = (url: string) => !skipDomains.some((re) => re.test(url));
+
   for (const { q, filter } of queries) {
     const results = await googleSearch(q, 5);
-    const picked = results.find((r) => r.url && filter(r.url) && !urls.includes(r.url));
+    if (!results.length) {
+      console.warn("⚠️ No search results for query:", q);
+    }
+    const picked = results.find(
+      (r) => r.url && isUsable(r.url) && filter(r.url) && !urls.includes(r.url)
+    );
     if (picked?.url) {
+      console.log("🔗 Selected source:", picked.url);
       urls.push(picked.url);
     }
     await sleep(800);
   }
 
   if (!urls.length) {
-    console.error("⚠️ No sources found from search.");
+    console.error("⚠️ No sources found from search. Check GOOGLE_SEARCH_KEY/CX, CSE config, or try a different query.");
     process.exit(1);
   }
 
@@ -192,17 +205,28 @@ async function main() {
     const text = await fetchReadableText(url);
     if (text) {
       sources += `${text}\n`;
+      const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+      console.log(`📄 Fetched ${wordCount} words from ${url}`);
     }
     await sleep(500);
   }
 
-  if (!sources.trim()) {
-    console.error("⚠️ Unable to extract readable text from sources.");
+  const sourceWords = sources.trim().split(/\s+/).filter(Boolean);
+  if (sourceWords.length < 20) {
+    console.error("⚠️ Unable to extract enough readable text from sources (found too few words). Aborting.");
     process.exit(1);
   }
 
   console.log("🧠 Generating description...");
   const description = await buildDescription(gameName, sources);
+
+  const descWords = description.trim().split(/\s+/).filter(Boolean);
+  const badPatterns = [/couldn['’]t find/i, /could not find/i, /no information/i, /please share more details/i];
+  const looksBad = badPatterns.some((re) => re.test(description)) || descWords.length < 30;
+  if (looksBad) {
+    console.error("❌ Generated description looks invalid (too short or fallback/apology text). Not updating.");
+    process.exit(1);
+  }
 
   const { error } = await supabase
     .from("roblox_universes")
