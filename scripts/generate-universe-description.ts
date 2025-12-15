@@ -118,7 +118,7 @@ function truncateToWordLimit(text: string, maxWords = 90): string {
 async function buildDescription(gameName: string, sources: string): Promise<string> {
   const prompt = `
 You are a Roblox games writer. Using only the facts from the sources below, write a concise 60–90 word paragraph that:
-- Introduces what "${gameName}" is.
+- Introduces what game is all about.
 - Explains the core loop/objective and how to play (what to do, how to progress).
 - Avoids speculation, filler, or unnecessary details.
 - Uses plain text (no links, no placeholders, no code fences, no backticks) and one paragraph only.

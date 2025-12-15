@@ -595,7 +595,8 @@ export async function getGameListEntriesPage(
             likes,
             dislikes,
             updated_at,
-            description
+            description,
+            game_description_md
           ),
           game:games(
             id,
@@ -638,7 +639,8 @@ export async function getGameListEntriesPage(
             playing,
             visits,
             updated_at,
-            description
+            description,
+            game_description_md
           ),
           game:games(
             id,
