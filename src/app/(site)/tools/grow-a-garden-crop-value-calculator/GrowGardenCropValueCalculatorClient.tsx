@@ -10,8 +10,6 @@ type Props = {
   crops: CropRecord[];
   variants: Variant[];
   mutations: Mutation[];
-  introHtml?: string;
-  howHtml?: string;
 };
 
 const numberFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -94,7 +92,12 @@ function MutationCard({
   );
 }
 
-export function GrowGardenCropValueCalculatorClient({ crops, variants, mutations, introHtml, howHtml }: Props) {
+export function GrowGardenCropValueCalculatorClient({
+  crops,
+  variants,
+  mutations,
+  title
+}: Props) {
   const [cropSearch, setCropSearch] = useState("");
   const [selectedCropName, setSelectedCropName] = useState<string>(crops[0]?.name ?? "");
   const [baseMode, setBaseMode] = useState<BaseMode>("average");
@@ -432,26 +435,6 @@ export function GrowGardenCropValueCalculatorClient({ crops, variants, mutations
               <p className="mt-4 text-sm text-muted">Select a crop to see results.</p>
             )}
           </div>
-
-          <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-4">
-            <h3 className="text-sm font-semibold text-foreground">How this calculator works</h3>
-            {howHtml ? (
-              <div className="article-content prose-sm text-muted" dangerouslySetInnerHTML={{ __html: howHtml }} />
-            ) : (
-              <ul className="mt-2 list-disc pl-5 text-sm text-muted">
-                <li>Uses crop Average Value as Base Value and Average Weight as Base Weight.</li>
-                <li>Crop Value = Base Value × (Weight / Base Weight)².</li>
-                <li>Mutation Multiplier = Variant × (1 + sum(mutation multipliers) − count(mutations)).</li>
-                <li>Total = Crop Value × Mutation Multiplier × Quantity.</li>
-              </ul>
-            )}
-          </div>
-
-          {introHtml ? (
-            <div className="rounded-2xl border border-border/70 bg-surface/50 p-4">
-              <div className="article-content prose-sm text-muted" dangerouslySetInnerHTML={{ __html: introHtml }} />
-            </div>
-          ) : null}
         </aside>
       </div>
     </div>

@@ -6,6 +6,8 @@ import { getToolContent } from "@/lib/tools";
 import { loadCropDataset } from "@/lib/grow-a-garden/crops";
 import { GrowGardenCropValueCalculatorClient } from "./GrowGardenCropValueCalculatorClient";
 import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
+import { supabaseAdmin } from "@/lib/supabase";
+import type { ToolContent } from "@/lib/tools";
 
 export const revalidate = 43200; // 12 hours
 
@@ -13,11 +15,49 @@ const TOOL_CODE = "grow-a-garden-crop-value-calculator";
 const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/${TOOL_CODE}`;
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
 
+function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
+  return Object.entries(description ?? {}).sort((a, b) => {
+    const left = Number.parseInt(a[0], 10);
+    const right = Number.parseInt(b[0], 10);
+    if (Number.isNaN(left) && Number.isNaN(right)) return a[0].localeCompare(b[0]);
+    if (Number.isNaN(left)) return 1;
+    if (Number.isNaN(right)) return -1;
+    return left - right;
+  });
+}
+
 async function buildContent() {
-  const tool = await getToolContent(TOOL_CODE);
+  let tool = await getToolContent(TOOL_CODE);
+
+  // Dev fallback: pull draft content if not published so local builds still show Supabase data.
+  if (!tool && process.env.NODE_ENV !== "production") {
+    const supabase = supabaseAdmin();
+    const { data } = await supabase
+      .from("tools")
+      .select("code,title,seo_title,meta_description,intro_md,how_it_works_md,faq_json,thumb_url,published_at,created_at,updated_at")
+      .eq("code", TOOL_CODE)
+      .maybeSingle();
+    tool = data as ToolContent | null;
+  }
+
   const introHtml = tool?.intro_md ? await renderMarkdown(tool.intro_md) : "";
   const howHtml = tool?.how_it_works_md ? await renderMarkdown(tool.how_it_works_md) : "";
-  return { tool, introHtml, howHtml };
+  const descriptionEntries = sortDescriptionEntries(tool?.description_json ?? {});
+  const descriptionHtml = await Promise.all(
+    descriptionEntries.map(async ([key, value]) => ({
+      key,
+      html: await renderMarkdown(value ?? "")
+    }))
+  );
+  const faqEntries = Array.isArray(tool?.faq_json) ? tool.faq_json : [];
+  const faqHtml = await Promise.all(
+    faqEntries.map(async (entry) => ({
+      q: entry.q,
+      a: await renderMarkdown(entry.a ?? "")
+    }))
+  );
+
+  return { tool, introHtml, howHtml, faqHtml, descriptionHtml };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -54,7 +94,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GrowGardenCropValueCalculatorPage() {
-  const [{ tool, introHtml, howHtml }, cropDataset] = await Promise.all([buildContent(), loadCropDataset()]);
+  const [{ tool, introHtml, howHtml, faqHtml, descriptionHtml }, cropDataset] = await Promise.all([
+    buildContent(),
+    loadCropDataset()
+  ]);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -121,19 +164,58 @@ export default async function GrowGardenCropValueCalculatorPage() {
           <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
             {tool?.title ?? "Grow a Garden Crop Value Calculator"}
           </h1>
-          <p className="max-w-3xl text-base text-muted md:text-lg">
-            {tool?.meta_description ??
-              "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown."}
-          </p>
+          {introHtml ? (
+            <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
+          ) : null}
         </header>
 
         <GrowGardenCropValueCalculatorClient
           crops={cropDataset.crops}
           variants={GAG_VARIANTS}
           mutations={GAG_MUTATIONS}
-          introHtml={introHtml}
-          howHtml={howHtml}
+          title={tool?.title ?? null}
         />
+
+        {(descriptionHtml?.length || howHtml || (faqHtml && faqHtml.length)) ? (
+          <div className="space-y-6">
+            {descriptionHtml?.length ? (
+              <section className="prose dark:prose-invert game-copy max-w-3xl space-y-3">
+                {descriptionHtml.map((item) => (
+                  <div key={item.key} dangerouslySetInnerHTML={{ __html: item.html }} />
+                ))}
+              </section>
+            ) : null}
+
+            {howHtml ? (
+              <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+                <div dangerouslySetInnerHTML={{ __html: howHtml }} />
+              </section>
+            ) : null}
+
+            {faqHtml && faqHtml.length ? (
+              <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground">FAQ</h3>
+                <div className="mt-3 space-y-4">
+                  {faqHtml.map((item, idx) => (
+                    <div
+                      key={`${item.q}-${idx}`}
+                      className="rounded-xl border border-border/40 bg-background/60 p-4"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                        <p className="text-base font-semibold text-foreground">{item.q}</p>
+                      </div>
+                      <div
+                        className="prose mt-2 text-[0.98rem] text-foreground/90"
+                        dangerouslySetInnerHTML={{ __html: item.a }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </>
   );
