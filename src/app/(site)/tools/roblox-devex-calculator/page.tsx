@@ -180,17 +180,59 @@ export default async function RobloxDevexPage() {
         </ol>
       </nav>
 
+      <header className="space-y-3">
+        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+          {tool?.title ?? "Roblox DevEx Calculator"}
+        </h1>
+        {introHtml ? (
+          <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
+        ) : null}
+      </header>
+
       <DevexCalculatorClient
-        title={tool?.title ?? null}
-        introHtml={introHtml || null}
-        howHtml={howHtml || null}
-        descriptionHtml={descriptionHtml}
-        faqHtml={faqHtml}
         initialRobux={DEVEX_DEFAULT_TARGET_ROBUX}
         initialUsd={DEVEX_DEFAULT_TARGET_USD}
         initialOldRobux={Math.floor(DEVEX_DEFAULT_TARGET_ROBUX / 2)}
         initialNewRobux={Math.ceil(DEVEX_DEFAULT_TARGET_ROBUX / 2)}
       />
+
+      {(descriptionHtml.length || howHtml || faqHtml.length) ? (
+        <div className="space-y-6">
+          {descriptionHtml.length ? (
+            <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
+              {descriptionHtml.map((entry) => (
+                <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
+              ))}
+            </section>
+          ) : null}
+
+          {howHtml ? (
+            <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+              <div dangerouslySetInnerHTML={{ __html: howHtml }} />
+            </section>
+          ) : null}
+
+          {faqHtml.length ? (
+            <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
+              <div className="mt-3 space-y-4">
+                {faqHtml.map((faq, idx) => (
+                  <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                      <p className="text-base font-semibold text-foreground">{faq.q}</p>
+                    </div>
+                    <div
+                      className="prose mt-2 text-[0.98rem] text-foreground/90"
+                      dangerouslySetInnerHTML={{ __html: faq.a }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="sr-only" aria-hidden>
         <p>DevEx minimum: {DEVEX_MIN}</p>

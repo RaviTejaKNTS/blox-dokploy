@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import "@/styles/article-content.css";
 import { RobuxBundle } from "./robux-bundles";
 import {
@@ -72,11 +72,6 @@ type RobuxPurchaseClientProps = {
   initialRobuxPlan?: PlanWithPlatform | null;
   initialValuePlan?: PlanWithPlatform | null;
   initialBudgetPlan?: BudgetPlan | null;
-  title?: string | null;
-  introHtml?: string | null;
-  howHtml?: string | null;
-  descriptionHtml?: Array<{ key: string; html: string }> | null;
-  faqHtml?: Array<{ q: string; a: string }> | null;
 };
 
 export function RobuxPurchaseClient({
@@ -86,12 +81,7 @@ export function RobuxPurchaseClient({
   initialHasPremium = DEFAULT_HAS_PREMIUM,
   initialRobuxPlan = null,
   initialValuePlan = null,
-  initialBudgetPlan = null,
-  title = null,
-  introHtml = null,
-  howHtml = null,
-  descriptionHtml = null,
-  faqHtml = null
+  initialBudgetPlan = null
 }: RobuxPurchaseClientProps) {
   const [mode, setMode] = useState<CalculatorMode>("robux_to_usd");
   const [targetRobuxInput, setTargetRobuxInput] = useState(() => initialRobuxTarget.toString());
@@ -140,15 +130,6 @@ export function RobuxPurchaseClient({
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          {title ?? "Robux to USD Calculator"}
-        </h1>
-        {introHtml ? (
-          <div
-            className="prose dark:prose-invert game-copy max-w-3xl"
-            dangerouslySetInnerHTML={{ __html: introHtml }}
-          />
-        ) : null}
         <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
           <button
             type="button"
@@ -334,12 +315,6 @@ export function RobuxPurchaseClient({
         </section>
       )}
 
-      {howHtml ? (
-        <section className="prose dark:prose-invert game-copy max-w-3xl">
-          <div dangerouslySetInnerHTML={{ __html: howHtml }} />
-        </section>
-      ) : null}
-
       <section className="panel space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -396,30 +371,6 @@ export function RobuxPurchaseClient({
         </div>
       </section>
 
-      {descriptionHtml?.length ? (
-        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
-          {descriptionHtml.map((entry) => (
-            <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
-          ))}
-        </section>
-      ) : null}
-
-      {faqHtml?.length ? (
-        <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
-          <div className="mt-3 space-y-4">
-            {faqHtml.map((faq, idx) => (
-              <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
-                  <p className="text-base font-semibold text-foreground">{faq.q}</p>
-                </div>
-                <div className="prose mt-2 text-[0.98rem] text-foreground/90" dangerouslySetInnerHTML={{ __html: faq.a }} />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

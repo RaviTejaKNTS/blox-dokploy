@@ -10,7 +10,6 @@ type Props = {
   crops: CropRecord[];
   variants: Variant[];
   mutations: Mutation[];
-  title?: string | null;
 };
 
 const numberFmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -96,8 +95,7 @@ function MutationCard({
 export function GrowGardenCropValueCalculatorClient({
   crops,
   variants,
-  mutations,
-  title
+  mutations
 }: Props) {
   const [cropSearch, setCropSearch] = useState("");
   const [selectedCropName, setSelectedCropName] = useState<string>(crops[0]?.name ?? "");

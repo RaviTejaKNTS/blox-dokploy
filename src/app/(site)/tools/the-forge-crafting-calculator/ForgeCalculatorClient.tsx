@@ -137,17 +137,7 @@ function TraitPill({ ore, share, optimal }: { ore: Ore; share: number; optimal: 
   );
 }
 
-export function ForgeCalculatorClient({
-  title,
-  introHtml,
-  howHtml,
-  faqHtml = []
-}: {
-  title?: string | null;
-  introHtml?: string | null;
-  howHtml?: string | null;
-  faqHtml?: Array<{ q: string; a: string }>;
-}) {
+export function ForgeCalculatorClient() {
   const [mode, setMode] = useState<Mode>("weapon");
   const [armorSlot, setArmorSlot] = useState<ArmorSlot>("Helmet");
   const [search, setSearch] = useState("");
@@ -218,17 +208,6 @@ export function ForgeCalculatorClient({
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          {title ?? "The Forge Crafting Calculator"}
-        </h1>
-        {introHtml ? (
-          <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
-        ) : (
-          <p className="max-w-3xl text-base text-muted md:text-lg">
-            Plan your crafts for The Forge. Pick ores (up to four types), see weapon or armor odds, total multiplier, and which traits will
-            transfer.
-          </p>
-        )}
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
             <button
@@ -566,28 +545,6 @@ export function ForgeCalculatorClient({
         )}
       </section>
 
-      {howHtml ? (
-        <section className="space-y-3">
-          <div className="prose dark:prose-invert game-copy" dangerouslySetInnerHTML={{ __html: howHtml }} />
-        </section>
-      ) : null}
-
-      {faqHtml?.length ? (
-        <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
-          <div className="mt-3 space-y-4">
-            {faqHtml.map((faq, idx) => (
-              <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
-                  <p className="text-base font-semibold text-foreground">{faq.q}</p>
-                </div>
-                <div className="prose mt-2 text-[0.98rem] text-foreground/90" dangerouslySetInnerHTML={{ __html: faq.a }} />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

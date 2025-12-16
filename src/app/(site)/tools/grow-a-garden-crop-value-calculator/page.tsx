@@ -34,7 +34,9 @@ async function buildContent() {
     const supabase = supabaseAdmin();
     const { data } = await supabase
       .from("tools")
-      .select("code,title,seo_title,meta_description,intro_md,how_it_works_md,faq_json,thumb_url,published_at,created_at,updated_at")
+      .select(
+        "code,title,seo_title,meta_description,intro_md,how_it_works_md,description_json,faq_json,thumb_url,published_at,created_at,updated_at"
+      )
       .eq("code", TOOL_CODE)
       .maybeSingle();
     tool = data as ToolContent | null;
@@ -173,7 +175,6 @@ export default async function GrowGardenCropValueCalculatorPage() {
           crops={cropDataset.crops}
           variants={GAG_VARIANTS}
           mutations={GAG_MUTATIONS}
-          title={tool?.title ?? null}
         />
 
         {(descriptionHtml?.length || howHtml || (faqHtml && faqHtml.length)) ? (
