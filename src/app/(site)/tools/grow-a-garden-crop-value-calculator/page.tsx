@@ -9,7 +9,7 @@ import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ToolContent } from "@/lib/tools";
 
-export const revalidate = 43200; // 12 hours
+export const revalidate = 3600; // 1 hour to pick up Supabase edits sooner
 
 const TOOL_CODE = "grow-a-garden-crop-value-calculator";
 const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/${TOOL_CODE}`;

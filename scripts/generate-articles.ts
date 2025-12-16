@@ -1121,7 +1121,7 @@ Return JSON:
 async function buildArticlePromptWithSonar(topic: string, sources: SourceDocument[]): Promise<string> {
   const sourceBlock = formatSourcesForPrompt(sources);
   const sonarPrompt = `
-Create a single, detailed prompt that I can give to an AI model to write a Roblox article.
+Create a single, detailed prompt that I can give to an AI model to write a Roblox article. Include all the requirements. Definitely make sure to tell the article should be in simple english, conversation like and easy to understand flow. 
 
 Topic: "${topic}"
 
@@ -1139,13 +1139,12 @@ Requirements in the article so you need to tune the prompt accordingly:
 7. Intro should be unique to the article topic and need to be small and should hook the reader. Keep things grounded and simple.
 8. Right after the intro, give a small section with no headings that give away everything user needs to know for their search intent. Can write like just 2-3 lines in para format or use 2-3 bullet points whichever works best for the topic. Prefer paras mostly. Start with section with something like "First things first" or "Here's a quick answer" or anything that flows naturally. 
 9. Entire article should be written in full sentences, engaging with as less words as possible. 
-10. Sprinkle in some first hand experiences that are unique and related to the topic. 
-11. Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
-12. When writing, you can casually use words like I, You and explain things in a simple way that everyone can understand. 
-13. Do not use any AI-ish anecdotes like "This is not just X, this is also y". Just talk directly without enthusiasm and less hype. Keep things grounded and natual.  
-14. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process. 
-15. Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. 
-16. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
+10. Write first-hand experience like roblox player sharing their knowledge/experience. Do not directly state it, instead you can talk like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable.
+11. When writing, you can casually use words like I, You and explain things in a simple way that everyone can understand. 
+12. Do not use any AI-ish anecdotes like "This is not just X, this is also y". Just talk directly without enthusiasm and less hype. Keep things grounded and natual.  
+13. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process. 
+14. Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. 
+15. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
 17. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. The idea is to create an editorial article that values people's time and help them love reading with flow rather than just a information dump. 
 18. Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. This step is very important. 
 
