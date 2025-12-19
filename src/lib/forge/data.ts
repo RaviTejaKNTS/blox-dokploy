@@ -2,11 +2,10 @@ export type TraitType =
   | "weapon"
   | "armor"
   | "both"
-  | "aoe"
   | "armor_aoe"
-  | "movement"
   | "weapon_aoe"
   | "armor_defense"
+  | "movement"
   | null;
 
 export type Ore = {
@@ -61,23 +60,64 @@ export type ArmorPiece = {
 };
 
 export const MIN_TOTAL_ORE_COUNT = 3;
-export const MAX_TOTAL_ORE_COUNT = 46;
+export const MAX_TOTAL_ORE_COUNT = 120;
 export const MAX_ORE_TYPES = 4;
+
+export type QualityTier = "Broken" | "Worn" | "Standard" | "Fine" | "Masterwork";
+
+export const QUALITY_TIERS: Array<{ tier: QualityTier; multiplier: number }> = [
+  { tier: "Broken", multiplier: 0.85 },
+  { tier: "Worn", multiplier: 0.95 },
+  { tier: "Standard", multiplier: 1 },
+  { tier: "Fine", multiplier: 1.1 },
+  { tier: "Masterwork", multiplier: 1.2 }
+];
 
 export const WEAPON_CLASS_THRESHOLDS: Record<WeaponClass, { minOre: number; optimalOre: number }> = {
   Dagger: { minOre: 3, optimalOre: 3 },
-  "Straight Sword": { minOre: 4, optimalOre: 8 },
-  Gauntlet: { minOre: 7, optimalOre: 11 },
-  Katana: { minOre: 9, optimalOre: 15 },
-  "Great Sword": { minOre: 12, optimalOre: 20 },
-  "Great Axe": { minOre: 16, optimalOre: 37 },
-  "Colossal Sword": { minOre: 21, optimalOre: 46 }
+  "Straight Sword": { minOre: 4, optimalOre: 6 },
+  Gauntlet: { minOre: 7, optimalOre: 9 },
+  Katana: { minOre: 9, optimalOre: 12 },
+  "Great Sword": { minOre: 12, optimalOre: 16 },
+  "Great Axe": { minOre: 16, optimalOre: 22 },
+  "Colossal Sword": { minOre: 21, optimalOre: 50 }
 };
 
 export const ARMOR_WEIGHT_THRESHOLDS: Record<ArmorWeightGroup, { minOre: number; optimalOre: number }> = {
   Light: { minOre: 3, optimalOre: 3 },
-  Medium: { minOre: 10, optimalOre: 17 },
-  Heavy: { minOre: 20, optimalOre: 46 }
+  Medium: { minOre: 10, optimalOre: 21 },
+  Heavy: { minOre: 20, optimalOre: 40 }
+};
+
+export type ProbabilityAnchor = {
+  minOre: number;
+  minChance: number;
+  optimalOre: number;
+  optimalChance: number;
+};
+
+export const WEAPON_CLASS_ANCHORS: Record<WeaponClass, ProbabilityAnchor> = {
+  Dagger: { minOre: 3, minChance: 1, optimalOre: 3, optimalChance: 1 },
+  "Straight Sword": { minOre: 4, minChance: 0.14, optimalOre: 6, optimalChance: 0.86 },
+  Gauntlet: { minOre: 7, minChance: 0.2, optimalOre: 9, optimalChance: 0.65 },
+  Katana: { minOre: 9, minChance: 0.1, optimalOre: 12, optimalChance: 0.72 },
+  "Great Sword": { minOre: 12, minChance: 0.03, optimalOre: 16, optimalChance: 0.69 },
+  "Great Axe": { minOre: 16, minChance: 0.01, optimalOre: 22, optimalChance: 0.67 },
+  "Colossal Sword": { minOre: 21, minChance: 0.02, optimalOre: 50, optimalChance: 0.7 }
+};
+
+export type ArmorPieceAnchorKey = `${ArmorWeightGroup}-${ArmorSlot}`;
+
+export const ARMOR_PIECE_ANCHORS: Record<ArmorPieceAnchorKey, ProbabilityAnchor> = {
+  "Light-Helmet": { minOre: 3, minChance: 1, optimalOre: 3, optimalChance: 1 },
+  "Light-Leggings": { minOre: 5, minChance: 0.11, optimalOre: 7, optimalChance: 0.67 },
+  "Light-Chestplate": { minOre: 7, minChance: 0.01, optimalOre: 10, optimalChance: 0.53 },
+  "Medium-Helmet": { minOre: 10, minChance: 0.12, optimalOre: 13, optimalChance: 0.6 },
+  "Medium-Leggings": { minOre: 13, minChance: 0.01, optimalOre: 17, optimalChance: 0.57 },
+  "Medium-Chestplate": { minOre: 17, minChance: 0.01, optimalOre: 21, optimalChance: 0.63 },
+  "Heavy-Helmet": { minOre: 20, minChance: 0.05, optimalOre: 25, optimalChance: 0.51 },
+  "Heavy-Leggings": { minOre: 25, minChance: 0.01, optimalOre: 30, optimalChance: 0.46 },
+  "Heavy-Chestplate": { minOre: 30, minChance: 0.01, optimalOre: 40, optimalChance: 0.84 }
 };
 
 export const ORES: Ore[] = [
@@ -166,7 +206,7 @@ export const ORES: Ore[] = [
     rarity: "Uncommon",
     areaGroup: "Stonewake",
     dropChanceRatio: 12,
-    multiplier: 0.6,
+    multiplier: 0.5,
     sellPrice: 7.5,
     hasTrait: false,
     traitName: null,
@@ -192,7 +232,7 @@ export const ORES: Ore[] = [
     rarity: "Uncommon",
     areaGroup: "Stonewake",
     dropChanceRatio: 30,
-    multiplier: 0.65,
+    multiplier: 0.85,
     sellPrice: 12.75,
     hasTrait: false,
     traitName: null,
@@ -231,7 +271,7 @@ export const ORES: Ore[] = [
     rarity: "Epic",
     areaGroup: "Stonewake",
     dropChanceRatio: 44,
-    multiplier: 1,
+    multiplier: 1.1,
     sellPrice: 16.5,
     hasTrait: false,
     traitName: null,
@@ -249,7 +289,7 @@ export const ORES: Ore[] = [
     hasTrait: true,
     traitName: "Poison Panic",
     traitEffectShort: "When HP drops below 35%, releases poison dealing 15% damage over 5 seconds (cooldown applies)",
-    traitType: "aoe"
+    traitType: "armor_aoe"
   },
 
   // Forgotten Kingdom ores
@@ -806,9 +846,9 @@ export const WEAPONS: Weapon[] = [
     baseSpeedSeconds: 0.59,
     baseRange: 8,
     sellPrice: 120,
-    internalWeightRatio: 64,
+    internalWeightRatio: 16,
     classMinOre: 4,
-    classOptimalOre: 8
+    classOptimalOre: 6
   },
   {
     id: "cutlass",
@@ -820,7 +860,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 120,
     internalWeightRatio: 4,
     classMinOre: 4,
-    classOptimalOre: 8
+    classOptimalOre: 6
   },
   {
     id: "falchion-sword",
@@ -832,7 +872,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 120,
     internalWeightRatio: 1,
     classMinOre: 4,
-    classOptimalOre: 8
+    classOptimalOre: 6
   },
   {
     id: "gladius-sword",
@@ -844,7 +884,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 120,
     internalWeightRatio: 2,
     classMinOre: 4,
-    classOptimalOre: 8
+    classOptimalOre: 6
   },
   {
     id: "rapier",
@@ -856,7 +896,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 120,
     internalWeightRatio: 8,
     classMinOre: 4,
-    classOptimalOre: 8
+    classOptimalOre: 6
   },
 
   // Gauntlets
@@ -870,7 +910,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 205,
     internalWeightRatio: 4,
     classMinOre: 7,
-    classOptimalOre: 11
+    classOptimalOre: 9
   },
   {
     id: "ironhand",
@@ -882,7 +922,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 205,
     internalWeightRatio: 1,
     classMinOre: 7,
-    classOptimalOre: 11
+    classOptimalOre: 9
   },
   {
     id: "relevator",
@@ -894,7 +934,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 205,
     internalWeightRatio: 16,
     classMinOre: 7,
-    classOptimalOre: 11
+    classOptimalOre: 9
   },
 
   // Katanas
@@ -908,7 +948,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 324,
     internalWeightRatio: 2,
     classMinOre: 9,
-    classOptimalOre: 15
+    classOptimalOre: 12
   },
   {
     id: "uchigatana",
@@ -918,9 +958,9 @@ export const WEAPONS: Weapon[] = [
     baseSpeedSeconds: 0.6,
     baseRange: 9,
     sellPrice: 324,
-    internalWeightRatio: 11,
+    internalWeightRatio: 1,
     classMinOre: 9,
-    classOptimalOre: 15
+    classOptimalOre: 12
   },
 
   // Great Swords
@@ -934,7 +974,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 485,
     internalWeightRatio: 1,
     classMinOre: 12,
-    classOptimalOre: 20
+    classOptimalOre: 16
   },
   {
     id: "long-sword",
@@ -946,7 +986,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 485,
     internalWeightRatio: 2,
     classMinOre: 12,
-    classOptimalOre: 20
+    classOptimalOre: 16
   },
 
   // Great Axes
@@ -960,7 +1000,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 850,
     internalWeightRatio: 1,
     classMinOre: 16,
-    classOptimalOre: 37
+    classOptimalOre: 22
   },
   {
     id: "scythe",
@@ -972,7 +1012,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 850,
     internalWeightRatio: 2,
     classMinOre: 16,
-    classOptimalOre: 37
+    classOptimalOre: 22
   },
 
   // Colossal Swords
@@ -986,7 +1026,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 1355,
     internalWeightRatio: 16,
     classMinOre: 21,
-    classOptimalOre: 46
+    classOptimalOre: 50
   },
   {
     id: "dragon-slayer",
@@ -998,7 +1038,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 1355,
     internalWeightRatio: 3,
     classMinOre: 21,
-    classOptimalOre: 46
+    classOptimalOre: 50
   },
   {
     id: "great-sword",
@@ -1010,7 +1050,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 1355,
     internalWeightRatio: 1,
     classMinOre: 21,
-    classOptimalOre: 46
+    classOptimalOre: 50
   },
   {
     id: "hammer",
@@ -1022,7 +1062,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 1355,
     internalWeightRatio: 2,
     classMinOre: 21,
-    classOptimalOre: 46
+    classOptimalOre: 50
   },
   {
     id: "skull-crusher",
@@ -1034,7 +1074,7 @@ export const WEAPONS: Weapon[] = [
     sellPrice: 1355,
     internalWeightRatio: 2,
     classMinOre: 21,
-    classOptimalOre: 46
+    classOptimalOre: 50
   }
 ];
 

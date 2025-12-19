@@ -10,8 +10,11 @@ import {
   MIN_TOTAL_ORE_COUNT,
   ORES,
   ORE_IMAGE_MAP,
+  QUALITY_TIERS,
   type ArmorSlot,
-  type Ore
+  type Ore,
+  type QualityTier,
+  type TraitType
 } from "@/lib/forge/data";
 import {
   aggregateOreSelections,
@@ -27,7 +30,7 @@ type Mode = "weapon" | "armor";
 
 const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 
-function traitVisibleInMode(traitType: string | null, mode: Mode): boolean {
+function traitVisibleInMode(traitType: TraitType | null, mode: Mode): boolean {
   if (!traitType) return true; // default to showing if not tagged
   if (traitType === "both") return true;
   if (mode === "weapon") {
@@ -123,13 +126,13 @@ function ProbabilityRow({
   );
 }
 
-function TraitPill({ ore, share, optimal }: { ore: Ore; share: number; optimal: boolean }) {
+function TraitPill({ ore, share, tier }: { ore: Ore; share: number; tier: "minor" | "full" }) {
   return (
     <div className="flex min-w-[240px] flex-col gap-1 rounded-xl border border-border/70 bg-surface px-3 py-2 text-xs text-foreground">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold">{ore.traitName ?? ore.name}</span>
         <span className="rounded-full bg-accent/10 px-2 py-[2px] text-[11px] font-bold uppercase tracking-wide text-accent">
-          {optimal ? "Optimal" : "Active"} · {(share * 100).toFixed(1)}%
+          {tier === "full" ? "Full" : "Minor"} · {(share * 100).toFixed(1)}%
         </span>
       </div>
       <p className="text-[11px] text-muted">{ore.traitEffectShort ?? "Trait effect unknown."}</p>
@@ -139,7 +142,9 @@ function TraitPill({ ore, share, optimal }: { ore: Ore; share: number; optimal: 
 
 export function ForgeCalculatorClient() {
   const [mode, setMode] = useState<Mode>("weapon");
-  const [armorSlot, setArmorSlot] = useState<ArmorSlot>("Helmet");
+  const [armorSlotFilter, setArmorSlotFilter] = useState<ArmorSlot | "All">("All");
+  const [progression, setProgression] = useState<"Stonewake" | "Forgotten Kingdom">("Forgotten Kingdom");
+  const [qualityTier, setQualityTier] = useState<QualityTier>("Standard");
   const [search, setSearch] = useState("");
   const [selectedOres, setSelectedOres] = useState<OreSelection[]>([
     { oreId: "diamond", count: 1 },
@@ -147,14 +152,21 @@ export function ForgeCalculatorClient() {
   ]);
 
   const { usages, totalCount } = useMemo(() => aggregateOreSelections(selectedOres), [selectedOres]);
-  const cappedTotal = Math.min(totalCount, MAX_TOTAL_ORE_COUNT);
-  const multiplier = useMemo(() => calculateTotalMultiplier(usages, cappedTotal), [usages, cappedTotal]);
-  const traits = useMemo(() => calculateTraitActivations(usages, cappedTotal), [usages, cappedTotal]);
+  const qualityOption = useMemo(
+    () => QUALITY_TIERS.find((tier) => tier.tier === qualityTier) ?? QUALITY_TIERS[2],
+    [qualityTier]
+  );
+  const qualityMultiplier = qualityOption?.multiplier ?? 1;
+  const multiplier = useMemo(() => calculateTotalMultiplier(usages, totalCount), [usages, totalCount]);
+  const traits = useMemo(() => calculateTraitActivations(usages, totalCount), [usages, totalCount]);
   const composition = useMemo(() => getOreComposition(usages), [usages]);
-  const weaponResults = useMemo(() => calculateWeaponOutcomes(cappedTotal, multiplier), [cappedTotal, multiplier]);
+  const weaponResults = useMemo(
+    () => calculateWeaponOutcomes(totalCount, multiplier, qualityMultiplier),
+    [totalCount, multiplier, qualityMultiplier]
+  );
   const armorResults = useMemo(
-    () => calculateArmorOutcomes(cappedTotal, multiplier, armorSlot),
-    [cappedTotal, multiplier, armorSlot]
+    () => calculateArmorOutcomes(totalCount, multiplier, qualityMultiplier),
+    [totalCount, multiplier, qualityMultiplier]
   );
 
   const filteredOres = useMemo(
@@ -177,8 +189,25 @@ export function ForgeCalculatorClient() {
     return groups;
   }, [filteredOres]);
 
-  const isReady = cappedTotal >= MIN_TOTAL_ORE_COUNT;
-  const approximationNote = "Probabilities use the guide min/optimal thresholds and 1/x weights; real Forge RNG may differ.";
+  const filteredPieceProbabilities = useMemo(() => {
+    return armorResults.pieceProbabilities.filter((entry) => {
+      if (armorSlotFilter !== "All" && entry.slot !== armorSlotFilter) return false;
+      if (progression === "Stonewake" && entry.weightGroup !== "Light") return false;
+      return true;
+    });
+  }, [armorResults.pieceProbabilities, armorSlotFilter, progression]);
+
+  const filteredArmor = useMemo(() => {
+    return armorResults.armor.filter((entry) => {
+      if (armorSlotFilter !== "All" && entry.armor.slot !== armorSlotFilter) return false;
+      if (progression === "Stonewake" && entry.armor.baseWeightGroup !== "Light") return false;
+      return true;
+    });
+  }, [armorResults.armor, armorSlotFilter, progression]);
+
+  const isReady = totalCount >= MIN_TOTAL_ORE_COUNT;
+  const approximationNote =
+    "Probabilities are fitted to the published Winter 2025 weight tables; exact Forge RNG can still differ slightly.";
 
   function removeOre(oreId: string) {
     setSelectedOres((prev) => prev.filter((item) => item.oreId !== oreId));
@@ -233,17 +262,34 @@ export function ForgeCalculatorClient() {
           </div>
           {mode === "armor" ? (
             <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
-              {ARMOR_SLOTS.map((slot) => (
+              {["All", ...ARMOR_SLOTS].map((slot) => (
                 <button
                   key={slot}
                   type="button"
-                  onClick={() => setArmorSlot(slot)}
+                  onClick={() => setArmorSlotFilter(slot as ArmorSlot | "All")}
                   className={cn(
                     "px-4 py-2 transition",
-                    armorSlot === slot ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
+                    armorSlotFilter === slot ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
                   )}
                 >
                   {slot}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {mode === "armor" ? (
+            <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
+              {(["Stonewake", "Forgotten Kingdom"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setProgression(value)}
+                  className={cn(
+                    "px-4 py-2 transition",
+                    progression === value ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
+                  )}
+                >
+                  {value === "Stonewake" ? "Stonewake-only" : "Forgotten Kingdom"}
                 </button>
               ))}
             </div>
@@ -259,7 +305,7 @@ export function ForgeCalculatorClient() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Forge chances</p>
-              <p className="text-xs text-muted">{isReady ? `${cappedTotal} ores in mix` : "Add at least 3 ores"}</p>
+              <p className="text-xs text-muted">{isReady ? `${totalCount} ores in mix` : "Add at least 3 ores"}</p>
             </div>
           </div>
           <div className="space-y-3">
@@ -292,15 +338,15 @@ export function ForgeCalculatorClient() {
                     </ProbabilityRow>
                   );
                 })
-              : armorResults.weightProbabilities.map((entry) => {
-                  const items = armorResults.armor
-                    .filter((piece) => piece.armor.baseWeightGroup === entry.weight)
+              : filteredPieceProbabilities.map((entry) => {
+                  const items = filteredArmor
+                    .filter((piece) => piece.anchorKey === entry.key)
                     .sort((a, b) => b.probability - a.probability);
 
                   return (
                     <ProbabilityRow
-                      key={entry.weight}
-                      label={`${entry.weight} weight`}
+                      key={entry.key}
+                      label={`${entry.weightGroup} ${entry.slot}`}
                       probability={isReady ? entry.probability : 0}
                       hint={`Min ${entry.minOre} ores · optimal ${entry.optimalOre}`}
                     >
@@ -331,7 +377,7 @@ export function ForgeCalculatorClient() {
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Composition</p>
                 <p className="text-xl font-semibold text-foreground">Total multiplier: {multiplier ? multiplier.toFixed(2) : "0.00"}x</p>
                 <p className="text-xs text-muted">
-                  Weighted average of ore multipliers. Traits activate at 10 percent share; optimal at 30 percent.
+                  Weighted average of ore multipliers. Traits are minor at 10% share and full at 30%.
                 </p>
               </div>
               {!isReady ? (
@@ -339,6 +385,25 @@ export function ForgeCalculatorClient() {
                   Add at least {MIN_TOTAL_ORE_COUNT} ores to see odds
                 </span>
               ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-surface-muted px-3 py-2 text-xs">
+              <label htmlFor="quality-tier" className="text-xs font-semibold text-foreground">
+                Quality tier
+              </label>
+              <select
+                id="quality-tier"
+                value={qualityTier}
+                onChange={(event) => setQualityTier(event.target.value as QualityTier)}
+                className="rounded-lg border border-border/60 bg-surface px-2 py-1 text-xs font-semibold text-foreground"
+              >
+                {QUALITY_TIERS.map((tier) => (
+                  <option key={tier.tier} value={tier.tier}>
+                    {tier.tier} ({tier.multiplier.toFixed(2)}x)
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-muted">Quality bonus from minigame performance (does not affect odds).</span>
             </div>
 
             <div className="space-y-3">
@@ -404,12 +469,12 @@ export function ForgeCalculatorClient() {
                         key={trait.ore.id}
                         ore={trait.ore}
                         share={trait.share}
-                        optimal={trait.optimal}
+                        tier={trait.tier}
                       />
                     ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted">No traits active. Add at least 10 percent of a trait ore to enable one.</p>
+                <p className="text-sm text-muted">No traits active. Add at least 10% of a trait ore (30% for full strength).</p>
               )}
             </div>
           </div>
@@ -465,7 +530,11 @@ export function ForgeCalculatorClient() {
       <section className="panel space-y-4 p-4">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold text-foreground">
-            {mode === "weapon" ? "Detailed weapon chances" : `Armor pieces · ${armorSlot}`}
+            {mode === "weapon"
+              ? "Detailed weapon chances"
+              : armorSlotFilter === "All"
+                ? "Armor pieces"
+                : `Armor pieces · ${armorSlotFilter}`}
           </p>
           <p className="text-xs text-muted">Probabilities update as you change ore counts.</p>
         </div>
@@ -502,7 +571,7 @@ export function ForgeCalculatorClient() {
                   <div className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-xs">
                     <p className="font-semibold text-foreground">Forged damage</p>
                     <p className="text-muted">
-                      {multiplier ? numberFormatter.format(entry.finalDamage) : "0"} (base {entry.weapon.baseDamage} × {multiplier.toFixed(2)})
+                      {multiplier ? numberFormatter.format(entry.finalDamage) : "0"} (base {entry.weapon.baseDamage} × {multiplier.toFixed(2)} × {qualityMultiplier.toFixed(2)})
                     </p>
                   </div>
                 </div>
@@ -510,7 +579,7 @@ export function ForgeCalculatorClient() {
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {armorResults.armor
+            {filteredArmor
               .sort((a, b) => b.probability - a.probability)
               .map((entry) => (
                 <div key={entry.armor.id} className="rounded-lg border border-border/60 bg-surface px-3 py-3">
@@ -536,7 +605,7 @@ export function ForgeCalculatorClient() {
                       <p className="font-semibold text-foreground">
                         {multiplier ? numberFormatter.format(entry.finalHealthPercent) : "0"}%
                       </p>
-                      <p>With multiplier</p>
+                      <p>With multiplier + quality</p>
                     </div>
                   </div>
                 </div>
