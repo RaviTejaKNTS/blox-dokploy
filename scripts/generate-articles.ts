@@ -208,16 +208,66 @@ function normalizeOverlayTitle(value: string | null | undefined, limit = 70): st
   return cleaned.length > limit ? `${cleaned.slice(0, limit - 1)}…` : cleaned;
 }
 
-function pickOverlayFontSize(text: string): number {
-  const len = text.length;
-  if (len > 55) return 40;
-  if (len > 42) return 48;
-  if (len > 30) return 56;
-  return 64;
+function pickOverlayFontSize(lines: string[]): number {
+  const longest = lines.reduce((max, line) => Math.max(max, line.length), 0);
+  let base: number;
+  if (longest <= 10) base = 104;
+  else if (longest <= 16) base = 94;
+  else if (longest <= 22) base = 82;
+  else if (longest <= 28) base = 70;
+  else if (longest <= 34) base = 62;
+  else base = 52;
+
+  const linePenalty = Math.max(0, lines.length - 2) * 6;
+  return Math.max(44, base - linePenalty);
+}
+
+function wrapOverlayLines(text: string): string[] {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return [];
+  const words = cleaned.split(" ");
+  const length = cleaned.length;
+  let maxLine = 16;
+  if (length > 80) maxLine = 24;
+  else if (length > 60) maxLine = 20;
+  else if (length > 40) maxLine = 18;
+
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (!current.length) {
+      current = word;
+      continue;
+    }
+
+    const next = `${current} ${word}`;
+    if (next.length <= maxLine) {
+      current = next;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current.length) {
+    lines.push(current);
+  }
+
+  return lines;
 }
 
 function replaceEmDashes(value: string): string {
   return value.replace(/—\s*/g, ": ");
+}
+
+function removeEmDashesFromDraft(article: DraftArticle): DraftArticle {
+  return {
+    ...article,
+    title: replaceEmDashes(article.title),
+    meta_description: replaceEmDashes(article.meta_description),
+    content_md: replaceEmDashes(article.content_md)
+  };
 }
 
 function truncateForPrompt(value: string | null | undefined, limit = 240): string | null {
@@ -263,6 +313,11 @@ function parseQueueSources(raw: string | null): string[] {
     .filter((entry) => /^https?:\/\//i.test(entry));
 
   return Array.from(new Set(urls));
+}
+
+function ensureRobloxKeyword(query: string): string {
+  const normalized = query.toLowerCase();
+  return normalized.includes("roblox") ? query : `${query} Roblox`;
 }
 
 type RobloxUniverseMedia = {
@@ -606,23 +661,25 @@ async function downloadResizeAndUploadCover(params: {
     const buffer = Buffer.from(await response.arrayBuffer());
 
     const overlayText = normalizeOverlayTitle(params.overlayTitle ?? null);
-    const overlayGroup = overlayText
-      ? `
-        <g>
-          <rect x="110" y="520" width="980" height="130" rx="28" fill="rgba(0,0,0,0.6)" stroke="rgba(255,255,255,0.4)" stroke-width="3"/>
-          <text x="50%" y="590" text-anchor="middle" fill="#f8f9fb" font-size="${pickOverlayFontSize(
-            overlayText
-          )}" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" letter-spacing="1.5" dominant-baseline="middle">${escapeForSvg(
-            overlayText
-          )}</text>
-        </g>`
-      : "";
+    const overlayLines = overlayText ? wrapOverlayLines(overlayText) : [];
+    const fontSize = overlayLines.length ? pickOverlayFontSize(overlayLines) : 0;
+    const lineHeight = fontSize ? Math.round(fontSize * 1.2) : 0;
+    const startY = fontSize ? Math.round(337.5 - ((overlayLines.length - 1) * lineHeight) / 2) : 0;
+
+    const textBlock =
+      overlayLines.length && fontSize
+        ? `<text x="600" y="${startY}" text-anchor="middle" fill="#f8f9fb" font-size="${fontSize}" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="800" font-style="italic" letter-spacing="1.2" dominant-baseline="hanging">
+            ${overlayLines
+              .map((line, idx) => `<tspan x="600" dy="${idx === 0 ? 0 : lineHeight}">${escapeForSvg(line)}</tspan>`)
+              .join("")}
+          </text>`
+        : "";
 
     const svgOverlay = Buffer.from(
-      `<svg width="1200" height="675" xmlns="http://www.w3.org/2000/svg" role="presentation">${overlayGroup}</svg>`.replace(
-        /\s+/g,
-        " "
-      )
+      `<svg width="1200" height="675" xmlns="http://www.w3.org/2000/svg" role="presentation">
+        <rect x="0" y="0" width="1200" height="675" fill="rgba(0,0,0,0.78)"/>
+        ${textBlock}
+      </svg>`.replace(/\s+/g, " ")
     );
 
     const resized = await sharp(buffer)
@@ -783,7 +840,7 @@ type ParsedArticle = {
 
 async function fetchArticleContent(
   url: string,
-  options: { allowAllImages?: boolean; sourceHost?: string } = {}
+  options: { allowAllImages?: boolean; allowImages?: boolean; sourceHost?: string } = {}
 ): Promise<ParsedArticle | null> {
   let host = "";
   try {
@@ -792,7 +849,8 @@ async function fetchArticleContent(
     host = options.sourceHost ?? "";
   }
 
-  const allowAllImages = options.allowAllImages ?? isFandomHost(host);
+  const allowImages = options.allowImages ?? true;
+  const allowAllImages = allowImages && (options.allowAllImages ?? false);
 
   try {
     const response = await fetch(url, {
@@ -811,11 +869,13 @@ async function fetchArticleContent(
     const html = await response.text();
     const dom = new JSDOM(html, { url });
     // Extract images before Readability mutates the DOM
-    const images = extractImagesFromDocument(dom.window.document, {
-      sourceUrl: url,
-      sourceHost: host || options.sourceHost || "",
-      allowAllImages
-    });
+    const images = allowImages
+      ? extractImagesFromDocument(dom.window.document, {
+          sourceUrl: url,
+          sourceHost: host || options.sourceHost || "",
+          allowAllImages
+        })
+      : [];
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
@@ -872,12 +932,17 @@ async function collectFromResults(
     const isForum = isForumHost(host);
     if (isForum && forumCount.value >= MAX_FORUM_SOURCES) continue;
 
+    const isFandom = isFandomHost(host);
     const highQuality = isHighQualityHost(host);
     const hostLimit = highQuality ? MAX_PER_HOST_HIGH_QUALITY : MAX_PER_HOST_DEFAULT;
     const hostCount = hostCounts.get(host) ?? 0;
     if (hostCount >= hostLimit) continue;
 
-    const parsedContent = await fetchArticleContent(result.url, { allowAllImages: isFandomHost(host), sourceHost: host });
+    const parsedContent = await fetchArticleContent(result.url, {
+      allowAllImages: false,
+      allowImages: !isFandom,
+      sourceHost: host
+    });
     if (!parsedContent) continue;
 
     collected.push({
@@ -938,12 +1003,17 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
     const isForum = isForumHost(host);
     if (isForum && forumCount.value >= MAX_FORUM_SOURCES) continue;
 
+    const isFandom = isFandomHost(host);
     const highQuality = isHighQualityHost(host);
     const hostLimit = highQuality ? MAX_PER_HOST_HIGH_QUALITY : MAX_PER_HOST_DEFAULT;
     const hostCount = hostCounts.get(host) ?? 0;
     if (hostCount >= hostLimit) continue;
 
-    const parsedContent = await fetchArticleContent(url, { allowAllImages: isFandomHost(host), sourceHost: host });
+    const parsedContent = await fetchArticleContent(url, {
+      allowAllImages: false,
+      allowImages: !isFandom,
+      sourceHost: host
+    });
     if (!parsedContent) continue;
 
     collected.push({
@@ -963,7 +1033,7 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
   }
 
   // 1) Primary search (take first 3-5 sources, non-fandom)
-  const primaryQuery = `${topic}`;
+  const primaryQuery = ensureRobloxKeyword(`${topic}`);
   try {
     console.log(`🔎 search → ${primaryQuery}`);
     const results = await perplexitySearch(primaryQuery, MAX_RESULTS_PER_QUERY);
@@ -977,7 +1047,7 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
 
   // 2) Fandom-specific search (1-2 sources)
   try {
-    const fandomQuery = `${topic} fandom`;
+    const fandomQuery = ensureRobloxKeyword(`${topic} fandom`);
     console.log(`🔎 search → ${fandomQuery}`);
     const fandomResults = await perplexitySearch(fandomQuery, 10);
     const fandomOnly = fandomResults.filter((res) => res.url?.toLowerCase().includes("fandom.com"));
@@ -1121,7 +1191,7 @@ Return JSON:
 async function buildArticlePromptWithSonar(topic: string, sources: SourceDocument[]): Promise<string> {
   const sourceBlock = formatSourcesForPrompt(sources);
   const sonarPrompt = `
-Create a single, detailed prompt that I can give to an AI model to write a Roblox article. Include all the requirements. Definitely make sure to tell the article should be in simple english, conversation like and easy to understand flow. 
+Create a single, detailed prompt that I can give to an AI model to write a Roblox article. Include all the requirements. Definitely make sure to tell the article should be in simple english, conversation like and easy to understand flow. Do not include your details about prompt writing in the output. Just give me the prompt directly.
 
 Topic: "${topic}"
 
@@ -2001,28 +2071,28 @@ async function main() {
     const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, factCheckedDraft, relatedPages);
     console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
 
-    const finalDraft = interlinkedDraft;
-    console.log(`final_title="${finalDraft.title}" word_count=${estimateWordCount(finalDraft.content_md)}`);
+    let currentDraft = interlinkedDraft;
+    console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
-    if (finalDraft.content_md.length < 400) {
+    if (currentDraft.content_md.length < 400) {
       throw new Error("Draft content is too short after revision.");
     }
 
-    const slug = await ensureUniqueSlug(finalDraft.title);
+    const slug = await ensureUniqueSlug(currentDraft.title);
 
     let coverImage: string | null = null;
     if (queueEntry.universe_id) {
       console.log(`🖼️ Attaching universe cover from ${queueEntry.universe_id}...`);
       let coverTitle: string | null = null;
       try {
-        coverTitle = await buildShortCoverTitle(finalDraft.title, topic);
+        coverTitle = await buildShortCoverTitle(currentDraft.title, topic);
       } catch (titleError) {
         console.warn("⚠️ Cover title generation failed:", titleError instanceof Error ? titleError.message : String(titleError));
       }
       coverImage = await uploadUniverseCoverImage(queueEntry.universe_id, slug, coverTitle);
     }
 
-    const article = await insertArticleDraft(finalDraft, {
+    const article = await insertArticleDraft(currentDraft, {
       slug,
       universeId: queueEntry.universe_id,
       coverImage
@@ -2030,6 +2100,7 @@ async function main() {
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
 
+    let articleContentForCleanup = currentDraft.content_md;
     const imageUploadResult = await uploadSourceImagesForArticle({
       articleId: article.id,
       slug,
@@ -2038,12 +2109,14 @@ async function main() {
     console.log(`source_images_uploaded=${imageUploadResult.uploaded}`);
 
     if (imageUploadResult.images.length > 0) {
-      let articleContentForCleanup = finalDraft.content_md;
       try {
-        const withImages = await reviseArticleWithImages(finalDraft, imageUploadResult.images);
+        const withImages = await reviseArticleWithImages(currentDraft, imageUploadResult.images);
         const updated = await updateArticleContent(article.id, withImages);
         console.log(`images_injected word_count=${estimateWordCount(withImages.content_md)} updated=${updated}`);
-        articleContentForCleanup = withImages.content_md;
+        if (updated) {
+          currentDraft = withImages;
+          articleContentForCleanup = withImages.content_md;
+        }
       } catch (imageError) {
         console.warn("⚠️ Failed to inject images into article:", imageError instanceof Error ? imageError.message : String(imageError));
       }
@@ -2053,6 +2126,13 @@ async function main() {
         contentMd: articleContentForCleanup,
         images: imageUploadResult.images
       });
+    }
+
+    const cleanedDraft = removeEmDashesFromDraft(currentDraft);
+    const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
+    console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
+    if (cleanedUpdated) {
+      currentDraft = cleanedDraft;
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);
