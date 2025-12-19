@@ -587,9 +587,13 @@ async function resolveExperience(placeId?: number | null, universeIdHint?: numbe
     const res = await fetchRobloxJson<{ universeId?: number }>(
       `https://apis.roblox.com/universes/v1/places/${placeId}/universe`
     );
-    if (res.ok && res.data?.universeId) {
-      universeId = res.data.universeId;
-      sources.add("roblox");
+    if (res.ok) {
+      if (res.data?.universeId) {
+        universeId = res.data.universeId;
+        sources.add("roblox");
+      } else {
+        addWarning(warnings, "Roblox did not return a universe for this place ID.");
+      }
     } else if (res.rateLimited) {
       noteRateLimit(warnings);
     } else {
