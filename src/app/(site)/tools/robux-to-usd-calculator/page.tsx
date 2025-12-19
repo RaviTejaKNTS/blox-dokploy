@@ -200,15 +200,17 @@ export default async function RobloxPurchasePage() {
         ) : null}
       </header>
 
-      <RobuxPurchaseClient
-        bundles={bundles}
-        initialRobuxTarget={DEFAULT_TARGET_ROBUX}
-        initialUsdTarget={DEFAULT_TARGET_USD}
-        initialHasPremium={DEFAULT_HAS_PREMIUM}
-        initialRobuxPlan={initialRobuxPlan}
-        initialValuePlan={initialValuePlan}
-        initialBudgetPlan={initialBudgetPlan}
-      />
+      <div className="mt-8">
+        <RobuxPurchaseClient
+          bundles={bundles}
+          initialRobuxTarget={DEFAULT_TARGET_ROBUX}
+          initialUsdTarget={DEFAULT_TARGET_USD}
+          initialHasPremium={DEFAULT_HAS_PREMIUM}
+          initialRobuxPlan={initialRobuxPlan}
+          initialValuePlan={initialValuePlan}
+          initialBudgetPlan={initialBudgetPlan}
+        />
+      </div>
 
       {(descriptionHtml.length || howHtml || faqHtml.length) ? (
         <div className="space-y-6">

@@ -3,12 +3,13 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
-import { ForgeCalculatorClient } from "./ForgeCalculatorClient";
+import { RobloxIdExtractorClient } from "./RobloxIdExtractorClient";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const revalidate = 3600;
 
-const TOOL_CODE = "the-forge-crafting-calculator";
-const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/the-forge-crafting-calculator`;
+const TOOL_CODE = "roblox-id-extractor";
+const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/${TOOL_CODE}`;
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
 
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
@@ -29,7 +30,20 @@ async function buildToolContent(): Promise<{
   descriptionHtml: Array<{ key: string; html: string }>;
   faqHtml: Array<{ q: string; a: string }>;
 }> {
-  const tool = (await getToolContent(TOOL_CODE)) ?? null;
+  let tool = (await getToolContent(TOOL_CODE)) ?? null;
+
+  // Dev fallback: allow draft content to render locally even if not published.
+  if (!tool && process.env.NODE_ENV !== "production") {
+    const supabase = supabaseAdmin();
+    const { data } = await supabase
+      .from("tools")
+      .select(
+        "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at"
+      )
+      .eq("code", TOOL_CODE)
+      .maybeSingle();
+    tool = (data as ToolContent | null) ?? null;
+  }
   const introHtml = tool?.intro_md ? await renderMarkdown(tool.intro_md) : "";
   const howHtml = tool?.how_it_works_md ? await renderMarkdown(tool.how_it_works_md) : "";
 
@@ -48,15 +62,31 @@ async function buildToolContent(): Promise<{
       a: await renderMarkdown(entry.a ?? "")
     }))
   );
-  return { tool, introHtml, howHtml, descriptionHtml, faqHtml };
+
+  return {
+    tool,
+    introHtml,
+    howHtml,
+    descriptionHtml,
+    faqHtml
+  };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const tool = await getToolContent(TOOL_CODE);
+  let tool = await getToolContent(TOOL_CODE);
+  if (!tool && process.env.NODE_ENV !== "production") {
+    const supabase = supabaseAdmin();
+    const { data } = await supabase
+      .from("tools")
+      .select(
+        "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at"
+      )
+      .eq("code", TOOL_CODE)
+      .maybeSingle();
+    tool = (data as ToolContent | null) ?? null;
+  }
   if (!tool) {
     return {
-      title: "The Forge Crafting Calculator",
-      description: "Plan your ores for The Forge and see weapon or armor probabilities, multipliers, and trait activations.",
       alternates: { canonical: CANONICAL }
     };
   }
@@ -92,20 +122,30 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function ForgeCalculatorPage() {
+export default async function RobloxIdExtractorPage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
   const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
   const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
-  const fallbackIntro =
-    "Plan your crafts for The Forge. Pick ores (up to four types), see weapon or armor odds, total multiplier, and which traits will transfer.";
+
+  const faqSchema =
+    (tool?.faq_json?.length ?? 0) > 0
+      ? tool!.faq_json.map((entry) => ({
+          "@type": "Question",
+          name: entry.q,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: entry.a
+          }
+        }))
+      : [];
 
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "WebPage",
-        name: tool?.title ?? "The Forge Crafting Calculator",
-        description: tool?.meta_description ?? "Plan Forge crafts with ore multipliers, class odds, and traits.",
+        name: tool?.title ?? undefined,
+        description: tool?.meta_description ?? undefined,
         url: CANONICAL,
         datePublished: publishedTime ? new Date(publishedTime).toISOString() : undefined,
         dateModified: modifiedTime ? new Date(modifiedTime).toISOString() : undefined,
@@ -114,18 +154,26 @@ export default async function ForgeCalculatorPage() {
           itemListElement: [
             { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
             { "@type": "ListItem", position: 2, name: "Tools", item: `${SITE_URL.replace(/\/$/, "")}/tools` },
-            { "@type": "ListItem", position: 3, name: tool?.title ?? "The Forge Crafting Calculator" }
+            { "@type": "ListItem", position: 3, name: tool?.title ?? "Tool" }
           ]
         },
         mainEntity: {
           "@type": "WebApplication",
-          name: tool?.title ?? "The Forge Crafting Calculator",
-          description: tool?.meta_description ?? "Forge calculator with ore multipliers, class odds, and trait activation.",
-          applicationCategory: "Calculator",
+          name: tool?.title ?? undefined,
+          description: tool?.meta_description ?? undefined,
+          applicationCategory: "Utility",
           operatingSystem: "Web",
           url: CANONICAL
         }
-      }
+      },
+      ...(faqSchema.length
+        ? [
+            {
+              "@type": "FAQPage",
+              mainEntity: faqSchema
+            }
+          ]
+        : [])
     ]
   };
 
@@ -147,24 +195,22 @@ export default async function ForgeCalculatorPage() {
             <span className="text-muted/60">&gt;</span>
           </li>
           <li className="flex items-center gap-2">
-            <span className="font-semibold text-foreground/80">{tool?.title ?? "The Forge Crafting Calculator"}</span>
+            <span className="font-semibold text-foreground/80">{tool?.title ?? "Tool"}</span>
           </li>
         </ol>
       </nav>
 
       <header className="space-y-3">
         <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          {tool?.title ?? "The Forge Crafting Calculator"}
+          {tool?.title ?? "Roblox ID Extractor"}
         </h1>
         {introHtml ? (
           <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
-        ) : (
-          <p className="max-w-3xl text-base text-muted md:text-lg">{fallbackIntro}</p>
-        )}
+        ) : null}
       </header>
 
       <div className="mt-8">
-        <ForgeCalculatorClient />
+        <RobloxIdExtractorClient />
       </div>
 
       {(descriptionHtml.length || howHtml || faqHtml.length) ? (
