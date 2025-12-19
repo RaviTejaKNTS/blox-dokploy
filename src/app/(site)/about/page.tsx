@@ -3,7 +3,7 @@ import "@/styles/article-content.css";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "About Bloxodes.com";
-const description = "Learn how Bloxodes.com helps Roblox players find reliable, up-to-date codes.";
+const description = "Learn how Bloxodes.com grew from a Robux calculator into a Roblox hub for tools, checklists, live lists, codes, and guides.";
 const canonical = `${SITE_URL.replace(/\/$/, "")}/about`;
 const ogImage = `${SITE_URL}/og-image.png`;
 
@@ -47,86 +47,128 @@ export default function AboutPage() {
         <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">About Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
-            Bloxodes.com was created with a simple purpose: to help Roblox players find the latest working codes for their favorite games
-            quickly, safely, and without confusion. We know how frustrating it can be to waste time on expired or misleading codes, so our
-            site is built to provide accurate, clear, and up-to-date information in one trusted place.
+            Today, Bloxodes is a growing Roblox hub with tools, checklists, live lists, codes, and reference pages designed to keep players
+            informed and prepared.
           </p>
         </header>
 
         <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How Bloxodes Started</h2>
+          <p>
+            Bloxodes began because I just wanted to buy a purple hat that costed 788 Robux. I just wanted to know how much it would cost me
+            in real money. However, most online Robux calculators are just doing a fixed Robux to USD calculation. But Robux offers various
+            packages and price to Robux ratio changes based on the package you choose. So instead of making the calculation on paper, I took
+            this like side project and build the tool that actually considers Robux to USD conversion based on the packages.
+          </p>
+          <p>
+            When it worked, I figured others might find it useful too, so I put it online.
+          </p>
+          <p>
+            Slowly, we added more and more to the platform. I partnered with my friends who play Roblox and we dabbed into providing Roblox
+            Codes and wanted to make the site a codes hub. Now it is slowly turning into a full Roblox platform with guides, checklists, live
+            lists, and many other tools.
+          </p>
+          <p>What started as a tiny calculator has turned into a platform.</p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What Bloxodes Is Today</h2>
+          <p>Bloxodes is a Roblox Hub that is growing, expanding and keeps on updating as games get updated and info gets changed.</p>
+          <p>Here is what you will find here:</p>
+          <ul className="list-disc pl-6">
+            <li>
+              <strong>
+                <a href="/tools">Tools &amp; calculators</a>
+              </strong>
+              : We build calculators and helpers that save time, especially in games with crafting, RNG, upgrades, trading, and economies.
+              When a tool gives you a result, we aim to show a clear breakdown so you understand where the number came from (not a "black
+              box" result). We also openly share the data we use for our calculators and formulas we use for calculations.
+            </li>
+            <li>
+              <strong>
+                <a href="/checklists">Interactive checklists</a>
+              </strong>
+              : Some Roblox games get chaotic fast. Checklists turn that chaos into a path. Our checklists help you track progress across
+              quests, items, upgrades, regions, and milestones, so you always know what you have done and what is next. Currently, we are
+              storing these directly on your browser.
+            </li>
+            <li>
+              <strong>
+                <a href="/lists">Live lists &amp; rankings</a>
+              </strong>
+              : Roblox trends move fast. A game that is huge today can disappear tomorrow. Our live lists are built to show what players are
+              actually playing right now, using real Roblox data (not votes or opinions). They are meant for discovery: "What should I play
+              next?" and "What is blowing up today?".
+            </li>
+            <li>
+              <strong>
+                <a href="/codes">Roblox Game Codes</a>
+              </strong>
+              : We also cover Roblox game codes because who would not love some freebies in games directly from the developers. We have a
+              system to check the developer social handles and then we manually verify and update the codes regularly. We remove the expired
+              ones that do not work anymore.
+            </li>
+            <li>
+              <strong>Catalog pages (free items, IDs, and more)</strong>: We are expanding Bloxodes into a proper Roblox reference hub,
+              including catalog-style pages such as: free items and limited-time rewards, music IDs / audio IDs, decals, animations, and other
+              ID libraries. We also list specific game related items and everything.
+            </li>
+          </ul>
+          <p>
+            The goal is simple: make Bloxodes the place you check when you need something specific related to Bloxodes either that is for
+            latest active codes, tools that help you calculate and plan, checklists that keeps track of your gameplay progress from start to
+            end, lists you can use to find and discover new games and even experience based guides across the Roblox games.
+          </p>
+        </section>
+
+        <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Who We Are</h2>
           <p>
-            We are an independent project run by a small team of editors and developers who love Roblox and gaming communities. Our focus is
-            entirely on delivering value to players through reliable guides and regularly updated code lists. We are not affiliated with
-            Roblox Corporation or any specific game developer. Instead, we operate independently to give players a trustworthy alternative
-            to cluttered or misleading code websites.
+            We are a small team of six people working on Bloxodes. Some of us write, some of us code, and all of us play Roblox. Together, we
+            build tools, maintain guides, update codes, and keep the platform growing.
           </p>
           <p>
-            You can also get to know the people behind Bloxodes on our{' '}
-            <a href="https://bloxodes.com/authors" target="_blank" rel="noopener noreferrer">
-              Authors Page
-            </a>
-            . There, you’ll find our editors and contributors, each specializing in different Roblox genres, from simulators and RPGs to
-            competitive experiences. Every author maintains a personal portfolio so you can explore their latest work.
+            You can meet our full team on our <a href="/authors">Authors Page</a>, where each member has their own profile and list of guides
+            they cover.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What We Do</h2>
-          <p>At Bloxodes.com, we:</p>
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How We Keep Things Accurate</h2>
+          <p>We know Roblox related info can get outdated quickly, like the codes expire, mechanics change, and trends shift overnight.</p>
+          <p>So we built Bloxodes around freshness and clarity.</p>
+          <p>Here is how we work:</p>
           <ul className="list-disc pl-6">
-            <li>Track Roblox games with active code systems.</li>
-            <li>Verify and update codes using official developer sources like Twitter/X, Discord, and in-game announcements.</li>
-            <li>Separate codes into <strong>Active</strong>, <strong>Expired</strong>, and <strong>Check/Uncertain</strong> so players always know the status of each code.</li>
-            <li>Provide <strong>How to Redeem</strong> guides and troubleshooting tips for each game so new players can follow along easily.</li>
-            <li>Update pages frequently so you never miss out on the latest rewards.</li>
+            <li>We track official sources (like developer announcements on Discord, X/Twitter, and in-game updates) for codes and major changes.</li>
+            <li>We keep "last checked / last updated" timestamps visible so you can tell how recent something is.</li>
+            <li>We separate active vs expired info so you do not waste time.</li>
+            <li>For tools, we try to explain assumptions and show the formula or logic in normal language.</li>
+            <li>Reader feedback matters. If you spot something wrong, we want to hear it.</li>
           </ul>
-          <p>Our content is written in plain, easy-to-understand language so players of all ages can benefit from it.</p>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How We Work</h2>
           <p>
-            Our site uses a combination of automation and editorial review. Automated tools help us detect when new codes are released, while
-            editors verify information before it goes live. We make sure each article includes a <strong>last updated</strong> date so you know
-            how fresh the information is.
-          </p>
-          <p>
-            We also rely on reader feedback. If you notice an expired or incorrect code, you can reach out directly via our{' '}
-            <a href="https://bloxodes.com/contact" target="_blank" rel="noopener noreferrer">
-              Contact Page
-            </a>{' '}
-            or by emailing us at <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>. Every report is reviewed, and valid
-            corrections are applied as quickly as possible.
+            If you find an incorrect code, wrong value, or missing entry, you can reach out via our <a href="/contact">Contact page</a> or
+            email us at <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Independence and Trust</h2>
-          <p>
-            Bloxodes.com is a <strong>fan-made project</strong>. We do not sell codes, ask for your Roblox login, or promise rewards beyond
-            what developers officially release. Our independence means our priority is always to the players. We are committed to honesty,
-            accuracy, and transparency in everything we publish.
-          </p>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Our Commitment</h2>
-          <p>We aim to be more than just another codes site. Our goal is to build a platform that:</p>
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">What We Will Never Do</h2>
+          <p>This matters, because the Roblox space has a lot of scammy sites.</p>
+          <p>Bloxodes is built to be safe and straightforward:</p>
           <ul className="list-disc pl-6">
-            <li>Keeps Roblox players informed with the latest codes.</li>
-            <li>Offers clear instructions to redeem rewards without confusion.</li>
-            <li>Operates with full respect for user privacy and safety.</li>
-            <li>Stays independent, transparent, and reliable.</li>
+            <li>We do not sell codes.</li>
+            <li>We do not ask for your Roblox password or login.</li>
+            <li>We do not promise "free Robux" or fake rewards.</li>
+            <li>We do not claim to be affiliated with Roblox or any game developer.</li>
           </ul>
+          <p>
+            Bloxodes is fan-made and independent. Roblox is owned by Roblox Corporation, and we are not connected to them.
+          </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Final Word</h2>
           <p>
-            Bloxodes.com is here to make your Roblox experience more rewarding and less frustrating. By providing verified codes,
-            easy-to-follow guides, and consistent updates, we hope to be your go-to resource whenever you’re looking for Roblox game
-            rewards. Thank you for trusting us—we’re here to help you get the most out of your playtime.
+            Thanks for being here, and thanks for helping us build this into something genuinely useful.
           </p>
         </section>
 

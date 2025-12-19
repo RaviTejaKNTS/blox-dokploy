@@ -30,7 +30,8 @@
     "generate:universe-description": "tsx scripts/generate-universe-description.ts",
     "post:vibes": "tsx scripts/post-roblox-vibes.ts",
     "backfill:interlinking": "tsx scripts/backfill-interlinking.ts",
-    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts"
+    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts",
+    "lists:update-copy": "tsx scripts/update-game-list-copy.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
