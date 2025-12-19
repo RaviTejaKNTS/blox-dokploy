@@ -1157,6 +1157,22 @@ export async function listPublishedChecklistsPage(
         return { checklists: rows, total: count ?? rows.length };
       } catch (error: any) {
         if (error?.code !== "42703") throw error;
+        const { data: viewData, count: viewCount, error: viewError } = await sb
+          .from("checklist_pages_view")
+          .select(
+            "id, slug, title, description_md, seo_description, published_at, updated_at, created_at, item_count, leaf_item_count, universe, universe_id",
+            { count: "exact" }
+          )
+          .eq("is_public", true)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
+
+        if (!viewError) {
+          const rows = (viewData ?? []) as ChecklistSummaryRow[];
+          return { checklists: rows, total: viewCount ?? rows.length };
+        }
+
+        if (viewError?.code !== "42703") throw viewError;
         // Fallback for schemas missing view columns: include universe icon via join
         const { data, count, error: fallbackError } = await sb
           .from("checklist_pages")

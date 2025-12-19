@@ -126,11 +126,6 @@ function ChecklistsPageView({
             <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
               {total} checklists published
             </span>
-            {totalItems > 0 ? (
-              <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-                {totalItems} total items tracked
-              </span>
-            ) : null}
             {refreshedLabel ? (
               <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
                 Last updated {refreshedLabel}
