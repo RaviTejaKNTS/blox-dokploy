@@ -78,6 +78,7 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const AUTHOR_ID = process.env.ARTICLE_AUTHOR_ID ?? "4fc99a58-83da-46f6-9621-7816e36b4088";
 const SUPABASE_MEDIA_BUCKET = process.env.SUPABASE_MEDIA_BUCKET;
 const SITE_URL = (process.env.SITE_URL ?? "https://bloxodes.com").replace(/\/$/, "");
+const LOG_DRAFT_PROMPT = process.env.LOG_DRAFT_PROMPT === "true";
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE.");
@@ -1153,9 +1154,9 @@ function buildArticlePrompt(topic: string, sources: SourceDocument[]): string {
   return `
 Use the research below to write a Roblox article.
 
-Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing is Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
+Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing their Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
 
-Start with an small intro that hooks the audience into reading the entire article. Keep it direct, focused and on-point. Write a unique, conventional and on point intro that's very human and relatable. Do not repeat the same info template again and again. 
+Start with an small intro that hooks the audience into reading the entire article. Keep it direct, focused and on-point. Write a unique, unconventional and on point intro that's very human and relatable. Do not repeat the same info template again and again. 
 Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally. This should be just a small para only covering the most important aspect like in 2-3 lines long. Instead you can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
 After that, start with a H2 heading and then write the main content following these rules:
@@ -1163,16 +1164,15 @@ After that, start with a H2 heading and then write the main content following th
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
  - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
+ - Headings should be conversational like a casual sentence talking to the user. No need for title cases or anything like that. Just write like a casual sentence.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
  - Use full sentences and explain things clearly without any repetations or useless information. 
  - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
- - Use numbered steps when explaining a process.  
- - Before any tables, bullet points, or steps, write a short paragraph that sets the context.
- - Write first-hand experience like roblox player sharing their knowledge/experience. Do not directly state it, instead you can talk like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable.
- - Share these moments naturally to build connection with the reader. Also write things that only a player who played the game would know.
- - Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
+ - Use numbered steps when explaining a process.
+ - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
+ - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
  Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
 
@@ -1186,58 +1186,6 @@ Return JSON:
   "content_md": "Full Markdown article"
   }
   `.trim();
-}
-
-async function buildArticlePromptWithSonar(topic: string, sources: SourceDocument[]): Promise<string> {
-  const sourceBlock = formatSourcesForPrompt(sources);
-  const sonarPrompt = `
-Create a single, detailed prompt that I can give to an AI model to write a Roblox article. Include all the requirements. Definitely make sure to tell the article should be in simple english, conversation like and easy to understand flow. Do not include your details about prompt writing in the output. Just give me the prompt directly.
-
-Topic: "${topic}"
-
-Use all the research below to tune the prompt:
-${sourceBlock}
-
-Requirements in the article so you need to tune the prompt accordingly: 
-
-1. Article needs to be simple english and easy to understand style. Use a conversational tone like a professional Roblox gaming writer sharing is Roblox knowledge/experience.
-2. Needs to be factual, grounded, engaging and helpful. The article should flow like a story from start to end.
-3. Should explain everything related to the topic in depth
-4. Should not drag the article and need to be as less words as possible. 
-5. Use H2 headings and then H3 Headings. However use only when it drives the narrative forward. This less number of headings will help user to understand the entire structure easily. Also Headings should be conversational like a casual sentence talking to the user.  
-6. No need for title, start with intro directly. 
-7. Intro should be unique to the article topic and need to be small and should hook the reader. Keep things grounded and simple.
-8. Right after the intro, give a small section with no headings that give away everything user needs to know for their search intent. Can write like just 2-3 lines in para format or use 2-3 bullet points whichever works best for the topic. Prefer paras mostly. Start with section with something like "First things first" or "Here's a quick answer" or anything that flows naturally. 
-9. Entire article should be written in full sentences, engaging with as less words as possible. 
-10. Write first-hand experience like roblox player sharing their knowledge/experience. Do not directly state it, instead you can talk like "It took 4 trials for me" or "I found this particularly helpful during my first week" to make it feel personal and relatable.
-11. When writing, you can casually use words like I, You and explain things in a simple way that everyone can understand. 
-12. Do not use any AI-ish anecdotes like "This is not just X, this is also y". Just talk directly without enthusiasm and less hype. Keep things grounded and natual.  
-13. Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc. Use numbered steps when explaining a process. 
-14. Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. 
-15. Conclude the answer with a short friendly takeaway that leaves the reader feeling guided and confident. No generic heading like Final Thoughts or Outro is needed. 
-17. Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. The idea is to create an editorial article that values people's time and help them love reading with flow rather than just a information dump. 
-18. Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. This step is very important. 
-
-Just directly start and give me the prompt and nothing more. Instead of just a vague prompt, you can include what can be said in the intro that's very small but hooking, what examples can be considered to state them. Give a line or two about the topics that need to be included.  And ask the AI model to feel free to experiment to make the article perfect.`.trim();
-
-  try {
-    const completion = await perplexity.chat.completions.create({
-      model: "sonar",
-      temperature: 0.2,
-      max_tokens: 600,
-      messages: [
-        { role: "system", content: "Return only the crafted prompt text, nothing else." },
-        { role: "user", content: sonarPrompt }
-      ]
-    });
-
-    const generated = completion.choices[0]?.message?.content?.trim();
-    if (generated) return generated;
-  } catch (error) {
-    console.warn("⚠️ Sonar prompt generation failed:", error instanceof Error ? error.message : String(error));
-  }
-
-  return buildArticlePrompt(topic, sources);
 }
 
 async function draftArticle(prompt: string): Promise<DraftArticle> {
@@ -1599,9 +1547,7 @@ async function interlinkArticleWithRelatedPages(
   const pageBlock = pages
     .map(
       (page, idx) =>
-        `PAGE ${idx + 1}\nType: ${page.type}\nTitle: ${page.title}\nURL: ${page.url}\nDetails: ${page.description ?? "n/a"}\nUpdated: ${
-          page.updatedAt ?? "n/a"
-        }`
+        `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`
     )
     .join("\n\n");
 
@@ -2035,8 +1981,12 @@ async function main() {
     const verifiedSources = await verifySources(topic, collectedSources);
     console.log(`sources_verified=${verifiedSources.length}`);
 
-    const prompt = await buildArticlePromptWithSonar(topic, verifiedSources);
-    console.log(`draft_prompt=\n${prompt}`);
+    const prompt = buildArticlePrompt(topic, verifiedSources);
+    if (LOG_DRAFT_PROMPT) {
+      console.log(`draft_prompt=\n${prompt}`);
+    } else {
+      console.log(`draft_prompt_ready chars=${prompt.length} sources=${verifiedSources.length}`);
+    }
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
