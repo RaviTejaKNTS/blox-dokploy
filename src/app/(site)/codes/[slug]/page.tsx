@@ -16,6 +16,7 @@ import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { ToolCard } from "@/components/ToolCard";
 import { SocialShare } from "@/components/SocialShare";
+import { ContentSlot } from "@/components/ContentSlot";
 import dynamic from "next/dynamic";
 import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
@@ -766,13 +767,18 @@ export default async function GamePage({ params }: Params) {
           />
         </div>
 
+        <ContentSlot slot="1622145724" className="mb-8" />
+
         {redeemHtml ? (
-          <section className="mb-8" id="redeem" itemProp="articleBody">
-            <div
-              className="prose dark:prose-invert max-w-none game-copy"
-              dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)}
-            />
-          </section>
+          <>
+            <section className="mb-8" id="redeem" itemProp="articleBody">
+              <div
+                className="prose dark:prose-invert max-w-none game-copy"
+                dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)}
+              />
+            </section>
+            <ContentSlot slot="1622145724" className="mb-8" />
+          </>
         ) : null}
         {interlinkHtml ? (
           <section className="mb-8" id="more-games">
@@ -789,12 +795,15 @@ export default async function GamePage({ params }: Params) {
         {hasSupplemental ? (
           <>
             {troubleshootHtml ? (
-              <section className="mb-8" id="troubleshoot">
-                <div
-                  className="prose dark:prose-invert max-w-none game-copy"
-                  dangerouslySetInnerHTML={processHtmlLinks(troubleshootHtml)}
-                />
-              </section>
+              <>
+                <section className="mb-8" id="troubleshoot">
+                  <div
+                    className="prose dark:prose-invert max-w-none game-copy"
+                    dangerouslySetInnerHTML={processHtmlLinks(troubleshootHtml)}
+                  />
+                </section>
+                <ContentSlot slot="1622145724" className="mb-8" />
+              </>
             ) : null}
 
             {rewardsHtml ? (
@@ -982,6 +991,14 @@ export default async function GamePage({ params }: Params) {
       {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0) ? (
         <aside className="space-y-4">
           <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
+          <ContentSlot
+            slot="4767824441"
+            className="w-full"
+            adLayout={null}
+            adFormat="auto"
+            fullWidthResponsive
+            minHeight="clamp(280px, 40vw, 600px)"
+          />
 
           {relatedChecklistCards.length ? (
             <section className="space-y-3">

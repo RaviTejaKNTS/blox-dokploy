@@ -33,6 +33,8 @@ import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ToolCard } from "@/components/ToolCard";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
+import { ContentSlot } from "@/components/ContentSlot";
+import { buildArticleContentBlocks } from "@/lib/ad-placement";
 
 export const revalidate = 604800; // weekly
 
@@ -198,6 +200,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
   };
 
   const processedArticleHtml = processHtmlLinks(articleHtml);
+  const articleBlocks = buildArticleContentBlocks(processedArticleHtml.__html);
   const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
 
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
@@ -292,10 +295,17 @@ async function renderArticlePage(article: ArticleWithRelations) {
         </header>
 
         <section id="article-body" itemProp="articleBody">
-          <div
-            className="prose dark:prose-invert max-w-none game-copy"
-            dangerouslySetInnerHTML={processedArticleHtml}
-          />
+          {articleBlocks.map((block, index) =>
+            block.type === "html" ? (
+              <div
+                key={`article-chunk-${index}`}
+                className="prose dark:prose-invert max-w-none game-copy"
+                dangerouslySetInnerHTML={{ __html: block.html }}
+              />
+            ) : (
+              <ContentSlot key={`article-ad-${index}`} slot="1622145724" className="my-8" />
+            )
+          )}
         </section>
 
         {article.author ? (
@@ -314,6 +324,14 @@ async function renderArticlePage(article: ArticleWithRelations) {
         <section className="space-y-3">
           <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
         </section>
+        <ContentSlot
+          slot="4767824441"
+          className="w-full"
+          adLayout={null}
+          adFormat="auto"
+          fullWidthResponsive
+          minHeight="clamp(280px, 40vw, 600px)"
+        />
 
         {relatedCodes.length ? (
           <section className="space-y-3">

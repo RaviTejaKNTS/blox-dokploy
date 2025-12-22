@@ -3,6 +3,7 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent } from "@/lib/tools";
+import { ContentSlot } from "@/components/ContentSlot";
 import { loadCropDataset } from "@/lib/grow-a-garden/crops";
 import { GrowGardenCropValueCalculatorClient } from "./GrowGardenCropValueCalculatorClient";
 import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
@@ -14,6 +15,7 @@ export const revalidate = 3600; // 1 hour to pick up Supabase edits sooner
 const TOOL_CODE = "grow-a-garden-crop-value-calculator";
 const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/${TOOL_CODE}`;
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
+const TOOL_AD_SLOT = "3529946151";
 
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
   return Object.entries(description ?? {}).sort((a, b) => {
@@ -172,10 +174,24 @@ export default async function GrowGardenCropValueCalculatorPage() {
           ) : null}
         </header>
 
+        <ContentSlot
+          slot={TOOL_AD_SLOT}
+          className="w-full"
+          adLayout={null}
+          adFormat="auto"
+          fullWidthResponsive
+        />
         <GrowGardenCropValueCalculatorClient
           crops={cropDataset.crops}
           variants={GAG_VARIANTS}
           mutations={GAG_MUTATIONS}
+        />
+        <ContentSlot
+          slot={TOOL_AD_SLOT}
+          className="my-8 w-full"
+          adLayout={null}
+          adFormat="auto"
+          fullWidthResponsive
         />
 
         {(descriptionHtml?.length || howHtml || (faqHtml && faqHtml.length)) ? (
@@ -195,29 +211,46 @@ export default async function GrowGardenCropValueCalculatorPage() {
             ) : null}
 
             {faqHtml && faqHtml.length ? (
-              <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">FAQ</h3>
-                <div className="mt-3 space-y-4">
-                  {faqHtml.map((item, idx) => (
-                    <div
-                      key={`${item.q}-${idx}`}
-                      className="rounded-xl border border-border/40 bg-background/60 p-4"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
-                        <p className="text-base font-semibold text-foreground">{item.q}</p>
-                      </div>
+              <>
+                <ContentSlot
+                  slot={TOOL_AD_SLOT}
+                  className="w-full"
+                  adLayout={null}
+                  adFormat="auto"
+                  fullWidthResponsive
+                />
+                <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-foreground">FAQ</h3>
+                  <div className="mt-3 space-y-4">
+                    {faqHtml.map((item, idx) => (
                       <div
-                        className="prose mt-2 text-[0.98rem] text-foreground/90"
-                        dangerouslySetInnerHTML={{ __html: item.a }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </section>
+                        key={`${item.q}-${idx}`}
+                        className="rounded-xl border border-border/40 bg-background/60 p-4"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                          <p className="text-base font-semibold text-foreground">{item.q}</p>
+                        </div>
+                        <div
+                          className="prose mt-2 text-[0.98rem] text-foreground/90"
+                          dangerouslySetInnerHTML={{ __html: item.a }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
             ) : null}
           </div>
         ) : null}
+
+        <ContentSlot
+          slot={TOOL_AD_SLOT}
+          className="mt-8 w-full"
+          adLayout={null}
+          adFormat="auto"
+          fullWidthResponsive
+        />
       </div>
     </>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GameListItem } from "@/components/GameListItem";
 import { SocialShare } from "@/components/SocialShare";
+import { ContentSlot } from "@/components/ContentSlot";
 import {
   getGameListBySlug,
   getGameListMetadata,
@@ -252,6 +253,15 @@ export function ListPageView({
   const page = Math.min(Math.max(1, currentPage), totalPages);
   const start = (page - 1) * PAGE_SIZE;
   const pageEntries = entries;
+  const adInsertPositions = new Set<number>();
+  const addAdPosition = (index: number) => {
+    if (index >= 0 && index < pageEntries.length) {
+      adInsertPositions.add(index);
+    }
+  };
+  addAdPosition(1);
+  addAdPosition(5);
+  addAdPosition(pageEntries.length - 1);
 
   const showIntroOutro = page === 1;
   const pageTitle = page === 1 ? list.title : `${list.title} - Page ${page}`;
@@ -399,11 +409,11 @@ export function ListPageView({
             </div>
           ) : (
             <div className="space-y-6">
-              {pageEntries.map((entry, index) => {
+              {pageEntries.flatMap((entry, index) => {
                 const extra = (entry?.extra ?? null) as { metric?: string } | null;
                 const rank = start + index + 1;
                 const metricLabel = extra?.metric;
-                return (
+                const nodes = [
                   <div
                     id={`list-entry-${entry.universe.universe_id}`}
                     key={entry.universe.universe_id}
@@ -411,7 +421,21 @@ export function ListPageView({
                   >
                     <GameListItem entry={entry} rank={rank} metricLabel={metricLabel} />
                   </div>
-                );
+                ];
+                if (adInsertPositions.has(index)) {
+                  nodes.push(
+                    <ContentSlot
+                      key={`list-ad-${entry.universe.universe_id}-${index}`}
+                      slot="3782879982"
+                      className="w-full"
+                      adLayout={null}
+                      adLayoutKey="-cc+6e-70-he+1wy"
+                      adFormat="fluid"
+                      minHeight={120}
+                    />
+                  );
+                }
+                return nodes;
               })}
             </div>
           )}
@@ -432,6 +456,14 @@ export function ListPageView({
           <div className="hidden lg:block">
             <SidebarNav slug={slug} entries={entries} />
           </div>
+          <ContentSlot
+            slot="4767824441"
+            className="w-full"
+            adLayout={null}
+            adFormat="auto"
+            fullWidthResponsive
+            minHeight="clamp(280px, 40vw, 600px)"
+          />
           {otherListCards.length ? (
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-foreground">Lists library</h2>

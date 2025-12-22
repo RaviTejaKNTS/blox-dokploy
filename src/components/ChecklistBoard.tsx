@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import clsx from "clsx";
 import { FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { ChecklistItem } from "@/lib/db";
+import { ContentSlot } from "@/components/ContentSlot";
 
 type SectionBlock = {
   code: string;
@@ -656,10 +657,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
             />
           </div>
         ) : null}
-        {groupedSections.map((group) => {
+        {groupedSections.flatMap((group, index) => {
           const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
           const categoryDescription = categoryDescriptions.get(group.topCode);
-          return (
+          const sectionNode = (
             <section
               key={`mobile-${group.topCode}`}
               className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-surface/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
@@ -787,6 +788,22 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
               </div>
             </section>
           );
+
+          if (index >= groupedSections.length - 1) {
+            return [sectionNode];
+          }
+
+          return [
+            sectionNode,
+            <ContentSlot
+              key={`mobile-ad-${group.topCode}`}
+              slot="1348288339"
+              className="w-full"
+              adLayout={null}
+              adFormat="auto"
+              fullWidthResponsive
+            />
+          ];
         })}
       </div>
     );
@@ -851,11 +868,13 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                 last.cols.push(col);
               }
             }
-            return groups.map((group) => {
+            const adWidth = isLargeScreen ? 400 : 320;
+
+            return groups.flatMap((group, index) => {
               const progress = progressByTopCode[group.topCode] ?? { total: 0, done: 0, percent: 0 };
               const categoryDescription = categoryDescriptions.get(group.topCode);
 
-              return (
+              const groupNode = (
                 <div key={`group-${group.topCode}`} className="flex flex-col gap-3">
                   <div className="space-y-1.5 px-1">
                     <h2 className="text-lg font-extrabold leading-snug text-foreground">
@@ -1048,6 +1067,27 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                   </div>
                 </div>
               );
+
+              if (index >= groups.length - 1) {
+                return [groupNode];
+              }
+
+              return [
+                groupNode,
+                <div
+                  key={`group-ad-${group.topCode}`}
+                  className="flex shrink-0 items-start"
+                  style={{ width: adWidth }}
+                >
+                  <ContentSlot
+                    slot="1348288339"
+                    className="w-full"
+                    adLayout={null}
+                    adFormat="auto"
+                    fullWidthResponsive
+                  />
+                </div>
+              ];
             });
           })()
         )}

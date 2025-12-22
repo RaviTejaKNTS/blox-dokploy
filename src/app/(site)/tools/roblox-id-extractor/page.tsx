@@ -3,6 +3,7 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
+import { ContentSlot } from "@/components/ContentSlot";
 import { RobloxIdExtractorClient } from "./RobloxIdExtractorClient";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -11,6 +12,7 @@ export const revalidate = 3600;
 const TOOL_CODE = "roblox-id-extractor";
 const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/tools/${TOOL_CODE}`;
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
+const TOOL_AD_SLOT = "3529946151";
 
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
   return Object.entries(description ?? {}).sort((a, b) => {
@@ -209,9 +211,23 @@ export default async function RobloxIdExtractorPage() {
         ) : null}
       </header>
 
+      <ContentSlot
+        slot={TOOL_AD_SLOT}
+        className="mt-8 w-full"
+        adLayout={null}
+        adFormat="auto"
+        fullWidthResponsive
+      />
       <div className="mt-8">
         <RobloxIdExtractorClient />
       </div>
+      <ContentSlot
+        slot={TOOL_AD_SLOT}
+        className="my-8 w-full"
+        adLayout={null}
+        adFormat="auto"
+        fullWidthResponsive
+      />
 
       {(descriptionHtml.length || howHtml || faqHtml.length) ? (
         <div className="space-y-6">
@@ -230,26 +246,43 @@ export default async function RobloxIdExtractorPage() {
           ) : null}
 
           {faqHtml.length ? (
-            <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
-              <div className="mt-3 space-y-4">
-                {faqHtml.map((faq, idx) => (
-                  <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
-                      <p className="text-base font-semibold text-foreground">{faq.q}</p>
+            <>
+              <ContentSlot
+                slot={TOOL_AD_SLOT}
+                className="w-full"
+                adLayout={null}
+                adFormat="auto"
+                fullWidthResponsive
+              />
+              <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
+                <div className="mt-3 space-y-4">
+                  {faqHtml.map((faq, idx) => (
+                    <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                        <p className="text-base font-semibold text-foreground">{faq.q}</p>
+                      </div>
+                      <div
+                        className="prose mt-2 text-[0.98rem] text-foreground/90"
+                        dangerouslySetInnerHTML={{ __html: faq.a }}
+                      />
                     </div>
-                    <div
-                      className="prose mt-2 text-[0.98rem] text-foreground/90"
-                      dangerouslySetInnerHTML={{ __html: faq.a }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            </>
           ) : null}
         </div>
       ) : null}
+
+      <ContentSlot
+        slot={TOOL_AD_SLOT}
+        className="mt-8 w-full"
+        adLayout={null}
+        adFormat="auto"
+        fullWidthResponsive
+      />
     </>
   );
 }
