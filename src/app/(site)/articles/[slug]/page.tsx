@@ -15,7 +15,8 @@ import {
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
-  howToJsonLd
+  howToJsonLd,
+  resolveSeoTitle
 } from "@/lib/seo";
 import {
   getArticleBySlug,
@@ -59,17 +60,18 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : `${SITE_URL}/og-image.png`;
   const description = (article.meta_description || markdownToPlainText(article.content_md)).trim() || SITE_DESCRIPTION;
+  const title = resolveSeoTitle(article.seo_title) ?? article.title;
   const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
 
   return {
-    title: article.title,
+    title,
     description,
     alternates: { canonical: canonicalUrl },
     category: universeName ?? "Gaming",
     openGraph: {
       type: "article",
       url: canonicalUrl,
-      title: article.title,
+      title,
       description,
       siteName: SITE_NAME,
       images: [coverImage],
@@ -79,7 +81,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: article.title,
+      title,
       description,
       images: [coverImage]
     }

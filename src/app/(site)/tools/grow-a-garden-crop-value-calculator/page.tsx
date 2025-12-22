@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent } from "@/lib/tools";
 import { loadCropDataset } from "@/lib/grow-a-garden/crops";
 import { GrowGardenCropValueCalculatorClient } from "./GrowGardenCropValueCalculatorClient";
@@ -64,7 +64,8 @@ async function buildContent() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const tool = await getToolContent(TOOL_CODE);
-  const title = tool?.seo_title || tool?.title || "Grow a Garden Crop Value Calculator";
+  const title =
+    resolveSeoTitle(tool?.seo_title) || tool?.title || "Grow a Garden Crop Value Calculator";
   const description =
     tool?.meta_description ||
     "Calculate Grow a Garden crop value using average value, weight, variants, and mutations with live breakdowns.";

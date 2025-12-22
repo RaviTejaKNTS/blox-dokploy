@@ -98,13 +98,19 @@ function getParam(searchParams: SearchParams | undefined, key: string): string {
   return value ?? "";
 }
 
+function normalizeParamValue(value: string): string {
+  const decoded = value.replace(/\+/g, " ");
+  return decoded.trim().toLowerCase();
+}
+
 function sanitizeSearchTerm(value: string): string {
   return value.replace(/[%_,]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
 function normalizeOption(value: string, options: Array<{ value: string }>, fallback: string): string {
-  const match = options.find((option) => option.value === value);
-  return match ? value : fallback;
+  const normalized = normalizeParamValue(value);
+  const match = options.find((option) => normalizeParamValue(option.value) === normalized);
+  return match ? match.value : fallback;
 }
 
 export function parseMusicIdFilters(searchParams: SearchParams | undefined): MusicIdFilters {
@@ -140,6 +146,59 @@ function buildRobloxUrl(assetId: number): string {
   return `https://www.roblox.com/library/${assetId}`;
 }
 
+function GenreCarousel({ filters }: { filters: MusicIdFilters }) {
+  const activeGenre = filters.genre ?? "";
+  return (
+    <section className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Genres</p>
+          <p className="text-lg font-semibold text-foreground">Pick a vibe</p>
+        </div>
+        <span className="text-xs text-muted">Scroll to explore</span>
+      </div>
+      <div className="mt-4 -mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {GENRE_OPTIONS.map((option) => {
+          const isActive = activeGenre === option.value;
+          const query = buildQueryString({ ...filters, genre: option.value });
+          const href = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+          return (
+            <a
+              key={option.value || "all"}
+              href={href}
+              aria-current={isActive ? "true" : undefined}
+              className={`group relative min-w-[150px] snap-start overflow-hidden rounded-2xl border px-4 py-3 transition ${
+                isActive
+                  ? "border-accent bg-gradient-to-br from-accent/15 via-background to-surface shadow-soft"
+                  : "border-border/60 bg-gradient-to-br from-background/80 via-surface/70 to-surface-muted/60 hover:-translate-y-0.5 hover:border-accent/70"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`absolute inset-x-0 top-0 h-1 ${
+                  isActive ? "bg-accent" : "bg-accent/30 group-hover:bg-accent/60"
+                }`}
+              />
+              <div className="flex h-full flex-col gap-2">
+                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+                  <span>Genre</span>
+                  {isActive ? (
+                    <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                      Active
+                    </span>
+                  ) : null}
+                </div>
+                <span className="text-base font-semibold text-foreground">{option.label}</span>
+                <span className="text-xs text-muted">Explore tracks</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 async function loadPage(pageNumber: number, filters: MusicIdFilters): Promise<PageData> {
   const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
   const offset = (safePage - 1) * PAGE_SIZE;
@@ -156,7 +215,8 @@ async function loadPage(pageNumber: number, filters: MusicIdFilters): Promise<Pa
     query = query.or(`title.ilike.${like},artist.ilike.${like},album.ilike.${like}`);
   }
   if (filters.genre) {
-    query = query.ilike("genre", `%${filters.genre}%`);
+    const genrePattern = filters.genre.replace(/[^a-z0-9]+/gi, "%").replace(/%{2,}/g, "%");
+    query = query.ilike("genre", `%${genrePattern}%`);
   }
   if (filters.source) {
     query = query.eq("source", filters.source);
@@ -252,12 +312,15 @@ function RobloxMusicIdsPageView({
         </header>
       )}
 
+      <GenreCarousel filters={filters} />
+
       <form
         action={BASE_PATH}
         method="get"
         className="rounded-2xl border border-border/60 bg-surface p-5 shadow-soft"
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <input type="hidden" name="genre" value={filters.genre} />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
             Search
             <input
@@ -267,20 +330,6 @@ function RobloxMusicIdsPageView({
               placeholder="Title, artist, or album"
               className="h-11 rounded-lg border border-border/60 bg-background px-3 text-sm font-normal text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
-          </label>
-          <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            Genre
-            <select
-              name="genre"
-              defaultValue={filters.genre}
-              className="h-11 rounded-lg border border-border/60 bg-background px-3 text-sm font-normal text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
-            >
-              {GENRE_OPTIONS.map((option) => (
-                <option key={option.value || "all"} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </label>
           <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
             Source

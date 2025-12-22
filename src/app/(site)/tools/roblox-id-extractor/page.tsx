@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { RobloxIdExtractorClient } from "./RobloxIdExtractorClient";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -91,7 +91,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
-  const title = tool.seo_title ?? tool.title ?? undefined;
+  const title = resolveSeoTitle(tool.seo_title) ?? tool.title ?? undefined;
   const description = tool.meta_description ?? undefined;
   const image = tool.thumb_url || FALLBACK_IMAGE;
   const publishedTime = tool.published_at ?? tool.created_at;

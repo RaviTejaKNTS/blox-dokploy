@@ -35,7 +35,8 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
-  breadcrumbJsonLd
+  breadcrumbJsonLd,
+  resolveSeoTitle
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
@@ -335,7 +336,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     ? latestCodeFirstSeen
     : game.updated_at;
   const when = monthYear();
-  const title = game.seo_title || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
+  const title =
+    resolveSeoTitle(game.seo_title) || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
   const descriptionRaw =
     game.seo_description ||
     `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;

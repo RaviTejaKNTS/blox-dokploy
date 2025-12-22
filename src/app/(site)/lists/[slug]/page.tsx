@@ -9,7 +9,7 @@ import {
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle } from "@/lib/seo";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
@@ -80,7 +80,7 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
     ? markdownToPlainText(list.intro_md).slice(0, 160)
     : SITE_DESCRIPTION;
 
-  const titleBase = list.meta_title ?? list.title;
+  const titleBase = resolveSeoTitle(list.meta_title) ?? list.title;
   const title = page > 1 ? `${titleBase} - Page ${page} | ${SITE_NAME}` : `${titleBase} | ${SITE_NAME}`;
   const canonicalPath = page > 1 ? `/lists/${slug}/page/${page}` : `/lists/${slug}`;
   const canonical = `${SITE_URL}${canonicalPath}`;

@@ -6,7 +6,7 @@ import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!data) return {};
 
   const { page } = data;
-  const titleBase = page.seo_title ?? page.title;
+  const titleBase = resolveSeoTitle(page.seo_title) ?? page.title;
   const description =
     page.seo_description ||
     (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : SITE_DESCRIPTION);

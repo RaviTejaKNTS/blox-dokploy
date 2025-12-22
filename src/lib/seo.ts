@@ -7,6 +7,26 @@ export const SITE_URL = DEFAULT_SITE_URL;
 export const SITE_NAME = "Bloxodes";
 export const SITE_DESCRIPTION = "Find active and expired Roblox game codes with rewards, updated daily.";
 
+export function resolveSeoTitle(template?: string | null, now = new Date()): string | null {
+  if (!template) return null;
+  const trimmed = template.trim();
+  if (!trimmed) return null;
+
+  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(now);
+  const year = String(now.getFullYear());
+
+  return trimmed.replace(/%([a-z]+)%/gi, (match, token) => {
+    switch (token.toLowerCase()) {
+      case "month":
+        return month;
+      case "year":
+        return year;
+      default:
+        return match;
+    }
+  });
+}
+
 export function siteJsonLd({siteUrl}:{siteUrl:string}) {
   return {
     "@context": "https://schema.org",

@@ -70,6 +70,7 @@ export type RobloxUniverseInfo = {
 export type Article = {
   id: string;
   title: string;
+  seo_title?: string | null;
   slug: string;
   content_md: string;
   cover_image: string | null;
