@@ -3,13 +3,15 @@
 import { useState } from "react";
 
 type Tone = "accent" | "surface";
+type Size = "sm" | "md";
 
 type Props = {
   code: string;
   tone?: Tone;
+  size?: Size;
 };
 
-export function CopyCodeButton({ code, tone = "surface" }: Props) {
+export function CopyCodeButton({ code, tone = "surface", size = "md" }: Props) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -22,7 +24,9 @@ export function CopyCodeButton({ code, tone = "surface" }: Props) {
     }
   }
 
-  const baseClass = "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
+  const baseClass = size === "sm"
+    ? "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+    : "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
 
   const toneClass = tone === "accent"
     ? "border border-[#d7dcf5] bg-[#f1f3fc] text-[#202234] shadow-soft hover:border-[#c1c7ef] hover:bg-[#e6e9f8] dark:border-[#2a2c44] dark:bg-[#202234] dark:text-white dark:hover:border-[#35385a] dark:hover:bg-[#262845]"
@@ -41,7 +45,7 @@ export function CopyCodeButton({ code, tone = "surface" }: Props) {
     >
       <svg
         aria-hidden
-        className="h-3.5 w-3.5"
+        className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

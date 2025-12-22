@@ -23,6 +23,7 @@
     "links:backfill": "tsx scripts/backfill-social-links.ts",
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
+    "collect:music-ids": "tsx scripts/collect-roblox-music-ids.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
     "scrape:grow-garden-crops": "tsx scripts/scrape-grow-a-garden-crops.ts",
     "lists:refresh": "tsx scripts/refresh-game-lists.ts",
@@ -31,8 +32,7 @@
     "generate:universe-description": "tsx scripts/generate-universe-description.ts",
     "post:vibes": "tsx scripts/post-roblox-vibes.ts",
     "backfill:interlinking": "tsx scripts/backfill-interlinking.ts",
-    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts",
-    "lists:update-copy": "tsx scripts/update-game-list-copy.ts"
+    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

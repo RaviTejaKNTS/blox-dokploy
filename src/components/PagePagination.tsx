@@ -26,16 +26,19 @@ export function PagePagination({
   basePath,
   currentPage,
   totalPages,
-  className
+  className,
+  query
 }: {
   basePath: string;
   currentPage: number;
   totalPages: number;
   className?: string;
+  query?: string;
 }) {
   if (totalPages <= 1) return null;
   const sequence = buildPagination(totalPages, currentPage);
-  const pageHref = (page: number) => (page === 1 ? basePath : `${basePath}/page/${page}`);
+  const suffix = query ? (query.startsWith("?") ? query : `?${query}`) : "";
+  const pageHref = (page: number) => (page === 1 ? `${basePath}${suffix}` : `${basePath}/page/${page}${suffix}`);
 
   return (
     <nav className={className ? className : "flex flex-wrap items-center gap-2"} aria-label="Pagination">

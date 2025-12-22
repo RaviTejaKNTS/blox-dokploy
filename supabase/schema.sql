@@ -581,6 +581,17 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function public.set_catalog_page_published_at() returns trigger as $$
+begin
+  if new.is_published = true
+     and (old.is_published is distinct from true)
+     and new.published_at is null then
+    new.published_at := now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
 drop trigger if exists trg_games_updated_at on public.games;
 create trigger trg_games_updated_at before update on public.games
 for each row execute function public.set_updated_at();
@@ -649,6 +660,11 @@ drop trigger if exists trg_set_tool_published_at on public.tools;
 create trigger trg_set_tool_published_at
 before insert or update on public.tools
 for each row execute function public.set_tool_published_at();
+
+drop trigger if exists trg_set_catalog_page_published_at on public.catalog_pages;
+create trigger trg_set_catalog_page_published_at
+before insert or update on public.catalog_pages
+for each row execute function public.set_catalog_page_published_at();
 
 -- helper to run SQL-driven game lists during refresh
 create or replace function public.run_game_list_sql(
@@ -1065,6 +1081,14 @@ from public.checklist_pages cp
 left join item_stats stats on stats.page_id = cp.id
 left join public.roblox_universes u on u.universe_id = cp.universe_id;
 
+-- Catalog pages view to keep published flags and core content together
+drop view if exists public.catalog_pages_view;
+create or replace view public.catalog_pages_view as
+select
+  cp.*,
+  greatest(cp.updated_at, coalesce(cp.published_at, cp.updated_at)) as content_updated_at
+from public.catalog_pages cp;
+
 -- Articles view: article + author + universe JSON + related articles
 create or replace view public.article_pages_view as
 select
@@ -1357,5 +1381,59 @@ create index if not exists idx_tools_is_published on public.tools (is_published)
 
 create trigger trg_tools_updated_at
 before update on public.tools
+for each row
+execute function public.set_updated_at();
+
+-- catalog pages table for item/id listing pages
+create table if not exists public.catalog_pages (
+  id uuid primary key default uuid_generate_v4(),
+  code text not null unique,
+  title text not null,
+  seo_title text not null,
+  meta_description text not null,
+  intro_md text not null,
+  how_it_works_md text not null,
+  description_json jsonb not null default '{}'::jsonb,
+  faq_json jsonb not null default '[]'::jsonb,
+  cta_label text,
+  cta_url text,
+  schema_ld_json jsonb,
+  thumb_url text,
+  is_published boolean not null default true,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_catalog_pages_is_published on public.catalog_pages (is_published);
+
+create trigger trg_catalog_pages_updated_at
+before update on public.catalog_pages
+for each row
+execute function public.set_updated_at();
+
+-- Roblox music IDs from the music discovery top songs list
+create table if not exists public.roblox_music_ids (
+  asset_id bigint primary key,
+  title text not null,
+  artist text not null,
+  album text,
+  genre text,
+  duration_seconds integer,
+  album_art_asset_id bigint,
+  rank integer,
+  source text not null default 'music_discovery_top_songs',
+  raw_payload jsonb not null default '{}'::jsonb,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_roblox_music_ids_rank on public.roblox_music_ids (rank);
+create index if not exists idx_roblox_music_ids_last_seen on public.roblox_music_ids (last_seen_at desc);
+
+create trigger trg_roblox_music_ids_updated_at
+before update on public.roblox_music_ids
 for each row
 execute function public.set_updated_at();
