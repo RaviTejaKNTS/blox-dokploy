@@ -24,7 +24,25 @@ export type CropDataset = {
   source: string | null;
 };
 
-const CROPS_MD_PATH = path.join(process.cwd(), "grow-a-garden-crops-data.md");
+const CROPS_MD_PATHS = [
+  path.join(process.cwd(), "grow-a-garden-crops-data.md"),
+  path.join(process.cwd(), "docs", "grow-a-garden-crops-data.md")
+];
+
+async function readCropsMarkdown(): Promise<string> {
+  for (const candidate of CROPS_MD_PATHS) {
+    try {
+      return await fs.readFile(candidate, "utf8");
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== "ENOENT") {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error(`Missing crops data file. Expected one of: ${CROPS_MD_PATHS.join(", ")}`);
+}
 
 function parseNumber(value: string): number | null {
   const cleaned = value.replace(/[,]/g, "").trim();
@@ -81,7 +99,7 @@ function dedupeByName(rows: CropRecord[]): CropRecord[] {
 }
 
 export async function loadCropDataset(): Promise<CropDataset> {
-  const md = await fs.readFile(CROPS_MD_PATH, "utf8");
+  const md = await readCropsMarkdown();
 
   const generatedMatch = md.match(/Generated:\s*([^\n]+)/i);
   const dataLastUpdatedOn = generatedMatch?.[1]?.trim() ?? null;
