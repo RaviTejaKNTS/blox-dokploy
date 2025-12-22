@@ -91,6 +91,7 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
   return {
     title,
     description,
+    robots: page > 1 ? { index: false, follow: true } : undefined,
     alternates: {
       canonical
     },
