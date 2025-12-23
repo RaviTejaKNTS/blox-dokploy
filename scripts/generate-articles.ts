@@ -47,12 +47,25 @@ type SourceDocument = {
   images: SourceImage[];
   verification?: "Yes" | "No";
   fromQueue?: boolean;
+  fromNotes?: boolean;
 };
 
 type DraftArticle = {
   title: string;
   content_md: string;
   meta_description: string;
+};
+
+type ArticleContext = {
+  intent: string;
+  mustCover: string[];
+  outline: string[];
+  readerQuestions: string[];
+};
+
+type SourceGatheringResult = {
+  sources: SourceDocument[];
+  researchQuestions: string[];
 };
 
 type RelatedPage = {
@@ -97,13 +110,16 @@ const perplexity = new OpenAI({ apiKey: PERPLEXITY_API_KEY, baseURL: "https://ap
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
 const SOURCE_CHAR_LIMIT = 6500;
-const MAX_RESULTS_PER_QUERY = 15;
-const MAX_SOURCES = 6; // 3-5 primary, 1-2 fandom
-const MIN_SOURCES = 1;
-const MAX_FORUM_SOURCES = 2;
-const MAX_PER_HOST_DEFAULT = 2;
-const MAX_PER_HOST_HIGH_QUALITY = 3;
-const BLOCKED_HOSTS_PRIMARY = ["fandom.com", "roblox.fandom.com"];
+const MAX_RESULTS_PER_QUERY = 20;
+const MAX_SOURCES = 10;
+const TARGET_SOURCES = 8;
+const MIN_SOURCES = 2;
+const MAX_FORUM_SOURCES = 3;
+const MAX_PER_HOST_DEFAULT = 3;
+const MAX_PER_HOST_HIGH_QUALITY = 4;
+const MAX_RESEARCH_QUESTIONS = 3;
+const MAX_SEARCH_QUERIES = 5;
+const MAX_REFINEMENT_PASSES = 3;
 
 const QUALITY_DOMAINS = [
   "roblox.com",
@@ -319,6 +335,84 @@ function parseQueueSources(raw: string | null): string[] {
 function ensureRobloxKeyword(query: string): string {
   const normalized = query.toLowerCase();
   return normalized.includes("roblox") ? query : `${query} Roblox`;
+}
+
+function normalizeStringArray(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const cleaned = entry.replace(/^\s*[-*\d.()]+\s*/, "").replace(/\s+/g, " ").trim();
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    normalized.push(cleaned);
+    seen.add(key);
+    if (normalized.length >= limit) break;
+  }
+  return normalized;
+}
+
+function formatBulletList(items: string[]): string {
+  return items.map((item) => `- ${item}`).join("\n");
+}
+
+async function generateResearchQuestions(topic: string): Promise<string[]> {
+  const fallback = [
+    `What are the exact steps or requirements for ${topic}?`,
+    `What items, currencies, or prerequisites are needed for ${topic}?`,
+    `What are common mistakes or edge cases players should avoid for ${topic}?`
+  ];
+
+  const prompt = `
+Create 3-5 specific research questions for a Roblox article. Focus on mechanics, requirements, steps, edge cases, and pitfalls. Avoid generic SEO fluff.
+
+Topic: "${topic}"
+
+Return JSON:
+{
+  "questions": ["question 1", "question 2", "question 3"]
+}
+  `.trim();
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.25,
+      max_tokens: 250,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Return only valid JSON." },
+        { role: "user", content: prompt }
+      ]
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    const parsed = JSON.parse(raw) as { questions?: unknown };
+    const normalized = normalizeStringArray(parsed.questions, MAX_RESEARCH_QUESTIONS);
+    return normalized.length ? normalized : fallback;
+  } catch (error) {
+    console.warn("⚠️ Research question generation failed:", error instanceof Error ? error.message : String(error));
+    return fallback;
+  }
+}
+
+function buildSearchQueries(topic: string, questions: string[]): string[] {
+  const baseQueries = [topic, `${topic} guide`, `${topic} requirements`, `${topic} steps`];
+  const questionQueries = questions.map((question) => question.replace(/[?]+/g, "").trim()).filter(Boolean);
+  const combined = [...baseQueries, ...questionQueries];
+  const seen = new Set<string>();
+  const queries: string[] = [];
+  for (const query of combined) {
+    const normalized = ensureRobloxKeyword(query.trim());
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) continue;
+    seen.add(key);
+    queries.push(normalized);
+    if (queries.length >= MAX_SEARCH_QUERIES) break;
+  }
+  return queries;
 }
 
 type RobloxUniverseMedia = {
@@ -880,17 +974,24 @@ async function fetchArticleContent(
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
-    if (!article?.textContent) {
-      console.warn(`   • Readability could not parse ${url}`);
-      return null;
+    let rawText = article?.textContent ?? "";
+    if (!rawText) {
+      const fallbackText = dom.window.document.body?.textContent ?? "";
+      const normalizedFallback = fallbackText.replace(/\s+/g, " ").trim();
+      if (!normalizedFallback) {
+        console.warn(`   • Readability could not parse ${url}`);
+        return null;
+      }
+      console.warn(`   • Readability failed for ${url}, using fallback text`);
+      rawText = normalizedFallback;
     }
 
-    const normalized = article.textContent.replace(/\s+/g, " ").trim();
+    const normalized = rawText.replace(/\s+/g, " ").trim();
     if (normalized.length < 250) {
       console.warn(`   • Content short for ${url} (length=${normalized.length}), keeping anyway`);
     }
 
-    const derivedTitle = article.title?.trim() || dom.window.document.title?.trim() || null;
+    const derivedTitle = article?.title?.trim() || dom.window.document.title?.trim() || null;
 
     return {
       content: normalized.slice(0, SOURCE_CHAR_LIMIT),
@@ -910,11 +1011,11 @@ async function collectFromResults(
   collected: SourceDocument[],
   hostCounts: Map<string, number>,
   forumCount: { value: number },
-  options: { blockFandom?: boolean; seenUrls: Set<string> }
+  options: { seenUrls: Set<string> }
 ): Promise<void> {
   for (const result of results) {
     if (collected.length >= MAX_SOURCES) break;
-    if (!result.url || !result.title) continue;
+    if (!result.url) continue;
     if (options.seenUrls.has(result.url)) continue;
 
     let parsed: URL;
@@ -925,9 +1026,6 @@ async function collectFromResults(
     }
 
     const host = parsed.hostname.toLowerCase();
-    if (options?.blockFandom && BLOCKED_HOSTS_PRIMARY.some((blocked) => host === blocked || host.endsWith(`.${blocked}`))) {
-      continue;
-    }
     if (isVideoHost(host)) continue;
 
     const isForum = isForumHost(host);
@@ -962,9 +1060,11 @@ async function collectFromResults(
   }
 }
 
-async function sonarResearchNotes(topic: string): Promise<string> {
+async function sonarResearchNotes(topic: string, question?: string): Promise<string> {
   const prompt = `
-${topic} give me full details related to this — key facts, mechanics, requirements, steps, edge cases, and common questions. Keep it tight, bullet-style notes with no filler. Do not include URLs.
+Topic: "${topic}"
+${question ? `Research question: "${question}"` : ""}
+Give full details related to this — key facts, mechanics, requirements, steps, edge cases, and common questions. Keep it tight, bullet-style notes with no filler. Do not include URLs.
 `.trim();
 
   const completion = await perplexity.chat.completions.create({
@@ -980,11 +1080,32 @@ ${topic} give me full details related to this — key facts, mechanics, requirem
   return completion.choices[0]?.message?.content?.trim() || "";
 }
 
-async function gatherSources(topic: string, queueSources?: string | null): Promise<SourceDocument[]> {
+async function gatherResearchNotes(topic: string, questions: string[]): Promise<string> {
+  const questionList = questions.length ? questions : [topic];
+  const notes: string[] = [];
+
+  for (const question of questionList) {
+    try {
+      const result = await sonarResearchNotes(topic, question);
+      if (result) {
+        notes.push(`Question: ${question}\n${result}`);
+      }
+    } catch (error) {
+      console.warn(`   • sonar_notes_failed question="${question}" reason="${(error as Error).message}"`);
+    }
+  }
+
+  return notes.join("\n\n").trim();
+}
+
+async function gatherSources(topic: string, queueSources?: string | null): Promise<SourceGatheringResult> {
   const collected: SourceDocument[] = [];
   const hostCounts = new Map<string, number>();
   const forumCount = { value: 0 };
   const seenUrls = new Set<string>();
+  const researchQuestions = await generateResearchQuestions(topic);
+  const searchQueries = buildSearchQueries(topic, researchQuestions);
+  console.log(`research_questions=${researchQuestions.length}`);
 
   const manualUrls = parseQueueSources(queueSources ?? null);
   for (const url of manualUrls) {
@@ -1033,56 +1154,55 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
     console.log(`source_${collected.length}: ${host} [queue]${isForum ? " [forum]" : ""}`);
   }
 
-  // 1) Primary search (take first 3-5 sources, non-fandom)
-  const primaryQuery = ensureRobloxKeyword(`${topic}`);
-  try {
-    console.log(`🔎 search → ${primaryQuery}`);
-    const results = await perplexitySearch(primaryQuery, MAX_RESULTS_PER_QUERY);
-    await collectFromResults(results, collected, hostCounts, forumCount, { blockFandom: true, seenUrls });
-    if (collected.length > 5) {
-      collected.splice(5);
+  for (const query of searchQueries) {
+    if (collected.length >= MAX_SOURCES) break;
+    try {
+      console.log(`🔎 search → ${query}`);
+      const results = await perplexitySearch(query, MAX_RESULTS_PER_QUERY);
+      await collectFromResults(results, collected, hostCounts, forumCount, { seenUrls });
+    } catch (error) {
+      console.warn(`   • search_failed query="${query}" reason="${(error as Error).message}"`);
     }
-  } catch (error) {
-    console.warn(`   • search_failed query="${primaryQuery}" reason="${(error as Error).message}"`);
   }
 
-  // 2) Fandom-specific search (1-2 sources)
-  try {
-    const fandomQuery = ensureRobloxKeyword(`${topic} fandom`);
-    console.log(`🔎 search → ${fandomQuery}`);
-    const fandomResults = await perplexitySearch(fandomQuery, 10);
-    const fandomOnly = fandomResults.filter((res) => res.url?.toLowerCase().includes("fandom.com"));
-    await collectFromResults(fandomOnly, collected, hostCounts, forumCount, { seenUrls });
-    if (collected.length > 6) {
-      collected.splice(6);
+  if (collected.length < TARGET_SOURCES) {
+    const fallbackQueries = [`${topic} fandom`, `${topic} wiki`, `${topic} devforum`];
+    for (const query of fallbackQueries) {
+      if (collected.length >= MAX_SOURCES) break;
+      try {
+        const normalized = ensureRobloxKeyword(query);
+        console.log(`🔎 search → ${normalized}`);
+        const results = await perplexitySearch(normalized, MAX_RESULTS_PER_QUERY);
+        await collectFromResults(results, collected, hostCounts, forumCount, { seenUrls });
+      } catch (error) {
+        console.warn(`   • fallback_search_failed query="${query}" reason="${(error as Error).message}"`);
+      }
     }
-  } catch (error) {
-    console.warn(`   • fandom_search_failed reason="${(error as Error).message}"`);
   }
 
-  // Sonar research notes (non-URL) to supplement
-  try {
-    const notes = await sonarResearchNotes(topic);
-    if (notes) {
-      collected.push({
-        title: "Sonar Research Notes",
-        url: "perplexity:sonar-notes",
-        content: notes.slice(0, SOURCE_CHAR_LIMIT),
-        host: "perplexity.ai",
-        isForum: false,
-        images: []
-      });
-      console.log(`source_${collected.length}: perplexity.ai [sonar notes]`);
-    }
-  } catch (error) {
-    console.warn(`   • sonar_notes_failed reason="${(error as Error).message}"`);
+  const notes = await gatherResearchNotes(topic, researchQuestions);
+  if (notes) {
+    collected.push({
+      title: "Perplexity Research Notes",
+      url: "perplexity:sonar-notes",
+      content: notes.slice(0, SOURCE_CHAR_LIMIT),
+      host: "perplexity.ai",
+      isForum: false,
+      images: [],
+      fromNotes: true
+    });
+    console.log(`source_${collected.length}: perplexity.ai [research notes]`);
   }
 
-  if (collected.length < MIN_SOURCES) {
-    throw new Error(`Not enough sources collected (${collected.length}/${MIN_SOURCES}).`);
+  const webSources = collected.filter((source) => !source.fromNotes);
+  if (webSources.length < MIN_SOURCES) {
+    console.warn(`   • low_source_count collected=${webSources.length} min=${MIN_SOURCES}`);
   }
 
-  return collected.slice(0, MAX_SOURCES);
+  return {
+    sources: [...webSources.slice(0, MAX_SOURCES), ...collected.filter((source) => source.fromNotes)],
+    researchQuestions
+  };
 }
 
 async function verifySourceWithPerplexity(topic: string, source: SourceDocument): Promise<"Yes" | "No"> {
@@ -1116,11 +1236,13 @@ ${source.content}
 
 async function verifySources(topic: string, sources: SourceDocument[]): Promise<SourceDocument[]> {
   const verified: SourceDocument[] = [];
+  let verifiedPrimaryCount = 0;
 
   for (const source of sources) {
-    if (source.fromQueue) {
+    if (source.fromQueue || source.fromNotes) {
       source.verification = "Yes";
       verified.push(source);
+      if (!source.fromNotes) verifiedPrimaryCount += 1;
       continue;
     }
 
@@ -1129,11 +1251,15 @@ async function verifySources(topic: string, sources: SourceDocument[]): Promise<
     console.log(`verify_source host=${source.host} verdict=${decision}`);
     if (decision === "Yes") {
       verified.push(source);
+      verifiedPrimaryCount += 1;
     }
   }
 
-  if (verified.length < MIN_SOURCES) {
-    throw new Error(`Not enough verified sources (${verified.length}/${MIN_SOURCES}).`);
+  if (verifiedPrimaryCount < MIN_SOURCES) {
+    console.warn(`   • low_verified_sources verified=${verifiedPrimaryCount} min=${MIN_SOURCES}`);
+  }
+  if (verified.length === 0) {
+    throw new Error("No usable sources after verification.");
   }
 
   return verified;
@@ -1148,8 +1274,48 @@ function formatSourcesForPrompt(sources: SourceDocument[]): string {
     .join("\n");
 }
 
-function buildArticlePrompt(topic: string, sources: SourceDocument[]): string {
+function formatSourcesForReview(sources: SourceDocument[]): string {
+  const webSources = sources.filter((source) => !source.fromNotes).slice(0, 6);
+  const notes = sources.filter((source) => source.fromNotes);
+  return formatSourcesForPrompt([...webSources, ...notes]);
+}
+
+function formatContextBlock(context?: ArticleContext | null): string {
+  if (!context) return "";
+  const sections: string[] = [];
+  if (context.intent) {
+    sections.push(`Search intent:\n${context.intent}`);
+  }
+  if (context.mustCover.length) {
+    sections.push(`Coverage checklist:\n${formatBulletList(context.mustCover)}`);
+  }
+  if (context.readerQuestions.length) {
+    sections.push(`Reader questions to answer:\n${formatBulletList(context.readerQuestions)}`);
+  }
+  if (context.outline.length) {
+    sections.push(`Suggested outline:\n${formatBulletList(context.outline)}`);
+  }
+  return sections.length ? `\n\n${sections.join("\n\n")}` : "";
+}
+
+function formatReviewContext(context?: ArticleContext | null): string {
+  if (!context) return "";
+  const sections: string[] = [];
+  if (context.intent) {
+    sections.push(`Search intent: ${context.intent}`);
+  }
+  if (context.mustCover.length) {
+    sections.push(`Coverage checklist:\n${formatBulletList(context.mustCover)}`);
+  }
+  if (context.readerQuestions.length) {
+    sections.push(`Reader questions:\n${formatBulletList(context.readerQuestions)}`);
+  }
+  return sections.length ? `\n\nContext to enforce:\n${sections.join("\n\n")}` : "";
+}
+
+function buildArticlePrompt(topic: string, sources: SourceDocument[], context?: ArticleContext | null): string {
   const sourceBlock = formatSourcesForPrompt(sources);
+  const contextBlock = formatContextBlock(context);
 
   return `
 Use the research below to write a Roblox article.
@@ -1164,7 +1330,7 @@ After that, start with a H2 heading and then write the main content following th
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
  - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
- - Headings should be conversational like a casual sentence talking to the user. No need for title cases or anything like that. Just write like a casual sentence.
+ - Headings should be conversational like a casual sentence talking to the user. Use sentence case for all headings
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
@@ -1176,6 +1342,10 @@ After that, start with a H2 heading and then write the main content following th
 
  Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
 
+SEO focus:
+- Primary keyword: "${topic}" (use naturally in the title, intro, and one H2).
+- Include 2-4 close variations naturally; avoid keyword stuffing.${contextBlock}
+
 Sources:
 ${sourceBlock}
 
@@ -1186,6 +1356,77 @@ Return JSON:
   "content_md": "Full Markdown article"
   }
   `.trim();
+}
+
+async function buildArticleContext(
+  topic: string,
+  sources: SourceDocument[],
+  researchQuestions: string[]
+): Promise<ArticleContext> {
+  const fallback: ArticleContext = {
+    intent: "",
+    mustCover: [],
+    outline: [],
+    readerQuestions: researchQuestions
+  };
+  const sourceBlock = formatSourcesForReview(sources);
+  const questionBlock = researchQuestions.length ? formatBulletList(researchQuestions) : "n/a";
+
+  const prompt = `
+Create an SEO planning brief for a Roblox article. Ground it in the research below.
+
+Topic: "${topic}"
+
+Research questions (use or refine):
+${questionBlock}
+
+Research:
+${sourceBlock}
+
+Return JSON:
+{
+  "intent": "1-2 sentences about the search intent",
+  "must_cover": ["5-8 specific coverage points", "..."],
+  "outline": ["4-8 short section ideas", "..."],
+  "reader_questions": ["3-5 questions the article must answer"]
+}
+  `.trim();
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.2,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Return only valid JSON." },
+        { role: "user", content: prompt }
+      ]
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    const parsed = JSON.parse(raw) as {
+      intent?: unknown;
+      must_cover?: unknown;
+      outline?: unknown;
+      reader_questions?: unknown;
+    };
+
+    const intent = typeof parsed.intent === "string" ? parsed.intent.trim() : "";
+    const mustCover = normalizeStringArray(parsed.must_cover, 8);
+    const outline = normalizeStringArray(parsed.outline, 8);
+    const readerQuestions = normalizeStringArray(parsed.reader_questions, 5);
+
+    return {
+      intent,
+      mustCover,
+      outline,
+      readerQuestions: readerQuestions.length ? readerQuestions : researchQuestions
+    };
+  } catch (error) {
+    console.warn("⚠️ Article context generation failed:", error instanceof Error ? error.message : String(error));
+    return fallback;
+  }
 }
 
 async function draftArticle(prompt: string): Promise<DraftArticle> {
@@ -1226,22 +1467,45 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
 
 function isNoCoverageFeedback(feedback: string): boolean {
   const normalized = feedback.trim().toLowerCase();
-  return normalized === "no" || normalized === "no." || normalized === '"no"' || normalized === "'no'";
+  if (normalized === "no" || normalized === "no." || normalized === '"no"' || normalized === "'no'") {
+    return true;
+  }
+  return (
+    normalized.startsWith("no issues") ||
+    normalized.startsWith("no missing") ||
+    normalized.startsWith("no critical") ||
+    normalized.startsWith("no major")
+  );
 }
 
-async function checkArticleCoverage(topic: string, article: DraftArticle, sources: SourceDocument[]): Promise<string> {
+function isYesFeedback(feedback: string): boolean {
+  const normalized = feedback.trim().toLowerCase();
+  if (normalized === "yes" || normalized === "yes." || normalized === '"yes"' || normalized === "'yes'") {
+    return true;
+  }
+  return normalized.startsWith("yes") && normalized.length <= 8;
+}
+
+async function checkArticleCoverage(
+  topic: string,
+  article: DraftArticle,
+  sources: SourceDocument[],
+  context?: ArticleContext | null
+): Promise<string> {
+  const reviewContext = formatReviewContext(context);
   const prompt = `
 Check if this Roblox article misses any crucial information that readers expect for the topic. Only consider topics that are very close to "${topic}" and crucial for the intent—skip tangents or nice-to-haves. If the article already covers everything important, reply exactly: No
-If something critical is missing, list the missing pieces and the exact info to add so it can be inserted as-is. Keep it concise and actionable.
+If something critical is missing, list the missing pieces and the exact text to add so it can be inserted as-is. Keep it concise and actionable, and note where it should go (intro, quick answer, specific section).
 
 Topic: "${topic}"
 
 Article Title: ${article.title}
 Article Markdown:
 ${article.content_md}
+${reviewContext}
 
-Relevant research:
-${formatSourcesForPrompt(sources)}
+ Relevant research:
+${formatSourcesForReview(sources)}
 `.trim();
 
   const completion = await perplexity.chat.completions.create({
@@ -1266,11 +1530,17 @@ ${formatSourcesForPrompt(sources)}
   return feedback;
 }
 
-async function factCheckArticle(topic: string, article: DraftArticle, sources: SourceDocument[]): Promise<string> {
+async function factCheckArticle(
+  topic: string,
+  article: DraftArticle,
+  sources: SourceDocument[],
+  context?: ArticleContext | null
+): Promise<string> {
+  const reviewContext = formatReviewContext(context);
   const prompt = `
 Fact check this Roblox article. Search broadly. If everything is accurate, reply exactly: Yes
 If anything is incorrect, missing, or misleading, reply starting with: No
-Then give clear details of what is wrong and how to change it, including the correct information needed. Be explicit about what to fix. Make sure to provide all the correct and upto date details. 
+Then give clear details of what is wrong and how to change it, including the correct information needed. Be explicit about what to fix and provide replacement wording where possible.
 
 Topic: "${topic}"
 
@@ -1278,6 +1548,10 @@ Article Title: ${article.title}
 Meta Description: ${article.meta_description}
 Article Markdown:
 ${article.content_md}
+${reviewContext}
+
+ Relevant research:
+${formatSourcesForReview(sources)}
 `.trim();
 
   const completion = await perplexity.chat.completions.create({
@@ -1373,6 +1647,40 @@ Return JSON:
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
   };
+}
+
+async function refineArticleWithFeedbackLoop(
+  topic: string,
+  draft: DraftArticle,
+  sources: SourceDocument[],
+  context?: ArticleContext | null
+): Promise<DraftArticle> {
+  let current = draft;
+
+  for (let pass = 1; pass <= MAX_REFINEMENT_PASSES; pass += 1) {
+    console.log(`refinement_pass=${pass}`);
+    let updated = false;
+
+    const coverageFeedback = await checkArticleCoverage(topic, current, sources, context);
+    const coverageLog = coverageFeedback.replace(/\s+/g, " ").slice(0, 200);
+    console.log(`coverage_check_pass_${pass}="${coverageLog}${coverageFeedback.length > 200 ? "..." : ""}"`);
+    if (!isNoCoverageFeedback(coverageFeedback)) {
+      current = await reviseArticleWithFeedback(topic, current, sources, coverageFeedback, `coverage feedback pass ${pass}`);
+      updated = true;
+    }
+
+    const factCheckFeedback = await factCheckArticle(topic, current, sources, context);
+    const factCheckLog = factCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
+    console.log(`fact_check_pass_${pass}="${factCheckLog}${factCheckFeedback.length > 200 ? "..." : ""}"`);
+    if (!isYesFeedback(factCheckFeedback)) {
+      current = await reviseArticleWithFeedback(topic, current, sources, factCheckFeedback, `fact-check feedback pass ${pass}`);
+      updated = true;
+    }
+
+    if (!updated) break;
+  }
+
+  return current;
 }
 
 async function fetchRelatedPagesForUniverse(params: {
@@ -1975,13 +2283,14 @@ async function main() {
     console.log(`✏️  Generating article for "${topic}" (${queueEntry.id})`);
     await markAttempt(queueEntry);
 
-    const collectedSources = await gatherSources(topic, queueEntry.sources);
+    const { sources: collectedSources, researchQuestions } = await gatherSources(topic, queueEntry.sources);
     console.log(`sources_collected=${collectedSources.length}`);
 
     const verifiedSources = await verifySources(topic, collectedSources);
     console.log(`sources_verified=${verifiedSources.length}`);
 
-    const prompt = buildArticlePrompt(topic, verifiedSources);
+    const articleContext = await buildArticleContext(topic, verifiedSources, researchQuestions);
+    const prompt = buildArticlePrompt(topic, verifiedSources, articleContext);
     if (LOG_DRAFT_PROMPT) {
       console.log(`draft_prompt=\n${prompt}`);
     } else {
@@ -1990,35 +2299,16 @@ async function main() {
     const draft = await draftArticle(prompt);
     console.log(`draft_title="${draft.title}" word_count=${estimateWordCount(draft.content_md)}`);
 
-    const coverageFeedback = await checkArticleCoverage(topic, draft, verifiedSources);
-    const coverageLog = coverageFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`coverage_check="${coverageLog}${coverageFeedback.length > 200 ? "..." : ""}"`);
-
-    const coverageDraft = isNoCoverageFeedback(coverageFeedback)
-      ? draft
-      : await reviseArticleWithFeedback(topic, draft, verifiedSources, coverageFeedback, "coverage feedback");
-    console.log(`coverage_title="${coverageDraft.title}" word_count=${estimateWordCount(coverageDraft.content_md)}`);
-
-    const factCheckFeedback = await factCheckArticle(topic, coverageDraft, verifiedSources);
-    const factCheckLog = factCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`fact_check="${factCheckLog}${factCheckFeedback.length > 200 ? "..." : ""}"`);
-
-    const factCheckedDraft = await reviseArticleWithFeedback(
-      topic,
-      coverageDraft,
-      verifiedSources,
-      factCheckFeedback,
-      "fact-check feedback"
-    );
-    console.log(`fact_checked_title="${factCheckedDraft.title}" word_count=${estimateWordCount(factCheckedDraft.content_md)}`);
+    const refinedDraft = await refineArticleWithFeedbackLoop(topic, draft, verifiedSources, articleContext);
+    console.log(`refined_title="${refinedDraft.title}" word_count=${estimateWordCount(refinedDraft.content_md)}`);
 
     const relatedPages = await fetchRelatedPagesForUniverse({
       universeId: queueEntry.universe_id,
-      excludeSlug: slugify(factCheckedDraft.title)
+      excludeSlug: slugify(refinedDraft.title)
     });
     console.log(`interlink_candidates=${relatedPages.length}`);
 
-    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, factCheckedDraft, relatedPages);
+    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, refinedDraft, relatedPages);
     console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
 
     let currentDraft = interlinkedDraft;
