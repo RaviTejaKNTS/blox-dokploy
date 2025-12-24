@@ -278,12 +278,21 @@ function replaceEmDashes(value: string): string {
   return value.replace(/—\s*/g, ": ");
 }
 
-function removeEmDashesFromDraft(article: DraftArticle): DraftArticle {
+function stripSourceCitations(value: string): string {
+  let cleaned = value.replace(/\[\d+(?:\s*,\s*\d+)*\]\([^)]+\)/g, "");
+  cleaned = cleaned.replace(/\s*\[(\d+(?:\s*,\s*\d+)*)\]/g, "");
+  cleaned = cleaned.replace(/\s*\((?:source|sources|citation|citations|reference|references)[^)]*\)/gi, "");
+  cleaned = cleaned.replace(/^\s*(sources?|citations?|references?)\s*:\s*.*$/gim, "");
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+  return cleaned.trim();
+}
+
+function sanitizeDraftArticle(article: DraftArticle): DraftArticle {
   return {
     ...article,
-    title: replaceEmDashes(article.title),
-    meta_description: replaceEmDashes(article.meta_description),
-    content_md: replaceEmDashes(article.content_md)
+    title: stripSourceCitations(replaceEmDashes(article.title)),
+    meta_description: stripSourceCitations(replaceEmDashes(article.meta_description)),
+    content_md: stripSourceCitations(replaceEmDashes(article.content_md))
   };
 }
 
@@ -335,6 +344,18 @@ function parseQueueSources(raw: string | null): string[] {
 function ensureRobloxKeyword(query: string): string {
   const normalized = query.toLowerCase();
   return normalized.includes("roblox") ? query : `${query} Roblox`;
+}
+
+function normalizeUrlForCompare(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    let pathname = parsed.pathname.replace(/\/+$/, "");
+    if (!pathname) pathname = "/";
+    return `${parsed.origin}${pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
 }
 
 function normalizeStringArray(value: unknown, limit: number): string[] {
@@ -827,13 +848,26 @@ async function uploadUniverseCoverImage(universeId: number, slug: string, overla
   });
 }
 
-async function getNextQueueItem(): Promise<QueueRow | null> {
+async function getRandomQueueItem(): Promise<QueueRow | null> {
+  const { count, error: countError } = await supabase
+    .from("article_generation_queue")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  if (countError) {
+    throw new Error(`Failed to count queue items: ${countError.message}`);
+  }
+
+  const total = typeof count === "number" ? count : 0;
+  if (total === 0) return null;
+
+  const offset = Math.floor(Math.random() * total);
   const { data, error } = await supabase
     .from("article_generation_queue")
     .select("id, article_title, sources, status, attempts, last_attempted_at, last_error, universe_id")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
-    .limit(1)
+    .range(offset, offset)
     .maybeSingle();
 
   if (error) {
@@ -1011,12 +1045,14 @@ async function collectFromResults(
   collected: SourceDocument[],
   hostCounts: Map<string, number>,
   forumCount: { value: number },
-  options: { seenUrls: Set<string> }
+  options: { seenUrls: Set<string>; excludeUrls?: Set<string>; excludeFandom?: boolean; requireFandom?: boolean }
 ): Promise<void> {
   for (const result of results) {
     if (collected.length >= MAX_SOURCES) break;
     if (!result.url) continue;
-    if (options.seenUrls.has(result.url)) continue;
+    const normalizedUrl = normalizeUrlForCompare(result.url);
+    if (options.excludeUrls?.has(normalizedUrl)) continue;
+    if (options.seenUrls.has(normalizedUrl)) continue;
 
     let parsed: URL;
     try {
@@ -1028,10 +1064,13 @@ async function collectFromResults(
     const host = parsed.hostname.toLowerCase();
     if (isVideoHost(host)) continue;
 
+    const isFandom = isFandomHost(host);
+    if (options.excludeFandom && isFandom) continue;
+    if (options.requireFandom && !isFandom) continue;
+
     const isForum = isForumHost(host);
     if (isForum && forumCount.value >= MAX_FORUM_SOURCES) continue;
 
-    const isFandom = isFandomHost(host);
     const highQuality = isHighQualityHost(host);
     const hostLimit = highQuality ? MAX_PER_HOST_HIGH_QUALITY : MAX_PER_HOST_DEFAULT;
     const hostCount = hostCounts.get(host) ?? 0;
@@ -1053,7 +1092,7 @@ async function collectFromResults(
       images: parsedContent.images
     });
 
-    options.seenUrls.add(result.url);
+    options.seenUrls.add(normalizedUrl);
     hostCounts.set(host, hostCount + 1);
     if (isForum) forumCount.value += 1;
     console.log(`source_${collected.length}: ${host}${isForum ? " [forum]" : ""}`);
@@ -1103,14 +1142,13 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
   const hostCounts = new Map<string, number>();
   const forumCount = { value: 0 };
   const seenUrls = new Set<string>();
-  const researchQuestions = await generateResearchQuestions(topic);
-  const searchQueries = buildSearchQueries(topic, researchQuestions);
-  console.log(`research_questions=${researchQuestions.length}`);
-
+  const researchQuestions: string[] = [];
   const manualUrls = parseQueueSources(queueSources ?? null);
+  const queueUrlSet = new Set(manualUrls.map((url) => normalizeUrlForCompare(url)));
   for (const url of manualUrls) {
     if (collected.length >= MAX_SOURCES) break;
-    if (seenUrls.has(url)) continue;
+    const normalizedUrl = normalizeUrlForCompare(url);
+    if (seenUrls.has(normalizedUrl)) continue;
 
     let parsed: URL;
     try {
@@ -1148,36 +1186,36 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
       fromQueue: true
     });
 
-    seenUrls.add(url);
+    seenUrls.add(normalizedUrl);
     hostCounts.set(host, hostCount + 1);
     if (isForum) forumCount.value += 1;
     console.log(`source_${collected.length}: ${host} [queue]${isForum ? " [forum]" : ""}`);
   }
 
-  for (const query of searchQueries) {
-    if (collected.length >= MAX_SOURCES) break;
-    try {
-      console.log(`🔎 search → ${query}`);
-      const results = await perplexitySearch(query, MAX_RESULTS_PER_QUERY);
-      await collectFromResults(results, collected, hostCounts, forumCount, { seenUrls });
-    } catch (error) {
-      console.warn(`   • search_failed query="${query}" reason="${(error as Error).message}"`);
-    }
+  const primaryQuery = ensureRobloxKeyword(topic);
+  try {
+    console.log(`🔎 search → ${primaryQuery}`);
+    const results = await perplexitySearch(primaryQuery, MAX_RESULTS_PER_QUERY);
+    await collectFromResults(results, collected, hostCounts, forumCount, {
+      seenUrls,
+      excludeUrls: queueUrlSet,
+      excludeFandom: true
+    });
+  } catch (error) {
+    console.warn(`   • search_failed query="${primaryQuery}" reason="${(error as Error).message}"`);
   }
 
-  if (collected.length < TARGET_SOURCES) {
-    const fallbackQueries = [`${topic} fandom`, `${topic} wiki`, `${topic} devforum`];
-    for (const query of fallbackQueries) {
-      if (collected.length >= MAX_SOURCES) break;
-      try {
-        const normalized = ensureRobloxKeyword(query);
-        console.log(`🔎 search → ${normalized}`);
-        const results = await perplexitySearch(normalized, MAX_RESULTS_PER_QUERY);
-        await collectFromResults(results, collected, hostCounts, forumCount, { seenUrls });
-      } catch (error) {
-        console.warn(`   • fallback_search_failed query="${query}" reason="${(error as Error).message}"`);
-      }
-    }
+  const fandomQuery = ensureRobloxKeyword(`${topic} fandom`);
+  try {
+    console.log(`🔎 search → ${fandomQuery}`);
+    const results = await perplexitySearch(fandomQuery, MAX_RESULTS_PER_QUERY);
+    await collectFromResults(results, collected, hostCounts, forumCount, {
+      seenUrls,
+      excludeUrls: queueUrlSet,
+      requireFandom: true
+    });
+  } catch (error) {
+    console.warn(`   • fandom_search_failed query="${fandomQuery}" reason="${(error as Error).message}"`);
   }
 
   const notes = await gatherResearchNotes(topic, researchQuestions);
@@ -1269,7 +1307,7 @@ function formatSourcesForPrompt(sources: SourceDocument[]): string {
   return sources
     .map(
       (source, index) =>
-        `SOURCE ${index + 1}\nTITLE: ${source.title}\nURL: ${source.url}\nHOST: ${source.host}\nCONTENT:\n${source.content}\n`
+        `RESEARCH DOC ${index + 1}\nTITLE: ${source.title}\nURL: ${source.url}\nHOST: ${source.host}\nCONTENT:\n${source.content}\n`
     )
     .join("\n");
 }
@@ -1322,15 +1360,20 @@ Use the research below to write a Roblox article.
 
 Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing their Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
 
-Start with an small intro that hooks the audience into reading the entire article. Keep it direct, focused and on-point. Write a unique, unconventional and on point intro that's very human and relatable. Do not repeat the same info template again and again. 
-Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally. This should be just a small para only covering the most important aspect like in 2-3 lines long. Instead you can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
+Start with an intro that directly gets into the core topic of the article. No fluff, no generic statements, no clichéd phrases, no templates. Just get to the point and write in a way that is easy to understand and engaging.
+ - The start of the article should be very engaging and hook the audience into reading the entire article.
+ - Instead of just a generic question or statement like If you play the game. Get directly into the explaining the topic if possible. 
+ - Think about what type of intro serves the article best and use that.
+ - Sometimes you can ask a question to hook the reader, sometimes you can bring a some specific info from the source, etc. 
+ - Keep it short, consise and easy to understand.
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
 After that, start with a H2 heading and then write the main content following these rules:
  - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
  - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
- - Headings should be conversational like a casual sentence talking to the user. Use sentence case for all headings
+ - Headings should be conversational like a casual sentence talking to the user. Use Sentence case for all headings, capitalize the first letter of the first word only and for proper nouns.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
@@ -1341,12 +1384,16 @@ After that, start with a H2 heading and then write the main content following th
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
  Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Additional writing rules:
+ - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
+ - Never mention sources, research, URLs, or citations.
+ - Never include bracketed citations like [1] or [2], or any references section.
 
 SEO focus:
 - Primary keyword: "${topic}" (use naturally in the title, intro, and one H2).
 - Include 2-4 close variations naturally; avoid keyword stuffing.${contextBlock}
 
-Sources:
+Research (do not cite or mention):
 ${sourceBlock}
 
 Return JSON:
@@ -1439,7 +1486,7 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
       },
       { role: "user", content: prompt }
     ]
@@ -1458,11 +1505,11 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
     throw new Error("Draft missing required fields.");
   }
 
-  return {
+  return sanitizeDraftArticle({
     title: title.trim(),
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
-  };
+  });
 }
 
 function isNoCoverageFeedback(feedback: string): boolean {
@@ -1589,15 +1636,17 @@ async function reviseArticleWithFeedback(
 You are updating a Roblox article after ${label}. Keep the same friendly, conversational tone and overall structure.
 - If feedback starts with "Yes", return the original article unchanged.
 - If feedback starts with "No", only adjust the parts that were flagged. Keep everything else as close as possible to the original voice.
-- Use the ${label} plus the provided sources; do not invent new information.
+- Use the ${label} plus the provided research; do not invent new information.
 - Make only the changes required by the feedback—no extra rewrites.
+- Do not mention sources, research, URLs, or citations.
+- Do not add bracketed references like [1] or [2]. Paraphrase any new text you add.
 
 Topic: "${topic}"
 
 ${label}:
 ${feedback}
 
-Sources:
+Research (do not cite or mention):
 ${sourceBlock}
 
 Original article:
@@ -1623,7 +1672,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and keep any new text paraphrased."
       },
       { role: "user", content: prompt }
     ]
@@ -1642,11 +1691,11 @@ Return JSON:
     throw new Error("Revision missing required fields.");
   }
 
-  return {
+  return sanitizeDraftArticle({
     title: title.trim(),
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
-  };
+  });
 }
 
 async function refineArticleWithFeedbackLoop(
@@ -1911,11 +1960,11 @@ Return JSON:
     throw new Error("Interlinking step missing required fields.");
   }
 
-  return {
+  return sanitizeDraftArticle({
     title: title.trim(),
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
-  };
+  });
 }
 
 async function buildShortCoverTitle(title: string, topic: string): Promise<string> {
@@ -2212,11 +2261,11 @@ Return JSON:
     throw new Error("Image insertion missing required fields.");
   }
 
-  return {
+  return sanitizeDraftArticle({
     title: title.trim(),
     content_md: content_md.trim(),
     meta_description: meta_description.trim()
-  };
+  });
 }
 
 async function cleanupUnusedArticleImages(params: {
@@ -2269,7 +2318,7 @@ async function main() {
   let queueEntry: QueueRow | null = null;
 
   try {
-    queueEntry = await getNextQueueItem();
+    queueEntry = await getRandomQueueItem();
     if (!queueEntry) {
       console.log("No pending article tasks found.");
       return;
@@ -2368,7 +2417,7 @@ async function main() {
       });
     }
 
-    const cleanedDraft = removeEmDashesFromDraft(currentDraft);
+    const cleanedDraft = sanitizeDraftArticle(currentDraft);
     const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
     console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
     if (cleanedUpdated) {

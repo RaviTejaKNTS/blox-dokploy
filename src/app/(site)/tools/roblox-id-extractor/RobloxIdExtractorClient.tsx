@@ -335,7 +335,7 @@ export function RobloxIdExtractorClient() {
             type="text"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+            className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
             placeholder="https://www.roblox.com/games/12345/..."
           />
         </label>
@@ -363,7 +363,7 @@ export function RobloxIdExtractorClient() {
                 <select
                   value={selectedType}
                   onChange={(event) => setSelectedType(event.target.value as RobloxType)}
-                  className="rounded-md border border-border/60 bg-white/5 px-3 py-2 text-sm text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                  className="rounded-md border border-border/60 bg-white/5 px-3 py-2 text-sm text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                 >
                   {TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -387,7 +387,7 @@ export function RobloxIdExtractorClient() {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-70 dark:bg-accent-dark dark:hover:bg-accent"
         >
           {loading ? "Extracting..." : "Extract IDs"}
         </button>

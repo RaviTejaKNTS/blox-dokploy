@@ -10,7 +10,7 @@ import {
   type GameListUniverseEntry,
   type UniverseListBadge
 } from "@/lib/db";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle } from "@/lib/seo";
+import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle } from "@/lib/seo";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import "@/styles/article-content.css";
@@ -79,7 +79,7 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
     ? list.meta_description
     : list.intro_md
     ? markdownToPlainText(list.intro_md).slice(0, 160)
-    : SITE_DESCRIPTION;
+    : LISTS_DESCRIPTION;
 
   const titleBase = resolveSeoTitle(list.meta_title) ?? list.title;
   const title = page > 1 ? `${titleBase} - Page ${page} | ${SITE_NAME}` : `${titleBase} | ${SITE_NAME}`;
@@ -282,7 +282,7 @@ export function ListPageView({
 
   const listDescription =
     list.meta_description ??
-    (list.intro_md ? markdownToPlainText(list.intro_md).slice(0, 160) : SITE_DESCRIPTION);
+    (list.intro_md ? markdownToPlainText(list.intro_md).slice(0, 160) : LISTS_DESCRIPTION);
 
   const listSchema = JSON.stringify({
     "@context": "https://schema.org",

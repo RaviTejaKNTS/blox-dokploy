@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadToolsPageData, renderToolsPage } from "../../page";
+import { TOOLS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 21600; // 6 hours
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = pageNumber > 1 ? `Roblox Tools & Calculators - Page ${pageNumber}` : "Roblox Tools & Calculators";
   return {
     title,
-    description: "Paginated Roblox tools index",
+    description: TOOLS_DESCRIPTION,
     robots: { index: false, follow: true },
     alternates: {
       canonical: pageNumber === 1 ? "/tools" : `/tools/page/${pageNumber}`

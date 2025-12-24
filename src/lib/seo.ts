@@ -5,7 +5,20 @@ const DEFAULT_SITE_URL = "https://bloxodes.com";
 export const SITE_URL = DEFAULT_SITE_URL;
 
 export const SITE_NAME = "Bloxodes";
-export const SITE_DESCRIPTION = "Find active and expired Roblox game codes with rewards, updated daily.";
+export const SITE_DESCRIPTION =
+  "Your Roblox hub for codes, articles, checklists, catalog pages, live ranking lists, and tools. Updated throughout the day with fresh data.";
+export const CODES_DESCRIPTION =
+  "Track active Roblox game codes, rewards, and redemption tips with frequent updates.";
+export const ARTICLES_DESCRIPTION =
+  "Roblox articles and guides with tips, updates, and walkthroughs to help you play smarter.";
+export const CHECKLISTS_DESCRIPTION =
+  "Guided Roblox checklists to track steps, tasks, and rewards in your favorite games. Stay organized and mark progress as you play.";
+export const LISTS_DESCRIPTION =
+  "Live ranking lists powered by Roblox data to highlight trending, rising, and top experiences.";
+export const TOOLS_DESCRIPTION =
+  "Roblox tools, calculators, and planners to help you estimate values, plan faster, and track progress.";
+export const CATALOG_DESCRIPTION =
+  "Catalog pages for Roblox assets like music IDs, with quick lookup details, filters, and links.";
 
 export function resolveSeoTitle(template?: string | null, now = new Date()): string | null {
   if (!template) return null;

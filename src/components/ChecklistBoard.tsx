@@ -134,6 +134,10 @@ function parseTitleLink(raw: string): { label: string; href: string | null } {
   return { label: trimmed, href: null };
 }
 
+function shouldInsertGroupAd(index: number, total: number): boolean {
+  return index % 3 === 0 && index < total - 1;
+}
+
 function estimateChunkHeight(itemCount: number, includeHeader: boolean): number {
   const headerHeight = includeHeader ? SECTION_HEADER + SECTION_PADDING * 2 : CONT_HEADER_EXTRA + SECTION_PADDING;
   const itemsHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP;
@@ -789,7 +793,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
             </section>
           );
 
-          if (index >= groupedSections.length - 1) {
+          if (!shouldInsertGroupAd(index, groupedSections.length)) {
             return [sectionNode];
           }
 
@@ -1005,7 +1009,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                                     )}
                                                     aria-hidden
                                                   >
-                                                    <span className="absolute inset-0 rounded-[5px] bg-white dark:bg-black/85" />
+                                                    <span className="absolute inset-0 rounded-[5px] bg-white dark:bg-background" />
                                                     <span
                                                       className={clsx(
                                                         "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
@@ -1068,7 +1072,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                 </div>
               );
 
-              if (index >= groups.length - 1) {
+              if (!shouldInsertGroupAd(index, groups.length)) {
                 return [groupNode];
               }
 

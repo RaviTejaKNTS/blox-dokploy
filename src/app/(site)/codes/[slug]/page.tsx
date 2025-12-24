@@ -33,7 +33,8 @@ import {
 import type { Code, GameWithCounts } from "@/lib/db";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import {
-  SITE_DESCRIPTION,
+  CHECKLISTS_DESCRIPTION,
+  CODES_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
@@ -342,7 +343,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const descriptionRaw =
     game.seo_description ||
     `Get the latest ${game.name} codes for ${when} and redeem them for free in-game rewards. Updated daily with only active and working codes.`;
-  const description = descriptionRaw?.trim() || SITE_DESCRIPTION;
+  const description = descriptionRaw?.trim() || CODES_DESCRIPTION;
   const canonicalUrl = `${SITE_URL}/codes/${game.slug}`;
   const coverImage = game.cover_image?.startsWith("http")
     ? game.cover_image
@@ -576,7 +577,7 @@ export default async function GamePage({ params }: Params) {
     game.seo_description ||
       `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`
   );
-  const metaDescription = metaDescriptionRaw?.trim() || SITE_DESCRIPTION;
+  const metaDescription = metaDescriptionRaw?.trim() || CODES_DESCRIPTION;
   const authorMeta =
     game.author && game.author.name
       ? {
@@ -659,7 +660,7 @@ export default async function GamePage({ params }: Params) {
   const relatedGame = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
 
   const relatedChecklistCards = relatedChecklists.map((row) => {
-    const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
+    const summary = summarize(row.seo_description ?? row.description_md ?? null, CHECKLISTS_DESCRIPTION);
     const itemsCount =
       typeof row.leaf_item_count === "number"
         ? row.leaf_item_count
@@ -698,7 +699,7 @@ export default async function GamePage({ params }: Params) {
           </ol>
         </nav>
         <header className="mb-6">
-          <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
+          <h1 className="text-4xl font-bold text-foreground md:text-5xl" itemProp="headline">
             {game.name} Codes ({monthYear()})
           </h1>
           <div className="mt-4 flex flex-col gap-3 text-sm text-muted">

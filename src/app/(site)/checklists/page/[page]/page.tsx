@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadChecklistsPageData, renderChecklistsPage } from "../../page";
+import { CHECKLISTS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 21600; // 6 hours
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = pageNumber > 1 ? `Roblox Checklists - Page ${pageNumber}` : "Roblox Checklists";
   return {
     title,
-    description: "Paginated Roblox checklists index",
+    description: CHECKLISTS_DESCRIPTION,
     robots: { index: false, follow: true },
     alternates: {
       canonical: pageNumber === 1 ? "/checklists" : `/checklists/page/${pageNumber}`

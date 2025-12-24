@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadListsPageData, renderListsPage } from "../../page";
+import { LISTS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 86400; // daily
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = pageNumber > 1 ? `Roblox Game Lists - Page ${pageNumber}` : "Roblox Game Lists";
   return {
     title,
-    description: "Paginated Roblox game lists index",
+    description: LISTS_DESCRIPTION,
     robots: { index: false, follow: true },
     alternates: {
       canonical: pageNumber === 1 ? "/lists" : `/lists/page/${pageNumber}`

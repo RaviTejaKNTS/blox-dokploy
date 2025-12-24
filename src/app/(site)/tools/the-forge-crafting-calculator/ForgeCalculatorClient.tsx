@@ -86,7 +86,7 @@ function OreCard({
           {ore.multiplier.toFixed(2)}x
         </span>
         {selected ? (
-          <span className="rounded-full bg-accent text-[11px] font-bold text-white px-2 py-[2px] shadow-soft">
+          <span className="rounded-full bg-accent px-2 py-[2px] text-[11px] font-bold text-white shadow-soft dark:bg-accent-dark">
             x{count}
           </span>
         ) : null}
@@ -244,7 +244,7 @@ export function ForgeCalculatorClient() {
               onClick={() => setMode("weapon")}
               className={cn(
                 "px-4 py-2 transition",
-                mode === "weapon" ? "bg-accent text-white" : "text-foreground hover:bg-surface-muted"
+                mode === "weapon" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
               )}
             >
               Weapon
@@ -254,7 +254,7 @@ export function ForgeCalculatorClient() {
               onClick={() => setMode("armor")}
               className={cn(
                 "px-4 py-2 transition",
-                mode === "armor" ? "bg-accent text-white" : "text-foreground hover:bg-surface-muted"
+                mode === "armor" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
               )}
             >
               Armor
@@ -446,7 +446,7 @@ export function ForgeCalculatorClient() {
                         <span className="rounded-full bg-surface-muted px-2 py-1 text-[11px] font-semibold text-muted">
                           {entry.ore.multiplier.toFixed(2)}x
                         </span>
-                        <span className="rounded-full bg-accent px-2 py-1 text-[11px] font-bold text-white shadow-soft">
+                        <span className="rounded-full bg-accent px-2 py-1 text-[11px] font-bold text-white shadow-soft dark:bg-accent-dark">
                           x{entry.count}
                         </span>
                       </div>

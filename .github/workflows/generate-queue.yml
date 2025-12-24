@@ -1,6 +1,8 @@
 name: Queue Article Generation
 
 on:
+  schedule:
+    - cron: "0 0,8,16 * * *"
   workflow_dispatch:
     inputs:
       limit:

@@ -6,7 +6,7 @@ import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
 
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const titleBase = resolveSeoTitle(page.seo_title) ?? page.title;
   const description =
     page.seo_description ||
-    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : SITE_DESCRIPTION);
+    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : CHECKLISTS_DESCRIPTION);
   const canonical = `${SITE_URL}/checklists/${page.slug}`;
   const publishedTime = page.published_at ? new Date(page.published_at).toISOString() : undefined;
   const updatedTime = page.updated_at ? new Date(page.updated_at).toISOString() : undefined;
@@ -58,7 +58,7 @@ export default async function ChecklistPage({ params }: PageProps) {
   const canonicalUrl = `${SITE_URL}/checklists/${page.slug}`;
   const descriptionPlain =
     page.seo_description ||
-    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : SITE_DESCRIPTION);
+    (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : CHECKLISTS_DESCRIPTION);
   const coverImage = page.universe?.icon_url || `${SITE_URL}/og-image.png`;
   const descriptionHtml = page.description_md ? await renderMarkdown(page.description_md) : null;
   const leafItems = items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3);

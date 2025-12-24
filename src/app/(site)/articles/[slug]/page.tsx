@@ -11,7 +11,8 @@ import { processHtmlLinks } from "@/lib/link-utils";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { collectAuthorSocials } from "@/lib/author-socials";
 import {
-  SITE_DESCRIPTION,
+  ARTICLES_DESCRIPTION,
+  CHECKLISTS_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
@@ -61,7 +62,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     : article.cover_image
     ? `${SITE_URL.replace(/\/$/, "")}/${article.cover_image.replace(/^\//, "")}`
     : `${SITE_URL}/og-image.png`;
-  const description = (article.meta_description || markdownToPlainText(article.content_md)).trim() || SITE_DESCRIPTION;
+  const description =
+    (article.meta_description || markdownToPlainText(article.content_md)).trim() || ARTICLES_DESCRIPTION;
   const title = resolveSeoTitle(article.seo_title) ?? article.title;
   const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
 
@@ -206,7 +208,8 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
   const relatedChecklistCards = relatedChecklists.map((row) => {
-    const summaryPlain = markdownToPlainText(row.seo_description ?? row.description_md ?? "") || SITE_DESCRIPTION;
+    const summaryPlain =
+      markdownToPlainText(row.seo_description ?? row.description_md ?? "") || CHECKLISTS_DESCRIPTION;
     const itemsCount =
       typeof row.leaf_item_count === "number"
         ? row.leaf_item_count
@@ -245,7 +248,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               ))}
             </ol>
           </nav>
-          <h1 className="text-5xl font-bold text-foreground" itemProp="headline">
+          <h1 className="text-4xl font-bold text-foreground md:text-5xl" itemProp="headline">
             {article.title}
           </h1>
           <div className="flex flex-col gap-3 text-sm text-muted">

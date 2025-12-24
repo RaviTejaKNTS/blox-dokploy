@@ -76,12 +76,12 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
 
   return (
     <div className="sticky top-0 z-30 flex flex-col gap-2 bg-background/95 py-5 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
-      {/* Heading and progress bar on the same line */}
-      <div className="flex items-center gap-4 min-h-[32px]">
-        <h1 className="text-xl font-black leading-none sm:text-[26px] whitespace-nowrap m-0">{title}</h1>
-        <div className="flex flex-1 items-center gap-3">
+      {/* Heading and progress bar (stacked on mobile) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 min-h-[32px]">
+        <h1 className="text-xl font-black leading-tight sm:text-[26px] sm:whitespace-nowrap m-0">{title}</h1>
+        <div className="flex w-full flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
           <div
-            className="h-2.5 flex-1 overflow-hidden rounded-full bg-border/70"
+            className="h-2.5 w-full overflow-hidden rounded-full bg-border/70 sm:flex-1"
             role="progressbar"
             aria-label={`Overall progress for ${title}`}
             aria-valuemin={0}
@@ -93,7 +93,7 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
               style={{ width: `${progress.percent}%` }}
             />
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-[6px] text-[11px] font-semibold text-muted-foreground shadow-sm whitespace-nowrap">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-surface/70 px-3 py-[6px] text-[11px] font-semibold text-muted-foreground shadow-sm whitespace-nowrap sm:self-auto">
             <span className="text-foreground">{progress.done}/{progress.total}</span>
             <span>tasks done</span>
             <span className="text-border">.</span>

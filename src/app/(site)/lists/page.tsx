@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { listPublishedGameListsPage, type GameList } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { ListCard } from "@/components/ListCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -10,7 +10,7 @@ export const PAGE_SIZE = 20;
 
 export const metadata = {
   title: `Roblox Game Lists | ${SITE_NAME}`,
-  description: SITE_DESCRIPTION,
+  description: LISTS_DESCRIPTION,
   alternates: {
     canonical: `${SITE_URL}/lists`
   }
@@ -140,7 +140,7 @@ function ListsPageView({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
               name: "Roblox Game Lists",
-              description: SITE_DESCRIPTION,
+              description: LISTS_DESCRIPTION,
               url: `${SITE_URL}/lists`
             })
           }}

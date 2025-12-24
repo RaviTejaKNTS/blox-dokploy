@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadRobloxMusicIdsPageData, parseMusicIdFilters, renderRobloxMusicIdsPage } from "../../page";
+import { CATALOG_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = pageNumber > 1 ? `Roblox Music IDs - Page ${pageNumber}` : "Roblox Music IDs";
   return {
     title,
-    description: "Paginated Roblox music IDs catalog.",
+    description: CATALOG_DESCRIPTION,
     robots: { index: false, follow: true },
     alternates: {
       canonical: pageNumber === 1 ? "/catalog/roblox-music-ids" : `/catalog/roblox-music-ids/page/${pageNumber}`

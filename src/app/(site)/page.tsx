@@ -8,7 +8,7 @@ import {
   listPublishedGameLists
 } from "@/lib/db";
 import { listPublishedTools } from "@/lib/tools";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ChecklistCard } from "@/components/ChecklistCard";
@@ -24,8 +24,7 @@ const INITIAL_TOOLS = 6;
 export const revalidate = 21600; // 6 hours
 
 const PAGE_TITLE = `${SITE_NAME} | Roblox codes, guides, checklists, and tools`;
-const PAGE_DESCRIPTION =
-  "Your Roblox hub for guides, checklists, tools, active codes, and live ranking lists. Updated throughout the day with fresh data.";
+const PAGE_DESCRIPTION = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -149,7 +148,7 @@ export default async function HomePage() {
           : typeof row.item_count === "number"
             ? row.item_count
             : null;
-      const summary = summarize(row.seo_description ?? row.description_md ?? null, SITE_DESCRIPTION);
+      const summary = summarize(row.seo_description ?? row.description_md ?? null, CHECKLISTS_DESCRIPTION);
 
       return {
         id: row.id,

@@ -134,14 +134,14 @@ export function RobuxPurchaseClient({
           <button
             type="button"
             onClick={() => setMode("robux_to_usd")}
-            className={`px-4 py-2 transition ${mode === "robux_to_usd" ? "bg-accent text-white" : "text-foreground"}`}
+            className={`px-4 py-2 transition ${mode === "robux_to_usd" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"}`}
           >
             Robux → USD
           </button>
           <button
             type="button"
             onClick={() => setMode("usd_to_robux")}
-            className={`px-4 py-2 transition ${mode === "usd_to_robux" ? "bg-accent text-white" : "text-foreground"}`}
+            className={`px-4 py-2 transition ${mode === "usd_to_robux" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"}`}
           >
             USD → Robux
           </button>
@@ -162,7 +162,7 @@ export function RobuxPurchaseClient({
                 inputMode="numeric"
                 value={targetRobuxInput}
                 onChange={(e) => setTargetRobuxInput(e.target.value)}
-                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                 placeholder="Enter amount (e.g. 4600)"
               />
             </label>
@@ -268,7 +268,7 @@ export function RobuxPurchaseClient({
                 inputMode="decimal"
                 value={targetUsdInput}
                 onChange={(e) => setTargetUsdInput(e.target.value)}
-                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                 placeholder="Enter budget (e.g. 9.99)"
               />
             </label>

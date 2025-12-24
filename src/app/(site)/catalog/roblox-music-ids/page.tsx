@@ -4,7 +4,7 @@ import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { MusicCoverImage } from "@/components/MusicCoverImage";
 import { PagePagination } from "@/components/PagePagination";
 import { supabaseAdmin } from "@/lib/supabase";
-import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const revalidate = 3600;
 export const PAGE_SIZE = 24;
@@ -48,19 +48,19 @@ const SORT_OPTIONS = [
 
 export const metadata: Metadata = {
   title: `Roblox Music IDs | ${SITE_NAME}`,
-  description: "Browse Roblox music IDs with thumbnails and quick play links.",
+  description: CATALOG_DESCRIPTION,
   alternates: { canonical: CANONICAL },
   openGraph: {
     type: "website",
     url: CANONICAL,
     title: `Roblox Music IDs | ${SITE_NAME}`,
-    description: "Browse Roblox music IDs with thumbnails and quick play links.",
+    description: CATALOG_DESCRIPTION,
     siteName: SITE_NAME
   },
   twitter: {
     card: "summary_large_image",
     title: `Roblox Music IDs | ${SITE_NAME}`,
-    description: "Browse Roblox music IDs with thumbnails and quick play links."
+    description: CATALOG_DESCRIPTION
   }
 };
 
@@ -363,7 +363,7 @@ function RobloxMusicIdsPageView({
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark"
+            className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark dark:bg-accent-dark dark:hover:bg-accent"
           >
             Apply filters
           </button>
@@ -439,7 +439,7 @@ function RobloxMusicIdsPageView({
                       href={buildRobloxUrl(song.asset_id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-dark dark:bg-accent-dark dark:hover:bg-accent"
                     >
                       Play on Roblox
                     </a>

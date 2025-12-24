@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { listPublishedChecklistsPage, type ChecklistSummaryRow } from "@/lib/db";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -11,7 +11,7 @@ export const PAGE_SIZE = 20;
 
 export const metadata = {
   title: `Roblox Checklists | ${SITE_NAME}`,
-  description: SITE_DESCRIPTION,
+  description: CHECKLISTS_DESCRIPTION,
   alternates: {
     canonical: `${SITE_URL}/checklists`
   }
@@ -68,7 +68,7 @@ function mapRowToCard(row: ChecklistSummaryRow): ChecklistCardData {
       : typeof (row as any).item_count === "number"
         ? (row as any).item_count
         : null;
-  const summary = summarize((row as any).seo_description ?? (row as any).description_md ?? null, SITE_DESCRIPTION);
+  const summary = summarize((row as any).seo_description ?? (row as any).description_md ?? null, CHECKLISTS_DESCRIPTION);
 
   return {
     id: row.id,
@@ -170,7 +170,7 @@ function ChecklistsPageView({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
               name: "Roblox Checklists",
-              description: SITE_DESCRIPTION,
+              description: CHECKLISTS_DESCRIPTION,
               url: `${SITE_URL}/checklists`
             })
           }}

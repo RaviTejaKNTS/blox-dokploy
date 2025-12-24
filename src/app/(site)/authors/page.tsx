@@ -116,7 +116,7 @@ export default async function AuthorsIndexPage() {
                   {author.slug ? (
                     <Link
                       href={`/authors/${author.slug}`}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent-dark"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent"
                     >
                       View profile
                       <span aria-hidden>→</span>

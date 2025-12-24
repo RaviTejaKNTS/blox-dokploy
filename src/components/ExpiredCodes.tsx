@@ -14,6 +14,7 @@ export function ExpiredCodes({ codes, gameName }: Props) {
   const [expanded, setExpanded] = useState(false);
   const sorted = useMemo(() => [...codes], [codes]);
   const showToggle = sorted.length > 4;
+  const shouldCollapse = showToggle && !expanded;
   const hasCodes = sorted.length > 0;
 
   return (
@@ -47,10 +48,10 @@ export function ExpiredCodes({ codes, gameName }: Props) {
           <ul
             className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground transition-[max-height]"
             style={{
-              maxHeight: expanded ? undefined : COLLAPSED_MAX_HEIGHT,
-              overflow: expanded ? "visible" : "hidden"
+              maxHeight: shouldCollapse ? COLLAPSED_MAX_HEIGHT : undefined,
+              overflow: shouldCollapse ? "hidden" : "visible"
             }}
-            aria-expanded={expanded}
+            aria-expanded={showToggle ? expanded : undefined}
           >
             {sorted.map((code) => (
               <li
@@ -61,7 +62,7 @@ export function ExpiredCodes({ codes, gameName }: Props) {
               </li>
             ))}
           </ul>
-          {!expanded ? (
+          {shouldCollapse ? (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface to-transparent" />
           ) : null}
         </div>

@@ -205,7 +205,7 @@ export function GrowGardenCropValueCalculatorClient({
                   onClick={() => handleBaseModeChange("average")}
                   className={cn(
                     "px-3 py-2 transition",
-                    baseMode === "average" ? "bg-accent text-white" : "text-foreground"
+                    baseMode === "average" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"
                   )}
                 >
                   Use average
@@ -215,7 +215,7 @@ export function GrowGardenCropValueCalculatorClient({
                   onClick={() => handleBaseModeChange("baseline")}
                   className={cn(
                     "px-3 py-2 transition",
-                    baseMode === "baseline" ? "bg-accent text-white" : "text-foreground"
+                    baseMode === "baseline" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"
                   )}
                 >
                   Use baseline

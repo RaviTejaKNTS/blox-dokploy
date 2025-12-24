@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { ToolCard } from "@/components/ToolCard";
 import { listPublishedToolsPage, type ToolListEntry } from "@/lib/tools";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { TOOLS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { PagePagination } from "@/components/PagePagination";
 
 export const revalidate = 21600; // refresh a few times per day
@@ -11,7 +11,7 @@ export const PAGE_SIZE = 20;
 
 export const metadata: Metadata = {
   title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-  description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
+  description: TOOLS_DESCRIPTION,
   alternates: {
     canonical: `${SITE_URL}/tools`
   },
@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/tools`,
     title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-    description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`,
+    description: TOOLS_DESCRIPTION,
     siteName: SITE_NAME
   },
   twitter: {
     card: "summary_large_image",
     title: `Roblox Tools & Calculators | ${SITE_NAME}`,
-    description: `${SITE_NAME} utilities, calculators, and planners for Roblox players.`
+    description: TOOLS_DESCRIPTION
   }
 };
 
@@ -117,7 +117,7 @@ function ToolsPageView({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
               name: "Roblox Tools & Calculators",
-              description: SITE_DESCRIPTION,
+              description: TOOLS_DESCRIPTION,
               url: `${SITE_URL}/tools`
             })
           }}

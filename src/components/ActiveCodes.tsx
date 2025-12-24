@@ -107,29 +107,29 @@ export function ActiveCodes({
             priority={false}
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-r from-[rgb(var(--color-surface))] via-[rgb(var(--color-background))] to-[rgb(var(--color-surface-muted))] opacity-85 dark:from-[#0b0e19] dark:via-[#0e1224] dark:to-[#111731] dark:opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[rgb(var(--color-surface))] via-[rgb(var(--color-background))] to-[rgb(var(--color-surface-muted))] opacity-85" />
         <div className="relative px-5 py-6 sm:px-8 sm:py-7">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border/70 bg-surface text-foreground shadow-soft backdrop-blur dark:border-white/20 dark:bg-white/12 dark:text-white">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border/70 bg-surface text-foreground shadow-soft backdrop-blur">
                 <FiKey className="h-5 w-5" aria-hidden />
               </span>
-              <h2 className="mb-0 text-2xl font-bold leading-tight text-foreground drop-shadow-sm dark:text-white sm:text-3xl">
+              <h2 className="mb-0 text-2xl font-bold leading-tight text-foreground drop-shadow-sm sm:text-3xl">
                 Active {gameName} Codes
               </h2>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-base text-foreground/80 dark:text-white/85">
+            <div className="flex flex-wrap items-center gap-2 text-base text-foreground/85">
               <span className="inline-flex items-center gap-2">
                 <FiClock aria-hidden className="h-4 w-4 shrink-0" />
                 <span>
                   Last checked for new codes on{" "}
-                  <span className="font-semibold text-foreground dark:text-white">{lastCheckedLabel}</span>
+                  <span className="font-semibold text-foreground">{lastCheckedLabel}</span>
                   {lastCheckedRelativeLabel ? (
-                    <span className="text-foreground/70 dark:text-white/70"> ({lastCheckedRelativeLabel})</span>
+                    <span className="text-foreground/70"> ({lastCheckedRelativeLabel})</span>
                   ) : null}
                 </span>
               </span>
-              <span className="rounded-full border border-border/60 bg-surface px-2.5 py-1 text-[0.85rem] font-semibold text-foreground dark:border-white/20 dark:bg-white/14 dark:text-white">
+              <span className="rounded-full border border-border/60 bg-surface px-2.5 py-1 text-[0.85rem] font-semibold text-foreground">
                 {codes.length} active
               </span>
             </div>

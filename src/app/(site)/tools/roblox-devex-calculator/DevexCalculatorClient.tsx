@@ -87,14 +87,14 @@ export function DevexCalculatorClient({
           <button
             type="button"
             onClick={() => setMode("robux_to_usd")}
-            className={`px-4 py-2 transition ${mode === "robux_to_usd" ? "bg-accent text-white" : "text-foreground"}`}
+            className={`px-4 py-2 transition ${mode === "robux_to_usd" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"}`}
           >
             Robux → USD (DevEx)
           </button>
           <button
             type="button"
             onClick={() => setMode("usd_to_robux")}
-            className={`px-4 py-2 transition ${mode === "usd_to_robux" ? "bg-accent text-white" : "text-foreground"}`}
+            className={`px-4 py-2 transition ${mode === "usd_to_robux" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground"}`}
           >
             USD → Required Robux
           </button>
@@ -125,7 +125,7 @@ export function DevexCalculatorClient({
                 inputMode="numeric"
                 value={robuxInput}
                 onChange={(e) => setRobuxInput(e.target.value)}
-                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                 placeholder={`Enter earned Robux (minimum ${formatNumber(DEVEX_MIN)})`}
               />
               <span className="text-xs text-muted">Minimum DevEx eligibility: {formatNumber(DEVEX_MIN)} earned Robux.</span>
@@ -142,7 +142,7 @@ export function DevexCalculatorClient({
                 type="button"
                 onClick={() => setIsAdvanced((prev) => !prev)}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isAdvanced ? "bg-accent text-white shadow-soft" : "border border-border/60 text-foreground"
+                  isAdvanced ? "bg-accent text-white shadow-soft dark:bg-accent-dark" : "border border-border/60 text-foreground"
                 }`}
                 aria-pressed={isAdvanced}
               >
@@ -166,7 +166,7 @@ export function DevexCalculatorClient({
                   inputMode="numeric"
                   value={oldRobuxInput}
                   onChange={(e) => setOldRobuxInput(e.target.value)}
-                  className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                  className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                   placeholder="Robux earned under the old rate"
                 />
                 <span className="text-xs text-muted">Converted at {usdPerRobux.format(DEVEX_OLD_RATE)} per Robux.</span>
@@ -182,7 +182,7 @@ export function DevexCalculatorClient({
                   inputMode="numeric"
                   value={newRobuxInput}
                   onChange={(e) => setNewRobuxInput(e.target.value)}
-                  className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                  className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                   placeholder="Robux earned under the new rate"
                 />
                 <span className="text-xs text-muted">Converted at {usdPerRobux.format(DEVEX_NEW_RATE)} per Robux.</span>
@@ -275,7 +275,7 @@ export function DevexCalculatorClient({
                 inputMode="decimal"
                 value={usdInput}
                 onChange={(e) => setUsdInput(e.target.value)}
-                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-black/10"
+                className="w-full rounded-md border border-border/60 bg-white/5 px-3 py-2 text-base text-foreground outline-none ring-2 ring-transparent transition focus:ring-accent/50 dark:bg-white/10"
                 placeholder="Enter payout target (e.g. 250)"
               />
             </label>

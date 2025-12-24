@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadArticlesPageData, renderArticlesPage } from "../../page-data";
+import { ARTICLES_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 604800; // weekly
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = pageNumber > 1 ? `Roblox Articles - Page ${pageNumber}` : "Roblox Articles";
   return {
     title,
-    description: "Paginated Roblox articles index",
+    description: ARTICLES_DESCRIPTION,
     robots: { index: false, follow: true },
     alternates: {
       canonical: pageNumber === 1 ? "/articles" : `/articles/page/${pageNumber}`

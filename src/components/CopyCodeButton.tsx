@@ -29,11 +29,11 @@ export function CopyCodeButton({ code, tone = "surface", size = "md" }: Props) {
     : "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
 
   const toneClass = tone === "accent"
-    ? "border border-[#d7dcf5] bg-[#f1f3fc] text-[#202234] shadow-soft hover:border-[#c1c7ef] hover:bg-[#e6e9f8] dark:border-[#2a2c44] dark:bg-[#202234] dark:text-white dark:hover:border-[#35385a] dark:hover:bg-[#262845]"
+    ? "border border-accent/40 bg-accent/15 text-accent shadow-soft hover:border-accent/60 hover:bg-accent/20"
     : "border border-border/40 bg-surface text-foreground hover:border-border/30";
 
   const copiedClass = tone === "accent"
-    ? "border border-[#cbd1f0] bg-[#e6e9f8] text-[#1b2337] dark:border-[#494d76] dark:bg-[#303358] dark:text-white"
+    ? "border border-accent/60 bg-accent-dark text-white"
     : "border border-border/40 bg-surface-muted text-foreground";
 
   return (

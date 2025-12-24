@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { listPublishedArticlesPage, type ArticleWithRelations } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { ARTICLES_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -96,7 +96,7 @@ function ArticlesPageView({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
               name: "Articles & Guides",
-              description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`,
+              description: ARTICLES_DESCRIPTION,
               url: `${SITE_URL}/articles`
             })
           }}
@@ -112,7 +112,7 @@ export function renderArticlesPage(props: Parameters<typeof ArticlesPageView>[0]
 
 export const articlesMetadata: Metadata = {
   title: "Articles & Guides",
-  description: `${SITE_NAME} articles with Roblox tips, guides, and code breakdowns.`,
+  description: ARTICLES_DESCRIPTION,
   alternates: {
     canonical: `${SITE_URL}/articles`
   }

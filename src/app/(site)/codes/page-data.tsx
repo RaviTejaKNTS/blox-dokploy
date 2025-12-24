@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { listGamesWithActiveCountsPage, type GameWithCounts } from "@/lib/db";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { CODES_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -106,7 +106,7 @@ function CodesPageView({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
               name: "Roblox Game Codes",
-              description: `${SITE_NAME} tracks active codes across Roblox games. Explore every game we cover here.`,
+              description: CODES_DESCRIPTION,
               url: `${SITE_URL}/codes`
             })
           }}
@@ -122,7 +122,7 @@ export function renderCodesPage(props: Parameters<typeof CodesPageView>[0]) {
 
 export const codesMetadata: Metadata = {
   title: "Roblox Game Codes",
-  description: `${SITE_NAME} tracks active codes across Roblox games. Explore every game we cover here.`,
+  description: CODES_DESCRIPTION,
   alternates: {
     canonical: `${SITE_URL}/codes`
   }
