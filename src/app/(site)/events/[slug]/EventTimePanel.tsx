@@ -1,0 +1,115 @@
+import { EventCountdown } from "./EventCountdown";
+import { LocalTimeWidget } from "./LocalTimeWidget";
+import { buildCountdown, formatDateTimeLabel, formatDuration, formatInZone } from "./eventTimeFormat";
+
+type TimeZoneRow = {
+  label: string;
+  timeZone: string;
+};
+
+const TIME_ZONES: TimeZoneRow[] = [
+  { label: "United States – PT", timeZone: "America/Los_Angeles" },
+  { label: "United States – ET", timeZone: "America/New_York" },
+  { label: "Brazil – BRT", timeZone: "America/Sao_Paulo" },
+  { label: "United Kingdom – GMT", timeZone: "Europe/London" },
+  { label: "Europe – CET", timeZone: "Europe/Paris" },
+  { label: "Russia – MSK", timeZone: "Europe/Moscow" },
+  { label: "India – IST", timeZone: "Asia/Kolkata" },
+  { label: "Philippines – PHT", timeZone: "Asia/Manila" },
+  { label: "China – CST", timeZone: "Asia/Shanghai" },
+  { label: "South Africa – SAST", timeZone: "Africa/Johannesburg" },
+  { label: "Indonesia – WIB", timeZone: "Asia/Jakarta" },
+  { label: "Australia – AEDT", timeZone: "Australia/Sydney" },
+  { label: "New Zealand – NZDT", timeZone: "Pacific/Auckland" },
+  { label: "Japan – JST", timeZone: "Asia/Tokyo" }
+];
+
+function parseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function EventTimePanel({
+  startUtc,
+  endUtc,
+  gameName,
+  eventName,
+  thumbnailUrl
+}: {
+  startUtc: string | null;
+  endUtc?: string | null;
+  gameName: string;
+  eventName: string;
+  thumbnailUrl?: string | null;
+}) {
+  const startDate = parseDate(startUtc);
+  const endDate = parseDate(endUtc);
+
+  if (!startDate) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border/70 bg-surface-muted/60 p-4">
+        <div className="prose dark:prose-invert game-copy max-w-none">
+          <p>Start time not announced yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const utcStartLabel = formatDateTimeLabel(startDate, "UTC");
+  const utcEndLabel = endDate ? formatDateTimeLabel(endDate, "UTC") : null;
+  const durationLabel = endDate ? formatDuration(endDate.getTime() - startDate.getTime()) : null;
+  const durationSentence =
+    durationLabel && utcEndLabel ? ` Event runs for ${durationLabel} and ends on ${utcEndLabel} UTC.` : "";
+  const timeZoneRows = TIME_ZONES.map((zone) => ({
+    label: zone.label,
+    time: formatInZone(startDate, zone.timeZone)
+  }));
+  const initialCountdown = buildCountdown(startDate.getTime(), Date.now());
+
+  return (
+    <div className="space-y-4">
+      <div className="prose dark:prose-invert game-copy max-w-none">
+        <p>
+          This next {gameName} update is called {eventName}. It will be released on{" "}
+          <time dateTime={startDate.toISOString()}>{utcStartLabel} UTC</time>.{durationSentence}
+        </p>
+      </div>
+      <LocalTimeWidget startUtc={startUtc} endUtc={endUtc} />
+      <div className="space-y-3">
+        <div className="prose dark:prose-invert game-copy max-w-none">
+          <p>Use this countdown to track exactly when the event begins.</p>
+        </div>
+        <EventCountdown
+          startUtc={startUtc}
+          thumbnailUrl={thumbnailUrl}
+          eventName={eventName}
+          initialLabel={initialCountdown}
+        />
+      </div>
+      <div className="prose dark:prose-invert game-copy max-w-none">
+        <p>And here's the {eventName} update release date and time for select regions:</p>
+      </div>
+      <div className="table-scroll-wrapper">
+        <div className="table-scroll-inner game-copy">
+          <table>
+            <thead>
+              <tr>
+                <th className="table-col-compact">Region</th>
+                <th>Local time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {timeZoneRows.map((row) => (
+                <tr key={row.label}>
+                  <td className="table-col-compact font-semibold text-foreground">{row.label}</td>
+                  <td>{row.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

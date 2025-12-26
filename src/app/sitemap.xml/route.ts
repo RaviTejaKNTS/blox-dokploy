@@ -26,7 +26,8 @@ async function buildSitemapResponse() {
       { data: articles },
       { data: lists },
       { data: tools },
-      { data: checklists }
+      { data: checklists },
+      { data: eventsPages }
     ] = await Promise.all([
       sb
         .from("games")
@@ -58,6 +59,11 @@ async function buildSitemapResponse() {
         .from("checklist_pages")
         .select("slug, updated_at, published_at")
         .eq("is_public", true)
+        .order("updated_at", { ascending: false }),
+      sb
+        .from("events_pages")
+        .select("slug, updated_at, published_at")
+        .eq("is_published", true)
         .order("updated_at", { ascending: false })
     ]);
 
@@ -143,6 +149,17 @@ async function buildSitemapResponse() {
         loc: `${origin}/checklists/${checklist.slug}`,
         changefreq: "weekly",
         priority: "0.7",
+        lastmod: updated ? new Date(updated).toISOString() : undefined
+      });
+    }
+
+    for (const eventsPage of eventsPages || []) {
+      if (!eventsPage?.slug) continue;
+      const updated = (eventsPage as any).updated_at ?? (eventsPage as any).published_at;
+      pages.push({
+        loc: `${origin}/events/${eventsPage.slug}`,
+        changefreq: "daily",
+        priority: "0.6",
         lastmod: updated ? new Date(updated).toISOString() : undefined
       });
     }

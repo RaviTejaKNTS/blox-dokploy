@@ -14,10 +14,37 @@ type QueueRow = {
   article_title: string | null;
   sources: string | null;
   universe_id: number | null;
+  event_id: string | null;
   status: "pending" | "completed" | "failed";
   attempts: number;
   last_attempted_at: string | null;
   last_error: string | null;
+};
+
+type EventRow = {
+  event_id: string;
+  universe_id: number | null;
+  title: string | null;
+  display_title: string | null;
+  event_status: string | null;
+  event_visibility: string | null;
+  start_utc: string | null;
+  end_utc: string | null;
+  guide_slug: string | null;
+};
+
+type UniverseNameRow = {
+  display_name: string | null;
+  name: string | null;
+};
+
+type EventThumbnailRow = {
+  media_id: number | null;
+  rank: number | null;
+};
+
+type RobloxThumbnailResponse = {
+  data?: Array<{ targetId?: number; imageUrl?: string; state?: string }>;
 };
 
 type SearchResult = {
@@ -92,6 +119,9 @@ const AUTHOR_ID = process.env.ARTICLE_AUTHOR_ID ?? "4fc99a58-83da-46f6-9621-7816
 const SUPABASE_MEDIA_BUCKET = process.env.SUPABASE_MEDIA_BUCKET;
 const SITE_URL = (process.env.SITE_URL ?? "https://bloxodes.com").replace(/\/$/, "");
 const LOG_DRAFT_PROMPT = process.env.LOG_DRAFT_PROMPT === "true";
+const EVENT_GUIDE_WAIT_HOURS = Number(process.env.EVENT_GUIDE_WAIT_HOURS ?? "6");
+const EVENT_GUIDE_MIN_DURATION_HOURS = Number(process.env.EVENT_GUIDE_MIN_DURATION_HOURS ?? "24");
+const EVENT_GUIDE_MAX_AGE_DAYS = Number(process.env.EVENT_GUIDE_MAX_AGE_DAYS ?? "5");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE.");
@@ -198,6 +228,10 @@ function cleanText(value: string | null | undefined): string | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length ? normalized : null;
+}
+
+function getEventDisplayName(event: EventRow): string | null {
+  return cleanText(event.display_title) ?? cleanText(event.title);
 }
 
 function hashForPath(value: string): string {
@@ -832,6 +866,57 @@ async function downloadResizeAndUploadCover(params: {
   }
 }
 
+async function downloadResizeAndUploadEventCover(params: {
+  imageUrl: string;
+  slug: string;
+  fileBase?: string;
+}): Promise<string | null> {
+  if (!SUPABASE_MEDIA_BUCKET) {
+    console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
+    return null;
+  }
+
+  try {
+    const response = await fetch(params.imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+      }
+    });
+
+    if (!response.ok) {
+      console.warn("⚠️ Failed to download event thumbnail:", response.statusText);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const resized = await sharp(buffer)
+      .resize(1200, 675, { fit: "cover", position: "attention" })
+      .webp({ quality: 90, effort: 4 })
+      .toBuffer();
+
+    const fileBase = normalizeImageFileBase(params.fileBase ?? params.slug);
+    const path = `articles/${params.slug}/${fileBase}-cover.webp`;
+    const storageClient = supabase.storage.from(SUPABASE_MEDIA_BUCKET);
+
+    const { error } = await storageClient.upload(path, resized, {
+      contentType: "image/webp",
+      upsert: true
+    });
+
+    if (error) {
+      console.warn("⚠️ Failed to upload article cover image:", error.message);
+      return null;
+    }
+
+    const publicUrl = storageClient.getPublicUrl(path);
+    return publicUrl.data.publicUrl ?? null;
+  } catch (error) {
+    console.warn("⚠️ Could not process event cover image:", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
 async function uploadUniverseCoverImage(universeId: number, slug: string, overlayTitle?: string | null): Promise<string | null> {
   if (!SUPABASE_MEDIA_BUCKET) {
     console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
@@ -848,12 +933,31 @@ async function uploadUniverseCoverImage(universeId: number, slug: string, overla
   });
 }
 
+async function uploadEventCoverImage(eventId: string, slug: string, coverTitle: string): Promise<string | null> {
+  if (!SUPABASE_MEDIA_BUCKET) {
+    console.log("⚠️ SUPABASE_MEDIA_BUCKET not configured. Skipping cover image upload.");
+    return null;
+  }
+
+  const url = await pickEventThumbnailUrl(eventId);
+  if (!url) {
+    console.warn(`⚠️ No event thumbnail available for ${eventId}.`);
+    return null;
+  }
+
+  return downloadResizeAndUploadEventCover({
+    imageUrl: url,
+    slug,
+    fileBase: coverTitle
+  });
+}
+
 async function getRandomQueueItem(): Promise<QueueRow | null> {
   const { count, error: countError } = await supabase
     .from("article_generation_queue")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending")
-    .or("event_id.is.null,event_id.eq.");
+    .not("event_id", "is", null);
 
   if (countError) {
     throw new Error(`Failed to count queue items: ${countError.message}`);
@@ -865,9 +969,9 @@ async function getRandomQueueItem(): Promise<QueueRow | null> {
   const offset = Math.floor(Math.random() * total);
   const { data, error } = await supabase
     .from("article_generation_queue")
-    .select("id, article_title, sources, status, attempts, last_attempted_at, last_error, universe_id")
+    .select("id, article_title, sources, status, attempts, last_attempted_at, last_error, universe_id, event_id")
     .eq("status", "pending")
-    .or("event_id.is.null,event_id.eq.")
+    .not("event_id", "is", null)
     .order("created_at", { ascending: true })
     .range(offset, offset)
     .maybeSingle();
@@ -893,8 +997,91 @@ async function getRandomQueueItem(): Promise<QueueRow | null> {
     last_attempted_at: data.last_attempted_at ?? null,
     last_error: data.last_error ?? null,
     sources: (data as { sources?: string | null }).sources ?? null,
-    universe_id: Number.isFinite(universeId) ? universeId : null
+    universe_id: Number.isFinite(universeId) ? universeId : null,
+    event_id: (data as { event_id?: string | null }).event_id ?? null
   };
+}
+
+async function fetchEventById(eventId: string): Promise<EventRow | null> {
+  const { data, error } = await supabase
+    .from("roblox_virtual_events")
+    .select("event_id, universe_id, title, display_title, event_status, event_visibility, start_utc, end_utc, guide_slug")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load event ${eventId}: ${error.message}`);
+  }
+
+  return (data as EventRow | null) ?? null;
+}
+
+async function fetchUniverseName(universeId: number): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("roblox_universes")
+    .select("display_name, name")
+    .eq("universe_id", universeId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load universe ${universeId}: ${error.message}`);
+  }
+
+  const row = data as UniverseNameRow | null;
+  return cleanText(row?.display_name) ?? cleanText(row?.name);
+}
+
+async function fetchEventThumbnailMediaIds(eventId: string): Promise<number[]> {
+  const { data, error } = await supabase
+    .from("roblox_virtual_event_thumbnails")
+    .select("media_id, rank")
+    .eq("event_id", eventId)
+    .order("rank", { ascending: true });
+
+  if (error) {
+    console.warn(`⚠️ Failed to load event thumbnails for ${eventId}:`, error.message);
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row) => (row as EventThumbnailRow).media_id)
+    .filter((id): id is number => typeof id === "number");
+}
+
+async function fetchThumbnailUrls(mediaIds: number[]): Promise<Map<number, string>> {
+  if (!mediaIds.length) return new Map();
+  const params = new URLSearchParams({
+    assetIds: mediaIds.join(","),
+    size: "768x432",
+    format: "Png",
+    isCircular: "false"
+  });
+
+  try {
+    const res = await fetch(`https://thumbnails.roblox.com/v1/assets?${params.toString()}`);
+    if (!res.ok) return new Map();
+    const payload = (await res.json()) as RobloxThumbnailResponse;
+    const map = new Map<number, string>();
+    for (const item of payload.data ?? []) {
+      if (typeof item.targetId === "number" && typeof item.imageUrl === "string") {
+        map.set(item.targetId, item.imageUrl);
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+async function pickEventThumbnailUrl(eventId: string): Promise<string | null> {
+  const mediaIds = await fetchEventThumbnailMediaIds(eventId);
+  if (!mediaIds.length) return null;
+  const urlMap = await fetchThumbnailUrls(mediaIds);
+  for (const mediaId of mediaIds) {
+    const url = urlMap.get(mediaId);
+    if (url) return url;
+  }
+  return null;
 }
 
 async function markAttempt(queue: QueueRow): Promise<void> {
@@ -929,6 +1116,21 @@ async function updateQueueStatus(
   if (error) {
     throw new Error(`Failed to update queue status: ${error.message}`);
   }
+}
+
+async function attachGuideToEvent(eventId: string, slug: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("roblox_virtual_events")
+    .update({ guide_slug: slug })
+    .eq("event_id", eventId)
+    .or("guide_slug.is.null,guide_slug.eq.")
+    .select("event_id");
+
+  if (error) {
+    throw new Error(`Failed to link guide to event ${eventId}: ${error.message}`);
+  }
+
+  return (data ?? []).length > 0;
 }
 
 async function perplexitySearch(query: string, limit: number): Promise<SearchResult[]> {
@@ -2326,12 +2528,74 @@ async function main() {
       return;
     }
 
-    const topic = queueEntry.article_title?.trim();
-    if (!topic) {
-      throw new Error("Queue item missing article_title.");
+    if (!queueEntry.event_id) {
+      throw new Error("Queue item missing event_id.");
     }
 
-    console.log(`✏️  Generating article for "${topic}" (${queueEntry.id})`);
+    const event = await fetchEventById(queueEntry.event_id);
+    if (!event) {
+      throw new Error(`Event ${queueEntry.event_id} not found.`);
+    }
+
+    const eventName = getEventDisplayName(event);
+    if (!eventName) {
+      throw new Error(`Event ${queueEntry.event_id} is missing a display title.`);
+    }
+
+    const universeId = queueEntry.universe_id ?? event.universe_id;
+    if (!universeId) {
+      throw new Error(`Event ${queueEntry.event_id} is missing universe_id.`);
+    }
+
+    const status = cleanText(event.event_status)?.toLowerCase();
+    const visibility = cleanText(event.event_visibility)?.toLowerCase();
+    if (status !== "active" || visibility !== "public") {
+      throw new Error(`Event ${queueEntry.event_id} is not active/public.`);
+    }
+
+    if (!event.start_utc) {
+      throw new Error(`Event ${queueEntry.event_id} is missing start_utc.`);
+    }
+
+    if (!event.end_utc) {
+      throw new Error(`Event ${queueEntry.event_id} is missing end_utc.`);
+    }
+
+    const now = Date.now();
+    const startTime = Date.parse(event.start_utc);
+    if (Number.isNaN(startTime)) {
+      throw new Error(`Event ${queueEntry.event_id} has invalid start_utc.`);
+    }
+
+    const endTime = Date.parse(event.end_utc);
+    if (Number.isNaN(endTime)) {
+      throw new Error(`Event ${queueEntry.event_id} has invalid end_utc.`);
+    }
+
+    const waitMs = EVENT_GUIDE_WAIT_HOURS * 60 * 60 * 1000;
+    if (startTime > now - waitMs) {
+      throw new Error(`Event ${queueEntry.event_id} has not been live for ${EVENT_GUIDE_WAIT_HOURS} hours yet.`);
+    }
+
+    const minDurationMs = EVENT_GUIDE_MIN_DURATION_HOURS * 60 * 60 * 1000;
+    if (endTime - startTime < minDurationMs) {
+      throw new Error(`Event ${queueEntry.event_id} is shorter than ${EVENT_GUIDE_MIN_DURATION_HOURS} hours.`);
+    }
+
+    const maxAgeMs = EVENT_GUIDE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (startTime < now - maxAgeMs) {
+      throw new Error(`Event ${queueEntry.event_id} is older than ${EVENT_GUIDE_MAX_AGE_DAYS} days.`);
+    }
+
+    if (endTime <= now) {
+      throw new Error(`Event ${queueEntry.event_id} already ended.`);
+    }
+
+    const gameName = (await fetchUniverseName(universeId)) ?? `Universe ${universeId}`;
+    const forcedTitle = cleanText(queueEntry.article_title) ?? `${gameName} ${eventName} Guide`;
+    const topic = `${gameName} ${eventName} event guide`;
+
+    console.log(`✏️  Generating event guide for "${forcedTitle}" (${queueEntry.id})`);
     await markAttempt(queueEntry);
 
     const { sources: collectedSources, researchQuestions } = await gatherSources(topic, queueEntry.sources);
@@ -2354,7 +2618,7 @@ async function main() {
     console.log(`refined_title="${refinedDraft.title}" word_count=${estimateWordCount(refinedDraft.content_md)}`);
 
     const relatedPages = await fetchRelatedPagesForUniverse({
-      universeId: queueEntry.universe_id,
+      universeId,
       excludeSlug: slugify(refinedDraft.title)
     });
     console.log(`interlink_candidates=${relatedPages.length}`);
@@ -2362,7 +2626,7 @@ async function main() {
     const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, refinedDraft, relatedPages);
     console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
 
-    let currentDraft = interlinkedDraft;
+    let currentDraft = { ...interlinkedDraft, title: forcedTitle };
     console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
     if (currentDraft.content_md.length < 400) {
@@ -2372,20 +2636,14 @@ async function main() {
     const slug = await ensureUniqueSlug(currentDraft.title);
 
     let coverImage: string | null = null;
-    if (queueEntry.universe_id) {
-      console.log(`🖼️ Attaching universe cover from ${queueEntry.universe_id}...`);
-      let coverTitle: string | null = null;
-      try {
-        coverTitle = await buildShortCoverTitle(currentDraft.title, topic);
-      } catch (titleError) {
-        console.warn("⚠️ Cover title generation failed:", titleError instanceof Error ? titleError.message : String(titleError));
-      }
-      coverImage = await uploadUniverseCoverImage(queueEntry.universe_id, slug, coverTitle);
+    if (queueEntry.event_id) {
+      console.log(`🖼️ Attaching event cover from ${queueEntry.event_id}...`);
+      coverImage = await uploadEventCoverImage(queueEntry.event_id, slug, forcedTitle);
     }
 
     const article = await insertArticleDraft(currentDraft, {
       slug,
-      universeId: queueEntry.universe_id,
+      universeId,
       coverImage
     });
 
@@ -2427,6 +2685,18 @@ async function main() {
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);
+
+    if (queueEntry.event_id) {
+      try {
+        const linked = await attachGuideToEvent(queueEntry.event_id, article.slug);
+        console.log(`event_guide_linked=${linked}`);
+      } catch (eventError) {
+        console.warn(
+          "⚠️ Failed to link guide to event:",
+          eventError instanceof Error ? eventError.message : String(eventError)
+        );
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("❌ Article generation failed:", message);

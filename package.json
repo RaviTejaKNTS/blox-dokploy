@@ -10,6 +10,7 @@
     "lint": "echo \"(lint intentionally omitted)\"",
     "test": "vitest run",
     "generate:articles": "tsx scripts/generate-articles.ts",
+    "generate:events-articles": "tsx scripts/generate-events-articles.ts",
     "articles:queue": "tsx scripts/run-article-generation-queue.ts",
     "refresh:codes": "tsx scripts/update-codes.ts",
     "rewrite:codes": "tsx scripts/rewrite-codes-articles.ts",
@@ -24,6 +25,8 @@
     "cover:backfill": "tsx scripts/backfill-missing-cover-images.ts",
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
     "collect:music-ids": "tsx scripts/collect-roblox-music-ids.ts",
+    "collect:virtual-events": "tsx scripts/collect-roblox-virtual-events.ts",
+    "queue:event-guides": "tsx scripts/queue-event-guides.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
     "scrape:grow-garden-crops": "tsx scripts/scrape-grow-a-garden-crops.ts",
     "lists:refresh": "tsx scripts/refresh-game-lists.ts",
@@ -32,7 +35,9 @@
     "generate:universe-description": "tsx scripts/generate-universe-description.ts",
     "post:vibes": "tsx scripts/post-roblox-vibes.ts",
     "backfill:interlinking": "tsx scripts/backfill-interlinking.ts",
-    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts"
+    "seed:trending-lists": "tsx scripts/seed-trending-lists.ts",
+    "seed:events-pages": "tsx scripts/seed-events-pages.ts",
+    "seed:event-details": "tsx scripts/seed-event-details.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
