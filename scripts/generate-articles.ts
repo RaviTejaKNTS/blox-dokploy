@@ -1901,49 +1901,82 @@ async function interlinkArticleWithRelatedPages(
     content_md: replaceEmDashes(article.content_md)
   };
 
-  if (pages.length < 2) return cleanedArticle;
-
   const pageBlock = pages
-    .map(
-      (page, idx) =>
-        `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`
-    )
+    .map((page, idx) => {
+      return `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`;
+    })
     .join("\n\n");
+  const pageBlockText = pages.length ? pageBlock : "No internal pages available.";
+  const linkRules = pages.length
+    ? `- Add 3-4 inline Markdown links where they naturally fit. Spread them out across the article.
+- Use the provided URLs exactly. Do not invent links or add external URLs.
+- If fewer than 3 pages are a good fit, use only the relevant ones without forcing.`
+    : "- Do not add any links because none are provided.";
 
   const prompt = `
-Sprinkle 3-4 short internal links throughout the article where they naturally fit. Place them inline across separate, relevant sentences—not all in one sentence or paragraph. No new headings or lists.
-- Use inline Markdown links: [label](url).
-- Prefer the most relevant same-universe pages: codes page, checklist, and older articles. Use tools only if they genuinely help the reader.
-- If fewer than 3 pages are a good fit, add as many as make sense (at least 2) or leave the article unchanged if nothing fits.
-- Anchor text can be rephrased; make it read naturally in context instead of matching titles verbatim.
-- Use the provided URLs exactly; they are on bloxodes.com. Do not invent links.
-- Keep the existing tone and structure; avoid rewrites outside the linked spots.
+You are rewriting a Roblox article after fact checks and coverage checks. Use the article below as the source of truth: keep every important detail, remove repetition, and improve clarity. 
+Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing their Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
+
+Start with an intro that directly gets into the core topic of the article. No fluff, no generic statements, no clichéd phrases, no templates. Just get to the point and write in a way that is easy to understand and engaging.
+ - The start of the article should be very engaging and hook the audience into reading the entire article.
+ - Instead of just a generic question or statement like If you play the game. Get directly into the explaining the topic if possible. 
+ - Think about what type of intro serves the article best and use that.
+ - Sometimes you can ask a question to hook the reader, sometimes you can bring a some specific info from the source, etc. 
+ - Keep it short, consise and easy to understand.
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
+
+After that, start with a H2 heading and then write the main content following these rules:
+ - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
+ - Keep the article information dense, and communicate it in a way that is easy to understand. 
+ - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
+ - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
+ - Headings should be conversational like a casual sentence talking to the user. Use Sentence case for all headings, capitalize the first letter of the first word only and for proper nouns.
+ - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
+ - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
+ - Write in-depth and make sure everything is covered, but write in as less words as possible. 
+ - Use full sentences and explain things clearly without any repetations or useless information. 
+ - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
+ - Use numbered steps when explaining a process.
+ - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
+ - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
+
+ Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Additional writing rules:
+ - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
+ - Never mention sources, research, URLs, or citations.
+ - Never include bracketed citations like [1] or [2], or any references section.
+
+Internal links:
+${linkRules}
+- Use inline Markdown links: [label](url). Anchor text should read naturally in context.
+- Prefer same-universe pages (codes, checklists, older articles) when relevant. Use tools only if they truly help.
 
 Topic: "${topic}"
 
 Internal pages:
-${pageBlock}
+${pageBlockText}
 
-Article Markdown:
+Original article (do not lose details):
 ${cleanedArticle.content_md}
 
 Return JSON:
 {
-  "title": "${article.title}",
-  "meta_description": "${article.meta_description}",
-  "content_md": "Markdown with the internal links inserted where they naturally fit, or unchanged if not enough relevant pages"
+  "title": "Keep the title close to the original while making it clearer and more on-point",
+  "meta_description": "150-160 character summary",
+  "content_md": "Full Markdown article with internal links inserted where they naturally fit"
 }
 `.trim();
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
-    temperature: 0.25,
-    max_tokens: 3000,
+    temperature: 0.3,
+    max_tokens: 4500,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: "You add natural internal links in-line. Always return valid JSON with title, content_md, and meta_description."
+        content:
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add external URLs."
       },
       { role: "user", content: prompt }
     ]
