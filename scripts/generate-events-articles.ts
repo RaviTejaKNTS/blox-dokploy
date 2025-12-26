@@ -11,14 +11,15 @@ import { slugify } from "@/lib/slug";
 
 type QueueRow = {
   id: string;
-  article_title: string | null;
-  sources: string | null;
+  guide_title: string | null;
   universe_id: number | null;
   event_id: string | null;
   status: "pending" | "completed" | "failed";
   attempts: number;
   last_attempted_at: string | null;
   last_error: string | null;
+  guide_slug?: string | null;
+  article_id?: string | null;
 };
 
 type EventRow = {
@@ -954,10 +955,9 @@ async function uploadEventCoverImage(eventId: string, slug: string, coverTitle: 
 
 async function getRandomQueueItem(): Promise<QueueRow | null> {
   const { count, error: countError } = await supabase
-    .from("article_generation_queue")
+    .from("event_guide_generation_queue")
     .select("id", { count: "exact", head: true })
-    .eq("status", "pending")
-    .not("event_id", "is", null);
+    .eq("status", "pending");
 
   if (countError) {
     throw new Error(`Failed to count queue items: ${countError.message}`);
@@ -968,10 +968,9 @@ async function getRandomQueueItem(): Promise<QueueRow | null> {
 
   const offset = Math.floor(Math.random() * total);
   const { data, error } = await supabase
-    .from("article_generation_queue")
-    .select("id, article_title, sources, status, attempts, last_attempted_at, last_error, universe_id, event_id")
+    .from("event_guide_generation_queue")
+    .select("id, guide_title, status, attempts, last_attempted_at, last_error, universe_id, event_id, guide_slug, article_id")
     .eq("status", "pending")
-    .not("event_id", "is", null)
     .order("created_at", { ascending: true })
     .range(offset, offset)
     .maybeSingle();
@@ -996,9 +995,11 @@ async function getRandomQueueItem(): Promise<QueueRow | null> {
     status: (data.status as QueueRow["status"]) ?? "pending",
     last_attempted_at: data.last_attempted_at ?? null,
     last_error: data.last_error ?? null,
-    sources: (data as { sources?: string | null }).sources ?? null,
     universe_id: Number.isFinite(universeId) ? universeId : null,
-    event_id: (data as { event_id?: string | null }).event_id ?? null
+    event_id: (data as { event_id?: string | null }).event_id ?? null,
+    guide_title: (data as { guide_title?: string | null }).guide_title ?? null,
+    guide_slug: (data as { guide_slug?: string | null }).guide_slug ?? null,
+    article_id: (data as { article_id?: string | null }).article_id ?? null
   };
 }
 
@@ -1086,7 +1087,7 @@ async function pickEventThumbnailUrl(eventId: string): Promise<string | null> {
 
 async function markAttempt(queue: QueueRow): Promise<void> {
   const { error } = await supabase
-    .from("article_generation_queue")
+    .from("event_guide_generation_queue")
     .update({
       attempts: queue.attempts + 1,
       last_attempted_at: new Date().toISOString()
@@ -1105,7 +1106,7 @@ async function updateQueueStatus(
   lastError?: string | null
 ): Promise<void> {
   const { error } = await supabase
-    .from("article_generation_queue")
+    .from("event_guide_generation_queue")
     .update({
       status,
       last_error: lastError ? lastError.slice(0, 500) : null,
@@ -1131,6 +1132,20 @@ async function attachGuideToEvent(eventId: string, slug: string): Promise<boolea
   }
 
   return (data ?? []).length > 0;
+}
+
+async function attachGuideToQueue(queueId: string, articleId: string, slug: string): Promise<void> {
+  const { error } = await supabase
+    .from("event_guide_generation_queue")
+    .update({
+      guide_slug: slug,
+      article_id: articleId
+    })
+    .eq("id", queueId);
+
+  if (error) {
+    throw new Error(`Failed to link guide to queue ${queueId}: ${error.message}`);
+  }
 }
 
 async function perplexitySearch(query: string, limit: number): Promise<SearchResult[]> {
@@ -2592,13 +2607,13 @@ async function main() {
     }
 
     const gameName = (await fetchUniverseName(universeId)) ?? `Universe ${universeId}`;
-    const forcedTitle = cleanText(queueEntry.article_title) ?? `${gameName} ${eventName} Guide`;
+    const forcedTitle = cleanText(queueEntry.guide_title) ?? `${gameName} ${eventName} Guide`;
     const topic = `${gameName} ${eventName} event guide`;
 
     console.log(`✏️  Generating event guide for "${forcedTitle}" (${queueEntry.id})`);
     await markAttempt(queueEntry);
 
-    const { sources: collectedSources, researchQuestions } = await gatherSources(topic, queueEntry.sources);
+    const { sources: collectedSources, researchQuestions } = await gatherSources(topic);
     console.log(`sources_collected=${collectedSources.length}`);
 
     const verifiedSources = await verifySources(topic, collectedSources);
@@ -2648,6 +2663,15 @@ async function main() {
     });
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
+
+    try {
+      await attachGuideToQueue(queueEntry.id, article.id, article.slug);
+    } catch (queueLinkError) {
+      console.warn(
+        "⚠️ Failed to link guide to queue:",
+        queueLinkError instanceof Error ? queueLinkError.message : String(queueLinkError)
+      );
+    }
 
     let articleContentForCleanup = currentDraft.content_md;
     const imageUploadResult = await uploadSourceImagesForArticle({

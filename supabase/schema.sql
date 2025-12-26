@@ -361,6 +361,27 @@ create unique index if not exists idx_article_generation_queue_event_id
   on public.article_generation_queue (event_id)
   where event_id is not null;
 
+-- event guide generation queue table
+create table if not exists public.event_guide_generation_queue (
+  id uuid primary key default uuid_generate_v4(),
+  event_id text not null references public.roblox_virtual_events(event_id) on delete cascade,
+  universe_id bigint references public.roblox_universes(universe_id),
+  guide_title text,
+  guide_slug text,
+  article_id uuid references public.articles(id) on delete set null,
+  status text not null default 'pending' check (status in ('pending','completed','failed')),
+  attempts int not null default 0,
+  last_attempted_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_event_guide_generation_queue_status_created
+  on public.event_guide_generation_queue (status, created_at);
+create unique index if not exists idx_event_guide_generation_queue_event_id
+  on public.event_guide_generation_queue (event_id);
+
 
 -- admin users table
 create table if not exists public.admin_users (
@@ -650,6 +671,10 @@ drop trigger if exists trg_article_generation_queue_updated_at on public.article
 create trigger trg_article_generation_queue_updated_at before update on public.article_generation_queue
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_event_guide_generation_queue_updated_at on public.event_guide_generation_queue;
+create trigger trg_event_guide_generation_queue_updated_at before update on public.event_guide_generation_queue
+for each row execute function public.set_updated_at();
+
 drop trigger if exists trg_set_game_published_at on public.games;
 create trigger trg_set_game_published_at
 before insert or update on public.games
@@ -725,6 +750,7 @@ alter table public.admin_users enable row level security;
 alter table public.articles enable row level security;
 alter table public.game_generation_queue enable row level security;
 alter table public.article_generation_queue enable row level security;
+alter table public.event_guide_generation_queue enable row level security;
 alter table public.roblox_universes enable row level security;
 alter table public.roblox_groups enable row level security;
 alter table public.roblox_universe_social_links enable row level security;
@@ -830,6 +856,20 @@ create policy "admin_manage_game_generation_queue" on public.game_generation_que
 
 drop policy if exists "admin_manage_article_generation_queue" on public.article_generation_queue;
 create policy "admin_manage_article_generation_queue" on public.article_generation_queue
+  for all
+  using (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.admin_users au where au.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue;
+create policy "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue
   for all
   using (
     exists (

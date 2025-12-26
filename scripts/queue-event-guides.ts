@@ -202,7 +202,7 @@ async function fetchQueueRows(eventIds: string[]): Promise<Map<string, QueueRow>
 
   for (const chunk of chunkArray(eventIds, EVENT_BATCH)) {
     const { data, error } = await sb
-      .from("article_generation_queue")
+      .from("event_guide_generation_queue")
       .select("id, event_id, status")
       .in("event_id", chunk);
 
@@ -224,7 +224,7 @@ async function requeueFailed(queueId: string, dryRun: boolean) {
   if (dryRun) return;
   const sb = supabaseAdmin();
   const { error } = await sb
-    .from("article_generation_queue")
+    .from("event_guide_generation_queue")
     .update({
       status: "pending",
       attempts: 0,
@@ -245,9 +245,9 @@ async function insertQueueEntries(entries: Array<Record<string, unknown>>, dryRu
 
   const sb = supabaseAdmin();
   for (const chunk of chunkArray(entries, 50)) {
-    const { error } = await sb.from("article_generation_queue").insert(chunk);
+    const { error } = await sb.from("event_guide_generation_queue").insert(chunk);
     if (error) {
-      throw new Error(`Failed to insert article queue entries: ${error.message}`);
+      throw new Error(`Failed to insert event guide queue entries: ${error.message}`);
     }
   }
 }
@@ -369,8 +369,7 @@ async function main() {
     const articleTitle = `${gameName} ${event.eventName} Guide`.replace(/\s+/g, " ").trim();
 
     inserts.push({
-      article_title: articleTitle,
-      article_type: "how_to",
+      guide_title: articleTitle,
       universe_id: event.universe_id,
       event_id: event.event_id
     });
