@@ -9,17 +9,23 @@ import {
 } from "@/lib/db";
 import { listPublishedTools } from "@/lib/tools";
 import { CHECKLISTS_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { supabaseAdmin } from "@/lib/supabase";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { ListCard } from "@/components/ListCard";
 import { ToolCard } from "@/components/ToolCard";
+import { EventsPageCard } from "@/components/EventsPageCard";
+import { CatalogCard } from "@/components/CatalogCard";
+import { buildEventsCards } from "./events/page-data";
 
 const INITIAL_FEATURED_GAMES = 8;
 const INITIAL_ARTICLES = 8;
 const INITIAL_CHECKLISTS = 6;
 const INITIAL_LISTS = 6;
 const INITIAL_TOOLS = 6;
+const INITIAL_EVENTS = 3;
+const INITIAL_CATALOGS = 3;
 
 export const revalidate = 21600; // 6 hours
 
@@ -105,13 +111,39 @@ function summarize(descriptionMd: string | null | undefined, fallback: string): 
   return `${lastSpace > 120 ? slice.slice(0, lastSpace) : slice}…`;
 }
 
+async function loadMusicIdsStats() {
+  try {
+    const sb = supabaseAdmin();
+    const { data, error, count } = await sb
+      .from("roblox_music_ids")
+      .select("asset_id, last_seen_at", { count: "exact" })
+      .order("last_seen_at", { ascending: false, nullsFirst: false })
+      .range(0, 0);
+
+    if (error) {
+      console.error("Failed to load Roblox music IDs stats", error);
+      return { count: 0, updatedAt: null };
+    }
+
+    return {
+      count: count ?? data?.length ?? 0,
+      updatedAt: data?.[0]?.last_seen_at ?? null
+    };
+  } catch (error) {
+    console.error("Failed to load Roblox music IDs stats", error);
+    return { count: 0, updatedAt: null };
+  }
+}
+
 export default async function HomePage() {
-  const [games, articles, checklistRows, lists, tools] = await Promise.all([
+  const [games, articles, checklistRows, lists, tools, eventsPayload, musicStats] = await Promise.all([
     listGamesWithActiveCounts(),
     listPublishedArticles(12),
     listPublishedChecklists(INITIAL_CHECKLISTS * 2),
     listPublishedGameLists(),
-    listPublishedTools()
+    listPublishedTools(),
+    buildEventsCards(INITIAL_EVENTS),
+    loadMusicIdsStats()
   ]);
 
   const sortedGames = [...games].sort((a, b) => {
@@ -179,6 +211,20 @@ export default async function HomePage() {
 
   const toolCards = tools.slice(0, INITIAL_TOOLS);
   const articleCards = articles.slice(0, INITIAL_ARTICLES);
+  const eventsCards = eventsPayload.cards.slice(0, INITIAL_EVENTS);
+  const catalogCards = [
+    {
+      id: "music-ids",
+      href: "/catalog/roblox-music-ids",
+      title: "Roblox music IDs",
+      description: "Search Roblox music IDs with album art, artists, genres, and direct play links.",
+      category: "Audio",
+      metricLabel: "music IDs",
+      metricValue: musicStats.count ?? 0,
+      tileLabel: "IDs",
+      tone: "indigo" as const
+    }
+  ].slice(0, INITIAL_CATALOGS);
 
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
@@ -200,6 +246,30 @@ export default async function HomePage() {
           image: article.cover_image ?? undefined,
           datePublished: article.published_at,
           dateModified: article.updated_at
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Events",
+        numberOfItems: eventsCards.length,
+        itemListElement: eventsCards.map((card, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: card.title,
+          url: `${SITE_URL}/events/${card.slug}`,
+          description: card.summary
+        }))
+      },
+      {
+        "@type": "ItemList",
+        name: "Catalogs",
+        numberOfItems: catalogCards.length,
+        itemListElement: catalogCards.map((card, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: card.title,
+          url: `${SITE_URL}${card.href}`,
+          description: card.description
         }))
       },
       {
@@ -285,6 +355,42 @@ export default async function HomePage() {
           </div>
         ) : (
           <p className="text-sm text-muted">Articles will appear here after publication.</p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Events</h2>
+          <Link href="/events" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all events
+          </Link>
+        </div>
+        {eventsCards.length ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {eventsCards.map(({ id, ...card }) => (
+              <EventsPageCard key={id} {...card} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No event hubs have been published yet. Check back soon.</p>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Catalogs</h2>
+          <Link href="/catalog" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+            View all catalogs
+          </Link>
+        </div>
+        {catalogCards.length ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {catalogCards.map(({ id, ...card }) => (
+              <CatalogCard key={id} {...card} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No catalog pages are live yet. Check back soon.</p>
         )}
       </section>
 

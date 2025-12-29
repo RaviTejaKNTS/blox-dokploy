@@ -12,6 +12,7 @@
     "generate:articles": "tsx scripts/generate-articles.ts",
     "generate:events-articles": "tsx scripts/generate-events-articles.ts",
     "articles:queue": "tsx scripts/run-article-generation-queue.ts",
+    "articles:update": "tsx scripts/update-articles.ts",
     "refresh:codes": "tsx scripts/update-codes.ts",
     "rewrite:codes": "tsx scripts/rewrite-codes-articles.ts",
     "import:games": "tsx scripts/import-games.ts",

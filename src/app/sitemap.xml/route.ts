@@ -80,7 +80,10 @@ async function buildSitemapResponse() {
       { path: "/disclaimer", changefreq: "monthly", priority: "0.5" },
       { path: "/authors", changefreq: "monthly", priority: "0.6" },
       { path: "/tools", changefreq: "weekly", priority: "0.8" },
-      { path: "/articles", changefreq: "weekly", priority: "0.7" }
+      { path: "/articles", changefreq: "weekly", priority: "0.7" },
+      { path: "/events", changefreq: "weekly", priority: "0.7" },
+      { path: "/catalog", changefreq: "weekly", priority: "0.7" },
+      { path: "/catalog/roblox-music-ids", changefreq: "weekly", priority: "0.7" }
     ];
 
     for (const route of staticRoutes) {

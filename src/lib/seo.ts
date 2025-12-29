@@ -17,6 +17,8 @@ export const LISTS_DESCRIPTION =
   "Live ranking lists powered by Roblox data to highlight trending, rising, and top experiences.";
 export const TOOLS_DESCRIPTION =
   "Roblox tools, calculators, and planners to help you estimate values, plan faster, and track progress.";
+export const EVENTS_DESCRIPTION =
+  "Event pages with upcoming, live, and past Roblox events plus start times and countdowns for top experiences.";
 export const CATALOG_DESCRIPTION =
   "Catalog pages for Roblox assets like music IDs, with quick lookup details, filters, and links.";
 

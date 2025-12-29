@@ -129,6 +129,26 @@ function parseDate(value: string | null): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
+function eventUpdateTimestamp(event: VirtualEvent): number | null {
+  const updated = parseDate(event.updated_utc);
+  const created = parseDate(event.created_utc);
+  if (updated === null && created === null) return null;
+  if (updated === null) return created;
+  if (created === null) return updated;
+  return Math.max(updated, created);
+}
+
+function latestTimestamp(values: Array<number | null>): number | null {
+  let latest: number | null = null;
+  for (const value of values) {
+    if (typeof value !== "number") continue;
+    if (latest === null || value > latest) {
+      latest = value;
+    }
+  }
+  return latest;
+}
+
 function formatLabel(value: string | null): string | null {
   if (!value) return null;
   const cleaned = value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
@@ -648,17 +668,18 @@ export default async function EventsPage({ params }: PageProps) {
   const universeId = page.universe_id;
   const universeLabel = page.universe?.display_name ?? page.universe?.name ?? universeName;
   const canonicalUrl = `${SITE_URL}/events/${page.slug}`;
-  const updatedDate = new Date(page.updated_at ?? page.created_at);
-  const formattedUpdated = Number.isNaN(updatedDate.getTime())
-    ? null
-    : updatedDate.toLocaleDateString("en-US", {
+  const pageUpdated = parseDate(page.updated_at ?? page.published_at ?? page.created_at);
+  const eventsUpdated = latestTimestamp(events.map(eventUpdateTimestamp));
+  const updatedTimestamp = latestTimestamp([pageUpdated, eventsUpdated]);
+  const updatedDate = typeof updatedTimestamp === "number" ? new Date(updatedTimestamp) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric"
-      });
-  const updatedRelativeLabel = Number.isNaN(updatedDate.getTime())
-    ? null
-    : formatDistanceToNow(updatedDate, { addSuffix: true });
+      })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
 
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];

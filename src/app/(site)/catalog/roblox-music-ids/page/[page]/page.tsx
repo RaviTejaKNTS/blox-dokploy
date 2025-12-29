@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadRobloxMusicIdsPageData, parseMusicIdFilters, renderRobloxMusicIdsPage } from "../../page";
+import { loadRobloxMusicIdsPageData, parseMusicIdFilters, renderRobloxMusicIdsPage } from "../../page-data";
 import { CATALOG_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 3600;

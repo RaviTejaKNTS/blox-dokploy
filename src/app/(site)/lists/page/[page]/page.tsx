@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadListsPageData, renderListsPage } from "../../page";
+import { loadListsPageData, renderListsPage } from "../../page-data";
 import { LISTS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 86400; // daily

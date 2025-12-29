@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { buildListData, buildMetadata, ListPageView, PAGE_SIZE } from "../../page";
+import { buildListData, buildMetadata, ListPageView, PAGE_SIZE } from "../../page-data";
 import { renderMarkdown } from "@/lib/markdown";
 
 type PageProps = {

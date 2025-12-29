@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadChecklistsPageData, renderChecklistsPage } from "../../page";
+import { loadChecklistsPageData, renderChecklistsPage } from "../../page-data";
 import { CHECKLISTS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 21600; // 6 hours

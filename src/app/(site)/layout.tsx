@@ -15,28 +15,26 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className={`${inter.className} flex min-h-screen flex-col`}>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/95 backdrop-blur">
-        <div className="container flex flex-wrap items-center justify-between gap-6 py-4">
-          <div className="flex flex-1 flex-wrap items-end gap-10">
-            <a href="/" className="flex items-end gap-3">
-              <Image
-                src="/Bloxodes-dark.png"
-                alt="Bloxodes"
-                width={948}
-                height={319}
-                priority
-                className="hidden h-9 w-auto dark:block"
-              />
-              <Image
-                src="/Bloxodes-light.png"
-                alt="Bloxodes"
-                width={948}
-                height={319}
-                loading="lazy"
-                fetchPriority="low"
-                className="block h-9 w-auto dark:hidden"
-              />
-            </a>
-          </div>
+        <div className="container flex items-center justify-between gap-4 py-4 md:gap-6">
+          <Link href="/" className="flex items-end gap-3 shrink-0" aria-label="Bloxodes home">
+            <Image
+              src="/Bloxodes-dark.png"
+              alt="Bloxodes"
+              width={948}
+              height={319}
+              priority
+              className="hidden h-9 w-auto shrink-0 dark:block"
+            />
+            <Image
+              src="/Bloxodes-light.png"
+              alt="Bloxodes"
+              width={948}
+              height={319}
+              loading="lazy"
+              fetchPriority="low"
+              className="block h-9 w-auto shrink-0 dark:hidden"
+            />
+          </Link>
           <HeaderControls />
         </div>
       </header>

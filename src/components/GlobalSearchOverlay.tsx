@@ -28,6 +28,16 @@ export function GlobalSearchOverlay() {
   const fetchedRef = useRef(false);
   const previousActiveElement = useRef<HTMLElement | null>(null);
 
+  const openOverlay = useCallback(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement | null;
+    setIsOpen(true);
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    setIsOpen(false);
+    previousActiveElement.current?.focus?.();
+  }, []);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -45,17 +55,18 @@ export function GlobalSearchOverlay() {
     return () => {
       document.removeEventListener("click", handleTrigger);
     };
-  }, []);
+  }, [openOverlay]);
 
-  const openOverlay = useCallback(() => {
-    previousActiveElement.current = document.activeElement as HTMLElement | null;
-    setIsOpen(true);
-  }, []);
+  useEffect(() => {
+    function handleOpenEvent() {
+      openOverlay();
+    }
 
-  const closeOverlay = useCallback(() => {
-    setIsOpen(false);
-    previousActiveElement.current?.focus?.();
-  }, []);
+    window.addEventListener("bloxodes:open-search", handleOpenEvent);
+    return () => {
+      window.removeEventListener("bloxodes:open-search", handleOpenEvent);
+    };
+  }, [openOverlay]);
 
   useEffect(() => {
     if (!isOpen || fetchedRef.current) return;

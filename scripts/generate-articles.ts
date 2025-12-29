@@ -1659,7 +1659,7 @@ ${article.content_md}
 
 Return JSON:
 {
-  "title": "Keep this close to the original title unless feedback requires a correction",
+  "title": "Keep this close to the original title unless feedback requires a correction. We need a small, scannable and clean title that is full sentence",
   "meta_description": "150-160 character summary",
   "content_md": "Updated Markdown article with only the necessary corrections"
 }
@@ -1930,7 +1930,7 @@ After that, start with a H2 heading and then write the main content following th
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
  - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
- - Headings should be conversational like a casual sentence talking to the user. Use Sentence case for all headings, capitalize the first letter of the first word only and for proper nouns.
+ - Headings should be conversational like a casual sentence talking to the user. Capitalize the first letter of the first word only and for proper nouns whereever required.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
@@ -1949,7 +1949,8 @@ After that, start with a H2 heading and then write the main content following th
 Internal links:
 ${linkRules}
 - Use inline Markdown links: [label](url). Anchor text should read naturally in context.
-- Prefer same-universe pages (codes, checklists, older articles) when relevant. Use tools only if they truly help.
+- Prefer same-universe pages (codes, checklists, tools, older articles) when relevant.
+- Prefer to use the links according to the context. If possible, instead of writing new lines of text, link into the existing text on if the context makes sense. 
 
 Topic: "${topic}"
 
@@ -1961,7 +1962,7 @@ ${cleanedArticle.content_md}
 
 Return JSON:
 {
-  "title": "Keep the title close to the original while making it clearer and more on-point",
+  "title": "Keep the title close to the original while making it clearer and more on-point. We need the title to be small, scannable and clean full sentence.",
   "meta_description": "150-160 character summary",
   "content_md": "Full Markdown article with internal links inserted where they naturally fit"
 }

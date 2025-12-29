@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadToolsPageData, renderToolsPage } from "../../page";
+import { loadToolsPageData, renderToolsPage } from "../../page-data";
 import { TOOLS_DESCRIPTION } from "@/lib/seo";
 
 export const revalidate = 21600; // 6 hours

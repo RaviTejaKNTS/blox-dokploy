@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { FiCalendar, FiCheckSquare, FiFileText, FiGrid, FiKey, FiList, FiTool } from "react-icons/fi";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function HeaderControls() {
@@ -10,6 +11,10 @@ export function HeaderControls() {
   const [mounted, setMounted] = useState(false);
 
   const close = () => setOpen(false);
+  const openSearch = () => {
+    close();
+    window.dispatchEvent(new Event("bloxodes:open-search"));
+  };
 
   useEffect(() => {
     if (open) {
@@ -26,33 +31,42 @@ export function HeaderControls() {
   }, []);
 
   const navLinks = [
-    { href: "/articles", label: "Articles" },
-    { href: "/codes", label: "Codes" },
-    { href: "/checklists", label: "Checklists" },
-    { href: "/lists", label: "Lists" },
-    { href: "/tools", label: "Tools" }
+    { href: "/articles", label: "Articles", icon: FiFileText },
+    { href: "/codes", label: "Codes", icon: FiKey },
+    { href: "/events", label: "Events", icon: FiCalendar },
+    { href: "/catalog", label: "Catalog", icon: FiGrid },
+    { href: "/checklists", label: "Checklists", icon: FiCheckSquare },
+    { href: "/lists", label: "Lists", icon: FiList },
+    { href: "/tools", label: "Tools", icon: FiTool }
   ];
 
   const mobileMenu = (
     <div
-      className="fixed inset-0 z-[100000] flex justify-end bg-black/60 backdrop-blur-sm md:hidden"
+      className="fixed inset-0 z-[100000] flex justify-end bg-black/50 backdrop-blur-sm xl:hidden"
       role="dialog"
       aria-modal="true"
       onClick={close}
     >
-      <div
-        className="flex h-full w-full max-w-sm flex-col gap-4 bg-surface px-5 py-6 shadow-2xl overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-foreground">Menu</span>
+      <div className="fixed inset-x-0 top-0 z-10 pointer-events-none xl:hidden">
+        <div className="container flex justify-end py-4">
           <button
             type="button"
             onClick={close}
-            className="rounded border border-border/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
+            aria-label="Close menu"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
           >
             Close
           </button>
+        </div>
+      </div>
+      <div
+        id="site-menu-panel"
+        className="flex h-full w-full max-w-sm flex-col gap-6 border-l border-border/60 bg-surface/95 px-6 pb-7 pt-16 shadow-2xl overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">Menu</span>
+          <p className="text-lg font-semibold text-foreground">Explore Bloxodes</p>
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -60,9 +74,10 @@ export function HeaderControls() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded border border-border/60 bg-background px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+              className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
               onClick={close}
             >
+              <link.icon aria-hidden className="h-4 w-4" />
               {link.label}
             </Link>
           ))}
@@ -70,9 +85,8 @@ export function HeaderControls() {
 
         <button
           type="button"
-          data-search-trigger
-          onClick={close}
-          className="inline-flex items-center gap-2 rounded border border-border/60 bg-background px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+          onClick={openSearch}
+          className="inline-flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
         >
           <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="m21 21-4.35-4.35" />
@@ -91,13 +105,14 @@ export function HeaderControls() {
   return (
     <div className="flex items-center gap-3">
       {/* Desktop pills */}
-      <div className="hidden md:flex flex-wrap items-center gap-3">
+      <div className="hidden xl:flex flex-nowrap items-center gap-3">
         {navLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
           >
+            <link.icon aria-hidden className="h-4 w-4" />
             <span className="hidden sm:inline">{link.label}</span>
             <span className="sm:hidden text-sm font-semibold">{link.label}</span>
           </Link>
@@ -105,7 +120,7 @@ export function HeaderControls() {
         <button
           type="button"
           data-search-trigger
-          className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+          className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
         >
           <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="m21 21-4.35-4.35" />
@@ -119,10 +134,12 @@ export function HeaderControls() {
       {/* Mobile menu trigger */}
       <button
         type="button"
-        className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent md:hidden"
-        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent xl:hidden"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        aria-controls="site-menu-panel"
       >
-        Menu
+        {open ? "Close" : "Menu"}
       </button>
 
       {/* Mobile drawer */}

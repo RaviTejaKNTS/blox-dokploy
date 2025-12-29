@@ -52,6 +52,7 @@ type SearchResult = {
   title: string;
   url: string;
   snippet?: string;
+  publishedAt?: string | null;
 };
 
 type SourceImage = {
@@ -73,6 +74,7 @@ type SourceDocument = {
   host: string;
   isForum: boolean;
   images: SourceImage[];
+  publishedAt?: string | null;
   verification?: "Yes" | "No";
   fromQueue?: boolean;
   fromNotes?: boolean;
@@ -89,6 +91,13 @@ type ArticleContext = {
   mustCover: string[];
   outline: string[];
   readerQuestions: string[];
+};
+
+type EventGuideDetails = {
+  eventName: string;
+  gameName: string;
+  startUtc: string;
+  endUtc: string;
 };
 
 type SourceGatheringResult = {
@@ -123,6 +132,9 @@ const LOG_DRAFT_PROMPT = process.env.LOG_DRAFT_PROMPT === "true";
 const EVENT_GUIDE_WAIT_HOURS = Number(process.env.EVENT_GUIDE_WAIT_HOURS ?? "6");
 const EVENT_GUIDE_MIN_DURATION_HOURS = Number(process.env.EVENT_GUIDE_MIN_DURATION_HOURS ?? "24");
 const EVENT_GUIDE_MAX_AGE_DAYS = Number(process.env.EVENT_GUIDE_MAX_AGE_DAYS ?? "5");
+const EVENT_GUIDE_ALLOWED_UNIVERSE_IDS = parseUniverseIdList(process.env.EVENT_GUIDE_UNIVERSE_IDS);
+const HAS_UNIVERSE_ALLOWLIST = EVENT_GUIDE_ALLOWED_UNIVERSE_IDS.length > 0;
+const EVENT_GUIDE_ALLOWED_UNIVERSE_SET = new Set(EVENT_GUIDE_ALLOWED_UNIVERSE_IDS);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE.");
@@ -199,6 +211,25 @@ async function pickAuthorId(): Promise<string | null> {
   return cachedAuthorIds[index] ?? null;
 }
 
+function parseUniverseIdList(value: string | undefined): number[] {
+  if (!value) return [];
+  const ids = value
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry) && entry > 0)
+    .map((entry) => Math.trunc(entry));
+
+  return Array.from(new Set(ids));
+}
+
+function isUniverseAllowed(universeId: number | null): boolean {
+  if (!HAS_UNIVERSE_ALLOWLIST) return true;
+  if (!universeId) return false;
+  return EVENT_GUIDE_ALLOWED_UNIVERSE_SET.has(universeId);
+}
+
 function isHighQualityHost(hostname: string): boolean {
   const base = hostname.replace(/^www\./i, "").toLowerCase();
   return QUALITY_DOMAINS.some((domain) => base === domain || base.endsWith(`.${domain}`));
@@ -229,6 +260,127 @@ function cleanText(value: string | null | undefined): string | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length ? normalized : null;
+}
+
+function normalizeForCompare(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleIncludesEventName(title: string, eventName: string): boolean {
+  const normalizedTitle = normalizeForCompare(title);
+  const normalizedEvent = normalizeForCompare(eventName);
+  return Boolean(normalizedEvent) && normalizedTitle.includes(normalizedEvent);
+}
+
+function normalizeDateValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : value.toISOString();
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    const ms = value > 1_000_000_000_000 ? value : value * 1000;
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d{10,13}$/.test(trimmed)) {
+      const numeric = Number(trimmed);
+      if (!Number.isFinite(numeric)) return null;
+      const ms = trimmed.length === 10 ? numeric * 1000 : numeric;
+      const date = new Date(ms);
+      return Number.isNaN(date.getTime()) ? null : date.toISOString();
+    }
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+  }
+  return null;
+}
+
+function findDateInJsonLd(value: unknown, depth = 0): string | null {
+  if (!value || depth > 4) return null;
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = findDateInJsonLd(entry, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = ["datePublished", "dateCreated", "dateModified", "uploadDate"];
+    for (const key of keys) {
+      const parsed = normalizeDateValue(record[key]);
+      if (parsed) return parsed;
+    }
+    if (record["@graph"]) {
+      const found = findDateInJsonLd(record["@graph"], depth + 1);
+      if (found) return found;
+    }
+    for (const key of Object.keys(record)) {
+      if (key === "@graph") continue;
+      const nested = record[key];
+      if (typeof nested === "object") {
+        const found = findDateInJsonLd(nested, depth + 1);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+function extractPublishedDate(document: Document): string | null {
+  const metaSelectors = [
+    "meta[property='article:published_time']",
+    "meta[property='og:published_time']",
+    "meta[name='article:published_time']",
+    "meta[name='pubdate']",
+    "meta[name='publishdate']",
+    "meta[name='timestamp']",
+    "meta[name='date']",
+    "meta[name='dc.date.issued']",
+    "meta[name='dcterms.date']",
+    "meta[itemprop='datePublished']"
+  ];
+
+  for (const selector of metaSelectors) {
+    const content = document.querySelector(selector)?.getAttribute("content");
+    const parsed = normalizeDateValue(content);
+    if (parsed) return parsed;
+  }
+
+  const scripts = Array.from(document.querySelectorAll("script[type='application/ld+json']"));
+  for (const script of scripts) {
+    const raw = script.textContent?.trim();
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      const found = findDateInJsonLd(parsed);
+      if (found) return found;
+    } catch {
+      // ignore JSON-LD parse errors
+    }
+  }
+
+  const timeEl = document.querySelector("time[datetime]");
+  const timeValue = timeEl?.getAttribute("datetime") ?? timeEl?.textContent ?? null;
+  return normalizeDateValue(timeValue);
+}
+
+function isPublishedAfterStart(publishedAt: string | null | undefined, startMs: number): boolean {
+  if (!publishedAt) return false;
+  const parsed = Date.parse(publishedAt);
+  if (Number.isNaN(parsed)) return false;
+  return parsed >= startMs;
 }
 
 function getEventDisplayName(event: EventRow): string | null {
@@ -422,7 +574,7 @@ async function generateResearchQuestions(topic: string): Promise<string[]> {
   ];
 
   const prompt = `
-Create 3-5 specific research questions for a Roblox article. Focus on mechanics, requirements, steps, edge cases, and pitfalls. Avoid generic SEO fluff.
+Create 3-5 specific research questions for a Roblox event guide. Focus on how to join, requirements, steps or tasks, rewards, timing, edge cases, and pitfalls. Avoid generic SEO fluff.
 
 Topic: "${topic}"
 
@@ -954,10 +1106,16 @@ async function uploadEventCoverImage(eventId: string, slug: string, coverTitle: 
 }
 
 async function getRandomQueueItem(): Promise<QueueRow | null> {
-  const { count, error: countError } = await supabase
+  let countQuery = supabase
     .from("event_guide_generation_queue")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
+
+  if (HAS_UNIVERSE_ALLOWLIST) {
+    countQuery = countQuery.in("universe_id", EVENT_GUIDE_ALLOWED_UNIVERSE_IDS);
+  }
+
+  const { count, error: countError } = await countQuery;
 
   if (countError) {
     throw new Error(`Failed to count queue items: ${countError.message}`);
@@ -967,13 +1125,17 @@ async function getRandomQueueItem(): Promise<QueueRow | null> {
   if (total === 0) return null;
 
   const offset = Math.floor(Math.random() * total);
-  const { data, error } = await supabase
+  let itemQuery = supabase
     .from("event_guide_generation_queue")
     .select("id, guide_title, status, attempts, last_attempted_at, last_error, universe_id, event_id, guide_slug, article_id")
     .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .range(offset, offset)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+
+  if (HAS_UNIVERSE_ALLOWLIST) {
+    itemQuery = itemQuery.in("universe_id", EVENT_GUIDE_ALLOWED_UNIVERSE_IDS);
+  }
+
+  const { data, error } = await itemQuery.range(offset, offset).maybeSingle();
 
   if (error) {
     throw new Error(`Failed to fetch queue: ${error.message}`);
@@ -1165,14 +1327,27 @@ async function perplexitySearch(query: string, limit: number): Promise<SearchRes
     throw new Error(`Perplexity search failed for "${query}" (${response.status} ${response.statusText})`);
   }
 
-  const payload = (await response.json()) as { results?: { title?: string; url?: string; snippet?: string }[] };
+  const payload = (await response.json()) as {
+    results?: {
+      title?: string;
+      url?: string;
+      snippet?: string;
+      date?: string;
+      published_date?: string;
+      published_at?: string;
+      updated_at?: string;
+    }[];
+  };
 
   return (
     payload.results
       ?.map((item) => ({
         title: item.title ?? "",
         url: item.url ?? "",
-        snippet: item.snippet
+        snippet: item.snippet,
+        publishedAt: normalizeDateValue(
+          item.published_at ?? item.published_date ?? item.date ?? item.updated_at ?? null
+        )
       }))
       .filter((entry) => entry.title && entry.url) ?? []
   );
@@ -1184,6 +1359,7 @@ type ParsedArticle = {
   html: string;
   images: SourceImage[];
   host: string;
+  publishedAt: string | null;
 };
 
 async function fetchArticleContent(
@@ -1224,6 +1400,7 @@ async function fetchArticleContent(
           allowAllImages
         })
       : [];
+    const publishedAt = extractPublishedDate(dom.window.document);
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
@@ -1251,7 +1428,8 @@ async function fetchArticleContent(
       title: derivedTitle,
       html,
       images,
-      host
+      host,
+      publishedAt
     };
   } catch (error) {
     console.warn(`   • Failed to fetch ${url}:`, (error as Error).message);
@@ -1264,7 +1442,13 @@ async function collectFromResults(
   collected: SourceDocument[],
   hostCounts: Map<string, number>,
   forumCount: { value: number },
-  options: { seenUrls: Set<string>; excludeUrls?: Set<string>; excludeFandom?: boolean; requireFandom?: boolean }
+  options: {
+    seenUrls: Set<string>;
+    excludeUrls?: Set<string>;
+    excludeFandom?: boolean;
+    requireFandom?: boolean;
+    eventStartMs?: number;
+  }
 ): Promise<void> {
   for (const result of results) {
     if (collected.length >= MAX_SOURCES) break;
@@ -1282,6 +1466,13 @@ async function collectFromResults(
 
     const host = parsed.hostname.toLowerCase();
     if (isVideoHost(host)) continue;
+
+    if (options.eventStartMs && result.publishedAt) {
+      if (!isPublishedAfterStart(result.publishedAt, options.eventStartMs)) {
+        console.log(`   • Skipping ${result.url}: published before event start.`);
+        continue;
+      }
+    }
 
     const isFandom = isFandomHost(host);
     if (options.excludeFandom && isFandom) continue;
@@ -1302,13 +1493,20 @@ async function collectFromResults(
     });
     if (!parsedContent) continue;
 
+    const publishedAt = parsedContent.publishedAt ?? result.publishedAt ?? null;
+    if (options.eventStartMs && !isPublishedAfterStart(publishedAt, options.eventStartMs)) {
+      console.log(`   • Skipping ${result.url}: missing or pre-event publish date.`);
+      continue;
+    }
+
     collected.push({
       title: result.title || parsedContent.title || result.url,
       url: result.url,
       content: parsedContent.content,
       host,
       isForum,
-      images: parsedContent.images
+      images: parsedContent.images,
+      publishedAt
     });
 
     options.seenUrls.add(normalizedUrl);
@@ -1356,7 +1554,12 @@ async function gatherResearchNotes(topic: string, questions: string[]): Promise<
   return notes.join("\n\n").trim();
 }
 
-async function gatherSources(topic: string, queueSources?: string | null): Promise<SourceGatheringResult> {
+async function gatherSources(params: {
+  topic: string;
+  queueSources?: string | null;
+  eventStartMs?: number;
+}): Promise<SourceGatheringResult> {
+  const { topic, queueSources, eventStartMs } = params;
   const collected: SourceDocument[] = [];
   const hostCounts = new Map<string, number>();
   const forumCount = { value: 0 };
@@ -1394,6 +1597,10 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
       sourceHost: host
     });
     if (!parsedContent) continue;
+    if (eventStartMs && !isPublishedAfterStart(parsedContent.publishedAt, eventStartMs)) {
+      console.log(`   • Skipping ${url}: missing or pre-event publish date.`);
+      continue;
+    }
 
     collected.push({
       title: parsedContent.title || url,
@@ -1402,6 +1609,7 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
       host,
       isForum,
       images: parsedContent.images,
+      publishedAt: parsedContent.publishedAt,
       fromQueue: true
     });
 
@@ -1418,7 +1626,8 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
     await collectFromResults(results, collected, hostCounts, forumCount, {
       seenUrls,
       excludeUrls: queueUrlSet,
-      excludeFandom: true
+      excludeFandom: true,
+      eventStartMs
     });
   } catch (error) {
     console.warn(`   • search_failed query="${primaryQuery}" reason="${(error as Error).message}"`);
@@ -1431,7 +1640,8 @@ async function gatherSources(topic: string, queueSources?: string | null): Promi
     await collectFromResults(results, collected, hostCounts, forumCount, {
       seenUrls,
       excludeUrls: queueUrlSet,
-      requireFandom: true
+      requireFandom: true,
+      eventStartMs
     });
   } catch (error) {
     console.warn(`   • fandom_search_failed query="${fandomQuery}" reason="${(error as Error).message}"`);
@@ -1570,64 +1780,78 @@ function formatReviewContext(context?: ArticleContext | null): string {
   return sections.length ? `\n\nContext to enforce:\n${sections.join("\n\n")}` : "";
 }
 
-function buildArticlePrompt(topic: string, sources: SourceDocument[], context?: ArticleContext | null): string {
+function formatEventDetailsForPrompt(details: EventGuideDetails): string {
+  return [
+    "Event details (authoritative):",
+    `- Event name: ${details.eventName}`,
+    `- Game: ${details.gameName}`,
+    `- Start time (UTC): ${details.startUtc}`,
+    `- End time (UTC): ${details.endUtc}`
+  ].join("\n");
+}
+
+function buildArticlePrompt(params: {
+  topic: string;
+  guideTitle: string;
+  sources: SourceDocument[];
+  context?: ArticleContext | null;
+  event: EventGuideDetails;
+}): string {
+  const { topic, guideTitle, sources, context, event } = params;
   const sourceBlock = formatSourcesForPrompt(sources);
   const contextBlock = formatContextBlock(context);
+  const eventBlock = formatEventDetailsForPrompt(event);
+  const primaryKeyword = `${event.eventName} guide`;
 
   return `
-Use the research below to write a Roblox article.
 
-Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing their Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
+Write a detailed Roblox event guide for "${event.eventName}" in "${event.gameName}".
+This guide should be comprehensive and actionable as if a roblox player sharing their experience/knowledge. 
+Focus on providing clear, step-by-step instructions and timely information. Write everything in simple english with clear context in a way that anyone can easily understand.
 
-Start with an intro that directly gets into the core topic of the article. No fluff, no generic statements, no clichéd phrases, no templates. Just get to the point and write in a way that is easy to understand and engaging.
- - The start of the article should be very engaging and hook the audience into reading the entire article.
- - Instead of just a generic question or statement like If you play the game. Get directly into the explaining the topic if possible. 
- - Think about what type of intro serves the article best and use that.
- - Sometimes you can ask a question to hook the reader, sometimes you can bring a some specific info from the source, etc. 
- - Keep it short, consise and easy to understand.
-Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
+Use this exact guide title: "${guideTitle}". Return it unchanged in the JSON.
 
-After that, start with a H2 heading and then write the main content following these rules:
- - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
- - Keep the article information dense, and communicate it in a way that is easy to understand. 
- - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
- - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
- - Headings should be conversational like a casual sentence talking to the user. Use Sentence case for all headings, capitalize the first letter of the first word only and for proper nouns.
- - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
- - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
- - Write in-depth and make sure everything is covered, but write in as less words as possible. 
- - Use full sentences and explain things clearly without any repetations or useless information. 
- - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
- - Use numbered steps when explaining a process.
- - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
- - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
+${eventBlock}
+Topic focus: "${topic}"
 
- Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
- Additional writing rules:
- - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
- - Never mention sources, research, URLs, or citations.
- - Never include bracketed citations like [1] or [2], or any references section.
+Writing requirements:
+
+- The intro needs to be short, op-point and gets directly into the core of the event. Start with something that is very unique to the event and hook the audience into reading the entire article.
+- Right after the intro, add a small section that gives away complete information about the event, what's it about, what users get, how they can get and when the event eds, etc whatever works for this event. Write them in a short para or use bullet points. Start this section with no headings, but start with something like "Here's everything you need to know about event" or "here's a quick summary" or anything that works best for the topic. 
+- Then write the body using H2 headings, with H3 only when needed. Use headings sparingly and make sure users can scan the structure easily and understand each section.
+- Cover: how to join/start, requirements, the main loop or tasks, rewards and milestones, time-sensitive details, tips and common mistakes, and troubleshooting or FAQs. (Only when you have the data in the provided info)
+- Use numbered steps when explaining a process. Add short context sentences before lists, tables, or steps.
+- If a detail is not confirmed in the sources, say it is not confirmed yet and avoid guessing.
+- Keep it concise, factual, and easy to scan.
+
+Important rules:
+- Do not add emojis, sources, URLs, or citations.
+- No em dashes.
+- Do not copy or quote sentences from the research. Just write using your own words to make the explaining easy and free flowing.
+- Never mention sources or research.
 
 SEO focus:
-- Primary keyword: "${topic}" (use naturally in the title, intro, and one H2).
-- Include 2-4 close variations naturally; avoid keyword stuffing.${contextBlock}
+- Primary keyword: "${primaryKeyword}" (use in the intro and one H2).
+- Include 2-4 close variations naturally, such as "${event.eventName} guide", "${event.eventName} event", and "${event.gameName} event".${contextBlock}
 
 Research (do not cite or mention):
 ${sourceBlock}
 
 Return JSON:
 {
-  "title": "A small simple title that's easy to scan and understand. Keep it short and on-point and no key:value pairs",
+  "title": "${guideTitle}",
   "meta_description": "150-160 character summary",
   "content_md": "Full Markdown article"
-  }
+}
   `.trim();
 }
 
 async function buildArticleContext(
   topic: string,
   sources: SourceDocument[],
-  researchQuestions: string[]
+  researchQuestions: string[],
+  event: EventGuideDetails,
+  guideTitle: string
 ): Promise<ArticleContext> {
   const fallback: ArticleContext = {
     intent: "",
@@ -1637,11 +1861,14 @@ async function buildArticleContext(
   };
   const sourceBlock = formatSourcesForReview(sources);
   const questionBlock = researchQuestions.length ? formatBulletList(researchQuestions) : "n/a";
+  const eventBlock = formatEventDetailsForPrompt(event);
 
   const prompt = `
-Create an SEO planning brief for a Roblox article. Ground it in the research below.
+Create an SEO planning brief for a Roblox event guide. Ground it in the research below.
 
 Topic: "${topic}"
+Guide title: "${guideTitle}"
+${eventBlock}
 
 Research questions (use or refine):
 ${questionBlock}
@@ -1705,7 +1932,7 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
+          "You are an expert Roblox event guide writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
       },
       { role: "user", content: prompt }
     ]
@@ -1760,7 +1987,7 @@ async function checkArticleCoverage(
 ): Promise<string> {
   const reviewContext = formatReviewContext(context);
   const prompt = `
-Check if this Roblox article misses any crucial information that readers expect for the topic. Only consider topics that are very close to "${topic}" and crucial for the intent—skip tangents or nice-to-haves. If the article already covers everything important, reply exactly: No
+Check if this Roblox event guide misses any crucial information that readers expect for the topic. Only consider topics that are very close to "${topic}" and crucial for the intent—skip tangents or nice-to-haves. If the guide already covers everything important, reply exactly: No
 If something critical is missing, list the missing pieces and the exact text to add so it can be inserted as-is. Keep it concise and actionable, and note where it should go (intro, quick answer, specific section).
 
 Topic: "${topic}"
@@ -1782,7 +2009,7 @@ ${formatSourcesForReview(sources)}
       {
         role: "system",
         content:
-          'You judge coverage completeness for Roblox articles. Only flag items that are very close to the topic and crucial to its intent. If nothing critical is missing, reply exactly "No". Otherwise, provide only the missing items with the information to add. Do not suggest tangential ideas.'
+          'You judge coverage completeness for Roblox event guides. Only flag items that are very close to the topic and crucial to its intent. If nothing critical is missing, reply exactly "No". Otherwise, provide only the missing items with the information to add. Do not suggest tangential ideas.'
       },
       { role: "user", content: prompt }
     ]
@@ -1804,7 +2031,7 @@ async function factCheckArticle(
 ): Promise<string> {
   const reviewContext = formatReviewContext(context);
   const prompt = `
-Fact check this Roblox article. Search broadly. If everything is accurate, reply exactly: Yes
+Fact check this Roblox event guide. Search broadly. If everything is accurate, reply exactly: Yes
 If anything is incorrect, missing, or misleading, reply starting with: No
 Then give clear details of what is wrong and how to change it, including the correct information needed. Be explicit about what to fix and provide replacement wording where possible.
 
@@ -1828,7 +2055,7 @@ ${formatSourcesForReview(sources)}
       {
         role: "system",
         content:
-          "You are a strict fact checker. Always reply exactly 'Yes' if the article is accurate. Otherwise start with 'No' and provide detailed, actionable corrections with the right information."
+          "You are a strict fact checker. Always reply exactly 'Yes' if the guide is accurate. Otherwise start with 'No' and provide detailed, actionable corrections with the right information."
       },
       { role: "user", content: prompt }
     ]
@@ -1852,7 +2079,7 @@ async function reviseArticleWithFeedback(
   const sourceBlock = formatSourcesForPrompt(sources);
   const label = feedbackLabel || "feedback";
   const prompt = `
-You are updating a Roblox article after ${label}. Keep the same friendly, conversational tone and overall structure.
+You are updating a Roblox event guide after ${label}. Keep the same friendly, conversational tone and overall structure.
 - If feedback starts with "Yes", return the original article unchanged.
 - If feedback starts with "No", only adjust the parts that were flagged. Keep everything else as close as possible to the original voice.
 - Use the ${label} plus the provided research; do not invent new information.
@@ -2186,6 +2413,62 @@ Return JSON:
   });
 }
 
+async function buildEventGuideTitle(params: {
+  eventName: string;
+  gameName: string;
+  guideTitle?: string | null;
+}): Promise<string> {
+  const fallbackTitle = `${params.gameName} ${params.eventName} Guide`;
+  const hintTitle = cleanText(params.guideTitle);
+
+  const prompt = `
+Write a short Roblox event guide title.
+- Must include the exact event name: "${params.eventName}"
+- Must include the word "Guide"
+- Use the game name "${params.gameName}" only if it improves clarity
+- Keep it concise and scannable, ideally under 8 words
+- Avoid colons, quotes, and em dashes
+${hintTitle ? `Existing title hint: "${hintTitle}"` : ""}
+Return only the title text.
+`.trim();
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.2,
+      max_tokens: 60,
+      messages: [
+        { role: "system", content: "Return only the title text, no quotes or labels." },
+        { role: "user", content: prompt }
+      ]
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    const cleaned = cleanText(replaceEmDashes(raw).replace(/"+/g, "")) ?? "";
+    if (!cleaned) {
+      return hintTitle && titleIncludesEventName(hintTitle, params.eventName) ? hintTitle : fallbackTitle;
+    }
+
+    let title = cleaned.replace(/\s+/g, " ").trim();
+    if (!titleIncludesEventName(title, params.eventName)) {
+      return hintTitle && titleIncludesEventName(hintTitle, params.eventName) ? hintTitle : fallbackTitle;
+    }
+
+    if (!/\bguide\b/i.test(title)) {
+      title = `${title} Guide`;
+    }
+
+    if (!titleIncludesEventName(title, params.eventName)) {
+      return hintTitle && titleIncludesEventName(hintTitle, params.eventName) ? hintTitle : fallbackTitle;
+    }
+
+    return title;
+  } catch (error) {
+    console.warn("⚠️ Guide title generation failed:", error instanceof Error ? error.message : String(error));
+    return hintTitle && titleIncludesEventName(hintTitle, params.eventName) ? hintTitle : fallbackTitle;
+  }
+}
+
 async function buildShortCoverTitle(title: string, topic: string): Promise<string> {
   const prompt = `
 Create a short, punchy 3-6 word version of this Roblox article title to overlay on a cover image. Keep it clear and scannable. Avoid quotes or extra punctuation.
@@ -2235,6 +2518,7 @@ async function insertArticleDraft(
       universe_id: options.universeId ?? null,
       cover_image: options.coverImage ?? null,
       is_published: false,
+      tags: ["events"],
       word_count: wordCount
     })
     .select("id, slug")
@@ -2561,6 +2845,9 @@ async function main() {
     if (!universeId) {
       throw new Error(`Event ${queueEntry.event_id} is missing universe_id.`);
     }
+    if (!isUniverseAllowed(universeId)) {
+      throw new Error(`Universe ${universeId} is not in EVENT_GUIDE_UNIVERSE_IDS.`);
+    }
 
     const status = cleanText(event.event_status)?.toLowerCase();
     const visibility = cleanText(event.event_visibility)?.toLowerCase();
@@ -2607,20 +2894,39 @@ async function main() {
     }
 
     const gameName = (await fetchUniverseName(universeId)) ?? `Universe ${universeId}`;
-    const forcedTitle = cleanText(queueEntry.guide_title) ?? `${gameName} ${eventName} Guide`;
+    const guideTitle = await buildEventGuideTitle({
+      eventName,
+      gameName,
+      guideTitle: queueEntry.guide_title ?? null
+    });
     const topic = `${gameName} ${eventName} event guide`;
+    const eventDetails: EventGuideDetails = {
+      eventName,
+      gameName,
+      startUtc: event.start_utc,
+      endUtc: event.end_utc
+    };
 
-    console.log(`✏️  Generating event guide for "${forcedTitle}" (${queueEntry.id})`);
+    console.log(`✏️  Generating event guide for "${guideTitle}" (${queueEntry.id})`);
     await markAttempt(queueEntry);
 
-    const { sources: collectedSources, researchQuestions } = await gatherSources(topic);
+    const { sources: collectedSources, researchQuestions } = await gatherSources({
+      topic,
+      eventStartMs: startTime
+    });
     console.log(`sources_collected=${collectedSources.length}`);
 
     const verifiedSources = await verifySources(topic, collectedSources);
     console.log(`sources_verified=${verifiedSources.length}`);
 
-    const articleContext = await buildArticleContext(topic, verifiedSources, researchQuestions);
-    const prompt = buildArticlePrompt(topic, verifiedSources, articleContext);
+    const articleContext = await buildArticleContext(topic, verifiedSources, researchQuestions, eventDetails, guideTitle);
+    const prompt = buildArticlePrompt({
+      topic,
+      guideTitle,
+      sources: verifiedSources,
+      context: articleContext,
+      event: eventDetails
+    });
     if (LOG_DRAFT_PROMPT) {
       console.log(`draft_prompt=\n${prompt}`);
     } else {
@@ -2634,14 +2940,14 @@ async function main() {
 
     const relatedPages = await fetchRelatedPagesForUniverse({
       universeId,
-      excludeSlug: slugify(refinedDraft.title)
+      excludeSlug: slugify(guideTitle)
     });
     console.log(`interlink_candidates=${relatedPages.length}`);
 
     const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, refinedDraft, relatedPages);
     console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
 
-    let currentDraft = { ...interlinkedDraft, title: forcedTitle };
+    let currentDraft = { ...interlinkedDraft, title: guideTitle };
     console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
     if (currentDraft.content_md.length < 400) {
@@ -2653,7 +2959,7 @@ async function main() {
     let coverImage: string | null = null;
     if (queueEntry.event_id) {
       console.log(`🖼️ Attaching event cover from ${queueEntry.event_id}...`);
-      coverImage = await uploadEventCoverImage(queueEntry.event_id, slug, forcedTitle);
+      coverImage = await uploadEventCoverImage(queueEntry.event_id, slug, guideTitle);
     }
 
     const article = await insertArticleDraft(currentDraft, {
