@@ -40,6 +40,7 @@ export default async function GameListPageWithPagination({ params }: PageProps) 
       slug={params.slug}
       list={data.list}
       entries={data.entries}
+      jumpEntries={data.jumpEntries}
       allLists={allLists}
       currentPage={pageNumber}
       totalEntries={data.totalEntries}

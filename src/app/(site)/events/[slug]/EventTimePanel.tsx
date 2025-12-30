@@ -24,6 +24,8 @@ const TIME_ZONES: TimeZoneRow[] = [
   { label: "Japan – JST", timeZone: "Asia/Tokyo" }
 ];
 
+const PT_TIME_ZONE = "America/Los_Angeles";
+
 function parseDate(value?: string | null): Date | null {
   if (!value) return null;
   const parsed = new Date(value);
@@ -56,11 +58,11 @@ export function EventTimePanel({
     );
   }
 
-  const utcStartLabel = formatDateTimeLabel(startDate, "UTC");
-  const utcEndLabel = endDate ? formatDateTimeLabel(endDate, "UTC") : null;
+  const ptStartLabel = formatDateTimeLabel(startDate, PT_TIME_ZONE);
+  const ptEndLabel = endDate ? formatDateTimeLabel(endDate, PT_TIME_ZONE) : null;
   const durationLabel = endDate ? formatDuration(endDate.getTime() - startDate.getTime()) : null;
   const durationSentence =
-    durationLabel && utcEndLabel ? ` Event runs for ${durationLabel} and ends on ${utcEndLabel} UTC.` : "";
+    durationLabel && ptEndLabel ? ` Event runs for ${durationLabel} and ends on ${ptEndLabel} PT.` : "";
   const timeZoneRows = TIME_ZONES.map((zone) => ({
     label: zone.label,
     time: formatInZone(startDate, zone.timeZone)
@@ -72,7 +74,7 @@ export function EventTimePanel({
       <div className="prose dark:prose-invert game-copy max-w-none">
         <p>
           This next {gameName} update is called {eventName}. It will be released on{" "}
-          <time dateTime={startDate.toISOString()}>{utcStartLabel} UTC</time>.{durationSentence}
+          <time dateTime={startDate.toISOString()}>{ptStartLabel} PT</time>.{durationSentence}
         </p>
       </div>
       <LocalTimeWidget startUtc={startUtc} endUtc={endUtc} />

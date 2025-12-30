@@ -38,6 +38,9 @@ function ToolsPageView({
     if (!latestDate || candidateDate > latestDate) return candidateDate;
     return latestDate;
   }, null);
+  const formattedUpdated = latest
+    ? latest.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
   const refreshedLabel = latest ? formatDistanceToNow(latest, { addSuffix: true }) : null;
 
   return (
@@ -48,6 +51,12 @@ function ToolsPageView({
           <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
             Roblox tools and calculators to plan faster
           </h1>
+          {formattedUpdated ? (
+            <p className="text-sm text-foreground/80">
+              Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+              {refreshedLabel ? <span>{' '}({refreshedLabel})</span> : null}
+            </p>
+          ) : null}
           <p className="max-w-2xl text-base text-muted md:text-lg">
             Currency converters, planning helpers, and utilities built to stay current with our latest data and guides.
           </p>
@@ -66,6 +75,12 @@ function ToolsPageView({
         <header className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Roblox Utilities</p>
           <h1 className="text-3xl font-semibold text-foreground">Roblox utilities</h1>
+          {formattedUpdated ? (
+            <p className="text-sm text-foreground/80">
+              Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+              {refreshedLabel ? <span>{' '}({refreshedLabel})</span> : null}
+            </p>
+          ) : null}
           {refreshedLabel ? (
             <p className="text-sm text-muted">Updated {refreshedLabel} · Page {currentPage} of {totalPages}</p>
           ) : null}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
@@ -128,6 +129,12 @@ export default async function RobloxIdExtractorPage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
   const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
   const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const updatedDateValue = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
 
   const faqSchema =
     (tool?.faq_json?.length ?? 0) > 0
@@ -206,6 +213,12 @@ export default async function RobloxIdExtractorPage() {
         <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
           {tool?.title ?? "Roblox ID Extractor"}
         </h1>
+        {formattedUpdated ? (
+          <p className="text-sm text-foreground/80">
+            Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+          </p>
+        ) : null}
         {introHtml ? (
           <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
         ) : null}

@@ -23,6 +23,7 @@ export default async function GameListPage({ params }: PageProps) {
       slug={params.slug}
       list={data.list as NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>}
       entries={data.entries}
+      jumpEntries={data.jumpEntries}
       allLists={(data.list as any).other_lists ?? []}
       currentPage={1}
       totalEntries={data.totalEntries}

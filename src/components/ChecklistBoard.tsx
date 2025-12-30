@@ -32,6 +32,8 @@ const SECTION_GAP = 16;
 const COLUMN_VERTICAL_PADDING = 20;
 const MIN_REMAINING_BEFORE_WRAP = 240;
 const CONT_HEADER_EXTRA = 10;
+const DEFAULT_BOARD_HEIGHT = 640;
+const COLUMN_HEIGHT_BUFFER = 32;
 
 function parseCodeParts(code: string): { top: number; child: number | null; leaf: number | null } {
   const parts = code.split(".").map((p) => Number.parseInt(p, 10)).filter((n) => !Number.isNaN(n));
@@ -295,10 +297,8 @@ type ChecklistBoardProps = {
 export function ChecklistBoard({ slug, items, descriptionHtml, className }: ChecklistBoardProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const [containerHeight, setContainerHeight] = useState<number>(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [mounted, setMounted] = useState(false);
-  const [availableHeight, setAvailableHeight] = useState<number>(0);
+  const availableHeight = DEFAULT_BOARD_HEIGHT;
   const [isNarrow, setIsNarrow] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -345,10 +345,6 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   }, [items, checked]);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     const measureWidth = () => {
       if (typeof window === "undefined") return;
       setIsNarrow(window.innerWidth <= 900 || window.innerHeight > window.innerWidth);
@@ -361,6 +357,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
 
   useEffect(() => {
     if (isNarrow) return;
+    if (typeof window !== "undefined" && availableHeight > window.innerHeight - 24) return;
     const prevBodyOverflowY = document.body.style.overflowY;
     const prevHtmlOverflowY = document.documentElement.style.overflowY;
 
@@ -378,31 +375,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
       document.documentElement.style.overflowY = prevHtmlOverflowY;
       document.head.removeChild(style);
     };
-  }, [isNarrow]);
+  }, [isNarrow, availableHeight]);
 
-  useLayoutEffect(() => {
-    const measure = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
-      const bottomGutter =
-        typeof window !== "undefined" ? Math.max(96, Math.min(180, Math.floor(viewportHeight * 0.15))) : 96;
-      const height = Math.max(320, viewportHeight - rect.top - bottomGutter);
-      setAvailableHeight(height);
-      setContainerHeight(height);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (containerRef.current) {
-      ro.observe(containerRef.current);
-    }
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
+  // Height is fixed to avoid column reflow after hydration.
 
   useEffect(() => {
     const key = `checklist:${slug}`;
@@ -472,10 +447,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
 
   const columns = useMemo(() => {
     if (isNarrow) return [];
-    const baseHeight = availableHeight > 0 ? availableHeight : containerHeight > 0 ? containerHeight : 640;
-    const maxHeight = Math.max(240, baseHeight - 56); // reserve bottom breathing room
+    const maxHeight = Math.max(240, DEFAULT_BOARD_HEIGHT - COLUMN_HEIGHT_BUFFER); // reserve bottom breathing room
     return buildColumns(sections, maxHeight, parentTitles);
-  }, [sections, availableHeight, containerHeight, isNarrow, parentTitles]);
+  }, [sections, isNarrow, parentTitles]);
 
   const setSectionRef = (code: string) => (node: HTMLDivElement | null) => {
     sectionRefs.current.set(code, node);
@@ -639,22 +613,11 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
     };
   }, []);
 
-  if (!mounted) {
-    return (
-      <div
-        className={clsx(
-          "relative w-full max-w-none h-[calc(100vh-180px)] min-h-[60vh] overflow-hidden",
-          className
-        )}
-      />
-    );
-  }
-
   if (isNarrow) {
     return (
-      <div className={clsx("flex w-full flex-col gap-4 pb-10 overflow-x-hidden", computedClassName)}>
+      <div className={clsx("flex w-full flex-col gap-8 pb-12 overflow-x-hidden", computedClassName)}>
         {descriptionHtml ? (
-          <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+          <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
             <div
               className="prose dark:prose-invert max-w-none game-copy text-foreground"
               dangerouslySetInnerHTML={{ __html: descriptionHtml }}
@@ -667,9 +630,9 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
           const sectionNode = (
             <section
               key={`mobile-${group.topCode}`}
-              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-surface/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+              className="flex flex-col gap-5"
             >
-              <div className="space-y-1">
+              <div className="space-y-1.5 px-1">
                 <h2 className="text-lg font-extrabold leading-snug text-foreground">
                   {group.topCode}. {group.topLabel}
                 </h2>
@@ -697,22 +660,28 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                 </div>
               </div>
               {categoryDescription ? (
-                <div className="flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.06)]">
+                <div className="relative flex w-full flex-col rounded-2xl border border-border/60 bg-surface/70 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
                   <div className="prose dark:prose-invert max-w-none game-copy text-foreground">
                     <p className="whitespace-pre-line">{categoryDescription}</p>
                   </div>
+                  <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-surface/90 to-transparent" />
                 </div>
               ) : null}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 {group.sections.map((section) => (
-                  <div key={`${group.topCode}-${section.code}`} className="space-y-2">
+                  <div key={`${group.topCode}-${section.code}`} className="space-y-3">
                     {!section.code.endsWith(".0") ? (
-                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">{section.code}</span>
-                        <span className="text-sm font-semibold text-foreground">{section.name}</span>
+                      <div className="space-y-1 px-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-muted">
+                            {section.code}
+                          </span>
+                          <span className="text-sm font-semibold text-foreground">{section.name}</span>
+                        </div>
+                        <div className="h-px w-full bg-border/60" />
                       </div>
                     ) : null}
-                    <div className="space-y-3">
+                    <div className="flex flex-col gap-2">
                       {section.items.map((item) => {
                         const isChecked = checked.has(item.id);
                         return (
@@ -737,53 +706,53 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                   ? "border-accent shadow-[0_6px_18px_rgba(0,0,0,0.15)]"
                                   : "border-border/80 hover:border-foreground/70 hover:ring-2 hover:ring-accent/30"
                               )}
-                            aria-hidden
-                          >
-                            <span className="absolute inset-0 rounded-[5px] bg-black/85" />
-                            <span
-                              className={clsx(
-                                "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
-                                isChecked ? "scale-x-100" : "scale-x-0"
-                              )}
-                            />
-                            {isChecked ? (
-                              <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
-                            ) : null}
-                          </span>
-                          <div className="flex-1 space-y-1 leading-snug">
-                            {(() => {
-                              const { label, href } = parseTitleLink(item.title);
-                              if (href) {
+                              aria-hidden
+                            >
+                              <span className="absolute inset-0 rounded-[5px] bg-white dark:bg-background" />
+                              <span
+                                className={clsx(
+                                  "absolute inset-0 origin-left rounded-[5px] bg-accent transition-transform duration-200 ease-out",
+                                  isChecked ? "scale-x-100" : "scale-x-0"
+                                )}
+                              />
+                              {isChecked ? (
+                                <FiCheckCircle className="relative z-10 h-3.5 w-3.5 text-background transition-colors duration-150" />
+                              ) : null}
+                            </span>
+                            <div className="flex-1 space-y-1 leading-snug">
+                              {(() => {
+                                const { label, href } = parseTitleLink(item.title);
+                                if (href) {
+                                  return (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={clsx(
+                                        "font-semibold text-foreground underline decoration-accent/70 underline-offset-2",
+                                        isChecked ? "line-through decoration-2" : undefined
+                                      )}
+                                    >
+                                      {label}
+                                    </a>
+                                  );
+                                }
                                 return (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                  <div
                                     className={clsx(
-                                      "font-semibold text-foreground underline decoration-accent/70 underline-offset-2",
+                                      "font-semibold text-foreground",
                                       isChecked ? "line-through decoration-2" : undefined
                                     )}
                                   >
                                     {label}
-                                  </a>
+                                  </div>
                                 );
-                              }
-                              return (
-                                <div
-                                  className={clsx(
-                                    "font-semibold text-foreground",
-                                    isChecked ? "line-through decoration-2" : undefined
-                                  )}
-                                >
-                                  {label}
-                                </div>
-                              );
-                            })()}
-                            {item.description ? (
-                              <p className="text-xs text-muted-foreground">{item.description}</p>
-                            ) : null}
-                          </div>
-                        </label>
+                              })()}
+                              {item.description ? (
+                                <p className="text-xs text-muted-foreground">{item.description}</p>
+                              ) : null}
+                            </div>
+                          </label>
                         );
                       })}
                     </div>

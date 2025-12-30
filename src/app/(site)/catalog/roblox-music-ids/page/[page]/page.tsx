@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadRobloxMusicIdsPageData, parseMusicIdFilters, renderRobloxMusicIdsPage } from "../../page-data";
+import { loadRobloxMusicIdsPageData, renderRobloxMusicIdsPage } from "../../page-data";
 import { CATALOG_DESCRIPTION } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 2592000;
 
 type PageProps = {
   params: { page: string };
-  searchParams?: Record<string, string | string[] | undefined>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -24,14 +23,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function RobloxMusicIdsPaginatedPage({ params, searchParams }: PageProps) {
+export default async function RobloxMusicIdsPaginatedPage({ params }: PageProps) {
   const pageNumber = Number(params.page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }
 
-  const filters = parseMusicIdFilters(searchParams);
-  const { songs, total, totalPages } = await loadRobloxMusicIdsPageData(pageNumber, filters);
+  const { songs, total, totalPages } = await loadRobloxMusicIdsPageData(pageNumber);
   if (pageNumber > totalPages) {
     notFound();
   }
@@ -41,7 +39,6 @@ export default async function RobloxMusicIdsPaginatedPage({ params, searchParams
     total,
     totalPages,
     currentPage: pageNumber,
-    showHero: pageNumber === 1,
-    filters
+    showHero: pageNumber === 1
   });
 }

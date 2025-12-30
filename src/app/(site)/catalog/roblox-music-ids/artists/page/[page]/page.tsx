@@ -1,0 +1,113 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { PagePagination } from "@/components/PagePagination";
+import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import {
+  BASE_PATH,
+  MusicBreadcrumb,
+  MusicCatalogNav,
+  buildArtistCards,
+  buildSimpleItemListSchema,
+  loadPagedArtistOptions
+} from "../../../page-data";
+
+export const revalidate = 2592000;
+
+type PageProps = {
+  params: { page: string };
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
+  return {
+    title: `Music ID Artists - Page ${pageNumber} | ${SITE_NAME}`,
+    robots: { index: false, follow: true },
+    alternates: {
+      canonical: `${BASE_PATH}/artists/page/${pageNumber}`
+    }
+  };
+}
+
+export default async function MusicIdArtistsPaginatedPage({ params }: PageProps) {
+  const pageNumber = Number(params.page);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+    notFound();
+  }
+
+  const { options: artists, total, totalPages } = await loadPagedArtistOptions(pageNumber);
+  if (pageNumber > totalPages) {
+    notFound();
+  }
+
+  const description = "Browse Roblox music IDs organized by artist.";
+  const canonicalPath = `${BASE_PATH}/artists/page/${pageNumber}`;
+  const canonicalUrl = `${SITE_URL.replace(/\/$/, "")}${canonicalPath}`;
+  const pageTitle = `Roblox music ID artists - Page ${pageNumber}`;
+  const updatedIso = new Date().toISOString();
+  const breadcrumbNavItems = [
+    { label: "Home", href: "/" },
+    { label: "Catalog", href: "/catalog" },
+    { label: "Roblox music IDs", href: BASE_PATH },
+    { label: "Artists", href: `${BASE_PATH}/artists` },
+    { label: `Page ${pageNumber}`, href: null }
+  ];
+  const breadcrumbSchema = JSON.stringify(
+    breadcrumbJsonLd([
+      { name: "Home", url: SITE_URL },
+      { name: "Catalog", url: `${SITE_URL.replace(/\/$/, "")}/catalog` },
+      { name: "Roblox music IDs", url: `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}` },
+      { name: "Artists", url: `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}/artists` },
+      { name: `Page ${pageNumber}`, url: canonicalUrl }
+    ])
+  );
+  const listSchema = buildSimpleItemListSchema({
+    title: pageTitle,
+    description,
+    url: canonicalUrl,
+    items: artists.map((artist) => ({
+      name: artist.label,
+      url: `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}/artists/${artist.slug}`
+    })),
+    itemType: "MusicGroup"
+  });
+  const pageSchema = JSON.stringify(
+    webPageJsonLd({
+      siteUrl: SITE_URL,
+      slug: canonicalPath.replace(/^\//, ""),
+      title: pageTitle,
+      description,
+      image: `${SITE_URL}/og-image.png`,
+      author: null,
+      publishedAt: updatedIso,
+      updatedAt: updatedIso
+    })
+  );
+
+  return (
+    <div className="space-y-10">
+      <header className="space-y-2">
+        <MusicBreadcrumb items={breadcrumbNavItems} />
+        <h1 className="text-3xl font-semibold text-foreground">Roblox music ID artists</h1>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+          <span className="rounded-full bg-accent/10 px-3 py-1 font-semibold uppercase tracking-wide text-accent">
+            {total.toLocaleString("en-US")} artists tracked
+          </span>
+          <span className="rounded-full bg-surface-muted px-3 py-1 font-semibold text-muted">
+            Page {pageNumber} of {totalPages}
+          </span>
+        </div>
+      </header>
+
+      <MusicCatalogNav active="artists" />
+
+      {buildArtistCards(artists)}
+
+      <PagePagination basePath={`${BASE_PATH}/artists`} currentPage={pageNumber} totalPages={totalPages} />
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbSchema }} />
+    </div>
+  );
+}

@@ -1482,6 +1482,57 @@ before update on public.roblox_music_ids
 for each row
 execute function public.set_updated_at();
 
+-- Roblox music ID option views (genres + artists)
+drop view if exists public.roblox_music_genres_view;
+create or replace view public.roblox_music_genres_view as
+with normalized as (
+  select
+    trim(genre) as label,
+    regexp_replace(
+      trim(
+        regexp_replace(replace(lower(trim(genre)), '&', 'and'), '[^a-z0-9]+', ' ', 'g')
+      ),
+      '\s+',
+      '-',
+      'g'
+    ) as slug
+  from public.roblox_music_ids
+  where genre is not null
+    and trim(genre) <> ''
+)
+select
+  slug,
+  (array_agg(label order by length(label) desc, label asc))[1] as label,
+  count(*)::int as item_count
+from normalized
+where slug <> ''
+group by slug;
+
+drop view if exists public.roblox_music_artists_view;
+create or replace view public.roblox_music_artists_view as
+with normalized as (
+  select
+    trim(artist) as label,
+    regexp_replace(
+      trim(
+        regexp_replace(replace(lower(trim(artist)), '&', 'and'), '[^a-z0-9]+', ' ', 'g')
+      ),
+      '\s+',
+      '-',
+      'g'
+    ) as slug
+  from public.roblox_music_ids
+  where artist is not null
+    and trim(artist) <> ''
+)
+select
+  slug,
+  (array_agg(label order by length(label) desc, label asc))[1] as label,
+  count(*)::int as item_count
+from normalized
+where slug <> ''
+group by slug;
+
 -- Roblox virtual events data
 create table if not exists public.roblox_virtual_events (
   event_id text primary key,
@@ -1545,6 +1596,7 @@ create table if not exists public.events_pages (
   content_md text,
   seo_title text,
   meta_description text,
+  author_id uuid references public.authors(id) on delete set null,
   is_published boolean not null default true,
   published_at timestamptz,
   created_at timestamptz not null default now(),
@@ -1554,6 +1606,7 @@ create table if not exists public.events_pages (
 
 create index if not exists idx_events_pages_is_published on public.events_pages (is_published);
 create unique index if not exists idx_events_pages_slug on public.events_pages (slug);
+create index if not exists idx_events_pages_author on public.events_pages (author_id, is_published);
 
 create trigger trg_events_pages_updated_at
 before update on public.events_pages

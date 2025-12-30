@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import "@/styles/article-content.css";
 import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
+import { ChecklistFooterLinks } from "@/components/ChecklistFooterLinks";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
@@ -118,7 +118,14 @@ export default async function ChecklistPage({ params }: PageProps) {
   return (
     <>
       <div className="flex flex-col gap-1 pb-2 md:gap-0 -mt-4 md:-mt-6">
-        <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={leafItems.length} />
+        <header className="sticky top-0 z-30 flex flex-col gap-2 bg-background/95 py-5 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 min-h-[32px]">
+            <h1 className="text-xl font-black leading-tight sm:text-[26px] sm:whitespace-nowrap m-0">
+              {page.title}
+            </h1>
+            <ChecklistProgressHeader title={page.title} slug={page.slug} totalItems={leafItems.length} />
+          </div>
+        </header>
         <div
           className="-mx-[calc((100vw-100%)/2)] overflow-x-auto px-[calc((100vw-100%)/2)] [scrollbar-color:theme(colors.border)_transparent] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           data-checklist-scroll
@@ -138,21 +145,7 @@ export default async function ChecklistPage({ params }: PageProps) {
         />
       </div>
 
-      <div className="fixed bottom-3 right-3 z-30 flex items-center gap-2 rounded-full bg-surface/90 px-3 py-1 text-[11px] text-muted shadow-lg backdrop-blur">
-        <span>© 2025 Bloxodes</span>
-        <span aria-hidden="true">•</span>
-        <Link href="/privacy-policy" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
-          Privacy
-        </Link>
-        <span aria-hidden="true">•</span>
-        <Link href="/about" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
-          About
-        </Link>
-        <span aria-hidden="true">•</span>
-        <Link href="/contact" className="text-foreground hover:text-accent underline-offset-4 hover:underline">
-          Contact
-        </Link>
-      </div>
+      <ChecklistFooterLinks />
     </>
   );
 }

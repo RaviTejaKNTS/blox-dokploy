@@ -173,6 +173,19 @@ export type GameListUniverseEntry = GameListEntry & {
   badges?: UniverseListBadge[] | null;
 };
 
+export type GameListNavEntry = {
+  universe_id: number;
+  rank: number;
+  metric_value: number | null;
+  extra: Record<string, unknown> | null;
+  universe: {
+    universe_id: number;
+    display_name: string | null;
+    name: string | null;
+  };
+  game: { name: string | null } | null;
+};
+
 export type UniverseListBadge = {
   list_id: string;
   list_slug: string;
@@ -722,6 +735,33 @@ export async function getGameListBySlug(
   }
 
   return { list, entries, total };
+}
+
+export async function getGameListNavEntries(listId: string): Promise<GameListNavEntry[]> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("game_list_entries")
+    .select(
+      `
+        universe_id,
+        rank,
+        metric_value,
+        extra,
+        universe:roblox_universes(
+          universe_id,
+          display_name,
+          name
+        ),
+        game:games(
+          name
+        )
+      `
+    )
+    .eq("list_id", listId)
+    .order("rank", { ascending: true });
+
+  if (error) throw error;
+  return ((data ?? []) as unknown as GameListNavEntry[]).filter((entry) => Boolean((entry as any).universe));
 }
 
 export async function listRanksForUniverses(

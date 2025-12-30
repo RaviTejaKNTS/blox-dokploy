@@ -171,7 +171,10 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
   const activeCodesHref = game?.slug ? `/codes/${game.slug}` : null;
   const badges = (entry as any).badges as UniverseListBadge[] | undefined;
   const visibleBadges = badges?.filter((badge) => badge.rank >= 1 && badge.rank <= 3);
-  const gameDescription = universe.game_description_md || universe.description;
+  const customDescription = universe.game_description_md;
+  const officialDescription = universe.description;
+  const gameDescription = customDescription || officialDescription;
+  const showOfficialLabel = !customDescription && Boolean(officialDescription);
   const metricKey = (entry as any).metric_key ?? (entry.extra as any)?.metric ?? null;
   const metricLabelResolved =
     metricLabel ??
@@ -261,9 +264,18 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
             </div>
 
             {gameDescription ? (
-              <p className="text-sm text-muted" suppressHydrationWarning>
-                {gameDescription}
-              </p>
+              showOfficialLabel ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted">Official game description (from the developer):</p>
+                  <p className="text-sm text-muted" suppressHydrationWarning>
+                    {gameDescription}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted" suppressHydrationWarning>
+                  {gameDescription}
+                </p>
+              )
             ) : null}
             {visibleBadges?.length ? (
               <div className="flex flex-wrap items-center gap-2 pt-2">

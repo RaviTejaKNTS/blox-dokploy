@@ -167,7 +167,15 @@ async function buildSitemapResponse() {
       });
     }
 
-    const xml = buildXml(pages);
+    const musicIdsRoot = `${origin}/catalog/roblox-music-ids`;
+    const musicIdsPrefix = `${musicIdsRoot}/`;
+    const filteredPages = pages.filter((page) => {
+      if (page.loc === musicIdsRoot || page.loc === `${musicIdsRoot}/`) return true;
+      if (page.loc.startsWith(musicIdsPrefix)) return false;
+      return true;
+    });
+
+    const xml = buildXml(filteredPages);
     return new NextResponse(xml, { headers: { "content-type": "application/xml" } });
   } catch (error) {
     console.error("Failed to build sitemap", error);

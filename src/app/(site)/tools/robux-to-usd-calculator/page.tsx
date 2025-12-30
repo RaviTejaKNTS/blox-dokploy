@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
@@ -114,6 +115,12 @@ export default async function RobloxPurchasePage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
   const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
   const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const updatedDateValue = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
   const bundles = await fetchRobuxBundles();
   const initialRobuxPlanPc = buildRobuxPlan(DEFAULT_TARGET_ROBUX, "pc_web", DEFAULT_HAS_PREMIUM, bundles);
   const initialRobuxPlanMobile = buildRobuxPlan(DEFAULT_TARGET_ROBUX, "mobile", DEFAULT_HAS_PREMIUM, bundles);
@@ -197,6 +204,12 @@ export default async function RobloxPurchasePage() {
         <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
           {tool?.title ?? "Robux to USD Calculator"}
         </h1>
+        {formattedUpdated ? (
+          <p className="text-sm text-foreground/80">
+            Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+          </p>
+        ) : null}
         {introHtml ? (
           <div className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
         ) : null}

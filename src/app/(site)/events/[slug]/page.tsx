@@ -4,24 +4,32 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
+import { AuthorCard } from "@/components/AuthorCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { ContentSlot } from "@/components/ContentSlot";
 import { GameCard } from "@/components/GameCard";
+import { PagePagination } from "@/components/PagePagination";
 import { SocialShare } from "@/components/SocialShare";
 import { ToolCard } from "@/components/ToolCard";
 import {
   listPublishedArticlesByUniverseId,
   listPublishedChecklistsByUniverseId,
-  listGamesWithActiveCountsByUniverseId
+  listGamesWithActiveCountsByUniverseId,
+  type Author
 } from "@/lib/db";
+import { collectAuthorSocials } from "@/lib/author-socials";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
+import { processHtmlLinks } from "@/lib/link-utils";
+import { authorAvatarUrl } from "@/lib/avatar";
 import { supabaseAdmin } from "@/lib/supabase";
-import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, resolveSeoTitle } from "@/lib/seo";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { EventTimePanel } from "./EventTimePanel";
 
 export const revalidate = 3600;
+
+const PAST_EVENTS_PAGE_SIZE = 10;
 
 type PageProps = {
   params: { slug: string };
@@ -42,15 +50,18 @@ type EventsPageRow = {
   content_md: string | null;
   seo_title: string | null;
   meta_description: string | null;
+  author_id: string | null;
   is_published: boolean;
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  author?: Author | null;
   universe?: UniverseSummary | null;
 };
 
-type EventsPageRowRaw = Omit<EventsPageRow, "universe"> & {
+type EventsPageRowRaw = Omit<EventsPageRow, "universe" | "author"> & {
   universe?: UniverseSummary | UniverseSummary[] | null;
+  author?: Author | Author[] | null;
 };
 
 type EventCategory = {
@@ -94,13 +105,14 @@ type UpcomingEventView = VirtualEvent & {
   primary_thumbnail_url: string | null;
 };
 
-const UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
+const PT_TIME_ZONE = "America/Los_Angeles";
+const PT_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "UTC",
+  timeZone: PT_TIME_ZONE,
   timeZoneName: "short"
 });
 
@@ -116,11 +128,17 @@ function normalizeUniverse(value: UniverseSummary | UniverseSummary[] | null | u
   return value;
 }
 
-function formatUtcDateTime(value: string | null): string | null {
+function normalizeAuthor(value: Author | Author[] | null | undefined): Author | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
+function formatPtDateTime(value: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return UTC_FORMATTER.format(date);
+  return PT_FORMATTER.format(date);
 }
 
 function parseDate(value: string | null): number | null {
@@ -154,6 +172,46 @@ function formatLabel(value: string | null): string | null {
   const cleaned = value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned) return null;
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function resolveImageUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("http")) return value;
+  return `${SITE_URL.replace(/\/$/, "")}/${value.replace(/^\//, "")}`;
+}
+
+function toIsoString(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function mapEventStatusToSchema(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "cancelled" || normalized === "canceled") return "https://schema.org/EventCancelled";
+  if (normalized === "postponed") return "https://schema.org/EventPostponed";
+  if (normalized === "rescheduled") return "https://schema.org/EventRescheduled";
+  if (normalized === "movedonline" || normalized === "moved_online" || normalized === "moved-online") {
+    return "https://schema.org/EventMovedOnline";
+  }
+  if (normalized === "scheduled") return "https://schema.org/EventScheduled";
+  return null;
+}
+
+function buildEventDescription(event: VirtualEvent): string | null {
+  const summary = normalizeText(event.event_summary_md);
+  if (summary) return markdownToPlainText(summary).slice(0, 200);
+  const details = normalizeText(event.event_details_md);
+  if (details) return markdownToPlainText(details).slice(0, 200);
+  return null;
+}
+
+function getPrimaryThumbnailUrl(event: VirtualEvent | UpcomingEventView): string | null {
+  if (!("primary_thumbnail_url" in event)) return null;
+  return typeof event.primary_thumbnail_url === "string" ? event.primary_thumbnail_url : null;
 }
 
 function getEventDisplayName(event: VirtualEvent): string {
@@ -255,13 +313,13 @@ function classifyEvents(events: VirtualEvent[]) {
   return { current, upcoming, past };
 }
 
-async function loadEventsPage(slug: string): Promise<EventsPageRow | null> {
+export async function loadEventsPage(slug: string): Promise<EventsPageRow | null> {
   const sb = supabaseAdmin();
   const normalized = slug.trim().toLowerCase();
   const { data, error } = await sb
     .from("events_pages")
     .select(
-      "id, universe_id, slug, title, content_md, seo_title, meta_description, is_published, published_at, created_at, updated_at, universe:roblox_universes(universe_id, display_name, name, icon_url)"
+      "id, universe_id, slug, title, content_md, seo_title, meta_description, author_id, is_published, published_at, created_at, updated_at, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id, display_name, name, icon_url)"
     )
     .eq("slug", normalized)
     .eq("is_published", true)
@@ -273,7 +331,8 @@ async function loadEventsPage(slug: string): Promise<EventsPageRow | null> {
   const raw = data as EventsPageRowRaw;
   return {
     ...raw,
-    universe: normalizeUniverse(raw.universe)
+    universe: normalizeUniverse(raw.universe),
+    author: normalizeAuthor(raw.author)
   };
 }
 
@@ -364,37 +423,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 function EventFacts({ event }: { event: VirtualEvent }) {
-  const statusLabel = formatLabel(event.event_status);
-  const visibilityLabel = formatLabel(event.event_visibility);
   const featuringLabel = formatLabel(event.featuring_status);
   const hostLabel = event.host_name ? `${event.host_name}${event.host_type ? ` (${event.host_type})` : ""}` : null;
-  const startLabel = formatUtcDateTime(event.start_utc) ?? "TBA";
-  const endLabel = formatUtcDateTime(event.end_utc) ?? "TBA";
-  const createdLabel = formatUtcDateTime(event.created_utc);
-  const updatedLabel = formatUtcDateTime(event.updated_utc);
+  const startLabel = formatPtDateTime(event.start_utc) ?? "TBA";
+  const endLabel = formatPtDateTime(event.end_utc) ?? "TBA";
+  const createdLabel = formatPtDateTime(event.created_utc);
+  const updatedLabel = formatPtDateTime(event.updated_utc);
 
   return (
     <dl className="grid gap-3 text-xs text-muted sm:grid-cols-2 lg:grid-cols-3">
       <div>
-        <dt className="font-semibold uppercase tracking-wide text-foreground/70">Starts (UTC)</dt>
+        <dt className="font-semibold uppercase tracking-wide text-foreground/70">Starts (PT)</dt>
         <dd className="mt-1 text-foreground">{startLabel}</dd>
       </div>
       <div>
-        <dt className="font-semibold uppercase tracking-wide text-foreground/70">Ends (UTC)</dt>
+        <dt className="font-semibold uppercase tracking-wide text-foreground/70">Ends (PT)</dt>
         <dd className="mt-1 text-foreground">{endLabel}</dd>
       </div>
-      {statusLabel ? (
-        <div>
-          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Status</dt>
-          <dd className="mt-1 text-foreground">{statusLabel}</dd>
-        </div>
-      ) : null}
-      {visibilityLabel ? (
-        <div>
-          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Visibility</dt>
-          <dd className="mt-1 text-foreground">{visibilityLabel}</dd>
-        </div>
-      ) : null}
       {featuringLabel ? (
         <div>
           <dt className="font-semibold uppercase tracking-wide text-foreground/70">Featuring</dt>
@@ -419,13 +464,13 @@ function EventFacts({ event }: { event: VirtualEvent }) {
       </div>
       {createdLabel ? (
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Created (UTC)</dt>
+          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Created (PT)</dt>
           <dd className="mt-1 text-foreground">{createdLabel}</dd>
         </div>
       ) : null}
       {updatedLabel ? (
         <div>
-          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Updated (UTC)</dt>
+          <dt className="font-semibold uppercase tracking-wide text-foreground/70">Updated (PT)</dt>
           <dd className="mt-1 text-foreground">{updatedLabel}</dd>
         </div>
       ) : null}
@@ -553,10 +598,8 @@ function UpcomingEventBlock({ event, gameName }: { event: UpcomingEventView; gam
 
 function CurrentEventCard({ event }: { event: VirtualEvent }) {
   const eventName = getEventDisplayName(event);
-  const startLabel = formatUtcDateTime(event.start_utc) ?? "TBA";
-  const endLabel = formatUtcDateTime(event.end_utc) ?? "TBA";
-  const statusLabel = formatLabel(event.event_status);
-  const visibilityLabel = formatLabel(event.event_visibility);
+  const startLabel = formatPtDateTime(event.start_utc) ?? "TBA";
+  const endLabel = formatPtDateTime(event.end_utc) ?? "TBA";
 
   return (
     <article className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-soft leading-normal">
@@ -566,25 +609,13 @@ function CurrentEventCard({ event }: { event: VirtualEvent }) {
       </div>
       <div className="mt-3 grid gap-3 text-xs text-muted sm:grid-cols-2">
         <div>
-          <span className="font-semibold uppercase tracking-wide text-foreground/70">Starts (UTC)</span>
+          <span className="font-semibold uppercase tracking-wide text-foreground/70">Starts (PT)</span>
           <p className="text-foreground">{startLabel}</p>
         </div>
         <div>
-          <span className="font-semibold uppercase tracking-wide text-foreground/70">Ends (UTC)</span>
+          <span className="font-semibold uppercase tracking-wide text-foreground/70">Ends (PT)</span>
           <p className="text-foreground">{endLabel}</p>
         </div>
-        {statusLabel ? (
-          <div>
-            <span className="font-semibold uppercase tracking-wide text-foreground/70">Status</span>
-            <p className="text-foreground">{statusLabel}</p>
-          </div>
-        ) : null}
-        {visibilityLabel ? (
-          <div>
-            <span className="font-semibold uppercase tracking-wide text-foreground/70">Visibility</span>
-            <p className="text-foreground">{visibilityLabel}</p>
-          </div>
-        ) : null}
       </div>
       <div className="mt-4">
         <CategoryChips event={event} />
@@ -611,24 +642,21 @@ function PastEventsTable({ events }: { events: VirtualEvent[] }) {
           <thead>
             <tr>
               <th>Event</th>
-              <th className="table-col-compact">Starts (UTC)</th>
-              <th className="table-col-compact">Ends (UTC)</th>
-              <th className="table-col-compact">Status</th>
+              <th className="table-col-compact">Starts (PT)</th>
+              <th className="table-col-compact">Ends (PT)</th>
               <th className="table-col-compact">Guide</th>
             </tr>
           </thead>
           <tbody>
             {events.map((event) => {
               const eventName = getEventDisplayName(event);
-              const startLabel = formatUtcDateTime(event.start_utc) ?? "TBA";
-              const endLabel = formatUtcDateTime(event.end_utc) ?? "TBA";
-              const statusLabel = formatLabel(event.event_status) ?? "Unknown";
+              const startLabel = formatPtDateTime(event.start_utc) ?? "TBA";
+              const endLabel = formatPtDateTime(event.end_utc) ?? "TBA";
               return (
                 <tr key={event.event_id}>
                   <td className="font-semibold text-foreground">{eventName}</td>
                   <td>{startLabel}</td>
                   <td>{endLabel}</td>
-                  <td>{statusLabel}</td>
                   <td>
                     {event.guide_slug ? (
                       <Link
@@ -651,8 +679,12 @@ function PastEventsTable({ events }: { events: VirtualEvent[] }) {
   );
 }
 
-export default async function EventsPage({ params }: PageProps) {
-  const page = await loadEventsPage(params.slug);
+export async function renderEventsPage({ slug, pastPage }: { slug: string; pastPage: number }) {
+  if (!Number.isFinite(pastPage) || pastPage < 1) {
+    notFound();
+  }
+
+  const page = await loadEventsPage(slug);
   if (!page) {
     notFound();
   }
@@ -660,14 +692,27 @@ export default async function EventsPage({ params }: PageProps) {
   const universeName = page.universe?.display_name ?? page.universe?.name ?? "this game";
   const events = await loadEvents(page.universe_id);
   const grouped = classifyEvents(events);
+  const pastTotal = grouped.past.length;
+  const pastTotalPages = Math.max(1, Math.ceil(pastTotal / PAST_EVENTS_PAGE_SIZE));
+  if (pastPage > pastTotalPages) {
+    notFound();
+  }
+  const pastOffset = (pastPage - 1) * PAST_EVENTS_PAGE_SIZE;
+  const pastEventsPage = grouped.past.slice(pastOffset, pastOffset + PAST_EVENTS_PAGE_SIZE);
   const upcomingEvents = await hydrateUpcoming(grouped.upcoming);
   const firstUpcomingName = upcomingEvents[0] ? getEventNameForTitle(upcomingEvents[0]) : null;
   const dynamicTitle = buildDynamicTitle(universeName, firstUpcomingName);
   const headingTitle = normalizeText(page.title) ?? dynamicTitle;
-  const introHtml = page.content_md ? await renderMarkdown(page.content_md) : null;
+  const [introHtmlRaw, authorBioHtml] = await Promise.all([
+    page.content_md ? renderMarkdown(page.content_md) : Promise.resolve(""),
+    page.author?.bio_md ? renderMarkdown(page.author.bio_md) : Promise.resolve("")
+  ]);
+  const introHtml = introHtmlRaw?.trim() ? introHtmlRaw : null;
+  const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
   const universeId = page.universe_id;
   const universeLabel = page.universe?.display_name ?? page.universe?.name ?? universeName;
-  const canonicalUrl = `${SITE_URL}/events/${page.slug}`;
+  const canonicalUrl =
+    pastPage > 1 ? `${SITE_URL}/events/${page.slug}/page/${pastPage}` : `${SITE_URL}/events/${page.slug}`;
   const pageUpdated = parseDate(page.updated_at ?? page.published_at ?? page.created_at);
   const eventsUpdated = latestTimestamp(events.map(eventUpdateTimestamp));
   const updatedTimestamp = latestTimestamp([pageUpdated, eventsUpdated]);
@@ -676,10 +721,25 @@ export default async function EventsPage({ params }: PageProps) {
     ? updatedDate.toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
-        year: "numeric"
+        year: "numeric",
+        timeZone: PT_TIME_ZONE
       })
     : null;
   const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
+  const authorAvatar = page.author ? authorAvatarUrl(page.author, 72) : null;
+  const authorProfileUrl = page.author?.slug ? `${SITE_URL.replace(/\/$/, "")}/authors/${page.author.slug}` : null;
+  const authorSameAs = page.author ? Array.from(new Set(collectAuthorSocials(page.author).map((link) => link.url))) : [];
+  const authorBioPlain = page.author?.bio_md ? markdownToPlainText(page.author.bio_md) : null;
+  const descriptionPlain =
+    normalizeText(page.meta_description) ??
+    (page.content_md
+      ? markdownToPlainText(page.content_md).slice(0, 180)
+      : `Current, upcoming, and past events for ${universeName}.`);
+  const publishedIso = new Date(page.published_at ?? page.created_at).toISOString();
+  const updatedIso = typeof updatedTimestamp === "number" ? new Date(updatedTimestamp).toISOString() : publishedIso;
+  const heroImageCandidate =
+    upcomingEvents.find((event) => event.primary_thumbnail_url)?.primary_thumbnail_url ?? page.universe?.icon_url ?? null;
+  const coverImage = resolveImageUrl(heroImageCandidate) ?? `${SITE_URL}/og-image.png`;
 
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedCodes = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
@@ -707,6 +767,109 @@ export default async function EventsPage({ params }: PageProps) {
     };
   });
 
+  const schemaEvents = [...upcomingEvents, ...grouped.current, ...pastEventsPage]
+    .map((event) => {
+      const name = getEventDisplayName(event);
+      const startDate = toIsoString(event.start_utc);
+      const endDate = toIsoString(event.end_utc);
+      const eventStatus = mapEventStatusToSchema(event.event_status);
+      const description = buildEventDescription(event);
+      const categories = sortByRank(event.categories ?? [])
+        .map((entry) => normalizeText(entry.category))
+        .filter((entry): entry is string => Boolean(entry));
+      const hostName = normalizeText(event.host_name);
+      const hostType = normalizeText(event.host_type)?.toLowerCase();
+      const isOrgHost = hostType ? ["group", "studio", "organization"].some((value) => hostType.includes(value)) : false;
+      const organizer = hostName
+        ? {
+            "@type": isOrgHost ? "Organization" : "Person",
+            name: hostName,
+            ...(event.host_id ? { identifier: event.host_id } : {})
+          }
+        : null;
+      const imageCandidate = getPrimaryThumbnailUrl(event) ?? coverImage;
+      const imageUrl = resolveImageUrl(imageCandidate) ?? coverImage;
+
+      return {
+        "@type": "Event",
+        "@id": `${canonicalUrl}#event-${event.event_id}`,
+        name,
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
+        ...(eventStatus ? { eventStatus } : {}),
+        ...(description ? { description } : {}),
+        ...(categories.length ? { category: categories } : {}),
+        ...(imageUrl ? { image: [imageUrl] } : {}),
+        ...(organizer ? { organizer } : {}),
+        eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+        isAccessibleForFree: true,
+        location: { "@type": "VirtualLocation", url: canonicalUrl },
+        about: { "@type": "VideoGame", name: universeLabel, operatingSystem: "Roblox" },
+        identifier: event.event_id
+      };
+    })
+    .filter((entry) => Boolean(entry));
+
+  const blogPostingSchema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    url: canonicalUrl,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonicalUrl
+    },
+    headline: headingTitle,
+    description: descriptionPlain,
+    datePublished: publishedIso,
+    dateModified: updatedIso,
+    image: {
+      "@type": "ImageObject",
+      url: coverImage
+    },
+    author: page.author
+      ? {
+          "@type": "Person",
+          name: page.author.name,
+          ...(authorProfileUrl ? { url: authorProfileUrl } : {}),
+          ...(authorBioPlain ? { description: authorBioPlain } : {}),
+          ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
+        }
+      : {
+          "@type": "Organization",
+          name: SITE_NAME,
+          url: SITE_URL
+        },
+    publisher: {
+      "@id": `${SITE_URL.replace(/\/$/, "")}/#organization`
+    },
+    articleSection: "Roblox Events",
+    inLanguage: "en-US",
+    isAccessibleForFree: true,
+    about: { "@type": "VideoGame", name: universeLabel, operatingSystem: "Roblox" }
+  });
+
+  const eventListSchema = schemaEvents.length
+    ? JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: `${universeLabel} events`,
+        numberOfItems: schemaEvents.length,
+        itemListElement: schemaEvents.map((event, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: event
+        }))
+      })
+    : null;
+
+  const breadcrumbData = JSON.stringify(
+    breadcrumbJsonLd([
+      { name: "Home", url: SITE_URL },
+      { name: "Events", url: `${SITE_URL.replace(/\/$/, "")}/events` },
+      { name: universeLabel, url: canonicalUrl }
+    ])
+  );
+
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
       <article className="min-w-0">
@@ -732,13 +895,43 @@ export default async function EventsPage({ params }: PageProps) {
             </ol>
           </nav>
           <h1 className="text-4xl font-bold text-foreground md:text-5xl">{headingTitle}</h1>
-          {formattedUpdated ? (
+          {page.author || formattedUpdated ? (
             <div className="flex flex-col gap-3 text-sm text-muted">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-foreground/80">
-                  Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
-                  {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
-                </span>
+                {page.author ? (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={authorAvatar || "https://www.gravatar.com/avatar/?d=mp"}
+                      alt={page.author.name}
+                      className="h-9 w-9 rounded-full border border-border/40 object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span>
+                      Authored by {authorProfileUrl ? (
+                        <Link
+                          href={`/authors/${page.author.slug}`}
+                          className="font-semibold text-foreground transition hover:text-accent"
+                        >
+                          {page.author.name}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-foreground">{page.author.name}</span>
+                      )}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-semibold text-foreground">Published by {SITE_NAME}</span>
+                )}
+                {formattedUpdated ? (
+                  <>
+                    <span aria-hidden="true">•</span>
+                    <span className="text-foreground/80">
+                      Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+                      {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+                    </span>
+                  </>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -807,9 +1000,21 @@ export default async function EventsPage({ params }: PageProps) {
               </div>
               <span className="text-xs text-muted">{grouped.past.length} events</span>
             </div>
-            <PastEventsTable events={grouped.past} />
+            <PastEventsTable events={pastEventsPage} />
+            <PagePagination
+              basePath={`/events/${page.slug}`}
+              currentPage={pastPage}
+              totalPages={pastTotalPages}
+            />
           </section>
         </div>
+
+        {page.author ? <AuthorCard author={page.author} bioHtml={processedAuthorBioHtml ?? ""} /> : null}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: blogPostingSchema }} />
+        {eventListSchema ? (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: eventListSchema }} />
+        ) : null}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
       </article>
 
       <aside className="space-y-4">
@@ -871,4 +1076,8 @@ export default async function EventsPage({ params }: PageProps) {
       </aside>
     </div>
   );
+}
+
+export default async function EventsPage({ params }: PageProps) {
+  return renderEventsPage({ slug: params.slug, pastPage: 1 });
 }

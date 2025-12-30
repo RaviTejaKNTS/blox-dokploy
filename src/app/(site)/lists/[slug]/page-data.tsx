@@ -6,16 +6,19 @@ import { ContentSlot } from "@/components/ContentSlot";
 import {
   getGameListBySlug,
   getGameListMetadata,
+  getGameListNavEntries,
   listOtherGameLists,
   type GameListUniverseEntry,
+  type GameListNavEntry,
   type UniverseListBadge
 } from "@/lib/db";
 import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle } from "@/lib/seo";
 import { markdownToPlainText } from "@/lib/markdown";
-import { formatUpdatedLabel } from "@/lib/updated-label";
+import { formatDistanceToNow } from "date-fns";
 import { ListCard } from "@/components/ListCard";
 
 type GameListEntryWithBadges = GameListUniverseEntry & { badges?: UniverseListBadge[] };
+type JumpListEntry = GameListNavEntry;
 type OtherListLink = {
   id: string;
   slug: string;
@@ -42,8 +45,23 @@ function listEntryUrl(entry: GameListUniverseEntry): string {
   return `https://www.roblox.com/games/${placeId}`;
 }
 
-function listEntryName(entry: GameListUniverseEntry): string {
-  return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name;
+function listEntryName(entry: { game?: { name: string | null } | null; universe: { display_name: string | null; name: string | null } }): string {
+  return entry.game?.name ?? entry.universe.display_name ?? entry.universe.name ?? "Roblox game";
+}
+
+function mapJumpEntry(entry: GameListUniverseEntry): JumpListEntry {
+  return {
+    universe_id: entry.universe_id,
+    rank: entry.rank,
+    metric_value: entry.metric_value ?? null,
+    extra: entry.extra ?? null,
+    universe: {
+      universe_id: entry.universe?.universe_id ?? entry.universe_id,
+      display_name: entry.universe?.display_name ?? null,
+      name: entry.universe?.name ?? null
+    },
+    game: entry.game ? { name: entry.game.name ?? null } : null
+  };
 }
 
 export async function buildListData(slug: string, page: number) {
@@ -60,8 +78,15 @@ export async function buildListData(slug: string, page: number) {
   }));
 
   const otherLists = await listOtherGameLists(slug, 6);
+  const jumpEntries =
+    total > PAGE_SIZE ? await getGameListNavEntries(list.id) : entriesWithBadges.map(mapJumpEntry);
 
-  return { list: { ...list, other_lists: otherLists }, entries: entriesWithBadges, totalEntries: total };
+  return {
+    list: { ...list, other_lists: otherLists },
+    entries: entriesWithBadges,
+    jumpEntries,
+    totalEntries: total
+  };
 }
 
 export async function buildMetadata(slug: string, page: number): Promise<Metadata> {
@@ -184,27 +209,31 @@ function Pagination({
 
 function SidebarNav({
   slug,
-  entries
+  entries,
+  totalEntries,
+  metricLabel
 }: {
   slug: string;
-  entries: GameListEntryWithBadges[];
+  entries: JumpListEntry[];
+  totalEntries: number;
+  metricLabel?: string | null;
 }) {
   if (!entries.length) return null;
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-muted">
         <span>Jump to game</span>
-        <span>Top {entries.length}</span>
+        <span>Top {totalEntries}</span>
       </div>
       <div className="flex flex-col gap-2">
         {entries.map((entry, index) => {
           const pageForEntry = Math.floor(index / PAGE_SIZE) + 1;
           const base = pageForEntry === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${pageForEntry}`;
           const href = `${base}#list-entry-${entry.universe.universe_id}`;
-          const extra = (entry?.extra ?? null) as { metric?: string } | null;
-          const metricLabel = extra?.metric;
+          const extra = (entry?.extra ?? null) as { metric?: string; metric_label?: string } | null;
+          const resolvedMetricLabel = extra?.metric_label ?? extra?.metric ?? metricLabel ?? null;
           const metricValue = formatMetric(entry.metric_value);
-          const metricText = metricValue ? `${metricValue}${metricLabel ? ` ${metricLabel}` : ""}` : null;
+          const metricText = metricValue ? `${metricValue}${resolvedMetricLabel ? ` ${resolvedMetricLabel}` : ""}` : null;
           return (
             <a
               key={entry.universe.universe_id}
@@ -228,6 +257,7 @@ export function ListPageView({
   slug,
   list,
   entries,
+  jumpEntries,
   allLists,
   currentPage,
   totalEntries,
@@ -238,6 +268,7 @@ export function ListPageView({
   slug: string;
   list: NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>;
   entries: GameListEntryWithBadges[];
+  jumpEntries: JumpListEntry[];
   allLists: OtherListLink[];
   currentPage: number;
   totalEntries: number;
@@ -264,6 +295,8 @@ export function ListPageView({
   const canonicalPath = page === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${page}`;
   const canonicalUrl = `${SITE_URL}${canonicalPath}`;
   const otherLists = allLists.filter((item) => item.slug !== slug).slice(0, 6);
+  const listMetricLabel = list.primary_metric_label ?? list.primary_metric_key ?? null;
+  const navEntries = jumpEntries.length ? jumpEntries : entries.map(mapJumpEntry);
   const otherListCards = otherLists.map((other) => ({
     displayName: other.display_name ?? other.title,
     title: other.title,
@@ -322,7 +355,12 @@ export function ListPageView({
     { label: list.title, href: null }
   ];
 
-  const updatedLabel = showIntroOutro ? formatUpdatedLabel(list.refreshed_at ?? list.updated_at) : null;
+  const updatedDateValue = list.refreshed_at ?? list.updated_at ?? list.created_at;
+  const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
 
   return (
     <>
@@ -350,7 +388,12 @@ export function ListPageView({
               <div>
                 <h1 className="mt-2 text-3xl font-bold text-foreground sm:text-4xl">{pageTitle}</h1>
               </div>
-              {updatedLabel ? <p className="text-sm text-muted">{updatedLabel}</p> : null}
+              {formattedUpdated ? (
+                <p className="text-sm text-foreground/80">
+                  Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+                  {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+                </p>
+              ) : null}
             </div>
             <div className="lg:hidden">
               <details className="rounded-xl border border-border/60 bg-surface/70 px-4 py-3">
@@ -359,14 +402,14 @@ export function ListPageView({
                   <span className="text-xs text-muted">Top {totalEntries}</span>
                 </summary>
                 <div className="mt-3 flex flex-col gap-2">
-                  {entries.map((entry, index) => {
+                  {navEntries.map((entry, index) => {
                     const pageForEntry = Math.floor(index / PAGE_SIZE) + 1;
                     const base = pageForEntry === 1 ? `/lists/${slug}` : `/lists/${slug}/page/${pageForEntry}`;
                     const href = `${base}#list-entry-${entry.universe.universe_id}`;
-                    const extra = (entry?.extra ?? null) as { metric?: string } | null;
-                    const metricLabel = extra?.metric;
+                    const extra = (entry?.extra ?? null) as { metric?: string; metric_label?: string } | null;
+                    const resolvedMetricLabel = extra?.metric_label ?? extra?.metric ?? listMetricLabel ?? null;
                     const metricValue = formatMetric(entry.metric_value);
-                    const metricText = metricValue ? `${metricValue}${metricLabel ? ` ${metricLabel}` : ""}` : null;
+                    const metricText = metricValue ? `${metricValue}${resolvedMetricLabel ? ` ${resolvedMetricLabel}` : ""}` : null;
                     return (
                       <a
                         key={entry.universe.universe_id}
@@ -449,7 +492,12 @@ export function ListPageView({
 
         <div className="mt-0 space-y-6 lg:w-[320px]">
           <div className="hidden lg:block">
-            <SidebarNav slug={slug} entries={entries} />
+            <SidebarNav
+              slug={slug}
+              entries={navEntries}
+              totalEntries={totalEntries}
+              metricLabel={listMetricLabel}
+            />
           </div>
           <ContentSlot
             slot="4767824441"
@@ -462,7 +510,6 @@ export function ListPageView({
           {otherListCards.length ? (
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-foreground">Lists library</h2>
-              <p className="text-sm text-muted">More curated Roblox game picks.</p>
               <div className="space-y-3">
                 {otherListCards.map((card) => (
                   <ListCard
