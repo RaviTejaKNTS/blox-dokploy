@@ -31,7 +31,6 @@
     "queue:event-guides": "tsx scripts/queue-event-guides.ts",
     "enrich:universes": "tsx scripts/enrich-roblox-universes.ts",
     "enrich:catalog-items": "tsx scripts/enrich-roblox-catalog-items.ts",
-    "scrape:grow-garden-crops": "tsx scripts/scrape-grow-a-garden-crops.ts",
     "lists:refresh": "tsx scripts/refresh-game-lists.ts",
     "update:playing": "tsx scripts/update-universe-playing.ts",
     "update:stats": "tsx scripts/update-universe-stats.ts",

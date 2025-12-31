@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { computeCalculation, normalizeMutations } from "@/lib/grow-a-garden/calc";
 import type { CropRecord } from "@/lib/grow-a-garden/crops";
@@ -246,11 +247,26 @@ export function GrowGardenCropValueCalculatorClient({
                         selected ? "border-accent ring-2 ring-accent/30 bg-accent/5" : "border-border/70 bg-surface"
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-foreground">{crop.name}</p>
-                        <span className="rounded-full bg-surface-muted px-2 py-[2px] text-[11px] font-semibold text-muted">
-                          {crop.tier}
-                        </span>
+                      <div className="flex items-center gap-3">
+                        {crop.imageUrl ? (
+                          <div className="h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-surface-muted">
+                            <Image
+                              src={crop.imageUrl}
+                              alt={crop.name}
+                              width={40}
+                              height={40}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg border border-border/60 bg-surface-muted" />
+                        )}
+                        <div className="flex flex-1 items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{crop.name}</p>
+                          <span className="rounded-full bg-surface-muted px-2 py-[2px] text-[11px] font-semibold text-muted">
+                            {crop.tier}
+                          </span>
+                        </div>
                       </div>
                       <p className="mt-2 text-xs text-muted">
                         Base Value ({baseMode === "average" ? "avg" : "baseline"}):{" "}
@@ -385,49 +401,112 @@ export function GrowGardenCropValueCalculatorClient({
             <h2 className="text-lg font-semibold text-foreground">Result</h2>
             {calculation ? (
               <div className="mt-4 space-y-4">
-                <div className="flex flex-col gap-2 rounded-xl bg-accent/10 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-accent">Total price</p>
-                  <p className="text-3xl font-bold text-foreground">{formatSheckles(calculation.total)} Sheckles</p>
-                  <p className="text-sm text-muted">
-                    Price per crop: {formatSheckles(calculation.perCrop)} Sheckles
+                <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {selectedCrop?.imageUrl ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 overflow-hidden rounded-xl border border-border/60 bg-surface-muted">
+                          <Image
+                            src={selectedCrop.imageUrl}
+                            alt={selectedCrop.name}
+                            width={48}
+                            height={48}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-accent">Selected crop</p>
+                          <p className="text-base font-semibold text-foreground">{selectedCrop.name}</p>
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="text-right">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-accent">Total Sheckles</p>
+                      <p className="text-4xl font-bold text-foreground">{formatSheckles(calculation.total)}</p>
+                      <p className="text-sm text-muted">Per crop: {formatSheckles(calculation.perCrop)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      Base value ({baseMode})
+                    </p>
+                    <p className="text-xl font-semibold text-foreground">{formatSheckles(calculation.baseValue)}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      Base weight ({baseMode})
+                    </p>
+                    <p className="text-xl font-semibold text-foreground">{formatKg(calculation.baseWeightKg)}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Entered weight</p>
+                    <p className="text-xl font-semibold text-foreground">{formatKg(Number(weightInput || 0))}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Weight factor</p>
+                    <p className="text-xl font-semibold text-foreground">
+                      {numberFmt.format(calculation.weightFactor)}×
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">Multipliers</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">Growth</span>
+                      <span className="text-base font-semibold text-foreground">
+                        ×{numberFmt.format(calculation.variantMultiplier)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">Temperature</span>
+                      <span className="text-base font-semibold text-foreground">
+                        {tempMutation === "default" ? "Default" : tempMutation}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">Mutation</span>
+                      <span className="text-base font-semibold text-foreground">
+                        ×{numberFmt.format(calculation.mutationMultiplier)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">Total</span>
+                      <span className="text-base font-semibold text-foreground">
+                        ×{numberFmt.format(calculation.variantMultiplier * calculation.mutationMultiplier)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-muted">
+                    Formula: (BaseValue × (Weight/BaseWeight)²) × Growth × Mutation × Quantity
                   </p>
                 </div>
-                <div className="space-y-3 text-sm text-muted">
-                  <div className="rounded-lg border border-border/60 bg-surface px-3 py-3">
-                    <p className="font-semibold text-foreground">Breakdown</p>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      <li>Base Value (average): {formatSheckles(calculation.baseValue)} Sheckles</li>
-                      <li>Base Weight (average): {formatKg(calculation.baseWeightKg)}</li>
-                      <li>Weight factor: (weight/baseWeight)² = {numberFmt.format(calculation.weightFactor)}</li>
-                      <li>Growth mutation multiplier: x{numberFmt.format(calculation.variantMultiplier)}</li>
-                      <li>
-                        Temperature mutation: {tempMutation === "default" ? "Default (x0 added to sum)" : tempMutation}
-                      </li>
-                      <li>
-                        Mutation multiplier: x{numberFmt.format(calculation.mutationMultiplier)}{" "}
-                        {calculation.skippedMutations.length
-                          ? `(skipped: ${calculation.skippedMutations.map((m) => m.name).join(", ")})`
-                          : ""}
-                      </li>
-                      <li>
-                        Formula: (BaseValue × (Weight/BaseWeight)²) × GrowthMutation × Mutation × Quantity
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-surface px-3 py-3">
-                    <p className="font-semibold text-foreground">Selected mutations</p>
-                    {calculation.appliedMutations.length ? (
-                      <ul className="mt-2 space-y-1 text-sm">
-                        {calculation.appliedMutations.map((mutation) => (
-                          <li key={mutation.name}>
-                            {mutation.name} — {mutation.multiplier ? `${mutation.multiplier}x` : "TBA"}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-muted">None selected.</p>
-                    )}
-                  </div>
+
+                <div className="rounded-xl border border-border/60 bg-surface px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">Selected mutations</p>
+                  {calculation.appliedMutations.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {calculation.appliedMutations.map((mutation) => (
+                        <span
+                          key={mutation.name}
+                          className="rounded-full border border-border/60 bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground"
+                        >
+                          {mutation.name} {mutation.multiplier ? `×${mutation.multiplier}` : "×?"}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted">None selected.</p>
+                  )}
+                  {calculation.skippedMutations.length ? (
+                    <p className="mt-2 text-xs text-muted">
+                      Skipped: {calculation.skippedMutations.map((m) => m.name).join(", ")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ) : (

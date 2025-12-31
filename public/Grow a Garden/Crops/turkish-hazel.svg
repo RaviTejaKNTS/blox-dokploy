@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#214A2B"/>
+      <stop offset="100%" stop-color="#2F6A3A"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="28" fill="url(#bg)"/>
+  <rect x="12" y="12" width="232" height="232" rx="22" fill="none" stroke="#BFE6C6" stroke-opacity="0.35"/>
+  <text x="128" y="70" text-anchor="middle" font-family="Verdana,Arial,sans-serif" font-size="14" fill="#CFE9D3">Grow a Garden</text>
+  <text x="128" y="120" text-anchor="middle" font-family="Verdana,Arial,sans-serif" font-size="20" fill="#F7F7F2">Turkish Hazel</text>
+</svg>

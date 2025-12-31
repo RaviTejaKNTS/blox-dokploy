@@ -3,6 +3,7 @@ import path from "node:path";
 
 export type CropRecord = {
   name: string;
+  imageUrl?: string | null;
   tier: string;
   // Average numbers (default)
   baseValue: number;
@@ -25,8 +26,7 @@ export type CropDataset = {
 };
 
 const CROPS_MD_PATHS = [
-  path.join(process.cwd(), "grow-a-garden-crops-data.md"),
-  path.join(process.cwd(), "docs", "grow-a-garden-crops-data.md")
+  path.join(process.cwd(), "data", "Grow a Garden", "crops.md")
 ];
 
 async function readCropsMarkdown(): Promise<string> {
@@ -75,10 +75,7 @@ function parseTableBlock(block: string): { rows: string[][]; heading: string | n
   for (let i = tableStart + 2; i < lines.length; i += 1) {
     const line = lines[i];
     if (!line?.startsWith("|")) break;
-    const parts = line
-      .split("|")
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0);
+    const parts = line.split("|").slice(1, -1).map((part) => part.trim());
     if (parts.length > 1) {
       rows.push(parts);
     }
@@ -93,6 +90,11 @@ function dedupeByName(rows: CropRecord[]): CropRecord[] {
     if (!row.name) continue;
     if (!seen.has(row.name)) {
       seen.set(row.name, row);
+      continue;
+    }
+    const existing = seen.get(row.name);
+    if (existing && !existing.imageUrl && row.imageUrl) {
+      seen.set(row.name, { ...existing, imageUrl: row.imageUrl });
     }
   }
   return Array.from(seen.values());
@@ -115,41 +117,47 @@ export async function loadCropDataset(): Promise<CropDataset> {
     // Only consider tables with crop info; skip the tier-only lists.
     if (!section.toLowerCase().includes("crops info")) return;
 
-    const { rows, heading } = parseTableBlock(section);
+    const sectionTitle = section.split("\n")[0]?.trim() ?? null;
+    const { rows } = parseTableBlock(section);
     if (!rows.length) return;
 
-    const eventTypeMatch = heading?.match(/\(([^)]+)\)/);
+    const eventTypeMatch = sectionTitle?.match(/\(([^)]+)\)/);
     const eventType = eventTypeMatch?.[1] ?? null;
 
     rows.forEach((cells) => {
       // Expected columns (index-based):
+      // Expected columns (index-based):
       // 0 name
-      // 1 Sheckle
-      // 2 Sheckles Price
-      // 3 Price-Floor Value (baseline)
-      // 4 Average Value
-      // 5 Price-Floor Weight
-      // 6 Average Weight
-      // 7 Minimum Weight
-      // 8 Huge Chance
-      // 9 Tier
-      // 10 Stock
-      // 11 Multi-Harvest
-      // 12 Obtainable
-      if (cells.length < 12) return;
+      // 1 image (optional)
+      // 1/2 Sheckle
+      // 2/3 Sheckles Price
+      // 3/4 Price-Floor Value (baseline)
+      // 4/5 Average Value
+      // 5/6 Price-Floor Weight
+      // 6/7 Average Weight
+      // 7/8 Minimum Weight
+      // 8/9 Huge Chance
+      // 9/10 Tier
+      // 10/11 Stock
+      // 11/12 Multi-Harvest
+      // 12/13 Obtainable
+      const hasImageColumn = Boolean(cells[1]?.includes("/Grow%20a%20Garden/") || cells[1]?.match(/\.(png|jpg|jpeg|webp)$/i));
+      const offset = hasImageColumn ? 1 : 0;
+      if (cells.length < 12 + offset) return;
       const name = cells[0];
-      const baseValueFloor = parseNumber(cells[3]);
-      const averageValue = parseNumber(cells[4]);
-      const baseWeightFloor = parseWeight(cells[5]);
-      const averageWeight = parseWeight(cells[6]);
-      const minWeight = parseWeight(cells[7]);
-      const hugeChance = cells[8] ? parsePercent(cells[8]) : null;
-      const tier = cells[9] ?? "";
-      const stock = cells[10] ?? null;
+      const imageUrl = hasImageColumn ? cells[1] : null;
+      const baseValueFloor = parseNumber(cells[3 + offset]);
+      const averageValue = parseNumber(cells[4 + offset]);
+      const baseWeightFloor = parseWeight(cells[5 + offset]);
+      const averageWeight = parseWeight(cells[6 + offset]);
+      const minWeight = parseWeight(cells[7 + offset]);
+      const hugeChance = cells[8 + offset] ? parsePercent(cells[8 + offset]) : null;
+      const tier = cells[9 + offset] ?? "";
+      const stock = cells[10 + offset] ?? null;
       const obtainable =
-        cells[12]?.toLowerCase() === "✓" || cells[12]?.toLowerCase() === "yes"
+        cells[12 + offset]?.toLowerCase() === "✓" || cells[12 + offset]?.toLowerCase() === "yes"
           ? true
-          : cells[12]?.toLowerCase() === "✗" || cells[12]?.toLowerCase() === "no"
+          : cells[12 + offset]?.toLowerCase() === "✗" || cells[12 + offset]?.toLowerCase() === "no"
             ? false
             : null;
 
@@ -157,6 +165,7 @@ export async function loadCropDataset(): Promise<CropDataset> {
 
       crops.push({
         name,
+        imageUrl: imageUrl?.trim() || null,
         tier,
         baseValue: averageValue,
         baseWeightKg: averageWeight,
