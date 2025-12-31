@@ -744,56 +744,6 @@ export const ORES_BY_ID: Record<string, Ore> = ORES.reduce(
   {} as Record<string, Ore>
 );
 
-// Map ore ids to image paths in public/force-crafting-tool
-export const ORE_IMAGE_MAP: Record<string, string> = {
-  "stone": "/force-crafting-tool/Stone.webp",
-  "sand-stone": "/force-crafting-tool/Sandstone.webp",
-  "copper": "/force-crafting-tool/Copper.webp",
-  "iron": "/force-crafting-tool/Iron.webp",
-  "cardboardite": "/force-crafting-tool/Cardboardite.webp",
-  "tin": "/force-crafting-tool/Tin.webp",
-  "silver": "/force-crafting-tool/Silver.webp",
-  "gold": "/force-crafting-tool/Gold.webp",
-  "bananite": "/force-crafting-tool/Bananite.webp",
-  "mushroomite": "/force-crafting-tool/Mushroomite.webp",
-  "platinum": "/force-crafting-tool/Platinum.webp",
-  "aite": "/force-crafting-tool/Aite.webp",
-  "poopite": "/force-crafting-tool/Poopite.webp",
-  "cobalt": "/force-crafting-tool/Cobalt.webp",
-  "titanium": "/force-crafting-tool/Titanium.webp",
-  "lapis-lazuli": "/force-crafting-tool/Lapis_Lazuli.webp",
-  "volcanic-rock": "/force-crafting-tool/Volcanic_Rock.webp",
-  "quartz": "/force-crafting-tool/Quartz.webp",
-  "amethyst": "/force-crafting-tool/Amethyst.webp",
-  "topaz": "/force-crafting-tool/Topaz.webp",
-  "diamond": "/force-crafting-tool/Diamond.webp",
-  "sapphire": "/force-crafting-tool/Sapphire.webp",
-  "cuprite": "/force-crafting-tool/Cuprite.webp",
-  "obsidian": "/force-crafting-tool/Obsidian.webp",
-  "emerald": "/force-crafting-tool/Emerald.webp",
-  "ruby": "/force-crafting-tool/Ruby.webp",
-  "rivalite": "/force-crafting-tool/Rivalite.webp",
-  "uranium": "/force-crafting-tool/Uranium.webp",
-  "mythril": "/force-crafting-tool/Mythril.webp",
-  "eye-ore": "/force-crafting-tool/Eye_Ore.webp",
-  "fireite": "/force-crafting-tool/Fireite.webp",
-  "magmaite": "/force-crafting-tool/Magmaite.webp",
-  "lightite": "/force-crafting-tool/Lightite.webp",
-  "demonite": "/force-crafting-tool/Demonite.webp",
-  "darkryte": "/force-crafting-tool/Darkryte.webp",
-  "magenta-crystal": "/force-crafting-tool/Magenta_Crystal_Ore.webp",
-  "crimson-crystal": "/force-crafting-tool/Crimson_Crystal_Ore.webp",
-  "green-crystal": "/force-crafting-tool/Green_Crystal_Ore.webp",
-  "orange-crystal": "/force-crafting-tool/Orange_Crystal_Ore.webp",
-  "blue-crystal": "/force-crafting-tool/Blue_Crystal_Ore.webp",
-  "arcane-crystal": "/force-crafting-tool/Arcane_Crystal_Ore.webp",
-  "rainbow-crystal": "/force-crafting-tool/Rainbow_Crystal_Ore.webp",
-  "galaxite": "/force-crafting-tool/Galaxite.webp",
-  "slimite": "/force-crafting-tool/Slimite.webp",
-  "dark-boneite": "/force-crafting-tool/Dark_Boneite.webp",
-  "boneite": "/force-crafting-tool/Boneite.webp"
-};
-
 export const WEAPONS: Weapon[] = [
   // Daggers
   {

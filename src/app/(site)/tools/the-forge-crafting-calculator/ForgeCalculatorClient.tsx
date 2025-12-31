@@ -8,7 +8,6 @@ import {
   MAX_ORE_TYPES,
   MAX_TOTAL_ORE_COUNT,
   MIN_TOTAL_ORE_COUNT,
-  ORE_IMAGE_MAP,
   QUALITY_TIERS,
   type ArmorSlot,
   type Ore,
@@ -57,7 +56,7 @@ function OreCard({
   count: number;
   onSelect: () => void;
 }) {
-  const image = ore.imageUrl ?? ORE_IMAGE_MAP[ore.id];
+  const image = ore.imageUrl;
 
   return (
     <button
@@ -425,11 +424,11 @@ export function ForgeCalculatorClient({ ores }: { ores: Ore[] }) {
                       key={entry.ore.id}
                       className="relative flex h-full min-h-[150px] flex-col justify-between rounded-xl border border-border/60 bg-surface px-3 py-3"
                     >
-                      {(entry.ore.imageUrl ?? ORE_IMAGE_MAP[entry.ore.id]) ? (
+                      {entry.ore.imageUrl ? (
                         <div className="mb-2 flex justify-center">
                           <div className="h-16 w-16 overflow-hidden rounded-lg bg-surface-muted">
                             <Image
-                              src={entry.ore.imageUrl ?? ORE_IMAGE_MAP[entry.ore.id]}
+                              src={entry.ore.imageUrl}
                               alt={entry.ore.name}
                               width={64}
                               height={64}
