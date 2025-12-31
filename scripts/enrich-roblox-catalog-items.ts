@@ -286,6 +286,7 @@ async function fetchThumbnails(assetIds: number[]): Promise<ThumbnailEntry[]> {
   });
   const url = `${THUMBNAILS_API}?${params.toString()}`;
   let attempt = 0;
+  let rateLimitRetries = 0;
 
   while (true) {
     await throttleRequest();
