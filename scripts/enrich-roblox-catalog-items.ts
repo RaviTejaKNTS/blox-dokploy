@@ -7,12 +7,40 @@ const THUMBNAILS_API = "https://thumbnails.roblox.com/v1/assets";
 const USER_AGENT = "BloxodesCatalogBot/1.0";
 
 const ENRICH_LIMIT = Math.max(1, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_LIMIT ?? "200")));
+const ENRICH_MAX_TOTAL = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MAX_TOTAL ?? "0")));
 const ENRICH_BATCH = Math.max(1, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_BATCH ?? "100")));
 const ENRICH_CONCURRENCY = Math.max(1, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_CONCURRENCY ?? "4")));
 const THUMBNAIL_BATCH = Math.max(1, Math.floor(Number(process.env.ROBLOX_CATALOG_THUMBNAIL_BATCH ?? "50")));
 const THUMBNAIL_SIZE = process.env.ROBLOX_CATALOG_THUMBNAIL_SIZE ?? "420x420";
 const THUMBNAIL_FORMAT = process.env.ROBLOX_CATALOG_THUMBNAIL_FORMAT ?? "Png";
 const MAX_RETRIES = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MAX_RETRIES ?? "3")));
+const REQUEST_MIN_INTERVAL_MS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MIN_REQUEST_MS ?? "250")));
+const REQUEST_MAX_INTERVAL_MS = Math.max(
+  REQUEST_MIN_INTERVAL_MS,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MAX_REQUEST_MS ?? "2000"))
+);
+const BATCH_DELAY_MS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_BATCH_DELAY_MS ?? "500")));
+const RETRY_BASE_MS = Math.max(100, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RETRY_BASE_MS ?? "750")));
+const RETRY_JITTER_MS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RETRY_JITTER_MS ?? "250")));
+const THUMBNAIL_DELAY_MS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_THUMBNAIL_DELAY_MS ?? "150")));
+const RATE_LIMIT_COOLDOWN_MS = Math.max(
+  0,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RATE_LIMIT_COOLDOWN_MS ?? "5000"))
+);
+const RATE_LIMIT_MAX_COOLDOWN_MS = Math.max(
+  RATE_LIMIT_COOLDOWN_MS,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RATE_LIMIT_MAX_COOLDOWN_MS ?? "60000"))
+);
+const RATE_LIMIT_RETRY_LIMIT = Math.max(
+  0,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RATE_LIMIT_RETRY_LIMIT ?? "2"))
+);
+const RATE_LIMIT_REQUEUE_MINUTES = Math.max(
+  1,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_RATE_LIMIT_REQUEUE_MINUTES ?? "15"))
+);
+const LOG_LEVEL = (process.env.ROBLOX_CATALOG_ENRICH_LOG_LEVEL ?? "info").toLowerCase();
+const MAX_ERROR_LOGS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MAX_ERROR_LOGS ?? "5")));
 
 const REFRESH_HOURS = Math.max(1, Number(process.env.ROBLOX_CATALOG_REFRESH_HOURS ?? "168"));
 const RETRY_HOURS = Math.max(1, Number(process.env.ROBLOX_CATALOG_RETRY_HOURS ?? "6"));
@@ -68,6 +96,24 @@ function toBoolean(value: string | undefined, fallback: boolean) {
   return fallback;
 }
 
+function shouldLog(level: "info" | "debug") {
+  const order = { debug: 0, info: 1 };
+  const current = LOG_LEVEL in order ? LOG_LEVEL : "info";
+  return order[level] >= order[current as keyof typeof order];
+}
+
+function logInfo(message: string) {
+  if (shouldLog("info")) {
+    console.log(message);
+  }
+}
+
+function logDebug(message: string) {
+  if (shouldLog("debug")) {
+    console.log(message);
+  }
+}
+
 function normalizeText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -94,9 +140,70 @@ function addHours(value: string, hours: number) {
   return date.toISOString();
 }
 
+function addMinutes(value: string, minutes: number) {
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() + minutes);
+  return date.toISOString();
+}
+
 function computeRetryHours(attempts: number) {
   const factor = Math.max(0, attempts - 1);
   return Math.min(MAX_RETRY_HOURS, RETRY_HOURS * Math.pow(2, factor));
+}
+
+function withJitter(ms: number, jitterMs: number) {
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+  if (!Number.isFinite(jitterMs) || jitterMs <= 0) return ms;
+  return ms + Math.floor(Math.random() * jitterMs);
+}
+
+let lastRequestAt = 0;
+let requestGate: Promise<void> = Promise.resolve();
+let rateLimitUntil = 0;
+let rateLimitStrikes = 0;
+let dynamicMinIntervalMs = REQUEST_MIN_INTERVAL_MS;
+
+async function throttleRequest() {
+  if (REQUEST_MIN_INTERVAL_MS <= 0 && rateLimitUntil <= Date.now()) return;
+  let release: () => void = () => undefined;
+  const prev = requestGate;
+  requestGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await prev;
+  const now = Date.now();
+  const rateLimitWait = Math.max(0, rateLimitUntil - now);
+  if (rateLimitWait > 0) {
+    logDebug(`Rate-limit cooldown active. Sleeping ${rateLimitWait}ms.`);
+    await sleep(rateLimitWait);
+  }
+  const waitMs = Math.max(0, lastRequestAt + dynamicMinIntervalMs - Date.now());
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+  lastRequestAt = Date.now();
+  release();
+}
+
+function noteRateLimit(retryAfterMs?: number) {
+  rateLimitStrikes = Math.min(rateLimitStrikes + 1, 10);
+  const exponential = RATE_LIMIT_COOLDOWN_MS * Math.pow(2, rateLimitStrikes - 1);
+  const cooldown = Math.min(RATE_LIMIT_MAX_COOLDOWN_MS, Math.max(exponential, retryAfterMs ?? 0));
+  rateLimitUntil = Math.max(rateLimitUntil, Date.now() + cooldown);
+  dynamicMinIntervalMs = Math.min(
+    REQUEST_MAX_INTERVAL_MS,
+    Math.max(dynamicMinIntervalMs * 2, REQUEST_MIN_INTERVAL_MS)
+  );
+  logInfo(`Rate limit hit. Cooling down ${cooldown}ms. Min interval now ${dynamicMinIntervalMs}ms.`);
+}
+
+function noteRequestSuccess() {
+  if (rateLimitStrikes > 0) {
+    rateLimitStrikes -= 1;
+  }
+  if (dynamicMinIntervalMs > REQUEST_MIN_INTERVAL_MS) {
+    dynamicMinIntervalMs = Math.max(REQUEST_MIN_INTERVAL_MS, Math.floor(dynamicMinIntervalMs * 0.9));
+  }
 }
 
 async function sleep(ms: number) {
@@ -111,9 +218,11 @@ async function fetchEconomyDetails(assetId: number): Promise<{
   error?: string;
 }> {
   let attempt = 0;
+  let rateLimitRetries = 0;
   const url = ECONOMY_DETAILS_API(assetId);
 
   while (true) {
+    await throttleRequest();
     const res = await fetch(url, {
       headers: {
         accept: "application/json",
@@ -133,11 +242,24 @@ async function fetchEconomyDetails(assetId: number): Promise<{
       if (!resolvedId) {
         return { ok: false, status: 404, error: "Economy asset not found" };
       }
+      noteRequestSuccess();
       return { ok: true, status: res.status, payload };
     }
 
     if (res.status === 404) {
       return { ok: false, status: 404, error: "Economy asset not found" };
+    }
+
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("retry-after");
+      const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : undefined;
+      noteRateLimit(retryAfterMs);
+      if (rateLimitRetries < RATE_LIMIT_RETRY_LIMIT) {
+        rateLimitRetries += 1;
+        await sleep(withJitter(RATE_LIMIT_COOLDOWN_MS, RETRY_JITTER_MS));
+        continue;
+      }
     }
 
     const retryable = res.status === 429 || res.status >= 500;
@@ -146,9 +268,12 @@ async function fetchEconomyDetails(assetId: number): Promise<{
       return { ok: false, status: res.status, error: body.slice(0, 200) || "Economy request failed" };
     }
 
-    const backoff = 300 * Math.pow(2, attempt);
+    const retryAfter = res.headers.get("retry-after");
+    const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+    const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 0;
+    const backoff = Math.max(RETRY_BASE_MS * Math.pow(2, attempt), retryAfterMs);
     attempt += 1;
-    await sleep(backoff);
+    await sleep(withJitter(backoff, RETRY_JITTER_MS));
   }
 }
 
@@ -160,19 +285,49 @@ async function fetchThumbnails(assetIds: number[]): Promise<ThumbnailEntry[]> {
     format: THUMBNAIL_FORMAT
   });
   const url = `${THUMBNAILS_API}?${params.toString()}`;
-  const res = await fetch(url, {
-    headers: {
-      accept: "application/json",
-      "user-agent": USER_AGENT
+  let attempt = 0;
+
+  while (true) {
+    await throttleRequest();
+    const res = await fetch(url, {
+      headers: {
+        accept: "application/json",
+        "user-agent": USER_AGENT
+      }
+    });
+
+    if (res.ok) {
+      const payload = (await res.json().catch(() => null)) as { data?: ThumbnailEntry[] } | null;
+      if (!payload?.data) return [];
+      noteRequestSuccess();
+      return payload.data;
     }
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Failed to fetch thumbnails (${res.status}): ${body.slice(0, 200)}`);
+
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("retry-after");
+      const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : undefined;
+      noteRateLimit(retryAfterMs);
+      if (rateLimitRetries < RATE_LIMIT_RETRY_LIMIT) {
+        rateLimitRetries += 1;
+        await sleep(withJitter(RATE_LIMIT_COOLDOWN_MS, RETRY_JITTER_MS));
+        continue;
+      }
+    }
+
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || attempt >= MAX_RETRIES) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Failed to fetch thumbnails (${res.status}): ${body.slice(0, 200)}`);
+    }
+
+    const retryAfter = res.headers.get("retry-after");
+    const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+    const retryAfterMs = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 0;
+    const backoff = Math.max(RETRY_BASE_MS * Math.pow(2, attempt), retryAfterMs);
+    attempt += 1;
+    await sleep(withJitter(backoff, RETRY_JITTER_MS));
   }
-  const payload = (await res.json().catch(() => null)) as { data?: ThumbnailEntry[] } | null;
-  if (!payload?.data) return [];
-  return payload.data;
 }
 
 async function promisePool<T>(items: T[], concurrency: number, handler: (item: T) => Promise<void>) {
@@ -249,128 +404,212 @@ function assignDefined(target: Record<string, unknown>, key: string, value: unkn
 }
 
 async function run() {
-  const queue = await pickQueueItems(ENRICH_LIMIT);
-  if (!queue.length) {
-    console.log("No catalog items ready for enrichment.");
-    return;
-  }
+  let totalProcessed = 0;
+  let totalUpdated = 0;
+  let totalThumbnails = 0;
+  let batchIndex = 0;
 
-  const nowIso = new Date().toISOString();
-  const itemUpdates: Record<string, unknown>[] = [];
-  const queueUpdates: Record<string, unknown>[] = [];
-  const thumbnailTargets: number[] = [];
-
-  await promisePool(queue, ENRICH_CONCURRENCY, async (entry) => {
-    const assetId = entry.asset_id;
-    const attempts = entry.attempts ?? 0;
-    const priority = entry.priority ?? "new";
-
-    const details = await fetchEconomyDetails(assetId);
-    if (details.ok && details.payload) {
-      const payload = details.payload;
-      const creator = payload.Creator ?? null;
-      const update: Record<string, unknown> = {
-        asset_id: assetId,
-        last_enriched_at: nowIso,
-        raw_economy_json: payload,
-        is_deleted: false
-      };
-
-      assignDefined(update, "name", normalizeText(payload.Name));
-      assignDefined(update, "description", normalizeText(payload.Description));
-      assignDefined(update, "price_robux", normalizeNumber(payload.PriceInRobux));
-      assignDefined(update, "is_for_sale", normalizeBoolean(payload.IsForSale));
-      assignDefined(update, "is_limited", normalizeBoolean(payload.IsLimited));
-      assignDefined(update, "is_limited_unique", normalizeBoolean(payload.IsLimitedUnique));
-      assignDefined(update, "remaining", normalizeNumber(payload.Remaining));
-      assignDefined(update, "asset_type_id", normalizeNumber(payload.AssetTypeId));
-      assignDefined(update, "product_id", normalizeNumber(payload.ProductId));
-
-      if (creator) {
-        assignDefined(update, "creator_id", normalizeNumber(creator.Id));
-        assignDefined(update, "creator_target_id", normalizeNumber(creator.CreatorTargetId));
-        assignDefined(update, "creator_name", normalizeText(creator.Name));
-        assignDefined(update, "creator_type", normalizeText(creator.CreatorType));
-        assignDefined(update, "creator_has_verified_badge", normalizeBoolean(creator.HasVerifiedBadge));
-      }
-
-      itemUpdates.push(update);
-      thumbnailTargets.push(assetId);
-
-      queueUpdates.push({
-        asset_id: assetId,
-        priority,
-        attempts: 0,
-        last_attempt_at: nowIso,
-        last_error: null,
-        next_run_at: addHours(nowIso, REFRESH_HOURS)
-      });
-      return;
+  while (true) {
+    if (ENRICH_MAX_TOTAL > 0 && totalProcessed >= ENRICH_MAX_TOTAL) {
+      break;
     }
 
-    const nextAttempts = attempts + 1;
-    const errorMessage = details.error ?? "Unknown error";
-    if (details.status === 404) {
-      itemUpdates.push({
-        asset_id: assetId,
-        is_deleted: true,
-        last_enriched_at: nowIso
-      });
+    const batchLimit =
+      ENRICH_MAX_TOTAL > 0 ? Math.min(ENRICH_LIMIT, ENRICH_MAX_TOTAL - totalProcessed) : ENRICH_LIMIT;
+    const queue = await pickQueueItems(batchLimit);
+    if (!queue.length) {
+      if (batchIndex === 0) {
+        logInfo("No catalog items ready for enrichment.");
+      }
+      break;
+    }
+
+    batchIndex += 1;
+    logInfo(
+      `Starting enrichment batch ${batchIndex}: ${queue.length} items (processed ${totalProcessed} so far, minInterval=${dynamicMinIntervalMs}ms).`
+    );
+
+    const itemUpdates: Record<string, unknown>[] = [];
+    const queueUpdates: Record<string, unknown>[] = [];
+    const thumbnailTargets: number[] = [];
+    const errorStats = new Map<string, number>();
+    let loggedErrors = 0;
+
+    await promisePool(queue, ENRICH_CONCURRENCY, async (entry) => {
+      const assetId = entry.asset_id;
+      const attempts = entry.attempts ?? 0;
+      const priority = entry.priority ?? "new";
+      const nowIso = new Date().toISOString();
+
+      let details: Awaited<ReturnType<typeof fetchEconomyDetails>>;
+      try {
+        details = await fetchEconomyDetails(assetId);
+      } catch (error) {
+        const message = (error as Error).message ?? "Economy fetch failed";
+        const key = `fetch_error:${message.slice(0, 80)}`;
+        errorStats.set(key, (errorStats.get(key) ?? 0) + 1);
+        if (loggedErrors < MAX_ERROR_LOGS) {
+          logInfo(`Economy fetch error for ${assetId}: ${message}`);
+          loggedErrors += 1;
+        }
+        queueUpdates.push({
+          asset_id: assetId,
+          priority,
+          attempts: attempts + 1,
+          last_attempt_at: nowIso,
+          last_error: message,
+          next_run_at: addHours(nowIso, computeRetryHours(attempts + 1))
+        });
+        return;
+      }
+
+      if (details.ok && details.payload) {
+        const payload = details.payload;
+        const creator = payload.Creator ?? null;
+        const update: Record<string, unknown> = {
+          asset_id: assetId,
+          last_enriched_at: nowIso,
+          raw_economy_json: payload,
+          is_deleted: false
+        };
+
+        assignDefined(update, "name", normalizeText(payload.Name));
+        assignDefined(update, "description", normalizeText(payload.Description));
+        assignDefined(update, "price_robux", normalizeNumber(payload.PriceInRobux));
+        assignDefined(update, "is_for_sale", normalizeBoolean(payload.IsForSale));
+        assignDefined(update, "is_limited", normalizeBoolean(payload.IsLimited));
+        assignDefined(update, "is_limited_unique", normalizeBoolean(payload.IsLimitedUnique));
+        assignDefined(update, "remaining", normalizeNumber(payload.Remaining));
+        assignDefined(update, "asset_type_id", normalizeNumber(payload.AssetTypeId));
+        assignDefined(update, "product_id", normalizeNumber(payload.ProductId));
+
+        if (creator) {
+          assignDefined(update, "creator_id", normalizeNumber(creator.Id));
+          assignDefined(update, "creator_target_id", normalizeNumber(creator.CreatorTargetId));
+          assignDefined(update, "creator_name", normalizeText(creator.Name));
+          assignDefined(update, "creator_type", normalizeText(creator.CreatorType));
+          assignDefined(update, "creator_has_verified_badge", normalizeBoolean(creator.HasVerifiedBadge));
+        }
+
+        itemUpdates.push(update);
+        thumbnailTargets.push(assetId);
+
+        queueUpdates.push({
+          asset_id: assetId,
+          priority,
+          attempts: 0,
+          last_attempt_at: nowIso,
+          last_error: null,
+          next_run_at: addHours(nowIso, REFRESH_HOURS)
+        });
+        return;
+      }
+
+      const nextAttempts = attempts + 1;
+      const errorMessage = details.error ?? "Unknown error";
+      const errorKey = details.status ? `${details.status}` : "error";
+      errorStats.set(errorKey, (errorStats.get(errorKey) ?? 0) + 1);
+      if (loggedErrors < MAX_ERROR_LOGS) {
+        logInfo(`Economy error for ${assetId} (${errorKey}): ${errorMessage}`);
+        loggedErrors += 1;
+      }
+
+      if (details.status === 404) {
+        itemUpdates.push({
+          asset_id: assetId,
+          is_deleted: true,
+          last_enriched_at: nowIso
+        });
+        queueUpdates.push({
+          asset_id: assetId,
+          priority,
+          attempts: nextAttempts,
+          last_attempt_at: nowIso,
+          last_error: errorMessage,
+          next_run_at: addHours(nowIso, DELETE_RETRY_HOURS)
+        });
+        return;
+      }
+
+      if (details.status === 429) {
+        queueUpdates.push({
+          asset_id: assetId,
+          priority,
+          attempts: nextAttempts,
+          last_attempt_at: nowIso,
+          last_error: errorMessage,
+          next_run_at: addMinutes(nowIso, RATE_LIMIT_REQUEUE_MINUTES)
+        });
+        return;
+      }
+
       queueUpdates.push({
         asset_id: assetId,
         priority,
         attempts: nextAttempts,
         last_attempt_at: nowIso,
         last_error: errorMessage,
-        next_run_at: addHours(nowIso, DELETE_RETRY_HOURS)
+        next_run_at: addHours(nowIso, computeRetryHours(nextAttempts))
       });
-      return;
-    }
-
-    queueUpdates.push({
-      asset_id: assetId,
-      priority,
-      attempts: nextAttempts,
-      last_attempt_at: nowIso,
-      last_error: errorMessage,
-      next_run_at: addHours(nowIso, computeRetryHours(nextAttempts))
     });
-  });
 
-  if (itemUpdates.length) {
-    await upsertCatalogItems(itemUpdates);
-  }
-
-  if (queueUpdates.length) {
-    await upsertQueue(queueUpdates);
-  }
-
-  if (thumbnailTargets.length) {
-    const thumbnailRows: Record<string, unknown>[] = [];
-    for (const batch of chunkArray(thumbnailTargets, THUMBNAIL_BATCH)) {
-      const entries = await fetchThumbnails(batch);
-      entries.forEach((entry) => {
-        const targetId = normalizeNumber(entry.targetId);
-        if (!targetId) return;
-        thumbnailRows.push({
-          asset_id: targetId,
-          size: THUMBNAIL_SIZE,
-          format: THUMBNAIL_FORMAT,
-          image_url: normalizeText(entry.imageUrl),
-          state: normalizeText(entry.state),
-          version: normalizeText(entry.version),
-          last_checked_at: nowIso
-        });
-      });
-      await sleep(150);
+    if (itemUpdates.length) {
+      await upsertCatalogItems(itemUpdates);
     }
-    if (thumbnailRows.length) {
-      await upsertThumbnails(thumbnailRows);
+
+    if (queueUpdates.length) {
+      await upsertQueue(queueUpdates);
     }
+
+    if (thumbnailTargets.length) {
+      const thumbnailRows: Record<string, unknown>[] = [];
+      for (const batch of chunkArray(thumbnailTargets, THUMBNAIL_BATCH)) {
+        try {
+          const entries = await fetchThumbnails(batch);
+          entries.forEach((entry) => {
+            const targetId = normalizeNumber(entry.targetId);
+            if (!targetId) return;
+            thumbnailRows.push({
+              asset_id: targetId,
+              size: THUMBNAIL_SIZE,
+              format: THUMBNAIL_FORMAT,
+              image_url: normalizeText(entry.imageUrl),
+              state: normalizeText(entry.state),
+              version: normalizeText(entry.version),
+              last_checked_at: new Date().toISOString()
+            });
+          });
+        } catch (error) {
+          const message = (error as Error).message ?? "Thumbnail fetch failed";
+          logInfo(`Thumbnail batch failed (${batch.length} items): ${message}`);
+        }
+        await sleep(withJitter(THUMBNAIL_DELAY_MS, RETRY_JITTER_MS));
+      }
+      if (thumbnailRows.length) {
+        await upsertThumbnails(thumbnailRows);
+      }
+    }
+
+    totalProcessed += queue.length;
+    totalUpdated += itemUpdates.length;
+    totalThumbnails += thumbnailTargets.length;
+
+    if (errorStats.size) {
+      const summary = Array.from(errorStats.entries())
+        .map(([key, count]) => `${key}:${count}`)
+        .join(", ");
+      logInfo(`Batch ${batchIndex} errors: ${summary}`);
+    }
+
+    logInfo(
+      `Batch ${batchIndex} complete. Items: ${queue.length}, updates: ${itemUpdates.length}, thumbnails: ${thumbnailTargets.length}.`
+    );
+
+    await sleep(withJitter(BATCH_DELAY_MS, RETRY_JITTER_MS));
   }
 
-  console.log(
-    `Catalog enrichment complete. Items: ${queue.length}, updates: ${itemUpdates.length}, thumbnails: ${thumbnailTargets.length}`
+  logInfo(
+    `Catalog enrichment complete. Processed: ${totalProcessed}, updates: ${totalUpdated}, thumbnails: ${totalThumbnails}`
   );
 }
 
