@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   aggregateOreSelections,
   calculateArmorPieceProbabilities,
@@ -6,43 +6,67 @@ import {
   calculateTraitActivations,
   calculateWeaponClassProbabilities
 } from "../calculator";
+import { loadForgeOreDataset } from "../ores";
+import type { Ore } from "../data";
 
 function expectWithin(actual: number, expected: number, tolerance = 0.005) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
 describe("forge calculator", () => {
+  let oresById: Record<string, Ore> = {};
+
+  beforeAll(async () => {
+    const dataset = await loadForgeOreDataset();
+    oresById = dataset.ores.reduce<Record<string, Ore>>((acc, ore) => {
+      acc[ore.id] = ore;
+      return acc;
+    }, {});
+  });
+
   it("calculates weighted multiplier by ore count", () => {
-    const { usages, totalCount } = aggregateOreSelections([
-      { oreId: "stone", count: 2 },
-      { oreId: "iron", count: 1 }
-    ]);
+    const { usages, totalCount } = aggregateOreSelections(
+      [
+        { oreId: "stone", count: 2 },
+        { oreId: "iron", count: 1 }
+      ],
+      oresById
+    );
 
     const multiplier = calculateTotalMultiplier(usages, totalCount);
     expectWithin(multiplier, 0.25, 1e-6);
   });
 
   it("activates traits at 10% (minor) and 30% (full)", () => {
-    const minorMix = aggregateOreSelections([
-      { oreId: "poopite", count: 1 },
-      { oreId: "stone", count: 9 }
-    ]);
+    const minorMix = aggregateOreSelections(
+      [
+        { oreId: "poopite", count: 1 },
+        { oreId: "stone", count: 9 }
+      ],
+      oresById
+    );
     const minorTraits = calculateTraitActivations(minorMix.usages, minorMix.totalCount);
     expect(minorTraits).toHaveLength(1);
     expect(minorTraits[0].tier).toBe("minor");
 
-    const fullMix = aggregateOreSelections([
-      { oreId: "poopite", count: 3 },
-      { oreId: "stone", count: 7 }
-    ]);
+    const fullMix = aggregateOreSelections(
+      [
+        { oreId: "poopite", count: 3 },
+        { oreId: "stone", count: 7 }
+      ],
+      oresById
+    );
     const fullTraits = calculateTraitActivations(fullMix.usages, fullMix.totalCount);
     expect(fullTraits).toHaveLength(1);
     expect(fullTraits[0].tier).toBe("full");
 
-    const inactiveMix = aggregateOreSelections([
-      { oreId: "poopite", count: 1 },
-      { oreId: "stone", count: 10 }
-    ]);
+    const inactiveMix = aggregateOreSelections(
+      [
+        { oreId: "poopite", count: 1 },
+        { oreId: "stone", count: 10 }
+      ],
+      oresById
+    );
     const inactiveTraits = calculateTraitActivations(inactiveMix.usages, inactiveMix.totalCount);
     expect(inactiveTraits).toHaveLength(0);
   });

@@ -11,8 +11,16 @@ export type TraitType =
 export type Ore = {
   id: string;
   name: string;
-  rarity: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythical" | "Divine";
-  areaGroup: "Stonewake" | "Forgotten Kingdom" | "Goblin Cave" | "Enemy Drop";
+  imageUrl?: string | null;
+  rarity: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythical" | "Divine" | "Relic" | "Exotic";
+  areaGroup:
+    | "Stonewake"
+    | "Stone Wakes Cross"
+    | "Forgotten Kingdom"
+    | "Goblin Cave"
+    | "Enemy Drop"
+    | "Frostpire Expanse"
+    | "The Peak";
   dropChanceRatio: number; // denominator for 1/x drop
   multiplier: number;
   sellPrice: number | null;

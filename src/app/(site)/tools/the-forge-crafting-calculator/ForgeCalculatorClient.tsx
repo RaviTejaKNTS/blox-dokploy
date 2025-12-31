@@ -8,7 +8,6 @@ import {
   MAX_ORE_TYPES,
   MAX_TOTAL_ORE_COUNT,
   MIN_TOTAL_ORE_COUNT,
-  ORES,
   ORE_IMAGE_MAP,
   QUALITY_TIERS,
   type ArmorSlot,
@@ -58,7 +57,7 @@ function OreCard({
   count: number;
   onSelect: () => void;
 }) {
-  const image = ORE_IMAGE_MAP[ore.id];
+  const image = ore.imageUrl ?? ORE_IMAGE_MAP[ore.id];
 
   return (
     <button
@@ -140,7 +139,7 @@ function TraitPill({ ore, share, tier }: { ore: Ore; share: number; tier: "minor
   );
 }
 
-export function ForgeCalculatorClient() {
+export function ForgeCalculatorClient({ ores }: { ores: Ore[] }) {
   const [mode, setMode] = useState<Mode>("weapon");
   const [armorSlotFilter, setArmorSlotFilter] = useState<ArmorSlot | "All">("All");
   const [progression, setProgression] = useState<"Stonewake" | "Forgotten Kingdom">("Forgotten Kingdom");
@@ -151,7 +150,18 @@ export function ForgeCalculatorClient() {
     { oreId: "sapphire", count: 2 }
   ]);
 
-  const { usages, totalCount } = useMemo(() => aggregateOreSelections(selectedOres), [selectedOres]);
+  const oresById = useMemo(() => {
+    const map: Record<string, Ore> = {};
+    ores.forEach((ore) => {
+      map[ore.id] = ore;
+    });
+    return map;
+  }, [ores]);
+
+  const { usages, totalCount } = useMemo(
+    () => aggregateOreSelections(selectedOres, oresById),
+    [selectedOres, oresById]
+  );
   const qualityOption = useMemo(
     () => QUALITY_TIERS.find((tier) => tier.tier === qualityTier) ?? QUALITY_TIERS[2],
     [qualityTier]
@@ -171,13 +181,13 @@ export function ForgeCalculatorClient() {
 
   const filteredOres = useMemo(
     () =>
-      ORES.filter(
+      ores.filter(
         (ore) =>
           ore.name.toLowerCase().includes(search.toLowerCase()) ||
           ore.rarity.toLowerCase().includes(search.toLowerCase()) ||
           ore.areaGroup.toLowerCase().includes(search.toLowerCase())
       ),
-    [search]
+    [ores, search]
   );
 
   const groupedByRarity = useMemo(() => {
@@ -415,11 +425,11 @@ export function ForgeCalculatorClient() {
                       key={entry.ore.id}
                       className="relative flex h-full min-h-[150px] flex-col justify-between rounded-xl border border-border/60 bg-surface px-3 py-3"
                     >
-                      {ORE_IMAGE_MAP[entry.ore.id] ? (
+                      {(entry.ore.imageUrl ?? ORE_IMAGE_MAP[entry.ore.id]) ? (
                         <div className="mb-2 flex justify-center">
                           <div className="h-16 w-16 overflow-hidden rounded-lg bg-surface-muted">
                             <Image
-                              src={ORE_IMAGE_MAP[entry.ore.id]}
+                              src={entry.ore.imageUrl ?? ORE_IMAGE_MAP[entry.ore.id]}
                               alt={entry.ore.name}
                               width={64}
                               height={64}

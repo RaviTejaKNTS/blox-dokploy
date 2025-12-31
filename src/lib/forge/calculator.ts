@@ -1,7 +1,6 @@
 import {
   ARMOR_PIECES,
   ARMOR_PIECE_ANCHORS,
-  ORES_BY_ID,
   WEAPON_CLASS_ANCHORS,
   WEAPONS,
   type ArmorPiece,
@@ -64,10 +63,10 @@ export type ArmorOutcome = {
   finalHealthPercent: number;
 };
 
-function normalizeSelections(selections: OreSelection[]): OreUsage[] {
+function normalizeSelections(selections: OreSelection[], oresById: Record<string, Ore>): OreUsage[] {
   const merged = new Map<string, number>();
   selections.forEach(({ oreId, count }) => {
-    const ore = ORES_BY_ID[oreId];
+    const ore = oresById[oreId];
     if (!ore) return;
     const safeCount = Math.max(0, Math.floor(count));
     if (safeCount <= 0) return;
@@ -78,7 +77,7 @@ function normalizeSelections(selections: OreSelection[]): OreUsage[] {
   if (total === 0) return [];
 
   return Array.from(merged.entries()).map(([oreId, count]) => {
-    const ore = ORES_BY_ID[oreId];
+    const ore = oresById[oreId];
     return {
       ore,
       count,
@@ -87,8 +86,11 @@ function normalizeSelections(selections: OreSelection[]): OreUsage[] {
   });
 }
 
-export function aggregateOreSelections(selections: OreSelection[]): { usages: OreUsage[]; totalCount: number } {
-  const usages = normalizeSelections(selections);
+export function aggregateOreSelections(
+  selections: OreSelection[],
+  oresById: Record<string, Ore>
+): { usages: OreUsage[]; totalCount: number } {
+  const usages = normalizeSelections(selections, oresById);
   const totalCount = usages.reduce((sum, usage) => sum + usage.count, 0);
   return { usages, totalCount };
 }
