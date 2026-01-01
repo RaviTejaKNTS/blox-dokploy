@@ -112,6 +112,7 @@ const PT_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: PT_TIME_ZONE,
   timeZoneName: "short"
 });
+const EVENTS_IN_ARTICLE_AD_SLOT = "5764053793";
 
 function normalizeText(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -939,6 +940,8 @@ export async function renderEventsPage({ slug }: { slug: string }) {
           </div>
         ) : null}
 
+        <ContentSlot slot={EVENTS_IN_ARTICLE_AD_SLOT} className="my-8" />
+
         <div className="space-y-10">
           <section className="space-y-6">
             {upcomingEvents.length ? (
@@ -1003,7 +1006,6 @@ export async function renderEventsPage({ slug }: { slug: string }) {
         <section className="space-y-3">
           <SocialShare url={canonicalUrl} title={headingTitle} heading="Share this page" />
         </section>
-        <ContentSlot slot="5764053793" className="w-full" />
 
         {relatedCodes.length ? (
           <section className="space-y-3">
