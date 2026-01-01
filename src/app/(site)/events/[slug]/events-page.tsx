@@ -1003,14 +1003,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
         <section className="space-y-3">
           <SocialShare url={canonicalUrl} title={headingTitle} heading="Share this page" />
         </section>
-        <ContentSlot
-          slot="4767824441"
-          className="w-full"
-          adLayout={null}
-          adFormat="auto"
-          fullWidthResponsive
-          minHeight="clamp(280px, 40vw, 600px)"
-        />
+        <ContentSlot slot="5764053793" className="w-full" />
 
         {relatedCodes.length ? (
           <section className="space-y-3">

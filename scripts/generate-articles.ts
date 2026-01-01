@@ -1939,6 +1939,7 @@ After that, start with a H2 heading and then write the main content following th
  - Use numbered steps when explaining a process.
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
+ - Do not include any FAQs or similar sections. Weave all the needed info into the article flow smoothly. 
 
  Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:

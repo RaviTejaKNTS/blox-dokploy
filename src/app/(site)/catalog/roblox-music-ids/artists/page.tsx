@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { PagePagination } from "@/components/PagePagination";
 import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
 import {
@@ -80,11 +81,15 @@ export default async function MusicIdArtistsPage() {
         </div>
       </header>
 
+      <CatalogAdSlot />
+
       <MusicCatalogNav active="artists" />
 
       {buildArtistCards(artists)}
 
       <PagePagination basePath={`${BASE_PATH}/artists`} currentPage={1} totalPages={totalPages} />
+
+      <CatalogAdSlot />
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />

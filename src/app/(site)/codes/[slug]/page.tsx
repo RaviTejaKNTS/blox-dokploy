@@ -47,6 +47,8 @@ import { ArticleCard } from "@/components/ArticleCard";
 
 export const revalidate = 86400; // daily
 
+const CODES_IN_ARTICLE_AD_SLOT = "6147197177";
+
 const LazyCodeBlockEnhancer = dynamic(
   () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),
   { ssr: false }
@@ -768,7 +770,7 @@ export default async function GamePage({ params }: Params) {
           />
         </div>
 
-        <ContentSlot slot="1622145724" className="mb-8" />
+        <ContentSlot slot={CODES_IN_ARTICLE_AD_SLOT} className="mb-8" />
 
         {redeemHtml ? (
           <>
@@ -778,7 +780,7 @@ export default async function GamePage({ params }: Params) {
                 dangerouslySetInnerHTML={processHtmlLinks(redeemHtml)}
               />
             </section>
-            <ContentSlot slot="1622145724" className="mb-8" />
+            <ContentSlot slot={CODES_IN_ARTICLE_AD_SLOT} className="mb-8" />
           </>
         ) : null}
         {interlinkHtml ? (
@@ -803,7 +805,7 @@ export default async function GamePage({ params }: Params) {
                     dangerouslySetInnerHTML={processHtmlLinks(troubleshootHtml)}
                   />
                 </section>
-                <ContentSlot slot="1622145724" className="mb-8" />
+                <ContentSlot slot={CODES_IN_ARTICLE_AD_SLOT} className="mb-8" />
               </>
             ) : null}
 

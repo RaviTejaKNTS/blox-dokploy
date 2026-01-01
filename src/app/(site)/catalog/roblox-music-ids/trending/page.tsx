@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
+import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { PagePagination } from "@/components/PagePagination";
 import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
 import {
@@ -92,11 +93,15 @@ export default async function TrendingMusicIdsPage() {
         </div>
       </header>
 
+      <CatalogAdSlot />
+
       <MusicCatalogNav active="trending" />
 
       <TrendingMusicList songs={songs} />
 
       <PagePagination basePath={`${BASE_PATH}/trending`} currentPage={1} totalPages={totalPages} />
+
+      <CatalogAdSlot />
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />

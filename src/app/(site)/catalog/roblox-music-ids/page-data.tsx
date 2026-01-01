@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { MusicCoverImage } from "@/components/MusicCoverImage";
 import { PagePagination } from "@/components/PagePagination";
@@ -688,11 +689,15 @@ export function renderRobloxMusicIdsPage({
         <section className="prose dark:prose-invert game-copy max-w-3xl" dangerouslySetInnerHTML={{ __html: introHtml }} />
       ) : null}
 
+      <CatalogAdSlot />
+
       <MusicCatalogNav active="all" />
 
       <MusicIdGrid songs={songs} />
 
       <PagePagination basePath={BASE_PATH} currentPage={currentPage} totalPages={totalPages} />
+
+      <CatalogAdSlot />
 
       {showHero && hasDetails ? (
         <section className="space-y-6">
