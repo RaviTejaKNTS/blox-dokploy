@@ -5,7 +5,14 @@ type Payload =
   | { type: "code"; slug: string }
   | { type: "article"; slug: string }
   | { type: "list"; slug: string }
-  | { type: "author"; slug: string };
+  | { type: "author"; slug: string }
+  | { type: "event"; slug: string }
+  | { type: "checklist"; slug: string }
+  | { type: "tool"; slug: string }
+  | { type: "catalog"; slug: string }
+  | { type: "music"; slug: string };
+
+const MUSIC_CATALOG_CODES = new Set(["roblox-music-ids", "music-ids", "roblox_music_ids"]);
 
 function assertSecret(request: Request) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -60,6 +67,55 @@ function revalidateForAuthor(slug: string) {
   revalidateTag("authors-index");
 }
 
+function revalidateForEvents(slug: string) {
+  revalidatePath("/events");
+  revalidatePath(`/events/${slug}`);
+  revalidatePath(`/events/${slug}/page/[page]`);
+  revalidatePath("/sitemap.xml");
+}
+
+function revalidateForChecklists(slug: string) {
+  revalidatePath("/checklists");
+  revalidatePath("/checklists/page/[page]");
+  revalidatePath(`/checklists/${slug}`);
+  revalidatePath("/sitemap.xml");
+  revalidateTag("checklists-index");
+}
+
+function revalidateForTools(slug: string) {
+  revalidatePath("/tools");
+  revalidatePath("/tools/page/[page]");
+  revalidatePath(`/tools/${slug}`);
+  revalidatePath("/sitemap.xml");
+  revalidateTag("tools-index");
+}
+
+function revalidateForCatalog(slug: string) {
+  revalidatePath("/catalog");
+  if (slug) {
+    revalidatePath(`/catalog/${slug}`);
+  }
+  revalidatePath("/sitemap.xml");
+  revalidateTag("catalog-index");
+}
+
+function revalidateForMusic() {
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/roblox-music-ids");
+  revalidatePath("/catalog/roblox-music-ids/page/[page]");
+  revalidatePath("/catalog/roblox-music-ids/trending");
+  revalidatePath("/catalog/roblox-music-ids/trending/page/[page]");
+  revalidatePath("/catalog/roblox-music-ids/genres");
+  revalidatePath("/catalog/roblox-music-ids/genres/page/[page]");
+  revalidatePath("/catalog/roblox-music-ids/genres/[genre]");
+  revalidatePath("/catalog/roblox-music-ids/genres/[genre]/page/[page]");
+  revalidatePath("/catalog/roblox-music-ids/artists");
+  revalidatePath("/catalog/roblox-music-ids/artists/page/[page]");
+  revalidatePath("/catalog/roblox-music-ids/artists/[artist]");
+  revalidatePath("/catalog/roblox-music-ids/artists/[artist]/page/[page]");
+  revalidatePath("/sitemap.xml");
+}
+
 export async function POST(request: Request) {
   const authError = assertSecret(request);
   if (authError) {
@@ -94,6 +150,24 @@ export async function POST(request: Request) {
       break;
     case "author":
       revalidateForAuthor(slug);
+      break;
+    case "event":
+      revalidateForEvents(slug);
+      break;
+    case "checklist":
+      revalidateForChecklists(slug);
+      break;
+    case "tool":
+      revalidateForTools(slug);
+      break;
+    case "catalog":
+      if (MUSIC_CATALOG_CODES.has(slug)) {
+        revalidateForMusic();
+      }
+      revalidateForCatalog(slug);
+      break;
+    case "music":
+      revalidateForMusic();
       break;
     default:
       return NextResponse.json({ error: "Unknown type" }, { status: 400 });

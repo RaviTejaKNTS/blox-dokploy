@@ -68,7 +68,10 @@ async function fetchCatalogContent(codes: string[]): Promise<CatalogPageContent 
 const cachedCatalogContent = unstable_cache(
   async (codes: string[]) => fetchCatalogContent(codes),
   ["catalog-page-content"],
-  { revalidate: 2592000 }
+  {
+    revalidate: 2592000,
+    tags: ["catalog-index"]
+  }
 );
 
 export async function getCatalogPageContentByCodes(codes: string[]): Promise<CatalogPageContent | null> {

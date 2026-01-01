@@ -21,6 +21,7 @@ const TOOLBOX_SORT_CATEGORIES_RAW = process.env.ROBLOX_TOOLBOX_SORT_CATEGORIES;
 const TOOLBOX_CHART_TYPES_RAW = process.env.ROBLOX_TOOLBOX_CHART_TYPES;
 const TOOLBOX_DURATION_BUCKETS_RAW = process.env.ROBLOX_TOOLBOX_DURATION_BUCKETS;
 const TOOLBOX_EMPTY_PAGE_LIMIT = Number(process.env.ROBLOX_TOOLBOX_EMPTY_PAGE_LIMIT ?? "2");
+const TOOLBOX_INCLUDE_EMPTY_QUERY = process.env.ROBLOX_TOOLBOX_INCLUDE_EMPTY_QUERY;
 
 const DEFAULT_QUERY_SEEDS = [
   "electronic",
@@ -75,11 +76,16 @@ type ToolboxAsset = {
   } | null;
 };
 
+type VotingDetails = {
+  voteCount?: number | null;
+  upVotePercent?: number | null;
+};
+
 type CreatorStoreAsset = {
   asset?: ToolboxAsset | null;
-  creator?: { id?: number; name?: string | null; creatorType?: string } | null;
+  creator?: { id?: number; name?: string | null; creatorType?: string; verified?: boolean | null } | null;
   creatorStoreProduct?: Record<string, unknown> | null;
-  voting?: Record<string, unknown> | null;
+  voting?: VotingDetails | null;
 };
 
 type ToolboxSearchResponse = {
@@ -112,6 +118,9 @@ type MusicRow = {
   album_art_asset_id: number | null;
   rank: number | null;
   source: string;
+  vote_count?: number | null;
+  upvote_percent?: number | null;
+  creator_verified?: boolean | null;
   raw_payload: Record<string, unknown>;
   last_seen_at: string;
 };
@@ -132,6 +141,14 @@ function parseCsv(raw: string | undefined, fallback: string[]): string[] {
     .split(",")
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
+}
+
+function toBoolean(value: string | undefined, fallback = false): boolean {
+  if (value === undefined) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "y"].includes(normalized)) return true;
+  if (["0", "false", "no", "n"].includes(normalized)) return false;
+  return fallback;
 }
 
 function normalizeSeed(seed: string): string {
@@ -327,6 +344,9 @@ function buildToolboxRows(assets: CreatorStoreAsset[], fetchedAt: string): Music
     const asset = entry.asset ?? null;
     if (!asset || typeof asset.id !== "number") return;
     const previewId = asset.previewAssets?.imagePreviewAssets?.[0] ?? null;
+    const voteCount = typeof entry.voting?.voteCount === "number" ? entry.voting.voteCount : null;
+    const upvotePercent = typeof entry.voting?.upVotePercent === "number" ? entry.voting.upVotePercent : null;
+    const creatorVerified = typeof entry.creator?.verified === "boolean" ? entry.creator.verified : null;
     rows.push({
       asset_id: asset.id,
       title: normalizeRequiredText(asset.title ?? asset.name ?? undefined, "Unknown Title"),
@@ -337,6 +357,9 @@ function buildToolboxRows(assets: CreatorStoreAsset[], fetchedAt: string): Music
       album_art_asset_id: typeof previewId === "number" ? previewId : null,
       rank: null,
       source: "toolbox_music_search",
+      vote_count: voteCount,
+      upvote_percent: upvotePercent,
+      creator_verified: creatorVerified,
       raw_payload: entry as Record<string, unknown>,
       last_seen_at: fetchedAt
     });
@@ -348,6 +371,9 @@ async function collectToolboxMusic(): Promise<number> {
   const maxAssets = TOOLBOX_MAX_ASSETS > 0 ? TOOLBOX_MAX_ASSETS : Number.POSITIVE_INFINITY;
   const fetchedAt = new Date().toISOString();
   const querySeeds = parseQuerySeeds(TOOLBOX_QUERY_SEEDS_RAW);
+  if (toBoolean(TOOLBOX_INCLUDE_EMPTY_QUERY, false) && !querySeeds.includes("")) {
+    querySeeds.unshift("");
+  }
   const sortCategories = parseCsv(TOOLBOX_SORT_CATEGORIES_RAW ?? TOOLBOX_SORT_CATEGORY_RAW, DEFAULT_SORT_CATEGORIES);
   const chartTypes = parseCsv(TOOLBOX_CHART_TYPES_RAW, DEFAULT_CHART_TYPES);
   const durationBuckets = parseDurationBuckets(TOOLBOX_DURATION_BUCKETS_RAW);
@@ -363,6 +389,7 @@ async function collectToolboxMusic(): Promise<number> {
     for (const sortCategory of sortCategories) {
       for (const duration of durationBuckets) {
         for (const query of querySeeds) {
+          if (!query.length && chartType === "None") continue;
           if (totalUpserts >= maxAssets) break;
           totalQueries += 1;
 

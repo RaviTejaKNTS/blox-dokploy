@@ -20,6 +20,7 @@ export type MusicRow = {
   genre: string | null;
   duration_seconds: number | null;
   album_art_asset_id: number | null;
+  thumbnail_url: string | null;
   rank: number | null;
   source: string | null;
   last_seen_at: string | null;
@@ -97,6 +98,7 @@ function formatDuration(seconds: number | null): string | null {
 }
 
 function buildThumbnailUrl(song: MusicRow): string {
+  if (song.thumbnail_url) return song.thumbnail_url;
   if (!song.album_art_asset_id) return "";
   return `https://www.roblox.com/asset-thumbnail/image?assetId=${song.album_art_asset_id}&width=420&height=420&format=png`;
 }
@@ -189,7 +191,7 @@ async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; 
   const supabase = supabaseAdmin();
   let query = supabase
     .from("roblox_music_ids")
-    .select("asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, rank, source, last_seen_at", {
+    .select("asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, thumbnail_url, rank, source, last_seen_at", {
       count: "exact"
     });
 
@@ -658,17 +660,6 @@ export function renderRobloxMusicIdsPage({
               {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
             </p>
           ) : null}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
-            <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-              {formatCount(total)} songs tracked
-            </span>
-            {refreshedLabel ? (
-              <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-                Updated {refreshedLabel}
-              </span>
-            ) : null}
-            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">24 per page</span>
-          </div>
         </header>
       ) : (
         <header className="space-y-2">

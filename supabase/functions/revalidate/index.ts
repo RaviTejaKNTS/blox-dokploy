@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.177.1/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-type EventRow = { id: string; entity_type: "code" | "article" | "list" | "author"; slug: string };
+type EventRow = {
+  id: string;
+  entity_type: "code" | "article" | "list" | "author" | "event" | "checklist" | "tool" | "catalog" | "music";
+  slug: string;
+};
 
 // Accept both legacy and dashboard-provided env names.
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

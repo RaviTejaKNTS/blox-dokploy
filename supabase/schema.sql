@@ -1465,8 +1465,18 @@ create table if not exists public.roblox_music_ids (
   genre text,
   duration_seconds integer,
   album_art_asset_id bigint,
+  thumbnail_url text,
   rank integer,
   source text not null default 'music_discovery_top_songs',
+  boombox_ready boolean not null default false,
+  boombox_ready_reason text,
+  verified_at timestamptz,
+  product_info_json jsonb,
+  asset_delivery_status integer,
+  vote_count bigint,
+  upvote_percent integer,
+  creator_verified boolean,
+  popularity_score double precision not null default 0,
   raw_payload jsonb not null default '{}'::jsonb,
   first_seen_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now(),
@@ -1476,11 +1486,44 @@ create table if not exists public.roblox_music_ids (
 
 create index if not exists idx_roblox_music_ids_rank on public.roblox_music_ids (rank);
 create index if not exists idx_roblox_music_ids_last_seen on public.roblox_music_ids (last_seen_at desc);
+create index if not exists idx_roblox_music_ids_boombox_ready on public.roblox_music_ids (boombox_ready);
+create index if not exists idx_roblox_music_ids_popularity_score on public.roblox_music_ids (popularity_score desc);
+create index if not exists idx_roblox_music_ids_verified_at on public.roblox_music_ids (verified_at);
 
 create trigger trg_roblox_music_ids_updated_at
 before update on public.roblox_music_ids
 for each row
 execute function public.set_updated_at();
+
+drop view if exists public.roblox_music_ids_boombox_view;
+create or replace view public.roblox_music_ids_boombox_view as
+select
+  asset_id,
+  title,
+  artist,
+  album,
+  genre,
+  duration_seconds,
+  album_art_asset_id,
+  thumbnail_url,
+  rank,
+  source,
+  raw_payload,
+  first_seen_at,
+  last_seen_at,
+  created_at,
+  updated_at,
+  boombox_ready,
+  boombox_ready_reason,
+  verified_at,
+  product_info_json,
+  asset_delivery_status,
+  vote_count,
+  upvote_percent,
+  creator_verified,
+  popularity_score
+from public.roblox_music_ids
+where boombox_ready is true;
 
 -- Roblox music ID option views (genres + artists)
 drop view if exists public.roblox_music_genres_view;
