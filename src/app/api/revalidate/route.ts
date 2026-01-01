@@ -70,7 +70,6 @@ function revalidateForAuthor(slug: string) {
 function revalidateForEvents(slug: string) {
   revalidatePath("/events");
   revalidatePath(`/events/${slug}`);
-  revalidatePath(`/events/${slug}/page/[page]`);
   revalidatePath("/sitemap.xml");
 }
 

@@ -185,12 +185,14 @@ async function loadOptionBySlug(
   };
 }
 
+const MUSIC_SOURCE_VIEW = "roblox_music_ids_ranked_view";
+
 async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; artist?: string; trending?: boolean }) {
   const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
   const offset = (safePage - 1) * PAGE_SIZE;
   const supabase = supabaseAdmin();
   let query = supabase
-    .from("roblox_music_ids")
+    .from(MUSIC_SOURCE_VIEW)
     .select("asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, thumbnail_url, rank, source, last_seen_at", {
       count: "exact"
     });
@@ -207,6 +209,9 @@ async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; 
     query = query.not("rank", "is", null).order("rank", { ascending: true, nullsFirst: false });
   } else {
     query = query
+      .order("duration_bucket", { ascending: true, nullsFirst: false })
+      .order("popularity_score", { ascending: false, nullsFirst: false })
+      .order("duration_seconds", { ascending: false, nullsFirst: false })
       .order("rank", { ascending: true, nullsFirst: false })
       .order("last_seen_at", { ascending: false, nullsFirst: false });
   }
