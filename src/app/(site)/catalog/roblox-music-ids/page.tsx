@@ -3,7 +3,12 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { CANONICAL, loadRobloxMusicIdsPageData, renderRobloxMusicIdsPage, type CatalogContentHtml } from "./page-data";
+import {
+  CANONICAL,
+  loadRobloxMusicIdsPageData,
+  renderRobloxMusicIdsPage,
+  type CatalogContentHtml
+} from "./page-data";
 
 export const revalidate = 2592000;
 

@@ -1,12 +1,6 @@
 import "dotenv/config";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const TOP_SONGS_API = "https://apis.roblox.com/music-discovery/v1/top-songs";
-const TOP_SONGS_PAGE_LIMIT = Number(process.env.ROBLOX_TOP_SONGS_LIMIT ?? "100");
-const TOP_SONGS_MAX_PAGES = Number(process.env.ROBLOX_TOP_SONGS_MAX_PAGES ?? "25");
-const TOP_SONGS_DELAY_MS = Number(process.env.ROBLOX_TOP_SONGS_DELAY_MS ?? "200");
-const TOP_SONGS_MAX_RETRIES = Number(process.env.ROBLOX_TOP_SONGS_MAX_RETRIES ?? "3");
-
 const TOOLBOX_SEARCH_API = "https://apis.roblox.com/toolbox-service/v2/assets:search";
 const TOOLBOX_PAGE_SIZE = Number(process.env.ROBLOX_TOOLBOX_PAGE_SIZE ?? "100");
 const TOOLBOX_MAX_ASSETS = Number(process.env.ROBLOX_TOOLBOX_MAX_ASSETS ?? "0");
@@ -45,21 +39,7 @@ const DEFAULT_QUERY_SEEDS = [
 ];
 const DEFAULT_SORT_CATEGORIES = ["Top", "Trending", "Ratings", "UpdatedTime", "CreateTime"];
 const DEFAULT_CHART_TYPES = ["None", "Current", "Week", "Month", "Year"];
-const DEFAULT_DURATION_BUCKETS = ["any", "0-60", "61-180", "181-600", "601-1800", "1801-"];
-
-type RobloxTopSong = {
-  assetId?: number;
-  album?: string;
-  artist?: string;
-  duration?: number;
-  title?: string;
-  albumArtAssetId?: number;
-};
-
-type RobloxTopSongsResponse = {
-  songs?: RobloxTopSong[];
-  nextPageToken?: string | null;
-};
+const DEFAULT_DURATION_BUCKETS = ["181-600", "61-180", "601-1800", "0-60", "1801-", "any"];
 
 type ToolboxAsset = {
   id?: number;
@@ -124,11 +104,6 @@ type MusicRow = {
   raw_payload: Record<string, unknown>;
   last_seen_at: string;
 };
-
-function clampTopSongsLimit(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) return 100;
-  return Math.max(1, Math.floor(value));
-}
 
 function clampToolboxLimit(value: number): number {
   if (!Number.isFinite(value) || value <= 0) return 100;
@@ -216,38 +191,6 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchTopSongsPage(pageToken: string, limit: number): Promise<RobloxTopSongsResponse> {
-  const params = new URLSearchParams({
-    pageToken,
-    limit: String(clampTopSongsLimit(limit))
-  });
-  const url = `${TOP_SONGS_API}?${params.toString()}`;
-
-  let attempt = 0;
-  while (true) {
-    const res = await fetch(url, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "BloxodesBot/1.0"
-      }
-    });
-
-    if (res.ok) {
-      return (await res.json()) as RobloxTopSongsResponse;
-    }
-
-    const retryable = res.status === 429 || res.status >= 500;
-    if (!retryable || attempt >= TOP_SONGS_MAX_RETRIES) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Top songs fetch failed (${res.status}): ${body.slice(0, 200)}`);
-    }
-
-    const backoff = 300 * Math.pow(2, attempt);
-    attempt += 1;
-    await sleep(backoff);
-  }
-}
-
 async function fetchToolboxMusicPage(
   pageToken: string | null,
   config: ToolboxSearchConfig
@@ -310,32 +253,13 @@ async function upsertRows(rows: MusicRow[]) {
   const chunkSize = 200;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
-    const { error } = await sb.from("roblox_music_ids").upsert(chunk, { onConflict: "asset_id" });
+    const { error } = await sb
+      .from("roblox_music_ids")
+      .upsert(chunk, { onConflict: "asset_id", ignoreDuplicates: true });
     if (error) {
       throw new Error(`Failed to upsert music IDs: ${error.message}`);
     }
   }
-}
-
-function buildTopSongRows(songs: RobloxTopSong[], fetchedAt: string, rankOffset: number): MusicRow[] {
-  const rows: MusicRow[] = [];
-  songs.forEach((song, index) => {
-    if (typeof song.assetId !== "number") return;
-    rows.push({
-      asset_id: song.assetId,
-      title: normalizeRequiredText(song.title, "Unknown Title"),
-      artist: normalizeRequiredText(song.artist, "Unknown Artist"),
-      album: normalizeOptionalText(song.album),
-      genre: null,
-      duration_seconds: typeof song.duration === "number" ? song.duration : null,
-      album_art_asset_id: typeof song.albumArtAssetId === "number" ? song.albumArtAssetId : null,
-      rank: rankOffset + index + 1,
-      source: "music_discovery_top_songs",
-      raw_payload: song as Record<string, unknown>,
-      last_seen_at: fetchedAt
-    });
-  });
-  return rows;
 }
 
 function buildToolboxRows(assets: CreatorStoreAsset[], fetchedAt: string): MusicRow[] {
@@ -470,59 +394,13 @@ async function collectToolboxMusic(): Promise<number> {
   return totalUpserts;
 }
 
-async function collectTopSongs(): Promise<number> {
-  const fetchedAt = new Date().toISOString();
-  const topSongsLimit = clampTopSongsLimit(TOP_SONGS_PAGE_LIMIT);
-  const seenTokens = new Set<string>();
-  let pageToken: string | null = "0";
-  let rankOffset = 0;
-  let totalUpserts = 0;
-  let pageCount = 0;
-
-  console.log(`Top songs limit set to ${topSongsLimit}.`);
-  while (pageToken && pageCount < TOP_SONGS_MAX_PAGES) {
-    if (seenTokens.has(pageToken)) {
-      console.log(`Stopping top songs: pageToken ${pageToken} repeated.`);
-      break;
-    }
-    seenTokens.add(pageToken);
-
-    const payload = await fetchTopSongsPage(pageToken, topSongsLimit);
-    const songs = Array.isArray(payload.songs) ? payload.songs : [];
-    if (!songs.length) {
-      console.log("No top songs returned; stopping.");
-      break;
-    }
-
-    const rows = buildTopSongRows(songs, fetchedAt, rankOffset);
-    await upsertRows(rows);
-    totalUpserts += rows.length;
-    rankOffset += songs.length;
-    pageCount += 1;
-
-    const nextToken =
-      typeof payload.nextPageToken === "string" && payload.nextPageToken.trim().length
-        ? payload.nextPageToken.trim()
-        : null;
-    pageToken = nextToken;
-
-    if (pageToken) {
-      await sleep(TOP_SONGS_DELAY_MS);
-    }
-  }
-
-  console.log(`Upserted ${totalUpserts} top songs.`);
-  return totalUpserts;
-}
-
 async function run() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE) {
     throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE must be set.");
   }
 
   const toolboxCount = await collectToolboxMusic();
-  const topSongsCount = await collectTopSongs();
-  console.log(`Done. Toolbox: ${toolboxCount}. Top songs: ${topSongsCount}.`);
+  console.log(`Done. Toolbox: ${toolboxCount}.`);
 }
 
 run().catch((error) => {

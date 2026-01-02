@@ -3,9 +3,10 @@ import Link from "next/link";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { MusicCoverImage } from "@/components/MusicCoverImage";
-import { PagePagination } from "@/components/PagePagination";
+import { MusicIdsBrowser } from "./MusicIdsBrowser";
 import { supabaseAdmin } from "@/lib/supabase";
 import { breadcrumbJsonLd, CATALOG_DESCRIPTION, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { DEFAULT_SORT, normalizeSearchQuery, type MusicSortKey } from "@/lib/music-ids-search";
 
 const PAGE_SIZE = 24;
 const OPTION_PAGE_SIZE = 24;
@@ -90,6 +91,7 @@ const MUSIC_NAV_ITEMS: MusicNavItem[] = [
     href: `${BASE_PATH}/artists`
   }
 ];
+
 
 function formatDuration(seconds: number | null): string | null {
   if (!seconds || seconds <= 0) return null;
@@ -188,7 +190,10 @@ async function loadOptionBySlug(
 
 const MUSIC_SOURCE_VIEW = "roblox_music_ids_ranked_view";
 
-async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; artist?: string; trending?: boolean }) {
+async function loadMusicIdsPage(
+  pageNumber: number,
+  options?: { genre?: string; artist?: string; trending?: boolean; search?: string; sort?: MusicSortKey }
+) {
   const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
   const offset = (safePage - 1) * PAGE_SIZE;
   const supabase = supabaseAdmin();
@@ -206,15 +211,59 @@ async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; 
     query = query.ilike("artist", buildLoosePattern(options.artist));
   }
 
+  const searchTerm = normalizeSearchQuery(options?.search);
+  if (searchTerm) {
+    const pattern = buildLoosePattern(searchTerm);
+    const orParts = [
+      `title.ilike.${pattern}`,
+      `artist.ilike.${pattern}`,
+      `album.ilike.${pattern}`,
+      `genre.ilike.${pattern}`
+    ];
+    if (/^\d+$/.test(searchTerm)) {
+      orParts.unshift(`asset_id.eq.${searchTerm}`);
+    }
+    query = query.or(orParts.join(","));
+  }
+
   if (options?.trending) {
     query = query.not("rank", "is", null).order("rank", { ascending: true, nullsFirst: false });
   } else {
-    query = query
-      .order("duration_bucket", { ascending: true, nullsFirst: false })
-      .order("popularity_score", { ascending: false, nullsFirst: false })
-      .order("duration_seconds", { ascending: false, nullsFirst: false })
-      .order("rank", { ascending: true, nullsFirst: false })
-      .order("last_seen_at", { ascending: false, nullsFirst: false });
+    const sort = options?.sort ?? DEFAULT_SORT;
+    switch (sort) {
+      case "popular":
+        query = query
+          .order("popularity_score", { ascending: false, nullsFirst: false })
+          .order("last_seen_at", { ascending: false, nullsFirst: false });
+        break;
+      case "newest":
+        query = query.order("last_seen_at", { ascending: false, nullsFirst: false });
+        break;
+      case "duration_desc":
+        query = query
+          .order("duration_seconds", { ascending: false, nullsFirst: false })
+          .order("popularity_score", { ascending: false, nullsFirst: false });
+        break;
+      case "duration_asc":
+        query = query
+          .order("duration_seconds", { ascending: true, nullsFirst: false })
+          .order("popularity_score", { ascending: false, nullsFirst: false });
+        break;
+      case "title_asc":
+        query = query.order("title", { ascending: true, nullsFirst: false });
+        break;
+      case "artist_asc":
+        query = query.order("artist", { ascending: true, nullsFirst: false });
+        break;
+      case "recommended":
+      default:
+        query = query
+          .order("duration_bucket", { ascending: true, nullsFirst: false })
+          .order("popularity_score", { ascending: false, nullsFirst: false })
+          .order("duration_seconds", { ascending: false, nullsFirst: false })
+          .order("rank", { ascending: true, nullsFirst: false })
+          .order("last_seen_at", { ascending: false, nullsFirst: false });
+    }
   }
 
   const { data, error, count } = await query.range(offset, offset + PAGE_SIZE - 1);
@@ -229,8 +278,11 @@ async function loadMusicIdsPage(pageNumber: number, options?: { genre?: string; 
   return { songs: (data ?? []) as MusicRow[], total, totalPages };
 }
 
-export async function loadRobloxMusicIdsPageData(page: number): Promise<PageData> {
-  return loadMusicIdsPage(page);
+export async function loadRobloxMusicIdsPageData(
+  page: number,
+  options?: { search?: string; sort?: MusicSortKey }
+): Promise<PageData> {
+  return loadMusicIdsPage(page, { search: options?.search, sort: options?.sort });
 }
 
 export async function loadTrendingMusicIdsPageData(page: number): Promise<PageData> {
@@ -693,9 +745,12 @@ export function renderRobloxMusicIdsPage({
 
       <MusicCatalogNav active="all" />
 
-      <MusicIdGrid songs={songs} />
-
-      <PagePagination basePath={BASE_PATH} currentPage={currentPage} totalPages={totalPages} />
+      <MusicIdsBrowser
+        initialSongs={songs}
+        initialTotalPages={totalPages}
+        currentPage={currentPage}
+        basePath={BASE_PATH}
+      />
 
       <CatalogAdSlot />
 
