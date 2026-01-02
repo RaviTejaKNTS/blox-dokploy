@@ -10,7 +10,9 @@ const MUSIC_SOURCE_VIEW = "roblox_music_ids_ranked_view";
 const SELECT_FIELDS =
   "asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, thumbnail_url, rank, source, last_seen_at";
 
-type MusicQuery = ReturnType<ReturnType<typeof supabaseAdmin>["from"]>;
+type OrderableQuery<T> = {
+  order: (...args: any[]) => T;
+};
 
 function buildLoosePattern(value: string): string {
   const cleaned = value.replace(/[%_]/g, " ").trim();
@@ -24,7 +26,7 @@ function normalizePage(value: string | null): number {
   return Math.floor(parsed);
 }
 
-function applySort(query: MusicQuery, sort: MusicSortKey) {
+function applySort<T extends OrderableQuery<T>>(query: T, sort: MusicSortKey): T {
   switch (sort) {
     case "popular":
       return query

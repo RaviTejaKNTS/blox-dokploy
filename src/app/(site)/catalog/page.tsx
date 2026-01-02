@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { CatalogCard } from "@/components/CatalogCard";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadAdminCommandSummary } from "@/lib/admin-commands";
 
 export const revalidate = 3600;
 
@@ -95,6 +96,19 @@ async function loadMusicIdsStats(): Promise<CatalogStats> {
   }
 }
 
+async function loadAdminCommandsStats(): Promise<CatalogStats> {
+  try {
+    const summary = await loadAdminCommandSummary();
+    return {
+      count: summary.totalCommands,
+      updatedAt: summary.latestUpdatedOn
+    };
+  } catch (error) {
+    console.error("Failed to load admin commands stats", error);
+    return { count: 0, updatedAt: null };
+  }
+}
+
 const CATALOG_ENTRIES: CatalogEntry[] = [
   {
     id: "music-ids",
@@ -106,6 +120,17 @@ const CATALOG_ENTRIES: CatalogEntry[] = [
     tileLabel: "IDs",
     tone: "indigo",
     loadStats: loadMusicIdsStats
+  },
+  {
+    id: "admin-commands",
+    href: "/catalog/admin-commands",
+    title: "Roblox admin commands",
+    description: "Compare popular admin systems and browse full Roblox command lists.",
+    category: "Moderation",
+    metricLabel: "command entries",
+    tileLabel: "Admin",
+    tone: "emerald",
+    loadStats: loadAdminCommandsStats
   }
 ];
 

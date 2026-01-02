@@ -83,7 +83,12 @@ async function buildSitemapResponse() {
       { path: "/articles", changefreq: "weekly", priority: "0.7" },
       { path: "/events", changefreq: "weekly", priority: "0.7" },
       { path: "/catalog", changefreq: "weekly", priority: "0.7" },
-      { path: "/catalog/roblox-music-ids", changefreq: "weekly", priority: "0.7" }
+      { path: "/catalog/roblox-music-ids", changefreq: "weekly", priority: "0.7" },
+      { path: "/catalog/admin-commands", changefreq: "weekly", priority: "0.7" },
+      { path: "/catalog/admin-commands/hd-admin", changefreq: "weekly", priority: "0.6" },
+      { path: "/catalog/admin-commands/kohls-admin", changefreq: "weekly", priority: "0.6" },
+      { path: "/catalog/admin-commands/basic-admin", changefreq: "weekly", priority: "0.6" },
+      { path: "/catalog/admin-commands/adonis-admin", changefreq: "weekly", priority: "0.6" }
     ];
 
     for (const route of staticRoutes) {

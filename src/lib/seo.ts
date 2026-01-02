@@ -20,7 +20,9 @@ export const TOOLS_DESCRIPTION =
 export const EVENTS_DESCRIPTION =
   "Event pages with upcoming, live, and past Roblox events plus start times and countdowns for top experiences.";
 export const CATALOG_DESCRIPTION =
-  "Catalog pages for Roblox assets like music IDs, with quick lookup details, filters, and links.";
+  "Catalog pages for Roblox assets and command lists like music IDs and admin commands, with quick lookup details, filters, and links.";
+export const ADMIN_COMMANDS_DESCRIPTION =
+  "Roblox admin commands catalog covering HD Admin, Kohl's Admin, Basic Admin Essentials, and Adonis Admin.";
 
 export function resolveSeoTitle(template?: string | null, now = new Date()): string | null {
   if (!template) return null;
