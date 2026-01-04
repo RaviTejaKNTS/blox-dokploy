@@ -1,303 +1,238 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 import "@/styles/article-content.css";
-import { ADMIN_COMMANDS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { renderMarkdown } from "@/lib/markdown";
+import { getCatalogPageContentByCodes } from "@/lib/catalog";
+import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { loadAdminCommandDatasets } from "@/lib/admin-commands";
 
 export const revalidate = 86400;
 
 const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/catalog/admin-commands`;
+const CATALOG_CODE_CANDIDATES = ["admin-commands", "admin_commands"];
 
-export const metadata: Metadata = {
-  title: `Roblox Admin Commands | ${SITE_NAME}`,
-  description: ADMIN_COMMANDS_DESCRIPTION,
-  alternates: {
-    canonical: CANONICAL
-  },
-  openGraph: {
-    type: "website",
-    url: CANONICAL,
-    title: `Roblox Admin Commands | ${SITE_NAME}`,
-    description: ADMIN_COMMANDS_DESCRIPTION,
-    siteName: SITE_NAME
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `Roblox Admin Commands | ${SITE_NAME}`,
-    description: ADMIN_COMMANDS_DESCRIPTION
-  }
+type CatalogContentHtml = {
+  title: string | null;
+  introHtml: string;
+  howHtml: string;
+  descriptionHtml: Array<{ key: string; html: string }>;
+  faqHtml: Array<{ q: string; a: string }>;
+  updatedAt: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
 };
 
-const FAQS = [
-  {
-    question: "What are admin commands in Roblox?",
-    answer:
-      "Admin commands let game owners and moderators manage players, control the server, and toggle special abilities. They are typically issued through chat or a command bar."
-  },
-  {
-    question: "Which admin system is best?",
-    answer:
-      "It depends on your game. HD Admin is popular for GUI workflows, Kohl's Admin fits classic games, Basic Admin Essentials works well for testing, and Adonis is favored for advanced moderation."
-  },
-  {
-    question: "Can players use admin commands?",
-    answer:
-      "Only players with a granted rank or permission can run admin commands. Regular players cannot access these commands unless the owner enables them."
-  },
-  {
-    question: "How do I know which admin a game uses?",
-    answer:
-      "Look for an in-game admin panel, command bar, or ask the game owner. Some systems also show their name in chat when commands run."
-  }
-];
-
-const INTERNAL_LINKS = [
-  { label: "Roblox moderation guides", href: "/articles" },
-  { label: "Game setup guides", href: "/articles" },
-  { label: "How to add admin commands to your Roblox game", href: "/articles" }
-];
-
-function formatCount(value: number) {
-  return value.toLocaleString("en-US");
+function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
+  return Object.entries(description ?? {}).sort((a, b) => {
+    const left = Number.parseInt(a[0], 10);
+    const right = Number.parseInt(b[0], 10);
+    if (Number.isNaN(left) && Number.isNaN(right)) return a[0].localeCompare(b[0]);
+    if (Number.isNaN(left)) return 1;
+    if (Number.isNaN(right)) return -1;
+    return left - right;
+  });
 }
 
-function computeLatestUpdatedOn(values: Array<string | null | undefined>) {
-  let latest: number | null = null;
-  let latestValue: string | null = null;
-  values.forEach((value) => {
-    if (!value) return;
-    const timestamp = Date.parse(value);
-    if (Number.isNaN(timestamp)) return;
-    if (latest === null || timestamp > latest) {
-      latest = timestamp;
-      latestValue = value;
+async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml | null }> {
+  const catalog = await getCatalogPageContentByCodes(CATALOG_CODE_CANDIDATES);
+  if (!catalog) {
+    return { contentHtml: null };
+  }
+
+  const introHtml = catalog.intro_md ? await renderMarkdown(catalog.intro_md) : "";
+  const howHtml = catalog.how_it_works_md ? await renderMarkdown(catalog.how_it_works_md) : "";
+
+  const descriptionEntries = sortDescriptionEntries(catalog.description_json ?? {});
+  const descriptionHtml = await Promise.all(
+    descriptionEntries.map(async ([key, value]) => ({
+      key,
+      html: await renderMarkdown(value ?? "")
+    }))
+  );
+
+  const faqEntries = Array.isArray(catalog.faq_json) ? catalog.faq_json : [];
+  const faqHtml = await Promise.all(
+    faqEntries.map(async (entry) => ({
+      q: entry.q,
+      a: await renderMarkdown(entry.a ?? "")
+    }))
+  );
+
+  return {
+    contentHtml: {
+      title: catalog.title ?? null,
+      introHtml,
+      howHtml,
+      descriptionHtml,
+      faqHtml,
+      updatedAt: catalog.content_updated_at ?? catalog.updated_at ?? catalog.published_at ?? catalog.created_at ?? null,
+      ctaLabel: catalog.cta_label ?? null,
+      ctaUrl: catalog.cta_url ?? null
     }
-  });
-  return latestValue;
+  };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const catalog = await getCatalogPageContentByCodes(CATALOG_CODE_CANDIDATES);
+  const title =
+    resolveSeoTitle(catalog?.seo_title) ??
+    catalog?.title ??
+    `Roblox Admin Commands | ${SITE_NAME}`;
+  const description = catalog?.meta_description ?? ADMIN_COMMANDS_DESCRIPTION;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: CANONICAL
+    },
+    openGraph: {
+      type: "website",
+      url: CANONICAL,
+      title,
+      description,
+      siteName: SITE_NAME
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description
+    }
+  };
 }
 
 export default async function AdminCommandsHubPage() {
-  const datasets = await loadAdminCommandDatasets();
-  const totalCommands = datasets.reduce((total, dataset) => total + dataset.commandCount, 0);
-  const latestUpdatedOn = computeLatestUpdatedOn(datasets.map((dataset) => dataset.generatedOn));
-  const updatedLabel = latestUpdatedOn ? formatDistanceToNow(new Date(latestUpdatedOn), { addSuffix: true }) : null;
-  const datasetMap = new Map(datasets.map((dataset) => [dataset.system.slug, dataset]));
-
-  const hdDataset = datasetMap.get("hd-admin");
-  const kohlsDataset = datasetMap.get("kohls-admin");
-  const basicDataset = datasetMap.get("basic-admin");
-
-  const comparisonRows = [
-    {
-      feature: "Total commands",
-      hd: hdDataset ? formatCount(hdDataset.commandCount) : "--",
-      kohls: kohlsDataset ? formatCount(kohlsDataset.commandCount) : "--",
-      basic: basicDataset ? formatCount(basicDataset.commandCount) : "--"
-    },
-    {
-      feature: "GUI support",
-      hd: "Yes",
-      kohls: "No",
-      basic: "No"
-    },
-    {
-      feature: "Permission ranks",
-      hd: "Yes",
-      kohls: "Limited",
-      basic: "Yes"
-    },
-    {
-      feature: "Best for",
-      hd: "Public games",
-      kohls: "Classic games",
-      basic: "Testing"
-    }
-  ];
-
-  const faqSchema = FAQS.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: faq.answer
-    }
-  }));
+  const [{ contentHtml }, datasets] = await Promise.all([
+    buildCatalogContent(),
+    loadAdminCommandDatasets()
+  ]);
+  const title = contentHtml?.title?.trim() ? contentHtml.title.trim() : "Roblox admin commands";
+  const introHtml = contentHtml?.introHtml?.trim() ? contentHtml.introHtml : "";
+  const howHtml = contentHtml?.howHtml?.trim() ? contentHtml.howHtml : "";
+  const descriptionHtml = contentHtml?.descriptionHtml ?? [];
+  const faqHtml = contentHtml?.faqHtml ?? [];
+  const showCta = Boolean(contentHtml?.ctaLabel && contentHtml?.ctaUrl);
+  const updatedDateValue = contentHtml?.updatedAt ?? null;
+  const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
 
   return (
-    <div className="space-y-12">
-      <header className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent/80">Catalog</p>
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-          Roblox admin commands by system
-        </h1>
-        <div className="max-w-3xl space-y-3 text-base text-muted md:text-lg">
-          <p>
-            Roblox admin commands let game owners and moderators control players, manage servers, and enable special
-            abilities. They are essential tools for running public games, private servers, and testing sessions.
+    <div className="space-y-10">
+      <nav aria-label="Breadcrumb" className="text-xs uppercase tracking-[0.25em] text-muted">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li className="flex items-center gap-2">
+            <Link href="/" className="font-semibold text-muted transition hover:text-accent">
+              Home
+            </Link>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <Link href="/catalog" className="font-semibold text-muted transition hover:text-accent">
+              Catalog
+            </Link>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="font-semibold text-foreground/80">{title}</span>
+          </li>
+        </ol>
+      </nav>
+      <header className="space-y-3">
+        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">{title}</h1>
+        {formattedUpdated ? (
+          <p className="text-sm text-foreground/80">
+            Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
           </p>
-          <p>
-            Commands differ by admin system. Use the guide below to compare the most popular systems and jump into the
-            full command lists for each one.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted md:text-sm">
-          <span className="rounded-full bg-accent/10 px-4 py-1 font-semibold uppercase tracking-wide text-accent">
-            {datasets.length} systems
-          </span>
-          <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-            {formatCount(totalCommands)} command entries
-          </span>
-          {updatedLabel ? (
-            <span className="rounded-full bg-surface-muted px-4 py-1 font-semibold text-muted">
-              Updated {updatedLabel}
-            </span>
-          ) : null}
-        </div>
+        ) : null}
       </header>
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-foreground md:text-3xl">Admin systems catalog</h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Choose a system</span>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {datasets.map((dataset) => (
-            <article
-              key={dataset.system.slug}
-              className="relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 p-5 shadow-soft transition duration-300 hover:-translate-y-1 hover:border-accent/60 hover:shadow-lg"
-            >
-              <div
-                className="pointer-events-none absolute inset-0 opacity-80 transition duration-700"
-                aria-hidden
+      {introHtml ? (
+        <section
+          className="prose dark:prose-invert game-copy max-w-3xl"
+          dangerouslySetInnerHTML={{ __html: introHtml }}
+        />
+      ) : null}
+
+      {datasets.length ? (
+        <section className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {datasets.map((dataset) => (
+              <Link
+                key={dataset.system.slug}
+                href={`/catalog/admin-commands/${dataset.system.slug}`}
+                aria-label={`${dataset.system.name} commands`}
+                className="block h-full"
               >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(76,106,255,0.08),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(34,197,94,0.1),transparent_35%)]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-accent/5" />
-              </div>
-
-              <div className="relative flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                    {dataset.system.shortName}
+                <article className="group relative overflow-hidden rounded-2xl border border-border/60 bg-surface/80 px-5 py-4 transition hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-soft">
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 top-0 h-1 bg-accent/30 transition group-hover:bg-accent/60"
+                  />
+                  <div className="flex h-full flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-lg font-semibold text-foreground">{dataset.system.name}</p>
+                    </div>
+                    <p className="text-sm text-muted">{dataset.system.cardDescription}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                      {dataset.commandCount.toLocaleString("en-US")} commands
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-foreground">{dataset.system.name}</h3>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted">{dataset.system.typeLabel}</p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                  {dataset.system.popularity}/5
-                </span>
-              </div>
-
-              <p className="relative text-sm text-muted">{dataset.system.cardDescription}</p>
-
-              <div className="relative flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
-                  {formatCount(dataset.commandCount)} commands
-                </span>
-                <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
-                  {formatCount(dataset.categoryCount)} categories
-                </span>
-              </div>
-
-              <div className="relative mt-auto">
-                <Link
-                  href={`/catalog/admin-commands/${dataset.system.slug}`}
-                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-background transition hover:opacity-90"
-                >
-                  View commands
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-foreground md:text-3xl">Admin system comparison</h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Quick snapshot</span>
-        </div>
-        <div className="prose dark:prose-invert game-copy max-w-none">
-          <div className="table-scroll-wrapper">
-            <div className="table-scroll-inner">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Feature</th>
-                    <th>HD Admin</th>
-                    <th>Kohl&apos;s Admin</th>
-                    <th>Basic Admin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonRows.map((row) => (
-                    <tr key={row.feature}>
-                      <td>{row.feature}</td>
-                      <td>{row.hd}</td>
-                      <td>{row.kohls}</td>
-                      <td>{row.basic}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                </article>
+              </Link>
+            ))}
           </div>
-        </div>
-        <p className="text-sm text-muted">
-          Counts are based on the official command lists and may vary by game configuration.
-        </p>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-foreground md:text-3xl">FAQ</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {FAQS.map((faq) => (
-            <div key={faq.question} className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{faq.question}</p>
-              <p className="mt-2 text-sm text-muted">{faq.answer}</p>
-            </div>
+      {descriptionHtml.length ? (
+        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
+          {descriptionHtml.map((entry) => (
+            <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
           ))}
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-foreground md:text-3xl">Related guides</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {INTERNAL_LINKS.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="rounded-2xl border border-border/60 bg-background/60 px-4 py-4 text-sm font-semibold text-foreground transition hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-md"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </section>
+      {howHtml ? (
+        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+          <div dangerouslySetInnerHTML={{ __html: howHtml }} />
+        </section>
+      ) : null}
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@graph": [
-              {
-                "@type": "CollectionPage",
-                name: "Roblox Admin Commands",
-                description: ADMIN_COMMANDS_DESCRIPTION,
-                url: CANONICAL
-              },
-              {
-                "@type": "FAQPage",
-                mainEntity: faqSchema
-              }
-            ]
-          })
-        }}
-      />
+      {showCta ? (
+        <section className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-soft">
+          <a
+            href={contentHtml?.ctaUrl ?? "#"}
+            className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:opacity-90"
+          >
+            {contentHtml?.ctaLabel}
+          </a>
+        </section>
+      ) : null}
+
+      {faqHtml.length ? (
+        <section className="rounded-2xl border border-border/60 bg-surface/40 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
+          <div className="mt-3 space-y-4">
+            {faqHtml.map((faq, idx) => (
+              <div key={`${faq.q}-${idx}`} className="rounded-xl border border-border/40 bg-background/60 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Q.</span>
+                  <p className="text-base font-semibold text-foreground">{faq.q}</p>
+                </div>
+                <div
+                  className="prose mt-2 text-[0.98rem] text-foreground/90"
+                  dangerouslySetInnerHTML={{ __html: faq.a }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { slugify } from "@/lib/slug";
+import { revalidateEventSlugs } from "./lib/revalidate-events";
 
 const SOURCE_BATCH = Number(process.env.EVENTS_PAGES_SOURCE_BATCH ?? "1000");
 const DEFAULT_PUBLISHED = (process.env.EVENTS_PAGES_PUBLISHED ?? "true").toLowerCase() !== "false";
@@ -495,6 +496,7 @@ async function main() {
     }
   }
 
+  await revalidateEventSlugs([slug]);
   console.log(`Events page updated for universe ${universeId}.`);
 }
 

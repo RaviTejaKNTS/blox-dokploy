@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { revalidateEventsByUniverseIds } from "./lib/revalidate-events";
 
 const VIRTUAL_EVENTS_API_BASE = "https://apis.roblox.com/virtual-events/v1/universes";
 const CHUNK_SIZE = 200;
@@ -305,6 +306,7 @@ async function main() {
   }
 
   console.log(`Fetching virtual events for ${universeIds.length} universes...`);
+  const updatedUniverses = new Set<number>();
 
   for (const universeId of universeIds) {
     try {
@@ -336,6 +338,7 @@ async function main() {
       await stampFirstLiveAt(eventRows.map((row) => row.event_id));
       await upsertChildRows("roblox_virtual_event_categories", categoryRows);
       await upsertChildRows("roblox_virtual_event_thumbnails", thumbnailRows);
+      updatedUniverses.add(universeId);
 
       console.log(
         `  • ${universeId}: ${eventRows.length} events, ${categoryRows.length} categories, ${thumbnailRows.length} thumbnails`
@@ -347,6 +350,7 @@ async function main() {
     await sleep(REQUEST_DELAY_MS);
   }
 
+  await revalidateEventsByUniverseIds(Array.from(updatedUniverses));
   console.log("Virtual events collection complete.");
 }
 

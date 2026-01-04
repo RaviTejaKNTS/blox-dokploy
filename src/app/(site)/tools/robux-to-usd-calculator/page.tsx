@@ -231,6 +231,7 @@ export default async function RobloxPurchasePage() {
           initialRobuxPlan={initialRobuxPlan}
           initialValuePlan={initialValuePlan}
           initialBudgetPlan={initialBudgetPlan}
+          howItWorksHtml={howHtml}
         />
       </div>
       <ContentSlot
@@ -241,19 +242,13 @@ export default async function RobloxPurchasePage() {
         fullWidthResponsive
       />
 
-      {(descriptionHtml.length || howHtml || faqHtml.length) ? (
+      {(descriptionHtml.length || faqHtml.length) ? (
         <div className="space-y-6">
           {descriptionHtml.length ? (
             <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
               {descriptionHtml.map((entry) => (
                 <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
               ))}
-            </section>
-          ) : null}
-
-          {howHtml ? (
-            <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
-              <div dangerouslySetInnerHTML={{ __html: howHtml }} />
             </section>
           ) : null}
 

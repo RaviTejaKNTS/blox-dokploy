@@ -3,6 +3,7 @@ import "dotenv/config";
 import OpenAI from "openai";
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { revalidateEventsByUniverseIds } from "./lib/revalidate-events";
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
@@ -505,6 +506,7 @@ async function main() {
     throw new Error(`Failed to update event ${event.event_id}: ${error.message}`);
   }
 
+  await revalidateEventsByUniverseIds([universeId]);
   console.log(`Updated event ${event.event_id}.`);
 }
 

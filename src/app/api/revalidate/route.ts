@@ -13,6 +13,9 @@ type Payload =
   | { type: "music"; slug: string };
 
 const MUSIC_CATALOG_CODES = new Set(["roblox-music-ids", "music-ids", "roblox_music_ids"]);
+const ADMIN_COMMAND_SYSTEM_SLUGS = new Set(["hd-admin", "kohls-admin", "basic-admin", "adonis-admin"]);
+const ADMIN_COMMANDS_PREFIX = "admin-commands-";
+const ADMIN_COMMANDS_HUB_PATH = "/catalog/admin-commands";
 
 function assertSecret(request: Request) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -92,7 +95,28 @@ function revalidateForTools(slug: string) {
 function revalidateForCatalog(slug: string) {
   revalidatePath("/catalog");
   if (slug) {
+    const normalizedSlug = slug.replace(/_/g, "-");
     revalidatePath(`/catalog/${slug}`);
+    if (normalizedSlug !== slug) {
+      revalidatePath(`/catalog/${normalizedSlug}`);
+    }
+
+    revalidateTag(`catalog:${slug}`);
+    if (normalizedSlug !== slug) {
+      revalidateTag(`catalog:${normalizedSlug}`);
+    }
+
+    const adminSystemSlug = normalizedSlug.startsWith(ADMIN_COMMANDS_PREFIX)
+      ? normalizedSlug.slice(ADMIN_COMMANDS_PREFIX.length)
+      : ADMIN_COMMAND_SYSTEM_SLUGS.has(normalizedSlug)
+        ? normalizedSlug
+        : null;
+
+    if (adminSystemSlug) {
+      revalidatePath(ADMIN_COMMANDS_HUB_PATH);
+      revalidatePath(`${ADMIN_COMMANDS_HUB_PATH}/${adminSystemSlug}`);
+      revalidateTag(`catalog:${adminSystemSlug}`);
+    }
   }
   revalidatePath("/sitemap.xml");
   revalidateTag("catalog-index");
