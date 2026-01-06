@@ -26,7 +26,7 @@ import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, resolveS
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { EventTimePanel } from "./EventTimePanel";
 import { EventEndCountdown } from "./EventEndCountdown";
-import { buildEndCountdown, formatDuration } from "./eventTimeFormat";
+import { buildEndCountdown, formatDateTimeLabel, formatDuration } from "./eventTimeFormat";
 
 export const EVENTS_REVALIDATE_SECONDS = 3600;
 
@@ -107,7 +107,9 @@ type UpcomingEventView = EventWithThumbnail & {
   details_html: string | null;
 };
 
-type CurrentEventView = EventWithThumbnail;
+type CurrentEventView = EventWithThumbnail & {
+  summary_html: string | null;
+};
 
 const PT_TIME_ZONE = "America/Los_Angeles";
 const PT_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -144,6 +146,13 @@ function formatPtDateTime(value: string | null): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return PT_FORMATTER.format(date);
+}
+
+function formatPtLongDateTime(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${formatDateTimeLabel(date, PT_TIME_ZONE)} PT`;
 }
 
 function parseDate(value: string | null): number | null {
@@ -311,7 +320,7 @@ function classifyEvents(events: VirtualEvent[]) {
     return bStart - aStart;
   };
 
-  current.sort(sortByStartAsc);
+  current.sort(sortByStartDesc);
   upcoming.sort(sortByStartAsc);
   past.sort(sortByStartDesc);
 
@@ -406,6 +415,20 @@ async function hydrateUpcoming(events: VirtualEvent[]): Promise<UpcomingEventVie
     })
   );
   return hydrated;
+}
+
+async function hydrateCurrent(events: VirtualEvent[]): Promise<CurrentEventView[]> {
+  const withThumbnails = await attachPrimaryThumbnails(events);
+  return Promise.all(
+    withThumbnails.map(async (event) => {
+      const summary_md = normalizeText(event.event_summary_md);
+      const summary_html = summary_md ? await renderMarkdown(summary_md) : null;
+      return {
+        ...event,
+        summary_html
+      };
+    })
+  );
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -546,7 +569,7 @@ function EventGuideLink({ guideSlug }: { guideSlug: string | null }) {
   );
 }
 
-function UpcomingEventBlock({ event, gameName }: { event: UpcomingEventView; gameName: string }) {
+function UpcomingEventBlock({ event }: { event: UpcomingEventView }) {
   const eventName = getEventDisplayName(event);
 
   return (
@@ -573,7 +596,6 @@ function UpcomingEventBlock({ event, gameName }: { event: UpcomingEventView; gam
         <EventTimePanel
           startUtc={event.start_utc}
           endUtc={event.end_utc}
-          gameName={gameName}
           eventName={eventName}
           thumbnailUrl={event.primary_thumbnail_url}
         />
@@ -604,8 +626,8 @@ function UpcomingEventBlock({ event, gameName }: { event: UpcomingEventView; gam
 
 function CurrentEventCard({ event }: { event: CurrentEventView }) {
   const eventName = getEventDisplayName(event);
-  const startLabel = formatPtDateTime(event.start_utc) ?? "TBA";
-  const endLabel = formatPtDateTime(event.end_utc) ?? "TBA";
+  const startLabel = formatPtLongDateTime(event.start_utc);
+  const endLabel = formatPtLongDateTime(event.end_utc);
   const startTime = parseDate(event.start_utc);
   const endTime = parseDate(event.end_utc);
   const durationLabel =
@@ -626,50 +648,74 @@ function CurrentEventCard({ event }: { event: CurrentEventView }) {
         <div className="absolute inset-0 bg-black/40" />
       )}
       <div className="absolute inset-0 bg-white/85 dark:bg-black/75" />
-      <div className="relative z-10 flex h-full flex-col gap-4 p-5">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
-          <h3 className="text-xl font-semibold text-foreground">{eventName}</h3>
+      <div className="relative z-10 grid gap-6 p-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
+            <h3 className="text-xl font-semibold text-foreground">{eventName}</h3>
+          </div>
+          {event.summary_html ? (
+            <div
+              className="prose dark:prose-invert game-copy max-w-none"
+              dangerouslySetInnerHTML={{ __html: event.summary_html }}
+            />
+          ) : null}
+          <div className="text-sm text-foreground/90">
+            {startLabel ? (
+              <p>
+                The event started on{" "}
+                <time dateTime={startIso ?? undefined} className="font-semibold text-foreground">
+                  {startLabel}
+                </time>
+                {durationLabel && endLabel ? (
+                  <>
+                    . It runs for {durationLabel} and ends on{" "}
+                    <time dateTime={endIso ?? undefined} className="font-semibold text-foreground">
+                      {endLabel}
+                    </time>
+                    .
+                  </>
+                ) : endLabel ? (
+                  <>
+                    . It ends on{" "}
+                    <time dateTime={endIso ?? undefined} className="font-semibold text-foreground">
+                      {endLabel}
+                    </time>
+                    .
+                  </>
+                ) : (
+                  "."
+                )}
+              </p>
+            ) : (
+              <p>Start time not announced yet.</p>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-1 text-sm text-foreground/90">
-          <p>
-            Starts:{" "}
-            <time dateTime={startIso ?? undefined} className="font-semibold text-foreground">
-              {startLabel}
-            </time>
-          </p>
-          <p>
-            Ends:{" "}
-            <time dateTime={endIso ?? undefined} className="font-semibold text-foreground">
-              {endLabel}
-            </time>
-          </p>
-          <p>Event length: {durationLabel ?? "TBA"}</p>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Time left</p>
-          <EventEndCountdown endUtc={event.end_utc} initialLabel={initialCountdown} />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={`https://www.roblox.com/events/${event.event_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
-          >
-            Open on Roblox
-          </a>
-          {event.guide_slug ? (
-            <Link
-              href={`/articles/${event.guide_slug}`}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Time left</p>
+            <EventEndCountdown endUtc={event.end_utc} initialLabel={initialCountdown} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`https://www.roblox.com/events/${event.event_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
             >
-              Read event guide
-            </Link>
-          ) : null}
+              Open on Roblox
+            </a>
+            {event.guide_slug ? (
+              <Link
+                href={`/articles/${event.guide_slug}`}
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
+              >
+                Read event guide
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
@@ -741,7 +787,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
   const events = await loadEvents(page.universe_id);
   const grouped = classifyEvents(events);
   const pastEvents = grouped.past;
-  const currentEvents = await attachPrimaryThumbnails(grouped.current);
+  const currentEvents = await hydrateCurrent(grouped.current);
   const upcomingEvents = await hydrateUpcoming(grouped.upcoming);
   const firstUpcomingName = upcomingEvents[0] ? getEventNameForTitle(upcomingEvents[0]) : null;
   const dynamicTitle = buildDynamicTitle(universeName, firstUpcomingName);
@@ -1002,7 +1048,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
             {upcomingEvents.length ? (
               <div className="space-y-10">
                 {upcomingEvents.map((event) => (
-                  <UpcomingEventBlock key={event.event_id} event={event} gameName={universeName} />
+                  <UpcomingEventBlock key={event.event_id} event={event} />
                 ))}
               </div>
             ) : (
@@ -1023,7 +1069,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
               <span className="text-xs text-muted">{currentEvents.length} active</span>
             </div>
             {currentEvents.length ? (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-6">
                 {currentEvents.map((event) => (
                   <CurrentEventCard key={event.event_id} event={event} />
                 ))}

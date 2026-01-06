@@ -42,6 +42,7 @@ create table if not exists public.games (
   seo_description text,
   intro_md text,
   redeem_md text,
+  find_codes_md text,
   troubleshoot_md text,
   rewards_md text,
   about_game_md text,

@@ -35,13 +35,11 @@ function parseDate(value?: string | null): Date | null {
 export function EventTimePanel({
   startUtc,
   endUtc,
-  gameName,
   eventName,
   thumbnailUrl
 }: {
   startUtc: string | null;
   endUtc?: string | null;
-  gameName: string;
   eventName: string;
   thumbnailUrl?: string | null;
 }) {
@@ -61,8 +59,9 @@ export function EventTimePanel({
   const ptStartLabel = formatDateTimeLabel(startDate, PT_TIME_ZONE);
   const ptEndLabel = endDate ? formatDateTimeLabel(endDate, PT_TIME_ZONE) : null;
   const durationLabel = endDate ? formatDuration(endDate.getTime() - startDate.getTime()) : null;
+  const startVerb = startDate.getTime() > Date.now() ? "starts" : "started";
   const durationSentence =
-    durationLabel && ptEndLabel ? ` Event runs for ${durationLabel} and ends on ${ptEndLabel} PT.` : "";
+    durationLabel && ptEndLabel ? ` It runs for ${durationLabel} and ends on ${ptEndLabel} PT.` : "";
   const timeZoneRows = TIME_ZONES.map((zone) => ({
     label: zone.label,
     time: formatInZone(startDate, zone.timeZone)
@@ -73,8 +72,7 @@ export function EventTimePanel({
     <div className="space-y-4">
       <div className="prose dark:prose-invert game-copy max-w-none">
         <p>
-          This next {gameName} update is called {eventName}. It will be released on{" "}
-          <time dateTime={startDate.toISOString()}>{ptStartLabel} PT</time>.{durationSentence}
+          The event {startVerb} on <time dateTime={startDate.toISOString()}>{ptStartLabel} PT</time>.{durationSentence}
         </p>
       </div>
       <LocalTimeWidget startUtc={startUtc} endUtc={endUtc} />
