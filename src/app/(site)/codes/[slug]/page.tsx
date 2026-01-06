@@ -554,18 +554,20 @@ export default async function GamePage({ params }: Params) {
   const rewardsMarkdown = game.rewards_md ? replaceLinkPlaceholders(game.rewards_md, linkMap) : "";
   const descriptionMarkdown = game.description_md ? replaceLinkPlaceholders(game.description_md, linkMap) : "";
   const aboutMarkdown = game.about_game_md ? replaceLinkPlaceholders(game.about_game_md, linkMap) : "";
+  const findCodesMarkdown = game.find_codes_md ? replaceLinkPlaceholders(game.find_codes_md, linkMap) : "";
   const interlinkMarkdown = game.interlinking_ai_copy_md ?? "";
 
   const redeemSteps = extractHowToSteps(redeemMarkdown || game.redeem_md);
 
-  const [introHtml, redeemHtml, interlinkHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml] = await Promise.all([
+  const [introHtml, redeemHtml, interlinkHtml, troubleshootHtml, rewardsHtml, descriptionHtml, aboutHtml, findCodesHtml] = await Promise.all([
     introMarkdown ? renderMarkdown(introMarkdown) : "",
     redeemMarkdown ? renderMarkdown(redeemMarkdown) : "",
     interlinkMarkdown ? renderMarkdown(interlinkMarkdown) : "",
     troubleshootMarkdown ? renderMarkdown(troubleshootMarkdown) : "",
     rewardsMarkdown ? renderMarkdown(rewardsMarkdown) : "",
     descriptionMarkdown ? renderMarkdown(descriptionMarkdown) : "",
-    aboutMarkdown ? renderMarkdown(aboutMarkdown) : ""
+    aboutMarkdown ? renderMarkdown(aboutMarkdown) : "",
+    findCodesMarkdown ? renderMarkdown(findCodesMarkdown) : ""
   ]);
   const hasSupplemental = Boolean(troubleshootHtml || rewardsHtml || aboutHtml);
 
@@ -643,12 +645,12 @@ export default async function GamePage({ params }: Params) {
       const answer = markdownToPlainText(aboutMarkdown).trim();
       if (answer) faqEntries.push({ question: `About ${game.name}`, answer });
     }
-    // Social section text
-    faqEntries.push({
-      question: "How to get new codes fast?",
-      answer:
-        "Developers usually share codes on their official channels. We monitor them and update this page quickly. You can also check Telegram (@bloxodes), X (@bloxodes), or install the Chrome extension."
-    });
+    if (findCodesMarkdown) {
+      const answer = markdownToPlainText(findCodesMarkdown).trim();
+      if (answer) {
+        faqEntries.push({ question: "How to get new codes fast?", answer });
+      }
+    }
   } else if (descriptionMarkdown) {
     const answer = markdownToPlainText(descriptionMarkdown).trim();
     if (answer) faqEntries.push({ question: `About ${game.name}`, answer });
@@ -820,10 +822,12 @@ export default async function GamePage({ params }: Params) {
 
             {shouldShowSocialSection ? (
               <section className="mb-8 space-y-4" id={`more-${game.slug}-codes`}>
-                <div className="prose dark:prose-invert max-w-none game-copy">
-                  <h2>How to Get New Codes Fast</h2>
-                  <p>New codes are posted here by the developers:</p>
-                </div>
+                {findCodesHtml ? (
+                  <div
+                    className="prose dark:prose-invert max-w-none game-copy"
+                    dangerouslySetInnerHTML={processHtmlLinks(findCodesHtml)}
+                  />
+                ) : null}
                 {socialLinksToDisplay.length ? (
                   <div className="mt-4 flex flex-wrap gap-3">
                     {socialLinksToDisplay.map(({ key, url, label, Icon }) => (
@@ -842,7 +846,6 @@ export default async function GamePage({ params }: Params) {
                 ) : (
                   <p className="mt-3 text-sm text-muted">We haven't found any official social media links yet.</p>
                 )}
-
                 <div className="prose dark:prose-invert max-w-none game-copy">
                   <p>
                     We keep track of these sources and update this page as soon as new codes drop. Bookmark this page or follow our channels to get the codes right away.

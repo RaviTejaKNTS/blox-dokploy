@@ -1001,6 +1001,7 @@ select
   g.seo_description,
   g.intro_md,
   g.redeem_md,
+  g.find_codes_md,
   g.troubleshoot_md,
   g.rewards_md,
   g.about_game_md,
