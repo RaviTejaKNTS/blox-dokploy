@@ -25,6 +25,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, resolveSeoTitle } from "@/lib/seo";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { EventTimePanel } from "./EventTimePanel";
+import { EventEndCountdown } from "./EventEndCountdown";
+import { buildEndCountdown, formatDuration } from "./eventTimeFormat";
 
 export const EVENTS_REVALIDATE_SECONDS = 3600;
 
@@ -96,11 +98,16 @@ type VirtualEvent = {
   thumbnails?: EventThumbnail[] | null;
 };
 
-type UpcomingEventView = VirtualEvent & {
-  summary_html: string | null;
-  details_html: string | null;
+type EventWithThumbnail = VirtualEvent & {
   primary_thumbnail_url: string | null;
 };
+
+type UpcomingEventView = EventWithThumbnail & {
+  summary_html: string | null;
+  details_html: string | null;
+};
+
+type CurrentEventView = EventWithThumbnail;
 
 const PT_TIME_ZONE = "America/Los_Angeles";
 const PT_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -207,7 +214,7 @@ function buildEventDescription(event: VirtualEvent): string | null {
   return null;
 }
 
-function getPrimaryThumbnailUrl(event: VirtualEvent | UpcomingEventView): string | null {
+function getPrimaryThumbnailUrl(event: VirtualEvent | EventWithThumbnail): string | null {
   if (!("primary_thumbnail_url" in event)) return null;
   return typeof event.primary_thumbnail_url === "string" ? event.primary_thumbnail_url : null;
 }
@@ -359,27 +366,42 @@ async function loadEventsForMetadata(universeId: number): Promise<VirtualEvent[]
   return (data ?? []) as VirtualEvent[];
 }
 
+function getPrimaryMediaId(event: VirtualEvent): number | null {
+  const mediaIds = sortByRank(event.thumbnails ?? [])
+    .map((entry) => entry.media_id)
+    .filter((entry): entry is number => typeof entry === "number");
+  return mediaIds[0] ?? null;
+}
+
+async function attachPrimaryThumbnails(events: VirtualEvent[]): Promise<EventWithThumbnail[]> {
+  if (!events.length) return [];
+  const entries = events.map((event) => ({
+    event,
+    primaryMediaId: getPrimaryMediaId(event)
+  }));
+  const mediaIds = Array.from(
+    new Set(entries.map((entry) => entry.primaryMediaId).filter((entry): entry is number => typeof entry === "number"))
+  );
+  const urlMap = await fetchThumbnailUrls(mediaIds);
+
+  return entries.map(({ event, primaryMediaId }) => ({
+    ...event,
+    primary_thumbnail_url: typeof primaryMediaId === "number" ? urlMap.get(primaryMediaId) ?? null : null
+  }));
+}
+
 async function hydrateUpcoming(events: VirtualEvent[]): Promise<UpcomingEventView[]> {
+  const withThumbnails = await attachPrimaryThumbnails(events);
   const hydrated = await Promise.all(
-    events.map(async (event) => {
+    withThumbnails.map(async (event) => {
       const summary_md = normalizeText(event.event_summary_md);
       const details_md = normalizeText(event.event_details_md);
       const summary_html = summary_md ? await renderMarkdown(summary_md) : null;
       const details_html = details_md ? await renderMarkdown(details_md) : null;
-      const mediaIds = sortByRank(event.thumbnails ?? [])
-        .map((entry) => entry.media_id)
-        .filter((entry): entry is number => typeof entry === "number");
-      const primaryMediaId = mediaIds[0] ?? null;
-      let primary_thumbnail_url: string | null = null;
-      if (typeof primaryMediaId === "number") {
-        const urlMap = await fetchThumbnailUrls([primaryMediaId]);
-        primary_thumbnail_url = urlMap.get(primaryMediaId) ?? null;
-      }
       return {
         ...event,
         summary_html,
-        details_html,
-        primary_thumbnail_url
+        details_html
       };
     })
   );
@@ -476,27 +498,6 @@ function EventFacts({ event }: { event: VirtualEvent }) {
   );
 }
 
-function CategoryChips({ event }: { event: VirtualEvent }) {
-  const categories = sortByRank(event.categories ?? [])
-    .map((entry) => entry.category)
-    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
-
-  if (!categories.length) return null;
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {categories.map((category) => (
-        <span
-          key={category}
-          className="rounded-full border border-border/60 bg-surface px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-foreground"
-        >
-          {category}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 async function ThumbnailGrid({ event, limit = 4 }: { event: VirtualEvent; limit?: number }) {
   const mediaIds = sortByRank(event.thumbnails ?? [])
     .map((entry) => entry.media_id)
@@ -581,42 +582,95 @@ function UpcomingEventBlock({ event, gameName }: { event: UpcomingEventView; gam
 
       {event.details_html ? (
         <div className="space-y-4">
-          <h3 className="text-[1.6rem] font-semibold leading-[1.2] text-foreground">
-            What to expect from {eventName}
-          </h3>
           <div
             className="prose dark:prose-invert max-w-none game-copy"
             dangerouslySetInnerHTML={{ __html: event.details_html }}
           />
+          <div>
+            <a
+              href={`https://www.roblox.com/events/${event.event_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+            >
+              View event on Roblox
+            </a>
+          </div>
         </div>
       ) : null}
     </section>
   );
 }
 
-function CurrentEventCard({ event }: { event: VirtualEvent }) {
+function CurrentEventCard({ event }: { event: CurrentEventView }) {
   const eventName = getEventDisplayName(event);
   const startLabel = formatPtDateTime(event.start_utc) ?? "TBA";
   const endLabel = formatPtDateTime(event.end_utc) ?? "TBA";
+  const startTime = parseDate(event.start_utc);
+  const endTime = parseDate(event.end_utc);
+  const durationLabel =
+    typeof startTime === "number" && typeof endTime === "number" ? formatDuration(endTime - startTime) : null;
+  const initialCountdown = typeof endTime === "number" ? buildEndCountdown(endTime, Date.now()) : null;
+  const backgroundImage = resolveImageUrl(event.primary_thumbnail_url);
+  const startIso = toIsoString(event.start_utc);
+  const endIso = toIsoString(event.end_utc);
 
   return (
-    <article className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-soft leading-normal">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-xl font-semibold text-foreground">{eventName}</h3>
-        <EventGuideLink guideSlug={event.guide_slug} />
-      </div>
-      <div className="mt-3 grid gap-3 text-xs text-muted sm:grid-cols-2">
-        <div>
-          <span className="font-semibold uppercase tracking-wide text-foreground/70">Starts (PT)</span>
-          <p className="text-foreground">{startLabel}</p>
+    <article className="relative overflow-hidden rounded-2xl border border-border/60 bg-surface/60 shadow-soft">
+      {backgroundImage ? (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-black/40" />
+      )}
+      <div className="absolute inset-0 bg-white/85 dark:bg-black/75" />
+      <div className="relative z-10 flex h-full flex-col gap-4 p-5">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
+          <h3 className="text-xl font-semibold text-foreground">{eventName}</h3>
         </div>
-        <div>
-          <span className="font-semibold uppercase tracking-wide text-foreground/70">Ends (PT)</span>
-          <p className="text-foreground">{endLabel}</p>
+
+        <div className="space-y-1 text-sm text-foreground/90">
+          <p>
+            Starts:{" "}
+            <time dateTime={startIso ?? undefined} className="font-semibold text-foreground">
+              {startLabel}
+            </time>
+          </p>
+          <p>
+            Ends:{" "}
+            <time dateTime={endIso ?? undefined} className="font-semibold text-foreground">
+              {endLabel}
+            </time>
+          </p>
+          <p>Event length: {durationLabel ?? "TBA"}</p>
         </div>
-      </div>
-      <div className="mt-4">
-        <CategoryChips event={event} />
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Time left</p>
+          <EventEndCountdown endUtc={event.end_utc} initialLabel={initialCountdown} />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`https://www.roblox.com/events/${event.event_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
+          >
+            Open on Roblox
+          </a>
+          {event.guide_slug ? (
+            <Link
+              href={`/articles/${event.guide_slug}`}
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
+            >
+              Read event guide
+            </Link>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -687,6 +741,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
   const events = await loadEvents(page.universe_id);
   const grouped = classifyEvents(events);
   const pastEvents = grouped.past;
+  const currentEvents = await attachPrimaryThumbnails(grouped.current);
   const upcomingEvents = await hydrateUpcoming(grouped.upcoming);
   const firstUpcomingName = upcomingEvents[0] ? getEventNameForTitle(upcomingEvents[0]) : null;
   const dynamicTitle = buildDynamicTitle(universeName, firstUpcomingName);
@@ -755,7 +810,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
     };
   });
 
-  const schemaEvents = [...upcomingEvents, ...grouped.current, ...pastEvents]
+  const schemaEvents = [...upcomingEvents, ...currentEvents, ...pastEvents]
     .map((event) => {
       const name = getEventDisplayName(event);
       const startDate = toIsoString(event.start_utc);
@@ -965,11 +1020,11 @@ export async function renderEventsPage({ slug }: { slug: string }) {
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
                 <h2 className="text-[2rem] font-semibold leading-[1.15] text-foreground">Current events</h2>
               </div>
-              <span className="text-xs text-muted">{grouped.current.length} active</span>
+              <span className="text-xs text-muted">{currentEvents.length} active</span>
             </div>
-            {grouped.current.length ? (
+            {currentEvents.length ? (
               <div className="grid gap-6 md:grid-cols-2">
-                {grouped.current.map((event) => (
+                {currentEvents.map((event) => (
                   <CurrentEventCard key={event.event_id} event={event} />
                 ))}
               </div>

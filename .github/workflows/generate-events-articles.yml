@@ -1,11 +1,12 @@
 name: Generate Event Guides
 
 on:
+  schedule:
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
   generate-event-guides:
-    if: ${{ false }} # Disabled: prevent any runs until re-enabled.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -16,7 +17,6 @@ jobs:
       SUPABASE_MEDIA_BUCKET: ${{ secrets.SUPABASE_MEDIA_BUCKET }}
       SITE_URL: ${{ secrets.SITE_URL }}
       ARTICLE_AUTHOR_ID: ${{ secrets.ARTICLE_AUTHOR_ID }}
-      ROBLOX_VIRTUAL_EVENTS_LIMIT: "200"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,11 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Refresh virtual events
-        run: npm run collect:virtual-events
-
       - name: Queue event guides
         run: npm run queue:event-guides
 
-      - name: Generate event guide
+      - name: Generate event guides
         run: npm run generate:events-articles

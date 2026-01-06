@@ -1378,10 +1378,12 @@ After that, start with a H2 heading and then write the main content following th
  - Headings should be conversational like a casual sentence talking to the user. Use Sentence case for all headings, capitalize the first letter of the first word only and for proper nouns.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
+ - Do not include why this matters or is it worth it kind of headings, weave the info into other sections of the article. 
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
  - Use full sentences and explain things clearly without any repetations or useless information. 
  - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
  - Use numbered steps when explaining a process.
+ - When mentioning rewards, items or any list or table, include each and every item. Do not skip on anything. This has to be one stop guide that everything that user needs to know.
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
@@ -1921,22 +1923,24 @@ Start with an intro that directly gets into the core topic of the article. No fl
  - The start of the article should be very engaging and hook the audience into reading the entire article.
  - Instead of just a generic question or statement like If you play the game. Get directly into the explaining the topic if possible. 
  - Think about what type of intro serves the article best and use that.
- - Sometimes you can ask a question to hook the reader, sometimes you can bring a some specific info from the source, etc. 
- - Keep it short, consise and easy to understand.
+ - Sometimes you can ask a question to hook the reader, sometimes you can bring a some specific info from the sources, etc. 
+ - Keep it short, concise and easy to understand.
 Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
 After that, start with a H2 heading and then write the main content following these rules:
- - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
+ - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explanation of the said topic. 
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
  - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
  - Headings should be conversational like a casual sentence talking to the user. Capitalize the first letter of the first word only and for proper nouns whereever required.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
+ - Do not include why this matters or is it worth it kind of headings, weave the info into other sections of the article. 
  - Write in-depth and make sure everything is covered, but write in as less words as possible. 
  - Use full sentences and explain things clearly without any repetations or useless information. 
  - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
  - Use numbered steps when explaining a process.
+ - When mentioning rewards, items or any list or table, include each and every item. Do not skip on anything. This has to be one stop guide that everything that user needs to know.
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
  - Do not include any FAQs or similar sections. Weave all the needed info into the article flow smoothly. 

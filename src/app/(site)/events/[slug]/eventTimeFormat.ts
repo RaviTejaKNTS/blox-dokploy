@@ -93,6 +93,12 @@ export function buildCountdown(target: number, now: number): string {
   return parts.join(" ");
 }
 
+export function buildEndCountdown(target: number, now: number): string {
+  const diff = target - now;
+  if (diff <= 0) return "Event has ended.";
+  return buildCountdown(target, now);
+}
+
 function extractTimeZoneName(date: Date, timeZone: string, timeZoneName: string): string | null {
   try {
     const formatter = new Intl.DateTimeFormat("en-US", {

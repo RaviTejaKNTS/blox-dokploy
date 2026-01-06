@@ -7,9 +7,7 @@ const MIN_DURATION_HOURS = Number(process.env.EVENT_GUIDE_MIN_DURATION_HOURS ?? 
 const MAX_AGE_DAYS = Number(process.env.EVENT_GUIDE_MAX_AGE_DAYS ?? "5");
 const EVENT_BATCH = Number(process.env.EVENT_GUIDE_EVENT_BATCH ?? "200");
 const DEFAULT_LIMIT = Number(process.env.EVENT_GUIDE_LIMIT ?? "10");
-const EVENT_GUIDE_ALLOWED_UNIVERSE_IDS = parseUniverseIdList(process.env.EVENT_GUIDE_UNIVERSE_IDS);
-const HAS_UNIVERSE_ALLOWLIST = EVENT_GUIDE_ALLOWED_UNIVERSE_IDS.length > 0;
-const EVENT_GUIDE_ALLOWED_UNIVERSE_SET = new Set(EVENT_GUIDE_ALLOWED_UNIVERSE_IDS);
+const EVENT_PAGES_BATCH = Number(process.env.EVENT_PAGES_BATCH ?? "1000");
 
 type EventRow = {
   event_id: string;
@@ -74,23 +72,34 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-function parseUniverseIdList(value: string | undefined): number[] {
-  if (!value) return [];
-  const ids = value
-    .split(/[\n,]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => Number(entry))
-    .filter((entry) => Number.isFinite(entry) && entry > 0)
-    .map((entry) => Math.trunc(entry));
+async function fetchEventPageUniverseIds(): Promise<Set<number>> {
+  const sb = supabaseAdmin();
+  const ids = new Set<number>();
+  let offset = 0;
 
-  return Array.from(new Set(ids));
-}
+  while (true) {
+    const { data, error } = await sb
+      .from("events_pages")
+      .select("universe_id")
+      .order("universe_id", { ascending: true })
+      .range(offset, offset + EVENT_PAGES_BATCH - 1);
 
-function isUniverseAllowed(universeId: number | null): boolean {
-  if (!HAS_UNIVERSE_ALLOWLIST) return true;
-  if (!universeId) return false;
-  return EVENT_GUIDE_ALLOWED_UNIVERSE_SET.has(universeId);
+    if (error) {
+      throw new Error(`Failed to load events pages: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as Array<{ universe_id?: number | null }>;
+    for (const row of rows) {
+      if (typeof row.universe_id === "number") {
+        ids.add(row.universe_id);
+      }
+    }
+
+    if (rows.length < EVENT_PAGES_BATCH) break;
+    offset += rows.length;
+  }
+
+  return ids;
 }
 
 function parseArgs(): ScriptArgs {
@@ -184,10 +193,6 @@ async function fetchEventCandidates(
     .ilike("event_visibility", "public")
     .order("start_utc", { ascending: true })
     .limit(limit);
-
-  if (HAS_UNIVERSE_ALLOWLIST) {
-    query = query.in("universe_id", EVENT_GUIDE_ALLOWED_UNIVERSE_IDS);
-  }
 
   if (!force) {
     query = query.or("guide_slug.is.null,guide_slug.eq.");
@@ -286,6 +291,12 @@ async function main() {
   const maxAgeMs = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
   const cutoffIso = new Date(now - waitMs).toISOString();
   const minStartIso = new Date(now - maxAgeMs).toISOString();
+  const eventPageUniverseIds = await fetchEventPageUniverseIds();
+
+  if (!eventPageUniverseIds.size) {
+    console.log("No event pages found. Skipping guide queue.");
+    return;
+  }
 
   let events: EventRow[] = [];
 
@@ -293,6 +304,10 @@ async function main() {
     const event = await fetchEventById(args.eventId);
     if (!event) {
       console.error(`No event found for event_id ${args.eventId}.`);
+      return;
+    }
+    if (!event.universe_id || !eventPageUniverseIds.has(event.universe_id)) {
+      console.log(`Event ${args.eventId} does not belong to a universe with an events page. Skipping.`);
       return;
     }
     events = [event];
@@ -309,7 +324,7 @@ async function main() {
     total: events.length,
     missingName: 0,
     missingUniverse: 0,
-    notAllowedUniverse: 0,
+    missingEventPage: 0,
     hasGuide: 0,
     notStartedLongEnough: 0,
     tooShort: 0,
@@ -336,8 +351,8 @@ async function main() {
       continue;
     }
 
-    if (!isUniverseAllowed(event.universe_id)) {
-      stats.notAllowedUniverse += 1;
+    if (!eventPageUniverseIds.has(event.universe_id)) {
+      stats.missingEventPage += 1;
       continue;
     }
 

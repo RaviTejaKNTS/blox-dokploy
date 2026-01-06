@@ -25,10 +25,6 @@ const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
 const PAGE_BATCH = Number(process.env.EVENT_DETAILS_PAGE_BATCH ?? "1000");
 const EVENT_BATCH = Number(process.env.EVENT_DETAILS_EVENT_BATCH ?? "200");
-const SEARCH_LIMIT = Number(process.env.EVENT_DETAILS_SEARCH_LIMIT ?? "8");
-const MAX_SOURCES = Number(process.env.EVENT_DETAILS_MAX_SOURCES ?? "6");
-const SEARCH_DELAY_MS = Number(process.env.EVENT_DETAILS_SEARCH_DELAY_MS ?? "350");
-
 type EventRow = {
   event_id: string;
   universe_id: number | null;
@@ -47,12 +43,6 @@ type UniverseRow = {
   name: string | null;
 };
 
-type SearchResult = {
-  title: string;
-  url: string;
-  snippet?: string;
-};
-
 type GenerateCopyResult = {
   event_summary_md: string;
   event_details_md: string;
@@ -61,18 +51,8 @@ type GenerateCopyResult = {
 type ScriptArgs = {
   eventId: string | null;
   force: boolean;
+  all: boolean;
 };
-
-const BLOCKED_HOSTS = [
-  "youtube.com",
-  "youtu.be",
-  "tiktok.com",
-  "instagram.com",
-  "facebook.com",
-  "x.com",
-  "twitter.com",
-  "discord.gg"
-];
 
 function normalizeText(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -92,12 +72,17 @@ function parseArgs(): ScriptArgs {
   const args = process.argv.slice(2);
   let eventId: string | null = null;
   let force = false;
+  let all = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (!arg) continue;
     if (arg === "--force") {
       force = true;
+      continue;
+    }
+    if (arg === "--all") {
+      all = true;
       continue;
     }
     if (arg === "--event-id") {
@@ -116,7 +101,8 @@ function parseArgs(): ScriptArgs {
 
   return {
     eventId: normalizeText(eventId),
-    force
+    force,
+    all
   };
 }
 
@@ -134,33 +120,24 @@ function parseDate(value: string | null): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
-function isBlockedUrl(url: string): boolean {
-  try {
-    const hostname = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
-    return BLOCKED_HOSTS.some((blocked) => hostname === blocked || hostname.endsWith(`.${blocked}`));
-  } catch {
-    return true;
-  }
-}
-
-function formatSources(sources: SearchResult[]): string {
-  return sources
-    .map((source, index) => {
-      const snippet = source.snippet ? source.snippet.replace(/\s+/g, " ").trim() : "";
-      return [
-        `Source ${index + 1}: ${source.title}`,
-        source.url,
-        snippet ? `Snippet: ${snippet}` : ""
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
-    .join("\n\n");
-}
-
-async function sleep(ms: number) {
-  if (!Number.isFinite(ms) || ms <= 0) return;
-  await new Promise((resolve) => setTimeout(resolve, ms));
+function formatStartTimeForPrompt(startUtc: string | null): string | null {
+  if (!startUtc) return null;
+  const parsed = Date.parse(startUtc);
+  if (Number.isNaN(parsed)) return null;
+  const date = new Date(parsed);
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(date);
+  const timeLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  }).format(date);
+  return `${dateLabel} at ${timeLabel} PT`;
 }
 
 async function fetchEventPagesUniverseIds(): Promise<number[]> {
@@ -234,6 +211,19 @@ async function fetchUpcomingEvents(universeIds: number[], nowIso: string, force:
   return (data ?? []) as EventRow[];
 }
 
+async function fetchUpcomingEventsForUniverses(
+  universeIds: number[],
+  nowIso: string,
+  force: boolean
+): Promise<EventRow[]> {
+  const events: EventRow[] = [];
+  for (const chunk of chunkArray(universeIds, EVENT_BATCH)) {
+    const batch = await fetchUpcomingEvents(chunk, nowIso, force);
+    events.push(...batch);
+  }
+  return events;
+}
+
 async function fetchUniverseById(universeId: number): Promise<UniverseRow | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
@@ -281,76 +271,15 @@ async function pickNextEvent(force: boolean): Promise<EventRow | null> {
   return candidate;
 }
 
-async function perplexitySearch(query: string, limit: number): Promise<SearchResult[]> {
-  const response = await fetch("https://api.perplexity.ai/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${PERPLEXITY_API_KEY}`
-    },
-    body: JSON.stringify({
-      query,
-      top_k: limit
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Perplexity search failed (${response.status}) for query "${query}".`);
-  }
-
-  const payload = (await response.json()) as { results?: { title?: string; url?: string; snippet?: string }[] };
-  return (
-    payload.results
-      ?.map((result) => ({
-        title: result.title?.trim() ?? "",
-        url: result.url?.trim() ?? "",
-        snippet: result.snippet?.trim() ?? ""
-      }))
-      .filter((result) => result.title && result.url) ?? []
-  );
-}
-
-async function gatherSources(gameName: string, eventName: string): Promise<SearchResult[]> {
-  const queries = [
-    `"${eventName}" "${gameName}" Roblox event`,
-    `"${eventName}" Roblox update`,
-    `"${eventName}" "${gameName}" event rewards`
-  ];
-
-  const seen = new Set<string>();
-  const results: SearchResult[] = [];
-
-  for (const query of queries) {
-    const items = await perplexitySearch(query, SEARCH_LIMIT);
-    for (const item of items) {
-      if (!item.url || isBlockedUrl(item.url)) continue;
-      if (seen.has(item.url)) continue;
-      seen.add(item.url);
-      results.push(item);
-      if (results.length >= MAX_SOURCES) return results;
-    }
-    await sleep(SEARCH_DELAY_MS);
-  }
-
-  return results.slice(0, MAX_SOURCES);
-}
-
-async function sonarResearchNotes(gameName: string, eventName: string, sources: SearchResult[]): Promise<string> {
+async function sonarResearchNotes(gameName: string, eventName: string, startLabel: string): Promise<string> {
   const prompt = `
-Game: "${gameName}"
-Event: "${eventName}"
+Give me complete details about the upcoming ${gameName} ${eventName} event that will start on ${startLabel}.
 
-Use the sources below to provide concise research notes about:
-- What this event is about.
-- What official info we know about this event
-- What we can expect from this upcoming event. 
-- All the info we know about this event until now
-- Any unique mechanics tied to the event.
-
-Avoid dates, times, countdowns, and schedules. Do not include URLs.
-
-Sources:
-${formatSources(sources) || "No sources available."}
+Cover the full end-to-end details of what we know about this event and what players can expect from this upcoming event.
+Include only information specific to this exact event in this game. Avoid generic details like times, developer name where people can access it, how to join. 
+Instead focus on the game specific and event specific details. What a Roblox player should know have to covered clearly.
+Avoid dates, times, countdowns, and schedules.
+Return concise research notes. Do not include URLs.
 `.trim();
 
   const completion = await perplexity.chat.completions.create({
@@ -415,11 +344,12 @@ Game: "${gameName}"
 Event: "${eventName}"
 
 Use only the research notes below. Do not invent facts. If something is not mentioned, leave it out.
-Do not mention dates, times, countdowns, or schedules.
+Write only about this specific event. Do not include general game info or other events. Do not include dates of events, generic game or Roblox info. Be focused on specific event and clearly write that helps Roblox players know what they can expect from this event.
+We are talking about an upcoming event, so talk as we can expect these from the event rather than than being confident in the claims. Give the required info but warn users that the actual details will be available once the event is live.
 
 Return ONLY JSON with:
-- event_summary_md: 1-2 short sentences, no headings, simple English. Explain what the event is. Give a clean context and make it easy for everyone to understand. 
-- event_details_md: Include all the details we know about this uncoming event. Do not mention any sources. Just write the info with a clean flow, simple english in a way that anyone can understand. Can use paras, tables or bullet points which ever works better to communicate the info. When using tables or bullet, write atleast some lines before to set up the context and give cue to the readers. 
+- event_summary_md: 1-2 short sentences, no headings, simple English. Explain what the event is and keep it event-specific.
+- event_details_md: Include all known details about this event only. Do not mention any sources. Write clearly and keep it focused on the event. You may use paragraphs, tables, or bullet points if they help.
 
 Research notes:
 ${notes || "No research notes available."}
@@ -448,6 +378,110 @@ async function main() {
       console.error(`No event found for event_id ${args.eventId}.`);
       return;
     }
+    if (args.all) {
+      const universeIds = await fetchEventPagesUniverseIds();
+      if (!universeIds.length) {
+        console.log("No universe IDs found in events_pages.");
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      const events = await fetchUpcomingEventsForUniverses(universeIds, nowIso, args.force);
+      if (!events.length) {
+        console.log("No upcoming events found that need event summary/details.");
+        return;
+      }
+
+      const universeCache = new Map<number, UniverseRow | null>();
+      const updatedUniverses = new Set<number>();
+      const stats = {
+        total: events.length,
+        skippedMissingUniverse: 0,
+        skippedMissingStart: 0,
+        skippedStatus: 0,
+        skippedNoChanges: 0,
+        updated: 0,
+        failed: 0
+      };
+
+      for (const entry of events) {
+        if (!entry.universe_id) {
+          stats.skippedMissingUniverse += 1;
+          continue;
+        }
+
+        const status = entry.event_status?.toLowerCase() ?? "";
+        if (status === "ended" || status === "cancelled") {
+          stats.skippedStatus += 1;
+          continue;
+        }
+
+        const needsSummary = args.force || isEmpty(entry.event_summary_md);
+        const needsDetails = args.force || isEmpty(entry.event_details_md);
+        if (!needsSummary && !needsDetails) {
+          stats.skippedNoChanges += 1;
+          continue;
+        }
+
+        const startLabel = formatStartTimeForPrompt(entry.start_utc);
+        if (!startLabel) {
+          stats.skippedMissingStart += 1;
+          continue;
+        }
+
+        let universe = universeCache.get(entry.universe_id) ?? null;
+        if (!universeCache.has(entry.universe_id)) {
+          universe = await fetchUniverseById(entry.universe_id);
+          universeCache.set(entry.universe_id, universe);
+        }
+        const gameName = universe?.display_name ?? universe?.name ?? `Universe ${entry.universe_id}`;
+        const eventName = getEventDisplayName(entry);
+
+        try {
+          console.log(`Generating event copy for "${eventName}" (${gameName})...`);
+          const notes = await sonarResearchNotes(gameName, eventName, startLabel);
+          if (!notes.trim()) {
+            console.error(`No research notes returned for event ${entry.event_id}. Skipping.`);
+            stats.failed += 1;
+            continue;
+          }
+
+          const copy = await generateEventCopy(gameName, eventName, notes);
+          const update: Partial<Pick<EventRow, "event_summary_md" | "event_details_md">> = {};
+
+          if (needsSummary) {
+            update.event_summary_md = copy.event_summary_md;
+          }
+          if (needsDetails) {
+            update.event_details_md = copy.event_details_md;
+          }
+
+          if (!Object.keys(update).length) {
+            stats.skippedNoChanges += 1;
+            continue;
+          }
+
+          const { error } = await sb.from("roblox_virtual_events").update(update).eq("event_id", entry.event_id);
+          if (error) {
+            throw new Error(`Failed to update event ${entry.event_id}: ${error.message}`);
+          }
+
+          updatedUniverses.add(entry.universe_id);
+          stats.updated += 1;
+        } catch (error) {
+          stats.failed += 1;
+          console.error(`Event ${entry.event_id} failed:`, (error as Error).message);
+        }
+      }
+
+      if (updatedUniverses.size) {
+        await revalidateEventsByUniverseIds(Array.from(updatedUniverses));
+      }
+
+      console.log(`Event details refresh complete. stats=${JSON.stringify(stats)}`);
+      return;
+    }
+
     event = await pickNextEvent(args.force);
   }
 
@@ -474,13 +508,12 @@ async function main() {
 
   console.log(`Generating event copy for "${eventName}" (${gameName})...`);
 
-  const sources = await gatherSources(gameName, eventName);
-  if (!sources.length) {
-    console.error("No sources found from Perplexity search. Skipping.");
-    return;
+  const startLabel = formatStartTimeForPrompt(event.start_utc);
+  if (!startLabel) {
+    throw new Error(`Event ${event.event_id} is missing a valid start_utc for the research prompt.`);
   }
 
-  const notes = await sonarResearchNotes(gameName, eventName, sources);
+  const notes = await sonarResearchNotes(gameName, eventName, startLabel);
   if (!notes.trim()) {
     console.error("No research notes returned from Perplexity sonar. Skipping.");
     return;
