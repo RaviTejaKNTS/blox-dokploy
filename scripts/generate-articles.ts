@@ -1931,7 +1931,7 @@ After that, start with a H2 heading and then write the main content following th
  - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explanation of the said topic. 
  - Keep the article information dense, and communicate it in a way that is easy to understand. 
  - Adjust depth based on the topic. If something is simple, keep it short. If something needs more explanation, expand it properly. 
- - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. 
+ - Use headings only when they are really important and drive the topic forward. Keep the structure simple to scan through. If 2-3 headings can tell the entire story, go with that. 
  - Headings should be conversational like a casual sentence talking to the user. Capitalize the first letter of the first word only and for proper nouns whereever required.
  - Random tips can be said with small "Note:" or "Tip:" or anything that works instead of giving a full headings. 
  - Use H2 headings for main sections and H3 headings for sub-sections. (As mentioned, only when really needed)
@@ -1955,7 +1955,9 @@ Internal links:
 ${linkRules}
 - Use inline Markdown links: [label](url). Anchor text should read naturally in context.
 - Prefer same-universe pages (codes, checklists, tools, older articles) when relevant.
-- Prefer to use the links according to the context. If possible, instead of writing new lines of text, link into the existing text on if the context makes sense. 
+- Prefer to use the links according to the context. If possible, instead of writing new lines of text, link into the existing text on if the context already makes sense. 
+- Do not link every thing in one small section. Links should be spread all over the content natually. This is very important, don't just drop all links at the bottom of content. Add links to the article throught the article contextually.
+- These need to add value to the users.
 
 Topic: "${topic}"
 

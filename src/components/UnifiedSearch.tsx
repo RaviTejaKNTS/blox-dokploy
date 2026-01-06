@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 
@@ -9,101 +9,81 @@ export type SearchItem = {
   title: string;
   subtitle?: string | null;
   url: string;
-  type: "codes" | "article" | "checklist" | "list" | "tool";
+  type: "codes" | "article" | "checklist" | "list" | "tool" | "catalog" | "event" | "author" | "music";
   updatedAt?: string | null;
   badge?: string | null;
 };
 
 type Props = {
-  items: SearchItem[];
   autoFocus?: boolean;
 };
 
-function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9\\s]/g, " ")
-    .replace(/\\s+/g, " ")
-    .trim();
-}
+const MIN_QUERY_LENGTH = 2;
+const SEARCH_LIMIT = 120;
+const DEBOUNCE_MS = 250;
 
-function compact(value: string): string {
-  return normalize(value).replace(/\\s+/g, "");
-}
-
-function scoreItem(item: SearchItem, query: string): number {
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return 0;
-
-  const title = normalize(item.title);
-  const subtitle = normalize(item.subtitle ?? "");
-  const tokens = normalizedQuery.split(" ");
-  const compactQuery = compact(query);
-  const compactTitle = compact(item.title);
-
-  let score = 0;
-  if (title === normalizedQuery) score += 200;
-  if (title.startsWith(normalizedQuery)) score += 140;
-  if (title.includes(normalizedQuery)) score += 100;
-  if (subtitle.includes(normalizedQuery)) score += 40;
-
-  const initials = item.title
-    .split(/\\s+/)
-    .map((part) => part[0]?.toLowerCase() ?? "")
-    .join("");
-  if (initials && initials.startsWith(compactQuery)) score += 50;
-
-  // sequential compact match
-  let seqScore = 0;
-  let cursor = 0;
-  for (const char of compactQuery) {
-    const idx = compactTitle.indexOf(char, cursor);
-    if (idx === -1) {
-      seqScore = 0;
-      break;
-    }
-    seqScore += Math.max(3 - (idx - cursor), 1);
-    cursor = idx + 1;
-  }
-  if (seqScore) score += 30 + seqScore;
-
-  let tokenMatches = 0;
-  for (const token of tokens) {
-    if (token && title.includes(token)) tokenMatches += 1;
-  }
-  if (tokenMatches) {
-    score += tokenMatches * 12 + (tokenMatches === tokens.length ? 15 : 0);
-  }
-
-  return score;
-}
-
-export function UnifiedSearch({ items, autoFocus = false }: Props) {
+export function UnifiedSearch({ autoFocus = false }: Props) {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchItem[]>([]);
   const [visibleCount, setVisibleCount] = useState(15);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const trimmedQuery = query.trim();
+  const canSearch = trimmedQuery.length >= MIN_QUERY_LENGTH;
 
   useEffect(() => {
     setVisibleCount(15);
-  }, [query]);
+  }, [trimmedQuery]);
 
-  const { results, normalizedQuery } = useMemo(() => {
-    const trimmed = query.trim();
-    const normalized = normalize(trimmed);
-    if (!normalized) return { results: [], normalizedQuery: "" };
+  useEffect(() => {
+    if (!canSearch) {
+      setResults([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
-    const scored = items
-      .map((item) => ({ item, score: scoreItem(item, trimmed) }))
-      .filter(({ score }) => score > 0)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const dateA = a.item.updatedAt ? new Date(a.item.updatedAt).getTime() : 0;
-        const dateB = b.item.updatedAt ? new Date(b.item.updatedAt).getTime() : 0;
-        return dateB - dateA;
-      });
+    setResults([]);
+    setError(null);
 
-    return { results: scored.map(({ item }) => item), normalizedQuery: trimmed };
-  }, [items, query]);
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          q: trimmedQuery,
+          limit: String(SEARCH_LIMIT)
+        });
+        const response = await fetch(`/api/search/all?${params.toString()}`, {
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const payload = (await response.json()) as { items?: SearchItem[] };
+        if (!cancelled) {
+          setResults(payload.items ?? []);
+        }
+      } catch (error) {
+        if ((error as { name?: string }).name === "AbortError") return;
+        if (!cancelled) {
+          console.error("Failed to load search results", error);
+          setResults([]);
+          setError("Search is unavailable right now. Try again in a moment.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }, DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [canSearch, trimmedQuery]);
 
   const limitedResults = results.slice(0, visibleCount);
   const hasMore = results.length > visibleCount;
@@ -130,21 +110,38 @@ export function UnifiedSearch({ items, autoFocus = false }: Props) {
         />
       </div>
 
-      {normalizedQuery ? (
-        <p className="text-sm text-muted">
-          {results.length > 0 ? (
-            <>
-              Found {results.length} {results.length === 1 ? "match" : "matches"} for "{normalizedQuery}"
-            </>
-          ) : (
-            <>No results for "{normalizedQuery}". Try a different keyword.</>
-          )}
-        </p>
+      {canSearch ? (
+        error ? (
+          <p className="text-sm text-muted">{error}</p>
+        ) : loading && results.length === 0 ? (
+          <p className="text-sm text-muted">Searching...</p>
+        ) : (
+          <p className="text-sm text-muted">
+            {results.length > 0 ? (
+              <>
+                Found {results.length} {results.length === 1 ? "match" : "matches"} for "{trimmedQuery}"
+              </>
+            ) : (
+              <>No results for "{trimmedQuery}". Try a different keyword.</>
+            )}
+          </p>
+        )
       ) : (
         <p className="text-sm text-muted">Start typing to search articles, codes, checklists, tools, and lists.</p>
       )}
 
-      {normalizedQuery && results.length > 0 ? (
+      {canSearch && loading && results.length === 0 ? (
+        <div className="space-y-3">
+          <div className="h-10 rounded-[var(--radius-lg)] border border-border/60 bg-surface-muted animate-pulse" />
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-12 rounded-[var(--radius-lg)] border border-border/60 bg-surface-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {canSearch && results.length > 0 ? (
         <>
           <ul className="space-y-3">
             {limitedResults.map((item) => {

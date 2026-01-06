@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 
-import type { SearchItem } from "./UnifiedSearch";
-
 const UnifiedSearch = dynamic(() => import("@/components/UnifiedSearch").then((mod) => mod.UnifiedSearch), {
   ssr: false,
   loading: () => (
@@ -23,9 +21,6 @@ const UnifiedSearch = dynamic(() => import("@/components/UnifiedSearch").then((m
 export function GlobalSearchOverlay() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [items, setItems] = useState<SearchItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const fetchedRef = useRef(false);
   const previousActiveElement = useRef<HTMLElement | null>(null);
 
   const openOverlay = useCallback(() => {
@@ -67,36 +62,6 @@ export function GlobalSearchOverlay() {
       window.removeEventListener("bloxodes:open-search", handleOpenEvent);
     };
   }, [openOverlay]);
-
-  useEffect(() => {
-    if (!isOpen || fetchedRef.current) return;
-
-    let cancelled = false;
-    async function fetchItems() {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/search/all", { cache: "no-store" });
-        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-        const payload = (await response.json()) as { items: SearchItem[] };
-        if (!cancelled) {
-          setItems(payload.items);
-          fetchedRef.current = true;
-        }
-      } catch (error) {
-        console.error("Failed to load search data", error);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchItems();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -167,18 +132,7 @@ export function GlobalSearchOverlay() {
           </button>
         </div>
         <div className="mt-4">
-          {loading && items.length === 0 ? (
-            <div className="space-y-3">
-              <div className="h-10 rounded-[var(--radius-lg)] border border-border/60 bg-surface-muted animate-pulse" />
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="h-12 rounded-[var(--radius-lg)] border border-border/60 bg-surface-muted animate-pulse" />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <UnifiedSearch items={items} autoFocus />
-          )}
+          <UnifiedSearch autoFocus />
         </div>
       </div>
     </div>
