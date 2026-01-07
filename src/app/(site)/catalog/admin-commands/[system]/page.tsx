@@ -64,13 +64,6 @@ type CatalogContentHtml = {
   updatedAt: string | null;
 };
 
-const CATALOG_CODE_MAP: Record<string, string[]> = {
-  "hd-admin": ["admin-commands-hd-admin", "hd-admin"],
-  "kohls-admin": ["admin-commands-kohls-admin", "kohls-admin"],
-  "basic-admin": ["admin-commands-basic-admin", "basic-admin"],
-  "adonis-admin": ["admin-commands-adonis-admin", "adonis-admin"]
-};
-
 export function generateStaticParams() {
   return getAdminCommandSystems().map((system) => ({ system: system.slug }));
 }
@@ -331,7 +324,7 @@ function buildSections(dataset: Awaited<ReturnType<typeof loadAdminCommandDatase
 }
 
 function getCatalogCodeCandidates(systemSlug: string): string[] {
-  return CATALOG_CODE_MAP[systemSlug] ?? [`admin-commands-${systemSlug}`, systemSlug];
+  return [`admin-commands/${systemSlug}`];
 }
 
 async function buildCatalogContent(systemSlug: string): Promise<{ contentHtml: CatalogContentHtml | null }> {

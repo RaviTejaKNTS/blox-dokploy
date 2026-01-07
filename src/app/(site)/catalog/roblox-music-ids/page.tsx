@@ -12,7 +12,7 @@ import {
 
 export const revalidate = 2592000;
 
-const CATALOG_CODE_CANDIDATES = ["roblox-music-ids", "music-ids", "roblox_music_ids"];
+const CATALOG_CODE_CANDIDATES = ["roblox-music-ids"];
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
 
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {

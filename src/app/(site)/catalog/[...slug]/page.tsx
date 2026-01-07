@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
-import { loadAdminCommandDatasets } from "@/lib/admin-commands";
+import { getCatalogPageContentByCodes, type CatalogFaqEntry } from "@/lib/catalog";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 
 export const revalidate = 86400;
 
-const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/catalog/admin-commands`;
-const CATALOG_CODE_CANDIDATES = ["admin-commands"];
+type PageProps = {
+  params: { slug: string[] };
+};
 
 type CatalogContentHtml = {
   title: string | null;
@@ -23,6 +23,14 @@ type CatalogContentHtml = {
   ctaUrl: string | null;
 };
 
+function normalizeCatalogCode(slugParts: string[]): string {
+  return slugParts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("/")
+    .toLowerCase();
+}
+
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
   return Object.entries(description ?? {}).sort((a, b) => {
     const left = Number.parseInt(a[0], 10);
@@ -34,8 +42,8 @@ function sortDescriptionEntries(description: Record<string, string> | null | und
   });
 }
 
-async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml | null }> {
-  const catalog = await getCatalogPageContentByCodes(CATALOG_CODE_CANDIDATES);
+async function buildCatalogContent(code: string): Promise<{ contentHtml: CatalogContentHtml | null }> {
+  const catalog = await getCatalogPageContentByCodes([code]);
   if (!catalog) {
     return { contentHtml: null };
   }
@@ -51,7 +59,7 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
     }))
   );
 
-  const faqEntries = Array.isArray(catalog.faq_json) ? catalog.faq_json : [];
+  const faqEntries: CatalogFaqEntry[] = Array.isArray(catalog.faq_json) ? catalog.faq_json : [];
   const faqHtml = await Promise.all(
     faqEntries.map(async (entry) => ({
       q: entry.q,
@@ -73,47 +81,67 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
   };
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const catalog = await getCatalogPageContentByCodes(CATALOG_CODE_CANDIDATES);
-  const title =
-    resolveSeoTitle(catalog?.seo_title) ??
-    catalog?.title ??
-    `Roblox Admin Commands | ${SITE_NAME}`;
-  const description = catalog?.meta_description ?? ADMIN_COMMANDS_DESCRIPTION;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const code = normalizeCatalogCode(params.slug ?? []);
+  const canonical = `${SITE_URL.replace(/\/$/, "")}/catalog/${code}`;
+  if (!code) {
+    return {
+      alternates: { canonical: `${SITE_URL.replace(/\/$/, "")}/catalog` }
+    };
+  }
+
+  const catalog = await getCatalogPageContentByCodes([code]);
+  if (!catalog) {
+    return {
+      alternates: { canonical }
+    };
+  }
+
+  const title = resolveSeoTitle(catalog.seo_title) ?? catalog.title ?? `Roblox Catalogs | ${SITE_NAME}`;
+  const description = catalog.meta_description ?? CATALOG_DESCRIPTION;
+  const image = catalog.thumb_url || `${SITE_URL}/og-image.png`;
 
   return {
     title,
     description,
     alternates: {
-      canonical: CANONICAL
+      canonical
     },
     openGraph: {
       type: "website",
-      url: CANONICAL,
+      url: canonical,
       title,
       description,
-      siteName: SITE_NAME
+      siteName: SITE_NAME,
+      images: [image]
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description
+      description,
+      images: [image]
     }
   };
 }
 
-export default async function AdminCommandsHubPage() {
-  const [{ contentHtml }, datasets] = await Promise.all([
-    buildCatalogContent(),
-    loadAdminCommandDatasets()
-  ]);
-  const title = contentHtml?.title?.trim() ? contentHtml.title.trim() : "Roblox admin commands";
-  const introHtml = contentHtml?.introHtml?.trim() ? contentHtml.introHtml : "";
-  const howHtml = contentHtml?.howHtml?.trim() ? contentHtml.howHtml : "";
-  const descriptionHtml = contentHtml?.descriptionHtml ?? [];
-  const faqHtml = contentHtml?.faqHtml ?? [];
-  const showCta = Boolean(contentHtml?.ctaLabel && contentHtml?.ctaUrl);
-  const updatedDateValue = contentHtml?.updatedAt ?? null;
+export default async function CatalogFallbackPage({ params }: PageProps) {
+  const code = normalizeCatalogCode(params.slug ?? []);
+  if (!code) {
+    notFound();
+  }
+
+  const { contentHtml } = await buildCatalogContent(code);
+  if (!contentHtml) {
+    notFound();
+  }
+
+  const title = contentHtml.title?.trim() ? contentHtml.title.trim() : "Roblox catalog";
+  const introHtml = contentHtml.introHtml?.trim() ? contentHtml.introHtml : "";
+  const howHtml = contentHtml.howHtml?.trim() ? contentHtml.howHtml : "";
+  const descriptionHtml = contentHtml.descriptionHtml ?? [];
+  const faqHtml = contentHtml.faqHtml ?? [];
+  const showCta = Boolean(contentHtml.ctaLabel && contentHtml.ctaUrl);
+  const updatedDateValue = contentHtml.updatedAt ?? null;
   const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
   const formattedUpdated = updatedDate
     ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
@@ -125,15 +153,15 @@ export default async function AdminCommandsHubPage() {
       <nav aria-label="Breadcrumb" className="text-xs uppercase tracking-[0.25em] text-muted">
         <ol className="flex flex-wrap items-center gap-2">
           <li className="flex items-center gap-2">
-            <Link href="/" className="font-semibold text-muted transition hover:text-accent">
+            <a href="/" className="font-semibold text-muted transition hover:text-accent">
               Home
-            </Link>
+            </a>
             <span className="text-muted/60">&gt;</span>
           </li>
           <li className="flex items-center gap-2">
-            <Link href="/catalog" className="font-semibold text-muted transition hover:text-accent">
+            <a href="/catalog" className="font-semibold text-muted transition hover:text-accent">
               Catalog
-            </Link>
+            </a>
             <span className="text-muted/60">&gt;</span>
           </li>
           <li className="flex items-center gap-2">
@@ -158,37 +186,6 @@ export default async function AdminCommandsHubPage() {
         />
       ) : null}
 
-      {datasets.length ? (
-        <section className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {datasets.map((dataset) => (
-              <Link
-                key={dataset.system.slug}
-                href={`/catalog/admin-commands/${dataset.system.slug}`}
-                aria-label={`${dataset.system.name} commands`}
-                className="block h-full"
-              >
-                <article className="group relative overflow-hidden rounded-2xl border border-border/60 bg-surface/80 px-5 py-4 transition hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-soft">
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-0 top-0 h-1 bg-accent/30 transition group-hover:bg-accent/60"
-                  />
-                  <div className="flex h-full flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-lg font-semibold text-foreground">{dataset.system.name}</p>
-                    </div>
-                    <p className="text-sm text-muted">{dataset.system.cardDescription}</p>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                      {dataset.commandCount.toLocaleString("en-US")} commands
-                    </p>
-                  </div>
-                </article>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {descriptionHtml.length ? (
         <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
           {descriptionHtml.map((entry) => (
@@ -206,10 +203,10 @@ export default async function AdminCommandsHubPage() {
       {showCta ? (
         <section className="rounded-2xl border border-border/60 bg-surface/60 p-5 shadow-soft">
           <a
-            href={contentHtml?.ctaUrl ?? "#"}
+            href={contentHtml.ctaUrl ?? "#"}
             className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:opacity-90"
           >
-            {contentHtml?.ctaLabel}
+            {contentHtml.ctaLabel}
           </a>
         </section>
       ) : null}
