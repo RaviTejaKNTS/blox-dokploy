@@ -34,6 +34,12 @@ These are the tables/views the site and APIs read from most often.
 - data/The Forge/ores.md
   - Parsed by src/lib/forge/ores.ts.
   - Used by tools/the-forge-crafting-calculator.
+- data/The Forge/weapons.md
+  - Parsed by src/lib/forge/weapons.ts.
+  - Used by tools/the-forge-crafting-calculator.
+- data/The Forge/armors.md
+  - Parsed by src/lib/forge/armors.ts.
+  - Used by tools/the-forge-crafting-calculator.
 
 ## Static configs and JSON
 - src/data/slug_oldslugs.json

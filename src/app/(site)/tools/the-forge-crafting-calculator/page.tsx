@@ -4,7 +4,9 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
+import { loadForgeArmorDataset } from "@/lib/forge/armors";
 import { loadForgeOreDataset } from "@/lib/forge/ores";
+import { loadForgeWeaponDataset } from "@/lib/forge/weapons";
 import { ContentSlot } from "@/components/ContentSlot";
 import { ForgeCalculatorClient } from "./ForgeCalculatorClient";
 
@@ -99,6 +101,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ForgeCalculatorPage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
   const oreDataset = await loadForgeOreDataset();
+  const weaponDataset = await loadForgeWeaponDataset();
+  const armorDataset = await loadForgeArmorDataset();
   const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
   const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
   const updatedDateValue = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
@@ -188,7 +192,11 @@ export default async function ForgeCalculatorPage() {
         fullWidthResponsive
       />
       <div className="mt-8">
-        <ForgeCalculatorClient ores={oreDataset.ores} />
+      <ForgeCalculatorClient
+        ores={oreDataset.ores}
+        weapons={weaponDataset.weapons}
+        armorPieces={armorDataset.armorPieces}
+      />
       </div>
       <ContentSlot
         slot={TOOL_AD_SLOT}

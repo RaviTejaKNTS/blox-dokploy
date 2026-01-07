@@ -20,6 +20,8 @@ export type Ore = {
     | "Goblin Cave"
     | "Enemy Drop"
     | "Frostpire Expanse"
+    | "Raven's Cave"
+    | "Exclusive"
     | "The Peak";
   dropChanceRatio: number; // denominator for 1/x drop
   multiplier: number;
@@ -42,6 +44,7 @@ export type WeaponClass =
 export type Weapon = {
   id: string;
   name: string;
+  imageUrl?: string | null;
   class: WeaponClass;
   baseDamage: number;
   baseSpeedSeconds: number;
@@ -53,12 +56,13 @@ export type Weapon = {
 };
 
 export type ArmorSlot = "Helmet" | "Chestplate" | "Leggings";
-export type ArmorWeightClass = "Light" | "Medium" | "Samurai" | "Knight" | "Dark Knight";
+export type ArmorWeightClass = "Light" | "Medium" | "Heavy" | "Samurai" | "Knight" | "Dark Knight";
 export type ArmorWeightGroup = "Light" | "Medium" | "Heavy";
 
 export type ArmorPiece = {
   id: string;
   name: string;
+  imageUrl?: string | null;
   weightClass: ArmorWeightClass;
   slot: ArmorSlot;
   baseHealthPercent: number;

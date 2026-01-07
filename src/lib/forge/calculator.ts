@@ -510,20 +510,21 @@ function normalizeInternalWeights<T extends { chanceRatio: number }>(items: T[])
 export function calculateWeaponOutcomes(
   totalCount: number,
   multiplier: number,
-  qualityMultiplier = 1
+  qualityMultiplier = 1,
+  weapons: Weapon[] = WEAPONS
 ): { classProbabilities: WeaponClassProbability[]; weapons: WeaponOutcome[] } {
   const classProbabilities = calculateWeaponClassProbabilities(totalCount);
-  const weapons: WeaponOutcome[] = [];
+  const outcomes: WeaponOutcome[] = [];
 
   classProbabilities.forEach((classEntry) => {
-    const items = WEAPONS.filter((weapon) => weapon.class === classEntry.class).map((weapon) => ({
+    const items = weapons.filter((weapon) => weapon.class === classEntry.class).map((weapon) => ({
       ...weapon,
       chanceRatio: weapon.internalWeightRatio
     }));
     const weightedItems = normalizeInternalWeights(items);
 
     weightedItems.forEach((item) => {
-      weapons.push({
+      outcomes.push({
         weapon: item,
         classProbability: classEntry.probability,
         probability: classEntry.probability * item.normalized,
@@ -532,20 +533,21 @@ export function calculateWeaponOutcomes(
     });
   });
 
-  return { classProbabilities, weapons };
+  return { classProbabilities, weapons: outcomes };
 }
 
 export function calculateArmorOutcomes(
   totalCount: number,
   multiplier: number,
-  qualityMultiplier = 1
+  qualityMultiplier = 1,
+  armorPieces: ArmorPiece[] = ARMOR_PIECES
 ): { pieceProbabilities: ArmorPieceProbability[]; armor: ArmorOutcome[] } {
   const pieceProbabilities = calculateArmorPieceProbabilities(totalCount);
   const armor: ArmorOutcome[] = [];
   const probabilityByKey = new Map(pieceProbabilities.map((entry) => [entry.key, entry.probability]));
 
   const piecesByKey = new Map<ArmorPieceAnchorKey, ArmorPiece[]>();
-  ARMOR_PIECES.forEach((piece) => {
+  armorPieces.forEach((piece) => {
     const key = getArmorAnchorKey(piece.baseWeightGroup, piece.slot);
     const existing = piecesByKey.get(key);
     if (existing) {

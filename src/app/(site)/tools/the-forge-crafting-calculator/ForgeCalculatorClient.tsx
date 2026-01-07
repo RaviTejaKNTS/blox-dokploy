@@ -10,9 +10,11 @@ import {
   MIN_TOTAL_ORE_COUNT,
   QUALITY_TIERS,
   type ArmorSlot,
+  type ArmorPiece,
   type Ore,
   type QualityTier,
-  type TraitType
+  type TraitType,
+  type Weapon
 } from "@/lib/forge/data";
 import {
   aggregateOreSelections,
@@ -138,7 +140,15 @@ function TraitPill({ ore, share, tier }: { ore: Ore; share: number; tier: "minor
   );
 }
 
-export function ForgeCalculatorClient({ ores }: { ores: Ore[] }) {
+export function ForgeCalculatorClient({
+  ores,
+  weapons,
+  armorPieces
+}: {
+  ores: Ore[];
+  weapons: Weapon[];
+  armorPieces: ArmorPiece[];
+}) {
   const [mode, setMode] = useState<Mode>("weapon");
   const [armorSlotFilter, setArmorSlotFilter] = useState<ArmorSlot | "All">("All");
   const [progression, setProgression] = useState<"Stonewake" | "Forgotten Kingdom">("Forgotten Kingdom");
@@ -170,12 +180,12 @@ export function ForgeCalculatorClient({ ores }: { ores: Ore[] }) {
   const traits = useMemo(() => calculateTraitActivations(usages, totalCount), [usages, totalCount]);
   const composition = useMemo(() => getOreComposition(usages), [usages]);
   const weaponResults = useMemo(
-    () => calculateWeaponOutcomes(totalCount, multiplier, qualityMultiplier),
-    [totalCount, multiplier, qualityMultiplier]
+    () => calculateWeaponOutcomes(totalCount, multiplier, qualityMultiplier, weapons),
+    [totalCount, multiplier, qualityMultiplier, weapons]
   );
   const armorResults = useMemo(
-    () => calculateArmorOutcomes(totalCount, multiplier, qualityMultiplier),
-    [totalCount, multiplier, qualityMultiplier]
+    () => calculateArmorOutcomes(totalCount, multiplier, qualityMultiplier, armorPieces),
+    [totalCount, multiplier, qualityMultiplier, armorPieces]
   );
 
   const filteredOres = useMemo(

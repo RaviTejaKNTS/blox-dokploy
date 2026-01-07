@@ -129,24 +129,31 @@ function parseSections(md: string): Array<{ zone: string; rows: string[][] }> {
 }
 
 function normalizeColumns(parts: string[]): string[] {
-  if (parts.length === 9) return parts;
+  const targetLength = 10;
+
+  if (parts.length === 10) return parts;
+  if (parts.length === 9) {
+    const [name, image, rarity, chance, multiplier, price, trait, rocks, description] = parts;
+    return [name, image, "", rarity, chance, multiplier, price, trait, rocks, description];
+  }
   if (parts.length === 8) {
     const [name, rarity, chance, multiplier, price, trait, rocks, description] = parts;
-    return [name, "", rarity, chance, multiplier, price, trait, rocks, description];
+    return [name, "", "", rarity, chance, multiplier, price, trait, rocks, description];
   }
-  if (parts.length > 9) {
+  if (parts.length > 10) {
     const name = parts[0];
     const image = parts[1];
-    const rarity = parts[2];
-    const chance = parts[3];
-    const multiplier = parts[4];
-    const price = parts[5];
+    const region = parts[2];
+    const rarity = parts[3];
+    const chance = parts[4];
+    const multiplier = parts[5];
+    const price = parts[6];
     const rocks = parts[parts.length - 2];
     const description = parts[parts.length - 1];
-    const trait = parts.slice(6, parts.length - 2).filter(Boolean).join(" / ");
-    return [name, image, rarity, chance, multiplier, price, trait, rocks, description];
+    const trait = parts.slice(7, parts.length - 2).filter(Boolean).join(" / ");
+    return [name, image, region, rarity, chance, multiplier, price, trait, rocks, description];
   }
-  return parts.concat(new Array(9 - parts.length).fill(""));
+  return parts.concat(new Array(targetLength - parts.length).fill(""));
 }
 
 export async function loadForgeOreDataset(): Promise<ForgeOreDataset> {
@@ -163,7 +170,7 @@ export async function loadForgeOreDataset(): Promise<ForgeOreDataset> {
 
   sections.forEach(({ zone, rows }) => {
     rows.forEach((row) => {
-      const [name, imageUrl, rarity, chance, multiplier, price, trait, ,] = normalizeColumns(row);
+      const [name, imageUrl, , rarity, chance, multiplier, price, trait, ,] = normalizeColumns(row);
       if (!name) return;
 
       const dropChanceRatio = parseDropChance(chance);
