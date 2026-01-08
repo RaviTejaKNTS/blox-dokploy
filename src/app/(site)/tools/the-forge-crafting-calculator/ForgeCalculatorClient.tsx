@@ -1,8 +1,9 @@
 'use client';
 
 import Image from "next/image";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 import {
   ARMOR_SLOTS,
   MAX_ORE_TYPES,
@@ -159,6 +160,29 @@ export function ForgeCalculatorClient({
     { oreId: "sapphire", count: 2 }
   ]);
 
+  const trackForgeInteraction = (
+    action: string,
+    itemId: string,
+    nextMode?: Mode,
+    variantOverride?: string
+  ) => {
+    trackEvent("forge_calculator_interaction", {
+      action,
+      item_id: itemId,
+      mode: nextMode ?? mode,
+      variant: variantOverride ?? qualityTier
+    });
+  };
+
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
+    const handle = window.setTimeout(() => {
+      trackForgeInteraction("search", trimmed);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [search, mode, qualityTier]);
+
   const oresById = useMemo(() => {
     const map: Record<string, Ore> = {};
     ores.forEach((ore) => {
@@ -230,9 +254,15 @@ export function ForgeCalculatorClient({
 
   function removeOre(oreId: string) {
     setSelectedOres((prev) => prev.filter((item) => item.oreId !== oreId));
+    trackForgeInteraction("remove", oreId);
   }
 
   function addOre(oreId: string) {
+    const available = Math.max(0, MAX_TOTAL_ORE_COUNT - totalCount);
+    const existing = selectedOres.find((item) => item.oreId === oreId);
+    if (available <= 0) return;
+    if (!existing && selectedOres.length >= MAX_ORE_TYPES) return;
+    trackForgeInteraction("add", oreId);
     setSelectedOres((prev) => {
       const total = prev.reduce((sum, item) => sum + item.count, 0);
       const available = Math.max(0, MAX_TOTAL_ORE_COUNT - total);
@@ -260,7 +290,10 @@ export function ForgeCalculatorClient({
           <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
             <button
               type="button"
-              onClick={() => setMode("weapon")}
+              onClick={() => {
+                setMode("weapon");
+                trackForgeInteraction("toggle", "mode:weapon", "weapon");
+              }}
               className={cn(
                 "px-4 py-2 transition",
                 mode === "weapon" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
@@ -270,7 +303,10 @@ export function ForgeCalculatorClient({
             </button>
             <button
               type="button"
-              onClick={() => setMode("armor")}
+              onClick={() => {
+                setMode("armor");
+                trackForgeInteraction("toggle", "mode:armor", "armor");
+              }}
               className={cn(
                 "px-4 py-2 transition",
                 mode === "armor" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
@@ -285,7 +321,10 @@ export function ForgeCalculatorClient({
                 <button
                   key={slot}
                   type="button"
-                  onClick={() => setArmorSlotFilter(slot as ArmorSlot | "All")}
+                  onClick={() => {
+                    setArmorSlotFilter(slot as ArmorSlot | "All");
+                    trackForgeInteraction("toggle", `armor_slot:${slot}`, "armor");
+                  }}
                   className={cn(
                     "px-4 py-2 transition",
                     armorSlotFilter === slot ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
@@ -302,7 +341,10 @@ export function ForgeCalculatorClient({
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setProgression(value)}
+                  onClick={() => {
+                    setProgression(value);
+                    trackForgeInteraction("toggle", `progression:${value}`, "armor");
+                  }}
                   className={cn(
                     "px-4 py-2 transition",
                     progression === value ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
@@ -413,7 +455,11 @@ export function ForgeCalculatorClient({
               <select
                 id="quality-tier"
                 value={qualityTier}
-                onChange={(event) => setQualityTier(event.target.value as QualityTier)}
+                onChange={(event) => {
+                  const next = event.target.value as QualityTier;
+                  setQualityTier(next);
+                  trackForgeInteraction("toggle", `quality:${next}`, mode, next);
+                }}
                 className="rounded-lg border border-border/60 bg-surface px-2 py-1 text-xs font-semibold text-foreground"
               >
                 {QUALITY_TIERS.map((tier) => (

@@ -79,8 +79,19 @@ function ArticlesPageView({
           <p className="text-sm text-muted">Articles will appear here after publication.</p>
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+            {articles.map((article, index) => (
+              <div
+                key={article.id}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="articles_index"
+                data-analytics-item-id={article.slug}
+                data-analytics-item-name={article.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="article"
+              >
+                <ArticleCard article={article} />
+              </div>
             ))}
           </div>
         )}

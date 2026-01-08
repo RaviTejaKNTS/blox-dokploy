@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { formatUpdatedLabel } from "@/lib/updated-label";
+import { trackEvent } from "@/lib/analytics";
 
 export type SearchItem = {
   id: string;
@@ -28,6 +29,7 @@ export function UnifiedSearch({ autoFocus = false }: Props) {
   const [visibleCount, setVisibleCount] = useState(15);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastTrackedQuery = useRef<string | null>(null);
 
   const trimmedQuery = query.trim();
   const canSearch = trimmedQuery.length >= MIN_QUERY_LENGTH;
@@ -84,6 +86,17 @@ export function UnifiedSearch({ autoFocus = false }: Props) {
       controller.abort();
     };
   }, [canSearch, trimmedQuery]);
+
+  useEffect(() => {
+    if (!canSearch || loading) return;
+    if (lastTrackedQuery.current === trimmedQuery) return;
+    lastTrackedQuery.current = trimmedQuery;
+    trackEvent("search", {
+      search_term: trimmedQuery,
+      results_count: results.length,
+      content_type: "all"
+    });
+  }, [canSearch, loading, results.length, trimmedQuery]);
 
   const limitedResults = results.slice(0, visibleCount);
   const hasMore = results.length > visibleCount;
@@ -144,13 +157,21 @@ export function UnifiedSearch({ autoFocus = false }: Props) {
       {canSearch && results.length > 0 ? (
         <>
           <ul className="space-y-3">
-            {limitedResults.map((item) => {
+            {limitedResults.map((item, index) => {
               const updatedLabel = item.updatedAt ? formatUpdatedLabel(item.updatedAt) : null;
               return (
                 <li key={item.id}>
                   <Link
                     href={item.url}
                     className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border/60 bg-surface px-4 py-3 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                    onClick={() =>
+                      trackEvent("search_result_click", {
+                        search_term: trimmedQuery,
+                        results_count: results.length,
+                        content_type: item.type,
+                        position: index + 1
+                      })
+                    }
                   >
                     <div className="flex flex-col gap-1">
                       <span className="font-semibold">{item.title}</span>

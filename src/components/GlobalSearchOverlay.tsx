@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
+import { trackEvent } from "@/lib/analytics";
 
 const UnifiedSearch = dynamic(() => import("@/components/UnifiedSearch").then((mod) => mod.UnifiedSearch), {
   ssr: false,
@@ -101,6 +102,12 @@ export function GlobalSearchOverlay() {
       document.body.style.overflow = overflow;
       document.body.style.touchAction = touchAction;
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent("search_open");
+    }
   }, [isOpen]);
 
   if (!isMounted) {

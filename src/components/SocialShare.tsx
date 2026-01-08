@@ -10,9 +10,18 @@ type SocialShareProps = {
   url: string;
   title: string;
   heading?: string;
+  analytics?: {
+    contentType: string;
+    itemId: string;
+  };
 };
 
-export function SocialShare({ url, title, heading = "Share these codes with your friends" }: SocialShareProps) {
+export function SocialShare({
+  url,
+  title,
+  heading = "Share these codes with your friends",
+  analytics
+}: SocialShareProps) {
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
 
@@ -55,18 +64,29 @@ export function SocialShare({ url, title, heading = "Share these codes with your
     <div className="mb-4 p-2">
       <h3 className="text-lg font-semibold text-foreground mb-3">{heading}</h3>
       <div className="flex items-center gap-2">
-        {socialLinks.map((social) => (
-          <a
-            key={social.name}
-            href={social.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Share on ${social.name}`}
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-110 ${social.color}`}
-          >
-            <span className="text-lg">{social.icon}</span>
-          </a>
-        ))}
+        {socialLinks.map((social) => {
+          const analyticsAttrs = analytics
+            ? {
+                "data-analytics-event": "share",
+                "data-analytics-method": social.name.toLowerCase(),
+                "data-analytics-content-type": analytics.contentType,
+                "data-analytics-item-id": analytics.itemId
+              }
+            : {};
+          return (
+            <a
+              key={social.name}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Share on ${social.name}`}
+              {...analyticsAttrs}
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-110 ${social.color}`}
+            >
+              <span className="text-lg">{social.icon}</span>
+            </a>
+          );
+        })}
       </div>
     </div>
   );

@@ -594,7 +594,18 @@ export default async function AdminCommandSystemPage({ params }: { params: { sys
                         : null}
                     </div>
                     <div className="shrink-0 pt-1">
-                      <CopyCodeButton code={command.copyText} size="sm" tone="accent" />
+                      <CopyCodeButton
+                        code={command.copyText}
+                        size="sm"
+                        tone="accent"
+                        analytics={{
+                          event: "admin_command_copy",
+                          params: {
+                            system_slug: dataset.system.slug,
+                            command_id: command.id || command.copyText
+                          }
+                        }}
+                      />
                     </div>
                   </div>
 

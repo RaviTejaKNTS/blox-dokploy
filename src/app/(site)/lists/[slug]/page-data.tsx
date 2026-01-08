@@ -457,7 +457,7 @@ export function ListPageView({
                     key={entry.universe.universe_id}
                     className="scroll-mt-32"
                   >
-                    <GameListItem entry={entry} rank={rank} metricLabel={metricLabel} />
+                    <GameListItem entry={entry} rank={rank} metricLabel={metricLabel} listSlug={slug} />
                   </div>
                 ];
                 if (adInsertPositions.has(index)) {

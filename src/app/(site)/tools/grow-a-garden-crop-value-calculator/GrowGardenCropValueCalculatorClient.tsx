@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { computeCalculation, normalizeMutations } from "@/lib/grow-a-garden/calc";
 import type { CropRecord } from "@/lib/grow-a-garden/crops";
 import type { Mutation, Variant } from "@/lib/grow-a-garden/mutations";
@@ -110,7 +111,30 @@ export function GrowGardenCropValueCalculatorClient({
   const [selectedMutations, setSelectedMutations] = useState<string[]>([]);
   const [showUnverified, setShowUnverified] = useState(false);
 
+  const trackInteraction = (
+    action: string,
+    itemId: string,
+    nextMode?: BaseMode,
+    nextVariant?: string
+  ) => {
+    trackEvent("grow_garden_calculator_interaction", {
+      action,
+      item_id: itemId,
+      mode: nextMode ?? baseMode,
+      variant: nextVariant ?? variantName
+    });
+  };
+
   const normalizedMutations = useMemo(() => normalizeMutations(selectedMutations).names, [selectedMutations]);
+
+  useEffect(() => {
+    const trimmed = cropSearch.trim();
+    if (!trimmed) return;
+    const handle = window.setTimeout(() => {
+      trackInteraction("search", trimmed);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [cropSearch, baseMode, variantName]);
 
   useEffect(() => {
     if (normalizedMutations.join(",") !== selectedMutations.join(",")) {
@@ -176,6 +200,7 @@ export function GrowGardenCropValueCalculatorClient({
       const nextWeight = getBaseWeightFor(next, baseMode);
       setWeightInput(nextWeight ? String(nextWeight) : "");
     }
+    trackInteraction("toggle", `crop:${name}`);
   }
 
   function handleBaseModeChange(mode: BaseMode) {
@@ -184,6 +209,7 @@ export function GrowGardenCropValueCalculatorClient({
       const nextWeight = getBaseWeightFor(selectedCrop, mode);
       setWeightInput(nextWeight ? String(nextWeight) : "");
     }
+    trackInteraction("toggle", `mode:${mode}`, mode);
   }
 
   function toggleMutation(name: string) {
@@ -191,6 +217,7 @@ export function GrowGardenCropValueCalculatorClient({
       const next = prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name];
       return normalizeMutations(next).names;
     });
+    trackInteraction("toggle", `mutation:${name}`);
   }
 
   return (
@@ -327,7 +354,10 @@ export function GrowGardenCropValueCalculatorClient({
                   key={variant.name}
                   variant={variant}
                   selected={variantName === variant.name}
-                  onSelect={() => setVariantName(variant.name)}
+                  onSelect={() => {
+                    setVariantName(variant.name);
+                    trackInteraction("toggle", `growth:${variant.name}`, baseMode, variant.name);
+                  }}
                 />
               ))}
             </div>
@@ -349,7 +379,10 @@ export function GrowGardenCropValueCalculatorClient({
                   <button
                     key={temp.name}
                     type="button"
-                    onClick={() => setTempMutation(temp.name)}
+                    onClick={() => {
+                      setTempMutation(temp.name);
+                      trackInteraction("toggle", `temp:${temp.name}`);
+                    }}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition hover:-translate-y-0.5",
                       selected ? "border-accent ring-2 ring-accent/30 bg-accent/5" : "border-border/70 bg-surface"

@@ -183,8 +183,19 @@ export default async function CatalogIndexPage() {
       </header>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {cards.map(({ id, updatedAt: _updatedAt, ...card }) => (
-          <CatalogCard key={id} {...card} />
+        {cards.map(({ id, updatedAt: _updatedAt, ...card }, index) => (
+          <div
+            key={id}
+            className="contents"
+            data-analytics-event="select_item"
+            data-analytics-item-list-name="catalog_index"
+            data-analytics-item-id={id}
+            data-analytics-item-name={card.title}
+            data-analytics-position={index + 1}
+            data-analytics-content-type="catalog"
+          >
+            <CatalogCard {...card} />
+          </div>
         ))}
       </div>
 

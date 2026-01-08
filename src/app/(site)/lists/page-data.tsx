@@ -102,16 +102,26 @@ function ListsPageView({
 
       {cards.length ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {cards.map((card) => (
-            <ListCard
+          {cards.map((card, index) => (
+            <div
               key={card.id}
-              displayName={card.displayName}
-              title={card.title}
-              slug={card.slug}
-              coverImage={card.coverImage}
-              updatedAt={card.updatedAt}
-              itemsCount={card.itemsCount}
-            />
+              className="contents"
+              data-analytics-event="select_item"
+              data-analytics-item-list-name="lists_index"
+              data-analytics-item-id={card.slug}
+              data-analytics-item-name={card.displayName}
+              data-analytics-position={index + 1}
+              data-analytics-content-type="list"
+            >
+              <ListCard
+                displayName={card.displayName}
+                title={card.title}
+                slug={card.slug}
+                coverImage={card.coverImage}
+                updatedAt={card.updatedAt}
+                itemsCount={card.itemsCount}
+              />
+            </div>
           ))}
         </div>
       ) : (

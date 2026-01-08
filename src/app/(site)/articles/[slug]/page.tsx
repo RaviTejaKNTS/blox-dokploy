@@ -273,6 +273,9 @@ async function renderArticlePage(article: ArticleWithRelations) {
                         href={`/authors/${article.author.slug}`}
                         className="font-semibold text-foreground transition hover:text-accent"
                         itemProp="name"
+                        data-analytics-event="author_click"
+                        data-analytics-codes-url={canonicalUrl}
+                        data-analytics-author-url={`/authors/${article.author.slug}`}
                       >
                         {article.author.name}
                       </Link>
@@ -325,7 +328,12 @@ async function renderArticlePage(article: ArticleWithRelations) {
 
       <aside className="space-y-4">
         <section className="space-y-3">
-          <SocialShare url={canonicalUrl} title={article.title} heading="Share this article" />
+          <SocialShare
+            url={canonicalUrl}
+            title={article.title}
+            heading="Share this article"
+            analytics={{ contentType: "article", itemId: article.slug }}
+          />
         </section>
         <ContentSlot
           slot="4767824441"
@@ -341,7 +349,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
             <h3 className="text-lg font-semibold text-foreground">Codes for {universeLabel}</h3>
             <div className="grid gap-3">
               {relatedCodes.map((g) => (
-                <GameCard key={g.id} game={g} titleAs="p" />
+                <div
+                  key={g.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="article_sidebar"
+                  data-analytics-target-type="codes"
+                  data-analytics-target-slug={g.slug}
+                >
+                  <GameCard game={g} titleAs="p" />
+                </div>
               ))}
             </div>
           </section>
@@ -352,7 +369,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
             <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
             <div className="space-y-3">
               {relatedChecklistCards.map((card) => (
-                <ChecklistCard key={card.id} {...card} />
+                <div
+                  key={card.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="article_sidebar"
+                  data-analytics-target-type="checklist"
+                  data-analytics-target-slug={card.slug}
+                >
+                  <ChecklistCard {...card} />
+                </div>
               ))}
             </div>
           </section>
@@ -363,7 +389,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
             {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
             <div className="space-y-4">
               {relatedArticles.slice(0, 5).map((item) => (
-                <ArticleCard key={item.id} article={item} />
+                <div
+                  key={item.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="article_sidebar"
+                  data-analytics-target-type="article"
+                  data-analytics-target-slug={item.slug}
+                >
+                  <ArticleCard article={item} />
+                </div>
               ))}
             </div>
           </section>
@@ -374,7 +409,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
             <h3 className="text-lg font-semibold text-foreground">Tools for {universeLabel}</h3>
             <div className="space-y-4">
               {relatedTools.map((tool) => (
-                <ToolCard key={tool.id ?? tool.code} tool={tool} />
+                <div
+                  key={tool.id ?? tool.code}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="article_sidebar"
+                  data-analytics-target-type="tool"
+                  data-analytics-target-slug={tool.code}
+                >
+                  <ToolCard tool={tool} />
+                </div>
               ))}
             </div>
           </section>

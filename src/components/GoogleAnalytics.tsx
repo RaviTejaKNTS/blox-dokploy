@@ -17,6 +17,12 @@ type IdleWindow = typeof window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
+type AnalyticsWindow = IdleWindow & {
+  dataLayer?: unknown[];
+  gtag?: (...args: unknown[]) => void;
+  __ga4Initialized?: boolean;
+};
+
 function scheduleIdle(callback: () => void, delay: number) {
   if (typeof window === "undefined") {
     return () => {};
@@ -50,6 +56,23 @@ export function GoogleAnalytics({ measurementId, idleDelay = DEFAULT_IDLE_DELAY 
       return;
     }
 
+    if (typeof window !== "undefined") {
+      const win = window as AnalyticsWindow;
+      if (!Array.isArray(win.dataLayer)) {
+        win.dataLayer = [];
+      }
+      if (typeof win.gtag !== "function") {
+        win.gtag = function gtag() {
+          win.dataLayer?.push(arguments);
+        };
+      }
+      if (!win.__ga4Initialized) {
+        win.gtag("js", new Date());
+        win.gtag("config", measurementId);
+        win.__ga4Initialized = true;
+      }
+    }
+
     let cancelled = false;
 
     const cancel = scheduleIdle(() => {
@@ -76,10 +99,13 @@ export function GoogleAnalytics({ measurementId, idleDelay = DEFAULT_IDLE_DELAY 
       />
       <Script id="google-analytics" strategy="afterInteractive">
         {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${measurementId}');
+          if (!window.__ga4Initialized) {
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${measurementId}');
+            window.__ga4Initialized = true;
+          }
         `}
       </Script>
     </>

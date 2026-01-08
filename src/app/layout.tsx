@@ -6,6 +6,7 @@ import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { ConsentGate } from "@/components/consent/ConsentGate";
 import { GoogleAdSense } from "@/components/GoogleAdSense";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
 
 const GlobalSearchOverlay = dynamicImport(
@@ -150,6 +151,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ConsentGate category="marketing">
             <GoogleAdSense clientId={googleAdSenseClientId} />
           </ConsentGate>
+          <AnalyticsTracker />
           <GlobalSearchOverlay />
           {children}
         </ConsentProvider>

@@ -67,7 +67,7 @@ export default async function AuthorsIndexPage() {
         <p className="text-sm text-muted">No authors found yet. Check back soon.</p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {authors.map((author) => {
+          {authors.map((author, index) => {
             const avatar = authorAvatarUrl(author, 96);
             const plainBio = author.bio_md
               ? author.bio_md
@@ -78,52 +78,60 @@ export default async function AuthorsIndexPage() {
               : "";
             const preview = plainBio.length > 180 ? `${plainBio.slice(0, 177)}…` : plainBio;
             return (
-              <article
+              <div
                 key={author.id}
-                className="flex flex-col gap-4 rounded-[var(--radius-md)] border border-border/50 bg-surface px-5 py-6 shadow-soft transition hover:-translate-y-[2px] hover:border-accent/50 hover:shadow-lg"
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="authors_index"
+                data-analytics-item-id={author.slug ?? author.id}
+                data-analytics-item-name={author.name}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="author"
               >
-                <div className="flex items-start gap-4">
-                  <img
-                    src={avatar || "https://www.gravatar.com/avatar/?d=mp"}
-                    alt={author.name}
-                    className="h-16 w-16 flex-shrink-0 rounded-full border border-border/40 object-cover"
-                    loading="lazy"
-                  />
-                  <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-foreground">
+                <article className="flex flex-col gap-4 rounded-[var(--radius-md)] border border-border/50 bg-surface px-5 py-6 shadow-soft transition hover:-translate-y-[2px] hover:border-accent/50 hover:shadow-lg">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={avatar || "https://www.gravatar.com/avatar/?d=mp"}
+                      alt={author.name}
+                      className="h-16 w-16 flex-shrink-0 rounded-full border border-border/40 object-cover"
+                      loading="lazy"
+                    />
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-semibold text-foreground">
+                        {author.slug ? (
+                          <Link href={`/authors/${author.slug}`} className="transition hover:text-accent">
+                            {author.name}
+                          </Link>
+                        ) : (
+                          author.name
+                        )}
+                      </h2>
                       {author.slug ? (
-                        <Link href={`/authors/${author.slug}`} className="transition hover:text-accent">
-                          {author.name}
-                        </Link>
-                      ) : (
-                        author.name
-                      )}
-                    </h2>
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted">@{author.slug}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {preview ? (
+                    <p className="text-sm leading-relaxed text-muted">{preview}</p>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      {author.name} helps keep Roblox code guides accurate and up to date.
+                    </p>
+                  )}
+                  <AuthorSocialLinks author={author} size="sm" className="mt-2" />
+                  <div className="mt-auto">
                     {author.slug ? (
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted">@{author.slug}</p>
+                      <Link
+                        href={`/authors/${author.slug}`}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent"
+                      >
+                        View profile
+                        <span aria-hidden>→</span>
+                      </Link>
                     ) : null}
                   </div>
-                </div>
-                {preview ? (
-                  <p className="text-sm leading-relaxed text-muted">{preview}</p>
-                ) : (
-                  <p className="text-sm text-muted">
-                    {author.name} helps keep Roblox code guides accurate and up to date.
-                  </p>
-                )}
-                <AuthorSocialLinks author={author} size="sm" className="mt-2" />
-                <div className="mt-auto">
-                  {author.slug ? (
-                    <Link
-                      href={`/authors/${author.slug}`}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent"
-                    >
-                      View profile
-                      <span aria-hidden>→</span>
-                    </Link>
-                  ) : null}
-                </div>
-              </article>
+                </article>
+              </div>
             );
           })}
         </div>

@@ -13,6 +13,7 @@ type GameListItemProps = {
   entry: GameListUniverseEntry & { badges?: UniverseListBadge[] };
   rank: number;
   metricLabel?: string | null;
+  listSlug?: string;
 };
 
 function formatNumber(value: number | null | undefined): string {
@@ -160,7 +161,7 @@ function badgeIconForRank(rank: number) {
   return FaMedal;
 }
 
-export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
+export function GameListItem({ entry, rank, metricLabel, listSlug }: GameListItemProps) {
   const { universe, game } = entry;
   const coverImage = universe.icon_url || "/og-image.png";
   const ageRating = formatAgeRating(universe.age_rating);
@@ -255,6 +256,10 @@ export function GameListItem({ entry, rank, metricLabel }: GameListItemProps) {
                 <Link
                   href={activeCodesHref}
                   prefetch={false}
+                  data-analytics-event="list_game_codes_click"
+                  data-analytics-list-slug={listSlug}
+                  data-analytics-game-slug={game?.slug ?? ""}
+                  data-analytics-rank={rank}
                   className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1 transition hover:border-accent hover:text-accent"
                 >
                   <FiHash className="h-3 w-3" />

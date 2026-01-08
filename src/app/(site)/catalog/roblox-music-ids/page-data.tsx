@@ -510,7 +510,19 @@ export function MusicIdGrid({ songs }: { songs: MusicRow[] }) {
                 <div className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
                   <span>Music ID</span>
                   <span className="font-mono text-[0.82rem]">{song.asset_id}</span>
-                  <CopyCodeButton code={String(song.asset_id)} tone="surface" size="sm" />
+                  <CopyCodeButton
+                    code={String(song.asset_id)}
+                    tone="surface"
+                    size="sm"
+                    analytics={{
+                      event: "music_id_copy",
+                      params: {
+                        asset_id: song.asset_id,
+                        artist: song.artist,
+                        genre: song.genre ?? ""
+                      }
+                    }}
+                  />
                 </div>
                 {song.rank ? (
                   <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
@@ -603,7 +615,19 @@ export function TrendingMusicList({ songs }: { songs: MusicRow[] }) {
               <div className="flex items-center gap-2 rounded-full border border-border/50 bg-surface px-3 py-1 text-xs font-semibold text-foreground">
                 <span>Music ID</span>
                 <span className="font-mono text-[0.85rem]">{song.asset_id}</span>
-                <CopyCodeButton code={String(song.asset_id)} tone="surface" size="sm" />
+                <CopyCodeButton
+                  code={String(song.asset_id)}
+                  tone="surface"
+                  size="sm"
+                  analytics={{
+                    event: "music_id_copy",
+                    params: {
+                      asset_id: song.asset_id,
+                      artist: song.artist,
+                      genre: song.genre ?? ""
+                    }
+                  }}
+                />
               </div>
               <a
                 href={buildRobloxUrl(song.asset_id)}

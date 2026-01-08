@@ -89,8 +89,19 @@ function ToolsPageView({
 
       {tools.length ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {tools.map((tool) => (
-            <ToolCard key={tool.id ?? tool.code} tool={tool} />
+          {tools.map((tool, index) => (
+            <div
+              key={tool.id ?? tool.code}
+              className="contents"
+              data-analytics-event="select_item"
+              data-analytics-item-list-name="tools_index"
+              data-analytics-item-id={tool.code}
+              data-analytics-item-name={tool.title}
+              data-analytics-position={index + 1}
+              data-analytics-content-type="tool"
+            >
+              <ToolCard tool={tool} />
+            </div>
           ))}
         </div>
       ) : (

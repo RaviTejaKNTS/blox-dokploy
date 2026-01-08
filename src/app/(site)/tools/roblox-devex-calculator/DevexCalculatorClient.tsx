@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import "@/styles/article-content.css";
+import { trackEvent } from "@/lib/analytics";
 import {
   calculateAdvancedDevex,
   calculateDevexPayout,
@@ -107,6 +108,10 @@ export function DevexCalculatorClient({
             onSubmit={(e: FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               setRobuxInput(robuxInput.trim());
+              trackEvent("calculator_input_commit", {
+                tool_code: "roblox-devex-calculator",
+                target_robux: Number(robuxInput)
+              });
             }}
             className="panel space-y-5 p-6"
           >
@@ -256,6 +261,10 @@ export function DevexCalculatorClient({
             onSubmit={(e: FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               setUsdInput(usdInput.trim());
+              trackEvent("calculator_input_commit", {
+                tool_code: "roblox-devex-calculator",
+                target_usd: Number(usdInput)
+              });
             }}
             className="panel space-y-5 p-6"
           >

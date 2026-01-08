@@ -557,12 +557,15 @@ async function ThumbnailGrid({ event, limit = 4 }: { event: VirtualEvent; limit?
   );
 }
 
-function EventGuideLink({ guideSlug }: { guideSlug: string | null }) {
+function EventGuideLink({ guideSlug, eventId }: { guideSlug: string | null; eventId: string }) {
   if (!guideSlug) return null;
   return (
     <Link
       href={`/articles/${guideSlug}`}
       className="text-xs font-semibold uppercase tracking-wide text-accent underline-offset-4 hover:underline"
+      data-analytics-event="event_guide_click"
+      data-analytics-event-id={eventId}
+      data-analytics-guide-slug={guideSlug}
     >
       Event guide
     </Link>
@@ -579,7 +582,7 @@ function UpcomingEventBlock({ event }: { event: UpcomingEventView }) {
           <h2 className="text-[2rem] font-semibold leading-[1.15] text-foreground">
             {eventName} Event: Release Date and Time, Countdown and What to Expect
           </h2>
-          <EventGuideLink guideSlug={event.guide_slug} />
+          <EventGuideLink guideSlug={event.guide_slug} eventId={event.event_id} />
         </div>
         {event.summary_html ? (
           <div
@@ -711,6 +714,9 @@ function CurrentEventCard({ event }: { event: CurrentEventView }) {
               <Link
                 href={`/articles/${event.guide_slug}`}
                 className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent dark:bg-black/60"
+                data-analytics-event="event_guide_click"
+                data-analytics-event-id={event.event_id}
+                data-analytics-guide-slug={event.guide_slug}
               >
                 Read event guide
               </Link>
@@ -760,6 +766,9 @@ function PastEventsTable({ events }: { events: VirtualEvent[] }) {
                       <Link
                         href={`/articles/${event.guide_slug}`}
                         className="text-xs font-semibold uppercase tracking-wide text-accent underline-offset-4 hover:underline"
+                        data-analytics-event="event_guide_click"
+                        data-analytics-event-id={event.event_id}
+                        data-analytics-guide-slug={event.guide_slug}
                       >
                         Guide
                       </Link>
@@ -1001,6 +1010,9 @@ export async function renderEventsPage({ slug }: { slug: string }) {
                         <Link
                           href={`/authors/${page.author.slug}`}
                           className="font-semibold text-foreground transition hover:text-accent"
+                          data-analytics-event="author_click"
+                          data-analytics-codes-url={canonicalUrl}
+                          data-analytics-author-url={`/authors/${page.author.slug}`}
                         >
                           {page.author.name}
                         </Link>
@@ -1105,7 +1117,12 @@ export async function renderEventsPage({ slug }: { slug: string }) {
 
       <aside className="space-y-4">
         <section className="space-y-3">
-          <SocialShare url={canonicalUrl} title={headingTitle} heading="Share this page" />
+          <SocialShare
+            url={canonicalUrl}
+            title={headingTitle}
+            heading="Share this page"
+            analytics={{ contentType: "event", itemId: canonicalSlug }}
+          />
         </section>
 
         {relatedCodes.length ? (
@@ -1113,7 +1130,16 @@ export async function renderEventsPage({ slug }: { slug: string }) {
             <h3 className="text-lg font-semibold text-foreground">Codes for {universeLabel}</h3>
             <div className="grid gap-3">
               {relatedCodes.map((g) => (
-                <GameCard key={g.id} game={g} titleAs="p" />
+                <div
+                  key={g.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="events_sidebar"
+                  data-analytics-target-type="codes"
+                  data-analytics-target-slug={g.slug}
+                >
+                  <GameCard game={g} titleAs="p" />
+                </div>
               ))}
             </div>
           </section>
@@ -1124,7 +1150,16 @@ export async function renderEventsPage({ slug }: { slug: string }) {
             <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
             <div className="space-y-3">
               {relatedChecklistCards.map((card) => (
-                <ChecklistCard key={card.id} {...card} />
+                <div
+                  key={card.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="events_sidebar"
+                  data-analytics-target-type="checklist"
+                  data-analytics-target-slug={card.slug}
+                >
+                  <ChecklistCard {...card} />
+                </div>
               ))}
             </div>
           </section>
@@ -1135,7 +1170,16 @@ export async function renderEventsPage({ slug }: { slug: string }) {
             {relatedHeading ? <h3 className="text-lg font-semibold text-foreground">{relatedHeading}</h3> : null}
             <div className="space-y-4">
               {relatedArticles.map((item) => (
-                <ArticleCard key={item.id} article={item} />
+                <div
+                  key={item.id}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="events_sidebar"
+                  data-analytics-target-type="article"
+                  data-analytics-target-slug={item.slug}
+                >
+                  <ArticleCard article={item} />
+                </div>
               ))}
             </div>
           </section>
@@ -1146,7 +1190,16 @@ export async function renderEventsPage({ slug }: { slug: string }) {
             <h3 className="text-lg font-semibold text-foreground">Tools for {universeLabel}</h3>
             <div className="space-y-4">
               {relatedTools.map((tool) => (
-                <ToolCard key={tool.id ?? tool.code} tool={tool} />
+                <div
+                  key={tool.id ?? tool.code}
+                  className="contents"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="events_sidebar"
+                  data-analytics-target-type="tool"
+                  data-analytics-target-slug={tool.code}
+                >
+                  <ToolCard tool={tool} />
+                </div>
               ))}
             </div>
           </section>

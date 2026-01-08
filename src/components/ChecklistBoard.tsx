@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { ChecklistItem } from "@/lib/db";
 import { ContentSlot } from "@/components/ContentSlot";
+import { trackEvent } from "@/lib/analytics";
 
 type SectionBlock = {
   code: string;
@@ -34,6 +35,7 @@ const MIN_REMAINING_BEFORE_WRAP = 240;
 const CONT_HEADER_EXTRA = 10;
 const DEFAULT_BOARD_HEIGHT = 640;
 const COLUMN_HEIGHT_BUFFER = 32;
+const PROGRESS_MILESTONES = [25, 50, 75, 100];
 
 function parseCodeParts(code: string): { top: number; child: number | null; leaf: number | null } {
   const parts = code.split(".").map((p) => Number.parseInt(p, 10)).filter((n) => !Number.isNaN(n));
@@ -306,6 +308,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   const computedClassName = isNarrow ? undefined : className;
 
   const sections = useMemo(() => groupSections(items), [items]);
+  const totalLeafItems = useMemo(
+    () => items.filter((item) => parseCodeParts(item.section_code.trim()).leaf !== null).length,
+    [items]
+  );
   const categoryDescriptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const item of items) {
@@ -395,22 +401,59 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   }, [slug]);
 
   const storageKey = `checklist:${slug}`;
-  const toggleItem = (id: string) => {
+  const lastMilestoneRef = useRef(0);
+  const milestonesInitialized = useRef(false);
+
+  const toggleItem = (item: ChecklistItem) => {
     setChecked((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      const nextChecked = !next.has(item.id);
+      if (nextChecked) {
+        next.add(item.id);
       } else {
-        next.add(id);
+        next.delete(item.id);
       }
       try {
         localStorage.setItem(storageKey, JSON.stringify(Array.from(next)));
       } catch {
         // ignore storage errors
       }
+      trackEvent("checklist_item_toggle", {
+        checklist_slug: slug,
+        item_id: item.id,
+        section_code: item.section_code,
+        checked: nextChecked
+      });
       return next;
     });
   };
+
+  useEffect(() => {
+    lastMilestoneRef.current = 0;
+    milestonesInitialized.current = false;
+  }, [slug, totalLeafItems]);
+
+  useEffect(() => {
+    if (!totalLeafItems) return;
+    const percent = Math.round((checked.size / totalLeafItems) * 100);
+    const reached = PROGRESS_MILESTONES.filter((value) => percent >= value).pop() ?? 0;
+    if (!milestonesInitialized.current) {
+      lastMilestoneRef.current = reached;
+      milestonesInitialized.current = true;
+      return;
+    }
+    for (const milestone of PROGRESS_MILESTONES) {
+      if (milestone > lastMilestoneRef.current && percent >= milestone) {
+        trackEvent("checklist_progress", {
+          checklist_slug: slug,
+          percent: milestone,
+          done: checked.size,
+          total: totalLeafItems
+        });
+        lastMilestoneRef.current = milestone;
+      }
+    }
+  }, [checked.size, slug, totalLeafItems]);
 
   useEffect(() => {
     const detail = { slug, checkedCount: checked.size, totalCount: items.length };
@@ -696,7 +739,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                             <input
                               type="checkbox"
                               checked={isChecked}
-                              onChange={() => toggleItem(item.id)}
+                              onChange={() => toggleItem(item)}
                               className="sr-only"
                             />
                             <span
@@ -966,7 +1009,7 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
                                                   <input
                                                     type="checkbox"
                                                     checked={isChecked}
-                                                    onChange={() => toggleItem(item.id)}
+                                                    onChange={() => toggleItem(item)}
                                                     className="sr-only"
                                                   />
                                                   <span

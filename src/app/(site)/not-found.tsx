@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { PageNotFoundTracker } from "@/components/PageNotFoundTracker";
 import { SITE_NAME } from "@/lib/seo";
 
 export default function SiteNotFound() {
   return (
     <section className="flex min-h-[60vh] flex-col items-center justify-center gap-8 text-center">
+      <PageNotFoundTracker />
       <div className="space-y-4">
         <span className="inline-flex rounded-full border border-border/60 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted">
           404 — Page Not Found

@@ -728,6 +728,9 @@ export default async function GamePage({ params }: Params) {
                         href={`/authors/${game.author.slug}`}
                         className="font-semibold text-foreground transition hover:text-accent"
                         itemProp="name"
+                        data-analytics-event="author_click"
+                        data-analytics-codes-url={canonicalUrl}
+                        data-analytics-author-url={`/authors/${game.author.slug}`}
                       >
                         {game.author.name}
                       </Link>
@@ -764,6 +767,7 @@ export default async function GamePage({ params }: Params) {
           <ActiveCodes
             codes={sortedActive}
             gameName={game.name}
+            gameSlug={game.slug}
             lastUpdatedLabel={lastUpdatedFormatted}
             lastCheckedLabel={lastCheckedFormatted}
             lastCheckedRelativeLabel={lastCheckedRelativeLabel}
@@ -794,7 +798,7 @@ export default async function GamePage({ params }: Params) {
           </section>
         ) : null}
         <section className="panel mb-8 space-y-3 px-5 pb-5 pt-0" id="expired-codes">
-          <ExpiredCodes codes={expiredWithoutSpaces} gameName={game.name} />
+          <ExpiredCodes codes={expiredWithoutSpaces} gameName={game.name} gameSlug={game.slug} />
         </section>
 
         {hasSupplemental ? (
@@ -836,6 +840,9 @@ export default async function GamePage({ params }: Params) {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        data-analytics-event="social_follow_click"
+                        data-analytics-platform={key}
+                        data-analytics-game-slug={game.slug}
                         className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                       >
                         <Icon className="h-4 w-4" aria-hidden />
@@ -856,6 +863,9 @@ export default async function GamePage({ params }: Params) {
                     href="https://t.me/bloxodes"
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-analytics-event="social_follow_click"
+                    data-analytics-platform="telegram"
+                    data-analytics-game-slug={game.slug}
                     className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                   >
                     <FaTelegramPlane className="h-4 w-4" aria-hidden />
@@ -865,6 +875,9 @@ export default async function GamePage({ params }: Params) {
                     href="https://twitter.com/bloxodes"
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-analytics-event="social_follow_click"
+                    data-analytics-platform="x"
+                    data-analytics-game-slug={game.slug}
                     className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                   >
                     <RiTwitterXLine className="h-4 w-4" aria-hidden />
@@ -874,6 +887,9 @@ export default async function GamePage({ params }: Params) {
                     href="https://chromewebstore.google.com/detail/bloxodes-%E2%80%93-roblox-game-co/mammkedlehmpechknaicfakljaogcmhc"
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-analytics-event="social_follow_click"
+                    data-analytics-platform="chrome_extension"
+                    data-analytics-game-slug={game.slug}
                     className="inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
                   >
                     <SiGooglechrome className="h-4 w-4" aria-hidden />
@@ -996,7 +1012,11 @@ export default async function GamePage({ params }: Params) {
 
       {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0) ? (
         <aside className="space-y-4">
-          <SocialShare url={canonicalUrl} title={`${game.name} Codes (${monthYear()})`} />
+          <SocialShare
+            url={canonicalUrl}
+            title={`${game.name} Codes (${monthYear()})`}
+            analytics={{ contentType: "code_page", itemId: game.slug }}
+          />
           <ContentSlot
             slot="4767824441"
             className="w-full"
@@ -1011,7 +1031,16 @@ export default async function GamePage({ params }: Params) {
               <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
               <div className="space-y-4">
                 {relatedChecklistCards.map((card) => (
-                  <ChecklistCard key={card.id} {...card} />
+                  <div
+                    key={card.id}
+                    className="contents"
+                    data-analytics-event="related_content_click"
+                    data-analytics-source-type="codes_sidebar"
+                    data-analytics-target-type="checklist"
+                    data-analytics-target-slug={card.slug}
+                  >
+                    <ChecklistCard {...card} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -1022,7 +1051,16 @@ export default async function GamePage({ params }: Params) {
               <h3 className="text-lg font-semibold text-foreground">Articles on {universeLabel}</h3>
               <div className="space-y-4">
                 {relatedArticles.slice(0, 3).map((item) => (
-                  <ArticleCard key={item.id} article={item} />
+                  <div
+                    key={item.id}
+                    className="contents"
+                    data-analytics-event="related_content_click"
+                    data-analytics-source-type="codes_sidebar"
+                    data-analytics-target-type="article"
+                    data-analytics-target-slug={item.slug}
+                  >
+                    <ArticleCard article={item} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -1033,7 +1071,16 @@ export default async function GamePage({ params }: Params) {
               <h3 className="text-lg font-semibold text-foreground">Tools for {universeLabel}</h3>
               <div className="space-y-4">
                 {relatedTools.map((tool) => (
-                  <ToolCard key={tool.id ?? tool.code} tool={tool} />
+                  <div
+                    key={tool.id ?? tool.code}
+                    className="contents"
+                    data-analytics-event="related_content_click"
+                    data-analytics-source-type="codes_sidebar"
+                    data-analytics-target-type="tool"
+                    data-analytics-target-slug={tool.code}
+                  >
+                    <ToolCard tool={tool} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -1089,7 +1136,16 @@ export default async function GamePage({ params }: Params) {
               </div>
               <div className="grid gap-4">
                 {suggestedCodes.map((g) => (
-                  <GameCard key={g.id} game={g} titleAs="p" articleUpdatedAt={g.content_updated_at} />
+                  <div
+                    key={g.id}
+                    className="contents"
+                    data-analytics-event="related_content_click"
+                    data-analytics-source-type="codes_sidebar"
+                    data-analytics-target-type="codes"
+                    data-analytics-target-slug={g.slug}
+                  >
+                    <GameCard game={g} titleAs="p" articleUpdatedAt={g.content_updated_at} />
+                  </div>
                 ))}
               </div>
             </>

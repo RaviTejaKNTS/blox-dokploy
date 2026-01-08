@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 type Theme = "light" | "dark";
 
@@ -42,6 +43,7 @@ export function ThemeToggle() {
     setTheme(next);
     applyTheme(next);
     window.localStorage.setItem(STORAGE_KEY, next);
+    trackEvent("theme_toggle", { theme: next });
   };
 
   const label = theme === "light" ? "Switch to dark mode" : "Switch to light mode";

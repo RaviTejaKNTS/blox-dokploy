@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useConsent } from "@/components/consent/ConsentProvider";
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 export function CookieSettingsContent() {
   const { state, acceptAll, rejectAll, updateConsent, requiresConsent } = useConsent();
@@ -16,6 +17,17 @@ export function CookieSettingsContent() {
 
   const saveChoices = () => {
     updateConsent({ analytics, marketing });
+    trackEvent("consent_update", { action: "save_choices", analytics, marketing });
+  };
+
+  const handleAcceptAll = () => {
+    acceptAll();
+    trackEvent("consent_update", { action: "accept_all", analytics: true, marketing: true });
+  };
+
+  const handleRejectAll = () => {
+    rejectAll();
+    trackEvent("consent_update", { action: "reject_all", analytics: false, marketing: false });
   };
 
   return (
@@ -32,14 +44,14 @@ export function CookieSettingsContent() {
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={acceptAll}
+          onClick={handleAcceptAll}
           className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 sm:w-auto"
         >
           Accept all
         </button>
         <button
           type="button"
-          onClick={rejectAll}
+          onClick={handleRejectAll}
           className="w-full rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
         >
           Reject non-essential
@@ -67,7 +79,11 @@ export function CookieSettingsContent() {
             type="checkbox"
             className="mt-1 h-4 w-4"
             checked={analytics}
-            onChange={(e) => setAnalytics(e.target.checked)}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setAnalytics(next);
+              trackEvent("consent_update", { action: "toggle_analytics", analytics: next, marketing });
+            }}
           />
           <div>
             <p className="font-semibold">Analytics</p>
@@ -82,7 +98,11 @@ export function CookieSettingsContent() {
             type="checkbox"
             className="mt-1 h-4 w-4"
             checked={marketing}
-            onChange={(e) => setMarketing(e.target.checked)}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setMarketing(next);
+              trackEvent("consent_update", { action: "toggle_marketing", analytics, marketing: next });
+            }}
           />
           <div>
             <p className="font-semibold">Ads/marketing</p>

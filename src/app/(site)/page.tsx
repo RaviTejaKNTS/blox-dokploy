@@ -343,14 +343,30 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Latest articles</h2>
-          <Link href="/articles" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/articles"
+            data-analytics-event="view_all_click"
+            data-analytics-section="articles"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all articles
           </Link>
         </div>
         {articleCards.length ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {articleCards.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+            {articleCards.map((article, index) => (
+              <div
+                key={article.id}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_latest_articles"
+                data-analytics-item-id={article.slug}
+                data-analytics-item-name={article.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="article"
+              >
+                <ArticleCard article={article} />
+              </div>
             ))}
           </div>
         ) : (
@@ -361,14 +377,30 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Events</h2>
-          <Link href="/events" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/events"
+            data-analytics-event="view_all_click"
+            data-analytics-section="events"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all events
           </Link>
         </div>
         {eventsCards.length ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {eventsCards.map(({ id, ...card }) => (
-              <EventsPageCard key={id} {...card} />
+            {eventsCards.map(({ id, ...card }, index) => (
+              <div
+                key={id}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_events"
+                data-analytics-item-id={card.slug}
+                data-analytics-item-name={card.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="event"
+              >
+                <EventsPageCard {...card} />
+              </div>
             ))}
           </div>
         ) : (
@@ -379,14 +411,30 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Catalogs</h2>
-          <Link href="/catalog" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/catalog"
+            data-analytics-event="view_all_click"
+            data-analytics-section="catalogs"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all catalogs
           </Link>
         </div>
         {catalogCards.length ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {catalogCards.map(({ id, ...card }) => (
-              <CatalogCard key={id} {...card} />
+            {catalogCards.map(({ id, ...card }, index) => (
+              <div
+                key={id}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_catalogs"
+                data-analytics-item-id={id}
+                data-analytics-item-name={card.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="catalog"
+              >
+                <CatalogCard {...card} />
+              </div>
             ))}
           </div>
         ) : (
@@ -397,14 +445,30 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Checklists</h2>
-          <Link href="/checklists" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/checklists"
+            data-analytics-event="view_all_click"
+            data-analytics-section="checklists"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all checklists
           </Link>
         </div>
         {checklistCards.length ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {checklistCards.map((card) => (
-              <ChecklistCard key={card.id} {...card} />
+            {checklistCards.map((card, index) => (
+              <div
+                key={card.id}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_checklists"
+                data-analytics-item-id={card.slug}
+                data-analytics-item-name={card.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="checklist"
+              >
+                <ChecklistCard {...card} />
+              </div>
             ))}
           </div>
         ) : (
@@ -415,14 +479,30 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Tools and calculators</h2>
-          <Link href="/tools" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/tools"
+            data-analytics-event="view_all_click"
+            data-analytics-section="tools"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all tools
           </Link>
         </div>
         {toolCards.length ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {toolCards.map((tool) => (
-              <ToolCard key={tool.id ?? tool.code} tool={tool} />
+            {toolCards.map((tool, index) => (
+              <div
+                key={tool.id ?? tool.code}
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_tools"
+                data-analytics-item-id={tool.code}
+                data-analytics-item-name={tool.title}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="tool"
+              >
+                <ToolCard tool={tool} />
+              </div>
             ))}
           </div>
         ) : (
@@ -433,13 +513,29 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Latest codes</h2>
-          <Link href="/codes" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/codes"
+            data-analytics-event="view_all_click"
+            data-analytics-section="codes"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all codes
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {featuredGames.map(({ data: game, articleUpdatedAt }, index) => (
-            <GameCard key={game.id} game={game} priority={index === 0} articleUpdatedAt={articleUpdatedAt} />
+            <div
+              key={game.id}
+              className="contents"
+              data-analytics-event="select_item"
+              data-analytics-item-list-name="home_latest_codes"
+              data-analytics-item-id={game.slug}
+              data-analytics-item-name={game.name}
+              data-analytics-position={index + 1}
+              data-analytics-content-type="codes"
+            >
+              <GameCard game={game} priority={index === 0} articleUpdatedAt={articleUpdatedAt} />
+            </div>
           ))}
         </div>
       </section>
@@ -447,22 +543,37 @@ export default async function HomePage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Game lists</h2>
-          <Link href="/lists" className="text-sm font-semibold text-accent underline-offset-2 hover:underline">
+          <Link
+            href="/lists"
+            data-analytics-event="view_all_click"
+            data-analytics-section="lists"
+            className="text-sm font-semibold text-accent underline-offset-2 hover:underline"
+          >
             View all lists
           </Link>
         </div>
         {listCards.length ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {listCards.map((card) => (
-              <ListCard
+            {listCards.map((card, index) => (
+              <div
                 key={card.id}
-                displayName={card.displayName}
-                title={card.title}
-                slug={card.slug}
-                coverImage={card.coverImage}
-                updatedAt={card.updatedAt}
-                itemsCount={card.itemsCount}
-              />
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="home_lists"
+                data-analytics-item-id={card.slug}
+                data-analytics-item-name={card.displayName}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="list"
+              >
+                <ListCard
+                  displayName={card.displayName}
+                  title={card.title}
+                  slug={card.slug}
+                  coverImage={card.coverImage}
+                  updatedAt={card.updatedAt}
+                  itemsCount={card.itemsCount}
+                />
+              </div>
             ))}
           </div>
         ) : (

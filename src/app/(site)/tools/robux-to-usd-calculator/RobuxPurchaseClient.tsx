@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import "@/styles/article-content.css";
+import { trackEvent } from "@/lib/analytics";
 import { RobuxBundle } from "./robux-bundles";
 import {
   BudgetPlan,
@@ -153,7 +154,17 @@ export function RobuxPurchaseClient({
 
       {mode === "robux_to_usd" ? (
         <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
-          <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); setTargetRobuxInput(targetRobuxInput.trim()); }} className="panel space-y-5 p-6">
+          <form
+            onSubmit={(e: FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              setTargetRobuxInput(targetRobuxInput.trim());
+              trackEvent("calculator_input_commit", {
+                tool_code: "robux-to-usd-calculator",
+                target_robux: Number(targetRobuxInput)
+              });
+            }}
+            className="panel space-y-5 p-6"
+          >
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-foreground">Robux to USD</h2>
             </div>
@@ -258,7 +269,17 @@ export function RobuxPurchaseClient({
         </section>
       ) : (
         <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
-          <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); setTargetUsdInput(targetUsdInput.trim()); }} className="panel space-y-5 p-6">
+          <form
+            onSubmit={(e: FormEvent<HTMLFormElement>) => {
+              e.preventDefault();
+              setTargetUsdInput(targetUsdInput.trim());
+              trackEvent("calculator_input_commit", {
+                tool_code: "robux-to-usd-calculator",
+                target_usd: Number(targetUsdInput)
+              });
+            }}
+            className="panel space-y-5 p-6"
+          >
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-foreground">USD to Robux</h2>
             </div>

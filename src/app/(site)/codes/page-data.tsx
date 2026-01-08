@@ -85,12 +85,22 @@ function CodesPageView({
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {games.map((game, index) => (
-              <GameCard
+              <div
                 key={game.id}
-                game={game}
-                priority={showHero && index < 2}
-                articleUpdatedAt={game.content_updated_at ?? game.updated_at ?? null}
-              />
+                className="contents"
+                data-analytics-event="select_item"
+                data-analytics-item-list-name="codes_index"
+                data-analytics-item-id={game.slug}
+                data-analytics-item-name={game.name}
+                data-analytics-position={index + 1}
+                data-analytics-content-type="codes"
+              >
+                <GameCard
+                  game={game}
+                  priority={showHero && index < 2}
+                  articleUpdatedAt={game.content_updated_at ?? game.updated_at ?? null}
+                />
+              </div>
             ))}
           </div>
         )}

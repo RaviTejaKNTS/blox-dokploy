@@ -56,8 +56,19 @@ export default async function EventsIndexPage() {
 
       {cards.length ? (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map(({ id, ...card }) => (
-            <EventsPageCard key={id} {...card} />
+          {cards.map(({ id, ...card }, index) => (
+            <div
+              key={id}
+              className="contents"
+              data-analytics-event="select_item"
+              data-analytics-item-list-name="events_index"
+              data-analytics-item-id={card.slug}
+              data-analytics-item-name={card.title}
+              data-analytics-position={index + 1}
+              data-analytics-content-type="event"
+            >
+              <EventsPageCard {...card} />
+            </div>
           ))}
         </div>
       ) : (

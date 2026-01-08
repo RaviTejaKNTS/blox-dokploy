@@ -5,11 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { FiCheckCircle, FiClock, FiKey } from "react-icons/fi";
 import type { Code } from "@/lib/db";
 import { cleanRewardsText, isCodeWithinNewThreshold } from "@/lib/code-utils";
+import { trackEvent } from "@/lib/analytics";
 import { CopyCodeButton } from "./CopyCodeButton";
 
 type Props = {
   codes: Code[];
   gameName: string;
+  gameSlug: string;
   lastUpdatedLabel: string;
   lastCheckedLabel: string;
   lastCheckedRelativeLabel?: string | null;
@@ -31,6 +33,7 @@ function normalizeCoverImage(coverImage?: string | null): string | null {
 export function ActiveCodes({
   codes,
   gameName,
+  gameSlug,
   lastUpdatedLabel,
   lastCheckedLabel,
   lastCheckedRelativeLabel,
@@ -83,6 +86,7 @@ export function ActiveCodes({
   const normalizedCover = normalizeCoverImage(coverImage);
 
   function toggleUsed(code: string) {
+    const nextUsed = !usedCodes.has(code);
     setUsedCodes((prev) => {
       const next = new Set(prev);
       if (next.has(code)) {
@@ -92,6 +96,7 @@ export function ActiveCodes({
       }
       return next;
     });
+    trackEvent("code_mark_used", { game_slug: gameSlug, code, used: nextUsed });
   }
 
   return (
@@ -214,7 +219,19 @@ export function ActiveCodes({
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 pl-14 sm:pl-0 sm:justify-end sm:gap-3 sm:[&>*]:whitespace-nowrap">
-                      <CopyCodeButton code={code.code} tone="accent" />
+                      <CopyCodeButton
+                        code={code.code}
+                        tone="accent"
+                        analytics={{
+                          event: "copy_code",
+                          params: {
+                            game_slug: gameSlug,
+                            code: code.code,
+                            is_new: code.isNew,
+                            status: "active"
+                          }
+                        }}
+                      />
                       {code.addedAtLabel ? (
                         <span className="text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted">
                           Added {code.addedAtLabel}
