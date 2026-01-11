@@ -899,14 +899,6 @@ export default async function GamePage({ params }: Params) {
               </section>
             ) : null}
 
-            {aboutHtml ? (
-              <section className="mb-8" id="about-game">
-                <div
-                  className="prose dark:prose-invert max-w-none game-copy"
-                  dangerouslySetInnerHTML={processHtmlLinks(aboutHtml)}
-                />
-              </section>
-            ) : null}
           </>
         ) : descriptionHtml ? (
           <section className="mb-8 space-y-4" id="description">
