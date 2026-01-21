@@ -335,7 +335,7 @@ export function ForgeInventoryOptimizerClient({
                                                             }
                                                         }}
                                                         placeholder="0"
-                                                        className="flex-1 h-7 min-w-0 px-2 bg-transparent text-foreground text-sm font-semibold text-center focus:outline-none"
+                                                        className="flex-1 h-7 min-w-0 px-2 bg-transparent text-foreground text-sm font-semibold text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                     />
                                                     <button
                                                         type="button"
