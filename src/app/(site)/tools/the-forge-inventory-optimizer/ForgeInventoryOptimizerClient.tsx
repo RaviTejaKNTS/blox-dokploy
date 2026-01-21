@@ -17,7 +17,7 @@ export function ForgeInventoryOptimizerClient({
     armorPieces: ArmorPiece[];
 }) {
     const [inventory, setInventory] = useState<Record<string, number>>({});
-    const [optimizationGoal, setOptimizationGoal] = useState<OptimizationGoal>("weapon_focus");
+    const [optimizationGoal, setOptimizationGoal] = useState<OptimizationGoal>("all_items");
     const [searchTerm, setSearchTerm] = useState("");
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -154,17 +154,58 @@ export function ForgeInventoryOptimizerClient({
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex-1 min-w-[200px]">
                             <label className="block text-sm font-semibold text-foreground mb-2">Optimization Goal</label>
-                            <select
-                                value={optimizationGoal}
-                                onChange={(e) => setOptimizationGoal(e.target.value as OptimizationGoal)}
-                                className="w-full px-3 py-2 rounded-lg border border-border/60 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-                            >
-                                <option value="weapon_focus">Weapon Focus</option>
-                                <option value="armor_focus">Armor Focus</option>
-                                <option value="all_items">All Items</option>
-                                <option value="common_ores">Common Ores Only</option>
-                                <option value="trait_priority">Trait Priority</option>
-                            </select>
+                            <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
+                                <button
+                                    type="button"
+                                    onClick={() => setOptimizationGoal("weapon_focus")}
+                                    className={cn(
+                                        "px-4 py-2 transition",
+                                        optimizationGoal === "weapon_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                    )}
+                                >
+                                    Weapon Focus
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setOptimizationGoal("armor_focus")}
+                                    className={cn(
+                                        "px-4 py-2 transition",
+                                        optimizationGoal === "armor_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                    )}
+                                >
+                                    Armor Focus
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setOptimizationGoal("all_items")}
+                                    className={cn(
+                                        "px-4 py-2 transition",
+                                        optimizationGoal === "all_items" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                    )}
+                                >
+                                    All Items
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setOptimizationGoal("common_ores")}
+                                    className={cn(
+                                        "px-4 py-2 transition",
+                                        optimizationGoal === "common_ores" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                    )}
+                                >
+                                    Common Ores
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setOptimizationGoal("trait_priority")}
+                                    className={cn(
+                                        "px-4 py-2 transition",
+                                        optimizationGoal === "trait_priority" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                    )}
+                                >
+                                    Trait Priority
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -263,14 +304,50 @@ export function ForgeInventoryOptimizerClient({
                                                 )}
                                                 <p className="text-xs font-semibold text-foreground text-center truncate">{ore.name}</p>
                                                 <p className="text-[10px] text-muted text-center">{ore.multiplier.toFixed(2)}x</p>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={inventory[ore.id] || ""}
-                                                    onChange={(e) => updateInventory(ore.id, e.target.value)}
-                                                    placeholder="0"
-                                                    className="w-full px-2 py-1 rounded border border-border/60 bg-background text-foreground text-xs text-center focus:outline-none focus:ring-1 focus:ring-accent/40"
-                                                />
+                                                <div className="flex items-stretch rounded-md border border-border/60 overflow-hidden bg-background transition-all focus-within:ring-2 focus-within:ring-accent/50 focus-within:border-accent">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = inventory[ore.id] || 0;
+                                                            if (current > 0) {
+                                                                updateInventory(ore.id, String(current - 1));
+                                                            }
+                                                        }}
+                                                        disabled={!inventory[ore.id] || inventory[ore.id] === 0}
+                                                        className={cn(
+                                                            "w-7 h-7 flex items-center justify-center text-base font-bold transition-colors border-r border-border/40",
+                                                            (!inventory[ore.id] || inventory[ore.id] === 0)
+                                                                ? "text-muted/40 cursor-not-allowed bg-surface/50"
+                                                                : "text-foreground hover:bg-accent hover:text-white active:bg-accent-dark"
+                                                        )}
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
+                                                        value={inventory[ore.id] || ""}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value === "" || /^\d+$/.test(value)) {
+                                                                updateInventory(ore.id, value);
+                                                            }
+                                                        }}
+                                                        placeholder="0"
+                                                        className="flex-1 h-7 min-w-0 px-2 bg-transparent text-foreground text-sm font-semibold text-center focus:outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = inventory[ore.id] || 0;
+                                                            updateInventory(ore.id, String(current + 1));
+                                                        }}
+                                                        className="w-7 h-7 flex items-center justify-center text-base font-bold text-foreground transition-colors border-l border-border/40 hover:bg-accent hover:text-white active:bg-accent-dark"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
