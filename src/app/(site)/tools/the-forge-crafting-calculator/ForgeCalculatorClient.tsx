@@ -362,77 +362,77 @@ export function ForgeCalculatorClient({
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1.2fr)_minmax(0,1.5fr)]">
-        <section className="panel space-y-4 p-4">
+        <section className="panel flex h-[88vh] flex-col space-y-4 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Forge chances</p>
               <p className="text-xs text-muted">{isReady ? `${totalCount} ores in mix` : "Add at least 3 ores"}</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
             {mode === "weapon"
               ? weaponResults.classProbabilities.map((entry) => {
-                  const items = weaponResults.weapons
-                    .filter((w) => w.weapon.class === entry.class)
-                    .sort((a, b) => b.probability - a.probability);
+                const items = weaponResults.weapons
+                  .filter((w) => w.weapon.class === entry.class)
+                  .sort((a, b) => b.probability - a.probability);
 
-                  return (
-                    <ProbabilityRow
-                      key={entry.class}
-                      label={entry.class}
-                      probability={isReady ? entry.probability : 0}
-                      hint={`Min ${entry.minOre} ores · optimal ${entry.optimalOre}`}
-                    >
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {items.map((item) => (
-                          <span
-                            key={item.weapon.id}
-                            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-foreground"
-                          >
-                            <span>{item.weapon.name}</span>
-                            <span className="rounded-full bg-surface px-2 py-[1px] text-[10px] font-semibold text-muted">
-                              {formatPercent(isReady ? item.probability : 0)}
-                            </span>
+                return (
+                  <ProbabilityRow
+                    key={entry.class}
+                    label={entry.class}
+                    probability={isReady ? entry.probability : 0}
+                    hint={`Min ${entry.minOre} ores · optimal ${entry.optimalOre}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {items.map((item) => (
+                        <span
+                          key={item.weapon.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-foreground"
+                        >
+                          <span>{item.weapon.name}</span>
+                          <span className="rounded-full bg-surface px-2 py-[1px] text-[10px] font-semibold text-muted">
+                            {formatPercent(isReady ? item.probability : 0)}
                           </span>
-                        ))}
-                      </div>
-                    </ProbabilityRow>
-                  );
-                })
+                        </span>
+                      ))}
+                    </div>
+                  </ProbabilityRow>
+                );
+              })
               : filteredPieceProbabilities.map((entry) => {
-                  const items = filteredArmor
-                    .filter((piece) => piece.anchorKey === entry.key)
-                    .sort((a, b) => b.probability - a.probability);
+                const items = filteredArmor
+                  .filter((piece) => piece.anchorKey === entry.key)
+                  .sort((a, b) => b.probability - a.probability);
 
-                  return (
-                    <ProbabilityRow
-                      key={entry.key}
-                      label={`${entry.weightGroup} ${entry.slot}`}
-                      probability={isReady ? entry.probability : 0}
-                      hint={`Min ${entry.minOre} ores · optimal ${entry.optimalOre}`}
-                    >
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {items.map((item) => (
-                          <span
-                            key={item.armor.id}
-                            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-foreground"
-                          >
-                            <span>{item.armor.name}</span>
-                            <span className="rounded-full bg-surface px-2 py-[1px] text-[10px] font-semibold text-muted">
-                              {formatPercent(isReady ? item.probability : 0)}
-                            </span>
+                return (
+                  <ProbabilityRow
+                    key={entry.key}
+                    label={`${entry.weightGroup} ${entry.slot}`}
+                    probability={isReady ? entry.probability : 0}
+                    hint={`Min ${entry.minOre} ores · optimal ${entry.optimalOre}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {items.map((item) => (
+                        <span
+                          key={item.armor.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-foreground"
+                        >
+                          <span>{item.armor.name}</span>
+                          <span className="rounded-full bg-surface px-2 py-[1px] text-[10px] font-semibold text-muted">
+                            {formatPercent(isReady ? item.probability : 0)}
                           </span>
-                        ))}
-                      </div>
-                    </ProbabilityRow>
-                  );
-                })}
+                        </span>
+                      ))}
+                    </div>
+                  </ProbabilityRow>
+                );
+              })}
           </div>
           <p className="text-xs text-muted">{approximationNote}</p>
         </section>
 
-        <section className="space-y-6">
-          <div className="panel space-y-4 p-4">
+        <section className="panel flex h-[88vh] flex-col space-y-4 p-4">
+          <div className="flex-shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Composition</p>
@@ -447,30 +447,9 @@ export function ForgeCalculatorClient({
                 </span>
               ) : null}
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-surface-muted px-3 py-2 text-xs">
-              <label htmlFor="quality-tier" className="text-xs font-semibold text-foreground">
-                Quality tier
-              </label>
-              <select
-                id="quality-tier"
-                value={qualityTier}
-                onChange={(event) => {
-                  const next = event.target.value as QualityTier;
-                  setQualityTier(next);
-                  trackForgeInteraction("toggle", `quality:${next}`, mode, next);
-                }}
-                className="rounded-lg border border-border/60 bg-surface px-2 py-1 text-xs font-semibold text-foreground"
-              >
-                {QUALITY_TIERS.map((tier) => (
-                  <option key={tier.tier} value={tier.tier}>
-                    {tier.tier} ({tier.multiplier.toFixed(2)}x)
-                  </option>
-                ))}
-              </select>
-              <span className="text-[11px] text-muted">Quality bonus from minigame performance (does not affect odds).</span>
-            </div>
-
+          <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
             <div className="space-y-3">
               {composition.length ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -545,7 +524,7 @@ export function ForgeCalculatorClient({
           </div>
         </section>
 
-        <section className="panel flex h-[80vh] flex-col space-y-4 p-4">
+        <section className="panel flex h-[88vh] flex-col space-y-4 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Ores & traits</p>
