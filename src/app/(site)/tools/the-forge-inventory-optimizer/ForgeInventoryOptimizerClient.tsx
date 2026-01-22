@@ -154,57 +154,59 @@ export function ForgeInventoryOptimizerClient({
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="w-full">
                             <label className="block text-sm font-semibold text-foreground mb-2">Optimization Goal</label>
-                            <div className="flex flex-col sm:inline-flex sm:flex-row overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
-                                <button
-                                    type="button"
-                                    onClick={() => setOptimizationGoal("weapon_focus")}
-                                    className={cn(
-                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center",
-                                        optimizationGoal === "weapon_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
-                                    )}
-                                >
-                                    Weapon Focus
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setOptimizationGoal("armor_focus")}
-                                    className={cn(
-                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
-                                        optimizationGoal === "armor_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
-                                    )}
-                                >
-                                    Armor Focus
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setOptimizationGoal("all_items")}
-                                    className={cn(
-                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
-                                        optimizationGoal === "all_items" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
-                                    )}
-                                >
-                                    All Items
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setOptimizationGoal("common_ores")}
-                                    className={cn(
-                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
-                                        optimizationGoal === "common_ores" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
-                                    )}
-                                >
-                                    Common Ores
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setOptimizationGoal("trait_priority")}
-                                    className={cn(
-                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
-                                        optimizationGoal === "trait_priority" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
-                                    )}
-                                >
-                                    Trait Priority
-                                </button>
+                            <div className="overflow-x-auto overflow-y-hidden">
+                                <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOptimizationGoal("weapon_focus")}
+                                        className={cn(
+                                            "px-3 sm:px-4 py-2 transition whitespace-nowrap text-xs sm:text-sm",
+                                            optimizationGoal === "weapon_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                        )}
+                                    >
+                                        Weapon
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOptimizationGoal("armor_focus")}
+                                        className={cn(
+                                            "px-3 sm:px-4 py-2 transition whitespace-nowrap text-xs sm:text-sm",
+                                            optimizationGoal === "armor_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                        )}
+                                    >
+                                        Armor
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOptimizationGoal("all_items")}
+                                        className={cn(
+                                            "px-3 sm:px-4 py-2 transition whitespace-nowrap text-xs sm:text-sm",
+                                            optimizationGoal === "all_items" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                        )}
+                                    >
+                                        All
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOptimizationGoal("common_ores")}
+                                        className={cn(
+                                            "px-3 sm:px-4 py-2 transition whitespace-nowrap text-xs sm:text-sm",
+                                            optimizationGoal === "common_ores" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                        )}
+                                    >
+                                        Common
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOptimizationGoal("trait_priority")}
+                                        className={cn(
+                                            "px-3 sm:px-4 py-2 transition whitespace-nowrap text-xs sm:text-sm",
+                                            optimizationGoal === "trait_priority" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
+                                        )}
+                                    >
+                                        Traits
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
