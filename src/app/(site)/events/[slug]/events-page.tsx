@@ -39,6 +39,8 @@ type UniverseSummary = {
   display_name: string | null;
   name: string | null;
   icon_url: string | null;
+  creator_name: string | null;
+  creator_type: string | null;
 };
 
 type EventsPageRow = {
@@ -333,7 +335,7 @@ export async function loadEventsPage(slug: string): Promise<EventsPageRow | null
   const { data, error } = await sb
     .from("events_pages")
     .select(
-      "id, universe_id, slug, title, content_md, seo_title, meta_description, author_id, is_published, published_at, created_at, updated_at, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id, display_name, name, icon_url)"
+      "id, universe_id, slug, title, content_md, seo_title, meta_description, author_id, is_published, published_at, created_at, updated_at, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id, display_name, name, icon_url, creator_name, creator_type)"
     )
     .eq("slug", normalized)
     .eq("is_published", true)
@@ -817,11 +819,11 @@ export async function renderEventsPage({ slug }: { slug: string }) {
   const updatedDate = typeof updatedTimestamp === "number" ? new Date(updatedTimestamp) : null;
   const formattedUpdated = updatedDate
     ? updatedDate.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: PT_TIME_ZONE
-      })
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: PT_TIME_ZONE
+    })
     : null;
   const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
   const authorAvatar = page.author ? authorAvatarUrl(page.author, 72) : null;
@@ -880,10 +882,10 @@ export async function renderEventsPage({ slug }: { slug: string }) {
       const isOrgHost = hostType ? ["group", "studio", "organization"].some((value) => hostType.includes(value)) : false;
       const organizer = hostName
         ? {
-            "@type": isOrgHost ? "Organization" : "Person",
-            name: hostName,
-            ...(event.host_id ? { identifier: event.host_id } : {})
-          }
+          "@type": isOrgHost ? "Organization" : "Person",
+          name: hostName,
+          ...(event.host_id ? { identifier: event.host_id } : {})
+        }
         : null;
       const imageCandidate = getPrimaryThumbnailUrl(event) ?? coverImage;
       const imageUrl = resolveImageUrl(imageCandidate) ?? coverImage;
@@ -926,17 +928,17 @@ export async function renderEventsPage({ slug }: { slug: string }) {
     },
     author: page.author
       ? {
-          "@type": "Person",
-          name: page.author.name,
-          ...(authorProfileUrl ? { url: authorProfileUrl } : {}),
-          ...(authorBioPlain ? { description: authorBioPlain } : {}),
-          ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
-        }
+        "@type": "Person",
+        name: page.author.name,
+        ...(authorProfileUrl ? { url: authorProfileUrl } : {}),
+        ...(authorBioPlain ? { description: authorBioPlain } : {}),
+        ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
+      }
       : {
-          "@type": "Organization",
-          name: SITE_NAME,
-          url: SITE_URL
-        },
+        "@type": "Organization",
+        name: SITE_NAME,
+        url: SITE_URL
+      },
     publisher: {
       "@id": `${SITE_URL.replace(/\/$/, "")}/#organization`
     },
@@ -948,16 +950,16 @@ export async function renderEventsPage({ slug }: { slug: string }) {
 
   const eventListSchema = schemaEvents.length
     ? JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "ItemList",
-        name: `${universeLabel} events`,
-        numberOfItems: schemaEvents.length,
-        itemListElement: schemaEvents.map((event, index) => ({
-          "@type": "ListItem",
-          position: index + 1,
-          item: event
-        }))
-      })
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: `${universeLabel} events`,
+      numberOfItems: schemaEvents.length,
+      itemListElement: schemaEvents.map((event, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        item: event
+      }))
+    })
     : null;
 
   const breadcrumbData = JSON.stringify(
@@ -1064,36 +1066,76 @@ export async function renderEventsPage({ slug }: { slug: string }) {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-muted/60 p-6">
-                <div className="prose dark:prose-invert game-copy max-w-none">
-                  <p>No upcoming events are listed yet.</p>
-                </div>
+              <div className="prose dark:prose-invert game-copy max-w-none">
+                {(() => {
+                  // Get the last known event (current or most recent past event)
+                  const lastEvent = currentEvents.length > 0
+                    ? currentEvents[0]
+                    : pastEvents.length > 0
+                      ? pastEvents[0]
+                      : null;
+
+                  // Get developer name from universe creator
+                  const creatorName = page.universe?.creator_name;
+                  const creatorType = page.universe?.creator_type?.toLowerCase();
+                  const developerName = creatorName
+                    ? (creatorType === 'group' ? `${creatorName} group` : creatorName)
+                    : "the developer";
+
+                  if (!lastEvent) {
+                    return (
+                      <p>
+                        However, {developerName} has not announced any new details on upcoming events yet.
+                        We update this page as soon as the developer announces a new event. So stay updated.
+                      </p>
+                    );
+                  }
+
+                  const eventName = getEventDisplayName(lastEvent);
+                  const isCurrentlyRunning = currentEvents.length > 0;
+
+                  if (isCurrentlyRunning) {
+                    const startDatePT = formatPtLongDateTime(lastEvent.start_utc);
+                    return (
+                      <p>
+                        However, {developerName} has not announced any new details on upcoming events.
+                        The last known event was <strong>{eventName}</strong> which started on{' '}
+                        {startDatePT ? <strong>{startDatePT}</strong> : <strong>an unspecified date</strong>} and is still running.
+                        You can check the details below.
+                      </p>
+                    );
+                  } else {
+                    const endDatePT = formatPtLongDateTime(lastEvent.end_utc);
+                    return (
+                      <p>
+                        However, {developerName} has not announced any new details on upcoming events.
+                        The last known event was <strong>{eventName}</strong> which ended on{' '}
+                        {endDatePT ? <strong>{endDatePT}</strong> : <strong>an unspecified date</strong>}.
+                        We update this page as soon as the developer announces a new event. So stay updated.
+                      </p>
+                    );
+                  }
+                })()}
               </div>
             )}
           </section>
 
-          <section className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
-                <h2 className="text-[2rem] font-semibold leading-[1.15] text-foreground">Current events</h2>
+          {currentEvents.length > 0 ? (
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">Live now</p>
+                  <h2 className="text-[2rem] font-semibold leading-[1.15] text-foreground">Current events</h2>
+                </div>
+                <span className="text-xs text-muted">{currentEvents.length} active</span>
               </div>
-              <span className="text-xs text-muted">{currentEvents.length} active</span>
-            </div>
-            {currentEvents.length ? (
               <div className="space-y-6">
                 {currentEvents.map((event) => (
                   <CurrentEventCard key={event.event_id} event={event} />
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-surface-muted/60 p-6">
-                <div className="prose dark:prose-invert game-copy max-w-none">
-                  <p>No current events listed right now.</p>
-                </div>
-              </div>
-            )}
-          </section>
+            </section>
+          ) : null}
 
           <section className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
