@@ -152,14 +152,14 @@ export function ForgeInventoryOptimizerClient({
                 {/* Optimization Goal */}
                 <div className="panel p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex-1 min-w-[200px]">
+                        <div className="w-full">
                             <label className="block text-sm font-semibold text-foreground mb-2">Optimization Goal</label>
-                            <div className="inline-flex overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
+                            <div className="flex flex-col sm:inline-flex sm:flex-row overflow-hidden rounded-full border border-border/70 bg-surface text-sm font-semibold shadow-soft">
                                 <button
                                     type="button"
                                     onClick={() => setOptimizationGoal("weapon_focus")}
                                     className={cn(
-                                        "px-4 py-2 transition",
+                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center",
                                         optimizationGoal === "weapon_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
                                     )}
                                 >
@@ -169,7 +169,7 @@ export function ForgeInventoryOptimizerClient({
                                     type="button"
                                     onClick={() => setOptimizationGoal("armor_focus")}
                                     className={cn(
-                                        "px-4 py-2 transition",
+                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
                                         optimizationGoal === "armor_focus" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
                                     )}
                                 >
@@ -179,7 +179,7 @@ export function ForgeInventoryOptimizerClient({
                                     type="button"
                                     onClick={() => setOptimizationGoal("all_items")}
                                     className={cn(
-                                        "px-4 py-2 transition",
+                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
                                         optimizationGoal === "all_items" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
                                     )}
                                 >
@@ -189,7 +189,7 @@ export function ForgeInventoryOptimizerClient({
                                     type="button"
                                     onClick={() => setOptimizationGoal("common_ores")}
                                     className={cn(
-                                        "px-4 py-2 transition",
+                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
                                         optimizationGoal === "common_ores" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
                                     )}
                                 >
@@ -199,7 +199,7 @@ export function ForgeInventoryOptimizerClient({
                                     type="button"
                                     onClick={() => setOptimizationGoal("trait_priority")}
                                     className={cn(
-                                        "px-4 py-2 transition",
+                                        "px-4 py-2.5 sm:py-2 transition text-left sm:text-center border-t sm:border-t-0 sm:border-l border-border/20",
                                         optimizationGoal === "trait_priority" ? "bg-accent text-white dark:bg-accent-dark" : "text-foreground hover:bg-surface-muted"
                                     )}
                                 >
@@ -211,7 +211,7 @@ export function ForgeInventoryOptimizerClient({
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={importInventory}
-                                className="px-4 py-2 rounded-lg border border-border/60 bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted transition"
+                                className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-border/60 bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted transition"
                             >
                                 Import
                             </button>
@@ -219,7 +219,7 @@ export function ForgeInventoryOptimizerClient({
                                 onClick={exportInventory}
                                 disabled={inventoryEntries.length === 0}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg border border-border/60 bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted transition",
+                                    "flex-1 sm:flex-none px-4 py-2 rounded-lg border border-border/60 bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted transition",
                                     inventoryEntries.length === 0 && "opacity-50 cursor-not-allowed"
                                 )}
                             >
@@ -229,7 +229,7 @@ export function ForgeInventoryOptimizerClient({
                                 onClick={clearInventory}
                                 disabled={inventoryEntries.length === 0}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg bg-red-500/10 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/20 transition",
+                                    "flex-1 sm:flex-none px-4 py-2 rounded-lg bg-red-500/10 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/20 transition",
                                     inventoryEntries.length === 0 && "opacity-50 cursor-not-allowed"
                                 )}
                             >
@@ -360,7 +360,7 @@ export function ForgeInventoryOptimizerClient({
 
             {/* Right Panel - 1/3 width */}
             <div className="lg:col-span-1">
-                <div className="panel p-4 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                <div className="panel p-4 lg:sticky lg:top-4 max-h-none lg:max-h-[calc(100vh-2rem)] overflow-y-auto">
                     <h2 className="text-lg font-semibold text-foreground mb-1">Best Crafts</h2>
                     <p className="text-xs text-muted mb-4">
                         {inventoryEntries.length > 0 ? `Top ${suggestions.length} recommendations · ${optimizationGoal.replace(/_/g, " ")}` : "Add ores to get suggestions"}
