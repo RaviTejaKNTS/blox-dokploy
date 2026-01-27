@@ -1687,7 +1687,7 @@ create table if not exists public.roblox_catalog_items (
   creator_type text,
   creator_has_verified_badge boolean,
   product_id bigint,
-  collectible_item_id bigint,
+  collectible_item_id text,
   favorite_count bigint,
   has_resellers boolean,
   total_quantity bigint,
@@ -1705,7 +1705,31 @@ create table if not exists public.roblox_catalog_items (
   raw_catalog_json jsonb not null default '{}'::jsonb,
   raw_economy_json jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- Trading/RAP data from Roblox Economy API
+  rap bigint,
+  rap_sales integer,
+  rap_stock integer,
+  rap_price_points jsonb default '[]'::jsonb,
+  rap_volume_points jsonb default '[]'::jsonb,
+  rap_last_fetched timestamptz,
+  -- Type distinction and UGC support
+  limited_type text check (limited_type in ('classic', 'ugc')),
+  -- Calculated trading metrics
+  trading_value bigint,
+  trading_value_confidence integer check (trading_value_confidence >= 0 and trading_value_confidence <= 100),
+  trend_direction text check (trend_direction in ('rising', 'stable', 'falling')),
+  trend_strength integer check (trend_strength >= 0 and trend_strength <= 100),
+  trend_change_7d numeric,
+  trend_change_30d numeric,
+  demand_level text check (demand_level in ('amazing', 'popular', 'normal', 'terrible')),
+  demand_score integer check (demand_score >= 0 and demand_score <= 100),
+  demand_sales_per_day numeric,
+  demand_consistency integer check (demand_consistency >= 0 and demand_consistency <= 100),
+  is_projected boolean default false,
+  projected_confidence integer check (projected_confidence >= 0 and projected_confidence <= 100),
+  projected_reason text,
+  trading_metrics_calculated_at timestamptz
 );
 
 create index if not exists idx_roblox_catalog_items_category
@@ -1724,6 +1748,29 @@ create index if not exists idx_roblox_catalog_items_is_for_sale
   on public.roblox_catalog_items (is_for_sale);
 create index if not exists idx_roblox_catalog_items_is_limited
   on public.roblox_catalog_items (is_limited);
+
+-- Trading data indexes
+create index if not exists idx_roblox_catalog_items_limited_tradeable
+  on public.roblox_catalog_items (is_limited, is_limited_unique, trading_value desc nulls last)
+  where (is_limited = true or is_limited_unique = true) and trading_value is not null;
+create index if not exists idx_roblox_catalog_items_trading_value
+  on public.roblox_catalog_items (trading_value desc nulls last)
+  where is_limited = true or is_limited_unique = true;
+create index if not exists idx_roblox_catalog_items_rap
+  on public.roblox_catalog_items (rap desc nulls last)
+  where is_limited = true or is_limited_unique = true;
+create index if not exists idx_roblox_catalog_items_demand_level
+  on public.roblox_catalog_items (demand_level, trading_value desc nulls last)
+  where is_limited = true or is_limited_unique = true;
+create index if not exists idx_roblox_catalog_items_trend_direction
+  on public.roblox_catalog_items (trend_direction, trading_value desc nulls last)
+  where is_limited = true or is_limited_unique = true;
+create index if not exists idx_roblox_catalog_items_projected
+  on public.roblox_catalog_items (is_projected, trading_value desc nulls last)
+  where is_limited = true or is_limited_unique = true;
+create index if not exists idx_roblox_catalog_items_rap_last_fetched
+  on public.roblox_catalog_items (rap_last_fetched desc nulls last)
+  where is_limited = true or is_limited_unique = true;
 
 create trigger trg_roblox_catalog_items_updated_at
 before update on public.roblox_catalog_items
@@ -1850,6 +1897,88 @@ create trigger trg_roblox_catalog_refresh_queue_updated_at
 before update on public.roblox_catalog_refresh_queue
 for each row
 execute function public.set_updated_at();
+
+-- Catalog items history table for tracking changes over time
+create table if not exists public.roblox_catalog_items_history (
+  asset_id bigint not null references public.roblox_catalog_items(asset_id) on delete cascade,
+  recorded_at timestamptz not null default now(),
+  rap bigint,
+  sales integer,
+  price_robux bigint,
+  is_for_sale boolean,
+  favorite_count bigint,
+  primary key (asset_id, recorded_at)
+);
+
+create index if not exists idx_roblox_catalog_items_history_asset
+  on public.roblox_catalog_items_history (asset_id, recorded_at desc);
+create index if not exists idx_roblox_catalog_items_history_recorded_at
+  on public.roblox_catalog_items_history (recorded_at desc);
+
+-- Limited items trading view
+create or replace view public.limited_items_trading_view as
+select
+  ci.asset_id,
+  ci.name,
+  ci.description,
+  ci.item_type,
+  ci.asset_type_id,
+  ci.category,
+  ci.subcategory,
+  ci.is_limited,
+  ci.is_limited_unique,
+  ci.creator_name,
+  ci.creator_type,
+  ci.creator_has_verified_badge,
+  ci.remaining,
+  ci.rap,
+  ci.rap_sales,
+  ci.rap_stock,
+  ci.rap_last_fetched,
+  ci.trading_value,
+  ci.trading_value_confidence,
+  ci.trend_direction,
+ ci.trend_strength,
+  ci.trend_change_7d,
+  ci.trend_change_30d,
+  ci.demand_level,
+  ci.demand_score,
+  ci.demand_sales_per_day,
+  ci.demand_consistency,
+  ci.is_projected,
+  ci.projected_confidence,
+  ci.projected_reason,
+  ci.trading_metrics_calculated_at,
+  ci.updated_at,
+  ci.created_at,
+  case
+    when ci.is_projected = true then 'projected'
+    when ci.demand_level = 'amazing' then 'high_demand'
+    when ci.trend_direction = 'rising' and ci.trend_strength > 70 then 'trending_up'
+    when ci.rap is not null and ci.trading_value is null then 'needs_calculation'
+    else 'normal'
+  end as status_flag,
+  case
+    when ci.rap is not null and ci.trading_value is not null and ci.rap > 0
+    then round(((ci.rap - ci.trading_value)::numeric / ci.rap) * 100, 2)
+    else null
+  end as rap_value_diff_percent,
+  case
+    when ci.rap_last_fetched is null then 'never_fetched'
+    when ci.rap_last_fetched > now() - interval '12 hours' then 'fresh'
+    when ci.rap_last_fetched > now() - interval '24 hours' then 'recent'
+    when ci.rap_last_fetched > now() - interval '7 days' then 'stale'
+    else 'outdated'
+  end as data_freshness,
+  case
+    when ci.trading_metrics_calculated_at is null then 'never_calculated'
+    when ci.trading_metrics_calculated_at > now() - interval '1 hour' then 'fresh'
+    when ci.trading_metrics_calculated_at > now() - interval '6 hours' then 'recent'
+    when ci.trading_metrics_calculated_at > now() - interval '24 hours' then 'stale'
+    else 'outdated'
+  end as metrics_freshness
+from public.roblox_catalog_items ci
+where ci.is_limited = true or ci.is_limited_unique = true;
 
 -- Unified search index for global site search
 create table if not exists public.search_index (
