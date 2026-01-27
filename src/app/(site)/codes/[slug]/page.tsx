@@ -127,7 +127,7 @@ function isValidUrl(url: string): boolean {
  */
 function normalizeUrl(value?: string | null): string | null {
   if (!value) return null;
-  
+
   // Trim and check for empty string
   let trimmed = value.trim();
   if (!trimmed) return null;
@@ -350,8 +350,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const coverImage = game.cover_image?.startsWith("http")
     ? game.cover_image
     : game.cover_image
-    ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
-    : `${SITE_URL}/og-image.png`;
+      ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
+      : `${SITE_URL}/og-image.png`;
   const publishedTime = new Date(game.published_at ?? game.created_at).toISOString();
   const modifiedTime = new Date(lastContentUpdate).toISOString();
   const otherMeta: Record<string, string> = {};
@@ -413,22 +413,48 @@ async function fetchGameData(slug: string) {
 
 export default async function GamePage({ params }: Params) {
   const result = await fetchGameData(params.slug);
-  
+
   if (result.error === 'NOT_FOUND') {
     notFound();
   }
-  
+
   if (result.error === 'FETCH_ERROR') {
     // Consider redirecting to an error page or showing a custom error component
     throw new Error('Failed to load game data. Please try again later.');
   }
-  
+
   const { game, codes, universe } = result;
   const active = codes.filter(c => c.status === "active");
   const nowMs = Date.now();
   const sortedActive = sortCodesByFirstSeenDesc(active);
-  const expired = Array.isArray(game.expired_codes) ? game.expired_codes : [];
-  const expiredWithoutSpaces = expired.filter(code => typeof code === "string" && !/\s/.test(code));
+
+  // Get expired codes from codes table (tracked with timestamps)
+  const expiredFromCodesTable = codes
+    .filter(c => c.status === "expired")
+    .sort((a, b) => {
+      // Sort by last_seen_at descending (most recent first)
+      const aTime = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
+      const bTime = b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
+      return bTime - aTime;
+    })
+    .map(c => c.code);
+
+  // Get legacy expired codes from games.expired_codes (no timestamps)
+  const legacyExpiredCodes = Array.isArray(game.expired_codes) ? game.expired_codes : [];
+  const legacyExpiredWithoutSpaces = legacyExpiredCodes.filter(code =>
+    typeof code === "string" && !/\s/.test(code)
+  );
+
+  // Create a Set of codes from the codes table to avoid duplicates
+  const expiredCodesSet = new Set(expiredFromCodesTable.map(code => code.toUpperCase()));
+
+  // Filter out legacy codes that are already in the codes table
+  const uniqueLegacyExpired = legacyExpiredWithoutSpaces.filter(code =>
+    !expiredCodesSet.has(code.toUpperCase())
+  );
+
+  // Merge: recent expired codes first, then legacy codes
+  const expiredWithoutSpaces = [...expiredFromCodesTable, ...uniqueLegacyExpired];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;
@@ -575,19 +601,19 @@ export default async function GamePage({ params }: Params) {
   const coverImage = game.cover_image?.startsWith("http")
     ? game.cover_image
     : game.cover_image
-    ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
-    : `${SITE_URL}/og-image.png`;
+      ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
+      : `${SITE_URL}/og-image.png`;
   const metaDescriptionRaw = markdownToPlainText(
     game.seo_description ||
-      `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`
+    `Get the latest ${game.name} codes for ${monthYear()} and redeem them for free in-game rewards. Updated daily with only active and working codes.`
   );
   const metaDescription = metaDescriptionRaw?.trim() || CODES_DESCRIPTION;
   const authorMeta =
     game.author && game.author.name
       ? {
-          name: game.author.name,
-          url: game.author.slug ? `${SITE_URL}/authors/${game.author.slug}` : undefined
-        }
+        name: game.author.name,
+        url: game.author.slug ? `${SITE_URL}/authors/${game.author.slug}` : undefined
+      }
       : null;
   const publishedIso = new Date(game.created_at).toISOString();
   const updatedIso = new Date(lastContentUpdate).toISOString();
@@ -940,17 +966,17 @@ export default async function GamePage({ params }: Params) {
                   },
                   author: game.author
                     ? {
-                        "@type": "Person",
-                        name: game.author.name,
-                        ...(authorProfileUrl ? { url: `${SITE_URL.replace(/\/$/, "")}${authorProfileUrl}` } : {}),
-                        ...(authorBioPlain ? { description: authorBioPlain } : {}),
-                        ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
-                      }
+                      "@type": "Person",
+                      name: game.author.name,
+                      ...(authorProfileUrl ? { url: `${SITE_URL.replace(/\/$/, "")}${authorProfileUrl}` } : {}),
+                      ...(authorBioPlain ? { description: authorBioPlain } : {}),
+                      ...(authorSameAs.length ? { sameAs: authorSameAs } : {})
+                    }
                     : {
-                        "@type": "Organization",
-                        name: SITE_NAME,
-                        url: SITE_URL
-                      },
+                      "@type": "Organization",
+                      name: SITE_NAME,
+                      url: SITE_URL
+                    },
                   publisher: { "@id": `${SITE_URL.replace(/\/$/, "")}/#organization` },
                   about: {
                     "@type": "VideoGame",
@@ -960,38 +986,38 @@ export default async function GamePage({ params }: Params) {
                   mainEntity: [
                     ...(redeemSteps.length
                       ? [
-                          {
-                            "@type": "HowTo",
-                            name: `How to redeem ${game.name} codes`,
-                            step: redeemSteps.map((text, idx) => ({
-                              "@type": "HowToStep",
-                              position: idx + 1,
-                              text
-                            }))
-                          }
-                        ]
+                        {
+                          "@type": "HowTo",
+                          name: `How to redeem ${game.name} codes`,
+                          step: redeemSteps.map((text, idx) => ({
+                            "@type": "HowToStep",
+                            position: idx + 1,
+                            text
+                          }))
+                        }
+                      ]
                       : []),
                     ...(faqEntries.length
                       ? [
-                          {
-                            "@type": "FAQPage",
-                            mainEntity: faqEntries.map(({ question, answer }) => ({
-                              "@type": "Question",
-                              name: question,
-                              acceptedAnswer: { "@type": "Answer", text: answer }
-                            }))
-                          }
-                        ]
+                        {
+                          "@type": "FAQPage",
+                          mainEntity: faqEntries.map(({ question, answer }) => ({
+                            "@type": "Question",
+                            name: question,
+                            acceptedAnswer: { "@type": "Answer", text: answer }
+                          }))
+                        }
+                      ]
                       : []),
                     ...(activeCodesItemList.length
                       ? [
-                          {
-                            "@type": "ItemList",
-                            name: `${game.name} active codes`,
-                            numberOfItems: activeCodesItemList.length,
-                            itemListElement: activeCodesItemList
-                          }
-                        ]
+                        {
+                          "@type": "ItemList",
+                          name: `${game.name} active codes`,
+                          numberOfItems: activeCodesItemList.length,
+                          itemListElement: activeCodesItemList
+                        }
+                      ]
                       : [])
                   ]
                 }

@@ -203,6 +203,9 @@ async function loadMusicIdsPage(
       count: "exact"
     });
 
+  // Filter out songs without duration
+  query = query.not("duration_seconds", "is", null).gt("duration_seconds", 0);
+
   if (options?.genre) {
     query = query.ilike("genre", buildLoosePattern(options.genre));
   }
@@ -318,18 +321,16 @@ export function MusicCatalogNav({ active }: { active: MusicNavKey }) {
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {MUSIC_NAV_ITEMS.map((item) => {
         const isActive = item.id === active;
-        const cardClasses = `group relative overflow-hidden rounded-2xl border px-5 py-4 transition ${
-          isActive
+        const cardClasses = `group relative overflow-hidden rounded-2xl border px-5 py-4 transition ${isActive
             ? "border-accent/70 bg-gradient-to-br from-accent/15 via-surface to-background shadow-soft"
             : "border-border/60 bg-surface/80 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-soft"
-        }`;
+          }`;
         const card = (
           <article className={cardClasses} aria-current={isActive ? "page" : undefined}>
             <span
               aria-hidden
-              className={`absolute inset-x-0 top-0 h-1 ${
-                isActive ? "bg-accent" : "bg-accent/30 group-hover:bg-accent/60"
-              }`}
+              className={`absolute inset-x-0 top-0 h-1 ${isActive ? "bg-accent" : "bg-accent/30 group-hover:bg-accent/60"
+                }`}
             />
             <div className="flex h-full flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -695,16 +696,16 @@ export function renderRobloxMusicIdsPage({
   const breadcrumbSchemaItems =
     currentPage > 1
       ? [
-          { name: "Home", url: SITE_URL },
-          { name: "Catalog", url: `${SITE_URL.replace(/\/$/, "")}/catalog` },
-          { name: "Roblox music IDs", url: `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}` },
-          { name: `Page ${currentPage}`, url: canonicalUrl }
-        ]
+        { name: "Home", url: SITE_URL },
+        { name: "Catalog", url: `${SITE_URL.replace(/\/$/, "")}/catalog` },
+        { name: "Roblox music IDs", url: `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}` },
+        { name: `Page ${currentPage}`, url: canonicalUrl }
+      ]
       : [
-          { name: "Home", url: SITE_URL },
-          { name: "Catalog", url: `${SITE_URL.replace(/\/$/, "")}/catalog` },
-          { name: "Roblox music IDs", url: canonicalUrl }
-        ];
+        { name: "Home", url: SITE_URL },
+        { name: "Catalog", url: `${SITE_URL.replace(/\/$/, "")}/catalog` },
+        { name: "Roblox music IDs", url: canonicalUrl }
+      ];
   const hasDetails =
     Boolean(descriptionHtml.length) || Boolean(howHtml) || Boolean(faqHtml.length) ||
     Boolean(contentHtml?.ctaLabel && contentHtml?.ctaUrl);

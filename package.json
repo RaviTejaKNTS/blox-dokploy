@@ -27,6 +27,7 @@
     "collect:universes": "tsx scripts/collect-roblox-universes.ts",
     "collect:music-ids": "tsx scripts/collect-roblox-music-ids.ts",
     "collect:music-ids-curated": "tsx scripts/collect-curated-roblox-music-ids.ts",
+    "collect:top-100-songs": "tsx scripts/collect-top-100-songs.ts",
     "import:music-id-seeds": "tsx scripts/import-roblox-music-id-seeds.ts",
     "enrich:music-ids": "tsx scripts/enrich-roblox-music-ids.ts",
     "thumbnails:music-ids": "tsx scripts/backfill-roblox-music-thumbnails.ts",
@@ -44,7 +45,8 @@
     "backfill:interlinking": "tsx scripts/backfill-interlinking.ts",
     "seed:trending-lists": "tsx scripts/seed-trending-lists.ts",
     "seed:events-pages": "tsx scripts/seed-events-pages.ts",
-    "seed:event-details": "tsx scripts/seed-event-details.ts"
+    "seed:event-details": "tsx scripts/seed-event-details.ts",
+    "trading:collect": "tsx scripts/trading/collect-all-limiteds.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",
@@ -67,6 +69,7 @@
     "marked-highlight": "^2.2.2",
     "next": "^14.2.32",
     "node-fetch": "^3.3.2",
+    "nprogress": "^0.2.0",
     "openai": "^6.1.0",
     "playwright": "^1.56.1",
     "react": "18.2.0",
@@ -82,6 +85,7 @@
     "@next/bundle-analyzer": "^15.5.3",
     "@types/jsdom": "^27.0.0",
     "@types/node": "20.11.30",
+    "@types/nprogress": "^0.2.3",
     "@types/react": "18.2.28",
     "@types/react-dom": "18.2.12",
     "@types/sanitize-html": "^2.16.0",

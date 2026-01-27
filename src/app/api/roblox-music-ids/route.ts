@@ -67,6 +67,9 @@ export async function GET(request: Request) {
   const supabase = supabaseAdmin();
   let query = supabase.from(MUSIC_SOURCE_VIEW).select(SELECT_FIELDS, { count: "exact" });
 
+  // Filter out songs without duration
+  query = query.not("duration_seconds", "is", null).gt("duration_seconds", 0);
+
   if (search) {
     const pattern = buildLoosePattern(search);
     const orParts = [
