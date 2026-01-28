@@ -1,8 +1,8 @@
 name: Queue Article Generation
 
 on:
-  schedule:
-    - cron: "0 0,8,16 * * *"
+  # schedule:
+  #   - cron: "0 0,8,16 * * *"  # Disabled - runs 0 times per day
   workflow_dispatch:
     inputs:
       limit:

@@ -46,7 +46,9 @@
     "seed:trending-lists": "tsx scripts/seed-trending-lists.ts",
     "seed:events-pages": "tsx scripts/seed-events-pages.ts",
     "seed:event-details": "tsx scripts/seed-event-details.ts",
-    "trading:collect": "tsx scripts/trading/collect-all-limiteds.ts"
+    "trading:collect": "tsx scripts/trading/collect-all-limiteds.ts",
+    "scrape:decal-ids": "tsx scripts/scrape-decal-ids.ts",
+    "enrich:decal-ids": "tsx scripts/enrich-decal-ids.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.19",

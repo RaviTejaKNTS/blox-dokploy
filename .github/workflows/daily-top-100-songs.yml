@@ -1,9 +1,9 @@
-name: Weekly Top 100 Songs Collection
+name: Daily Top 100 Songs Collection
 
 on:
   schedule:
-    # Runs every Friday at 6:00 AM UTC (11:30 AM IST)
-    - cron: '0 6 * * 5'
+    # Runs daily at 6:00 AM UTC (11:30 AM IST)
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
