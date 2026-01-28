@@ -5,8 +5,8 @@
   line-height: 1.85;
 }
 
-.prose > * + *,
-.game-copy > * + * {
+.prose>*+*,
+.game-copy>*+* {
   margin-top: 1.5rem;
 }
 
@@ -19,6 +19,7 @@
 }
 
 @media (min-width: 768px) {
+
   .prose img,
   .game-copy img {
     width: 80%;
@@ -146,8 +147,8 @@
   text-wrap: pretty;
 }
 
-.prose td > a,
-.game-copy td > a {
+.prose td>a,
+.game-copy td>a {
   word-break: break-word;
 }
 
@@ -214,10 +215,12 @@
 }
 
 @media (max-width: 768px) {
+
   .prose table,
   .game-copy table {
     font-size: 0.92rem;
   }
+
   .prose td,
   .game-copy td,
   .prose th,
@@ -320,15 +323,15 @@
   line-height: 1.85;
 }
 
-.prose li + li,
-.game-copy li + li {
+.prose li+li,
+.game-copy li+li {
   margin-top: 0.6rem;
 }
 
-.prose li > ul,
-.prose li > ol,
-.game-copy li > ul,
-.game-copy li > ol {
+.prose li>ul,
+.prose li>ol,
+.game-copy li>ul,
+.game-copy li>ol {
   margin-top: 0.75rem;
 }
 
@@ -500,6 +503,7 @@
 .dark .game-copy {
   color: rgb(var(--color-foreground));
 }
+
 .table-scroll-wrapper {
   margin: 2.5rem 0;
 }
@@ -531,6 +535,7 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

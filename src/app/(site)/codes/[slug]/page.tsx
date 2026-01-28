@@ -155,9 +155,16 @@ function summarize(text: string | null | undefined, fallback: string): string {
 function normalizeLinkForDedup(url: string): string | null {
   try {
     const parsed = new URL(url);
+    // Remove hash and query params
     parsed.hash = "";
     parsed.search = "";
-    return parsed.toString();
+    // Normalize to lowercase
+    let normalized = parsed.toString().toLowerCase();
+    // Remove trailing slash for consistency
+    normalized = normalized.replace(/\/$/, "");
+    // Normalize www prefix
+    normalized = normalized.replace(/^https?:\/\/www\./, "https://");
+    return normalized;
   } catch {
     return null;
   }
@@ -935,6 +942,63 @@ export default async function GamePage({ params }: Params) {
           </section>
         ) : null}
 
+        {universe ? (
+          <section className="mb-8" id="game-details">
+            <div className="prose dark:prose-invert max-w-none game-copy">
+              <h2>About {universe.display_name || universe.name || game.name}</h2>
+              <table>
+                <tbody>
+                  {universe.creator_name ? (
+                    <tr>
+                      <td><strong>Developer</strong></td>
+                      <td>{universe.creator_name}</td>
+                    </tr>
+                  ) : null}
+                  {universe.created ? (
+                    <tr>
+                      <td><strong>Created</strong></td>
+                      <td>
+                        {new Date(universe.created).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric"
+                        })}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {(universe.genre_l1 || universe.genre_l2) ? (
+                    <tr>
+                      <td><strong>Genre</strong></td>
+                      <td>{[universe.genre_l1, universe.genre_l2].filter(Boolean).join(", ")}</td>
+                    </tr>
+                  ) : null}
+                  {(universe.desktop_enabled || universe.mobile_enabled || universe.tablet_enabled ||
+                    universe.console_enabled || universe.vr_enabled) ? (
+                    <tr>
+                      <td><strong>Platforms</strong></td>
+                      <td>
+                        {[
+                          universe.desktop_enabled && "Desktop",
+                          universe.mobile_enabled && "Mobile",
+                          universe.tablet_enabled && "Tablet",
+                          universe.console_enabled && "Console",
+                          universe.vr_enabled && "VR"
+                        ].filter(Boolean).join(", ")}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {universe.game_description_md ? (
+                    <tr>
+                      <td colSpan={2}>
+                        <div dangerouslySetInnerHTML={{ __html: universe.game_description_md }} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         {game.author ? (
           <div className="mt-10">
