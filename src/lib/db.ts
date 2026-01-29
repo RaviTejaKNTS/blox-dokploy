@@ -1346,3 +1346,210 @@ const cachedListCodesForGame = unstable_cache(
 export async function listCodesForGame(gameId: string): Promise<Code[]> {
   return cachedListCodesForGame(gameId);
 }
+// ========================================
+// Free Roblox Items Catalog
+// ========================================
+
+export type FreeItem = {
+  asset_id: number;
+  name: string | null;
+  description: string | null;
+  category: string | null;
+  subcategory: string | null;
+  creator_name: string | null;
+  creator_id: number | null;
+  creator_type: string | null;
+  asset_type_id: number | null;
+  favorite_count: number | null;
+  last_seen_at: string;
+  created_at: string;
+};
+
+export type FreeItemsFilters = {
+  category?: string;
+  subcategory?: string;
+  sort?: 'newest' | 'popular' | 'updated';
+};
+
+async function fetchFreeItems(
+  page: number,
+  limit: number,
+  filters: FreeItemsFilters = {}
+): Promise<{ items: FreeItem[]; total: number }> {
+  const sb = supabaseAdmin();
+  const offset = Math.max(0, (page - 1) * limit);
+
+  let query = sb
+    .from('roblox_catalog_items')
+    .select('asset_id, name, description, category, subcategory, creator_name, creator_id, creator_type, asset_type_id, favorite_count, last_seen_at, created_at', { count: 'exact' })
+    .eq('price_robux', 0)
+    .eq('is_for_sale', true)
+    .eq('is_deleted', false)
+    .not('name', 'is', null);
+
+  if (filters.category) {
+    query = query.eq('category', filters.category);
+  }
+
+  if (filters.subcategory) {
+    query = query.eq('subcategory', filters.subcategory);
+  }
+
+  // Apply sorting
+  switch (filters.sort) {
+    case 'popular':
+      query = query.order('favorite_count', { ascending: false, nullsFirst: false });
+      break;
+    case 'updated':
+      query = query.order('last_seen_at', { ascending: false });
+      break;
+    case 'newest':
+    default:
+      query = query.order('created_at', { ascending: false });
+      break;
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, count, error } = await query;
+
+  if (error) throw error;
+
+  return {
+    items: (data ?? []) as FreeItem[],
+    total: count ?? 0
+  };
+}
+
+export async function listFreeItems(
+  page: number = 1,
+  limit: number = 24,
+  filters: FreeItemsFilters = {}
+): Promise<{ items: FreeItem[]; total: number }> {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, Math.min(100, limit));
+
+  const cached = unstable_cache(
+    () => fetchFreeItems(safePage, safeLimit, filters),
+    [`listFreeItems:${safePage}:${safeLimit}:${JSON.stringify(filters)}`],
+    {
+      revalidate: 3600, // 1 hour
+      tags: ['free-items-catalog']
+    }
+  );
+
+  return cached();
+}
+
+export async function getFreeItemsCount(filters: FreeItemsFilters = {}): Promise<number> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      let query = sb
+        .from('roblox_catalog_items')
+        .select('asset_id', { count: 'exact', head: true })
+        .eq('price_robux', 0)
+        .eq('is_for_sale', true)
+        .eq('is_deleted', false)
+        .not('name', 'is', null);
+
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      if (filters.subcategory) {
+        query = query.eq('subcategory', filters.subcategory);
+      }
+
+      const { count, error } = await query;
+      if (error) throw error;
+      return count ?? 0;
+    },
+    [`getFreeItemsCount:${JSON.stringify(filters)}`],
+    {
+      revalidate: 3600, // 1 hour
+      tags: ['free-items-catalog']
+    }
+  );
+
+  return cached();
+}
+
+export async function getFreeItemCategories(): Promise<Array<{ category: string; count: number }>> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from('roblox_catalog_items')
+        .select('category')
+        .eq('price_robux', 0)
+        .eq('is_for_sale', true)
+        .eq('is_deleted', false)
+        .not('name', 'is', null)
+        .not('category', 'is', null);
+
+      if (error) throw error;
+
+      // Count occurrences
+      const counts = new Map<string, number>();
+      for (const item of data ?? []) {
+        if (item.category) {
+          counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+        }
+      }
+
+      return Array.from(counts.entries())
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count);
+    },
+    ['getFreeItemCategories'],
+    {
+      revalidate: 7200, // 2 hours
+      tags: ['free-items-catalog']
+    }
+  );
+
+  return cached();
+}
+
+export async function getFreeItemSubcategories(category?: string): Promise<Array<{ subcategory: string; count: number }>> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      let query = sb
+        .from('roblox_catalog_items')
+        .select('subcategory')
+        .eq('price_robux', 0)
+        .eq('is_for_sale', true)
+        .eq('is_deleted', false)
+        .not('name', 'is', null)
+        .not('subcategory', 'is', null);
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Count occurrences
+      const counts = new Map<string, number>();
+      for (const item of data ?? []) {
+        if (item.subcategory) {
+          counts.set(item.subcategory, (counts.get(item.subcategory) ?? 0) + 1);
+        }
+      }
+
+      return Array.from(counts.entries())
+        .map(([subcategory, count]) => ({ subcategory, count }))
+        .sort((a, b) => b.count - a.count);
+    },
+    [`getFreeItemSubcategories:${category ?? 'all'}`],
+    {
+      revalidate: 7200, // 2 hours
+      tags: ['free-items-catalog']
+    }
+  );
+
+  return cached();
+}
