@@ -12,6 +12,7 @@ import { DEFAULT_SORT, normalizeSearchQuery, type MusicSortKey } from "@/lib/mus
 
 const PAGE_SIZE = 24;
 const OPTION_PAGE_SIZE = 24;
+const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 export const BASE_PATH = "/catalog/roblox-music-ids";
 export const CANONICAL = `${SITE_URL.replace(/\/$/, "")}${BASE_PATH}`;
@@ -95,6 +96,25 @@ const MUSIC_NAV_ITEMS: MusicNavItem[] = [
   }
 ];
 
+function formatLoadError(error: unknown) {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (typeof (error as { message?: unknown }).message === "string") {
+    const message = (error as { message: string }).message;
+    return message.length > 240 ? `${message.slice(0, 240)}…` : message;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function reportLoadError(context: string, error: unknown) {
+  if (IS_BUILD) return;
+  console.error(context, formatLoadError(error));
+}
+
 
 function formatDuration(seconds: number | null): string | null {
   if (!seconds || seconds <= 0) return null;
@@ -141,28 +161,33 @@ async function loadOptionPage(
   pageNumber: number,
   pageSize: number
 ) {
-  const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-  const offset = (safePage - 1) * pageSize;
-  const supabase = supabaseAdmin();
-  const { data, error, count } = await supabase
-    .from(view)
-    .select("slug,label,item_count", { count: "exact" })
-    .order("label", { ascending: true })
-    .range(offset, offset + pageSize - 1);
+  try {
+    const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const offset = (safePage - 1) * pageSize;
+    const supabase = supabaseAdmin();
+    const { data, error, count } = await supabase
+      .from(view)
+      .select("slug,label,item_count", { count: "exact" })
+      .order("label", { ascending: true })
+      .range(offset, offset + pageSize - 1);
 
-  if (error) {
-    console.error(`Failed to load ${view} options`, error);
+    if (error) {
+      reportLoadError(`Failed to load ${view} options`, error);
+      return { options: [], total: 0, totalPages: 1 };
+    }
+
+    const options = (data ?? []).map((row) => ({
+      slug: row.slug,
+      label: row.label,
+      count: row.item_count ?? 0
+    }));
+    const total = count ?? options.length ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    return { options, total, totalPages };
+  } catch (error) {
+    reportLoadError(`Failed to load ${view} options`, error);
     return { options: [], total: 0, totalPages: 1 };
   }
-
-  const options = (data ?? []).map((row) => ({
-    slug: row.slug,
-    label: row.label,
-    count: row.item_count ?? 0
-  }));
-  const total = count ?? options.length ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  return { options, total, totalPages };
 }
 
 async function loadOptionBySlug(
@@ -171,24 +196,29 @@ async function loadOptionBySlug(
 ): Promise<ValueOption | null> {
   const normalized = slugify(slug);
   if (!normalized) return null;
-  const supabase = supabaseAdmin();
-  const { data, error } = await supabase
-    .from(view)
-    .select("slug,label,item_count")
-    .eq("slug", normalized)
-    .maybeSingle();
+  try {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from(view)
+      .select("slug,label,item_count")
+      .eq("slug", normalized)
+      .maybeSingle();
 
-  if (error) {
-    console.error(`Failed to load ${view} option`, error);
+    if (error) {
+      reportLoadError(`Failed to load ${view} option`, error);
+      return null;
+    }
+
+    if (!data) return null;
+    return {
+      slug: data.slug,
+      label: data.label,
+      count: data.item_count ?? 0
+    };
+  } catch (error) {
+    reportLoadError(`Failed to load ${view} option`, error);
     return null;
   }
-
-  if (!data) return null;
-  return {
-    slug: data.slug,
-    label: data.label,
-    count: data.item_count ?? 0
-  };
 }
 
 const MUSIC_SOURCE_VIEW = "roblox_music_ids_ranked_view";
@@ -197,91 +227,96 @@ async function loadMusicIdsPage(
   pageNumber: number,
   options?: { genre?: string; artist?: string; trending?: boolean; search?: string; sort?: MusicSortKey }
 ) {
-  const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-  const offset = (safePage - 1) * PAGE_SIZE;
-  const supabase = supabaseAdmin();
-  let query = supabase
-    .from(MUSIC_SOURCE_VIEW)
-    .select("asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, thumbnail_url, rank, source, last_seen_at", {
-      count: "exact"
-    });
+  try {
+    const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const offset = (safePage - 1) * PAGE_SIZE;
+    const supabase = supabaseAdmin();
+    let query = supabase
+      .from(MUSIC_SOURCE_VIEW)
+      .select("asset_id, title, artist, album, genre, duration_seconds, album_art_asset_id, thumbnail_url, rank, source, last_seen_at", {
+        count: "exact"
+      });
 
-  // Filter out songs without duration
-  query = query.not("duration_seconds", "is", null).gt("duration_seconds", 0);
+    // Filter out songs without duration
+    query = query.not("duration_seconds", "is", null).gt("duration_seconds", 0);
 
-  if (options?.genre) {
-    query = query.ilike("genre", buildLoosePattern(options.genre));
-  }
-
-  if (options?.artist) {
-    query = query.ilike("artist", buildLoosePattern(options.artist));
-  }
-
-  const searchTerm = normalizeSearchQuery(options?.search);
-  if (searchTerm) {
-    const pattern = buildLoosePattern(searchTerm);
-    const orParts = [
-      `title.ilike.${pattern}`,
-      `artist.ilike.${pattern}`,
-      `album.ilike.${pattern}`,
-      `genre.ilike.${pattern}`
-    ];
-    if (/^\d+$/.test(searchTerm)) {
-      orParts.unshift(`asset_id.eq.${searchTerm}`);
+    if (options?.genre) {
+      query = query.ilike("genre", buildLoosePattern(options.genre));
     }
-    query = query.or(orParts.join(","));
-  }
 
-  if (options?.trending) {
-    query = query.not("rank", "is", null).order("rank", { ascending: true, nullsFirst: false });
-  } else {
-    const sort = options?.sort ?? DEFAULT_SORT;
-    switch (sort) {
-      case "popular":
-        query = query
-          .order("popularity_score", { ascending: false, nullsFirst: false })
-          .order("last_seen_at", { ascending: false, nullsFirst: false });
-        break;
-      case "newest":
-        query = query.order("last_seen_at", { ascending: false, nullsFirst: false });
-        break;
-      case "duration_desc":
-        query = query
-          .order("duration_seconds", { ascending: false, nullsFirst: false })
-          .order("popularity_score", { ascending: false, nullsFirst: false });
-        break;
-      case "duration_asc":
-        query = query
-          .order("duration_seconds", { ascending: true, nullsFirst: false })
-          .order("popularity_score", { ascending: false, nullsFirst: false });
-        break;
-      case "title_asc":
-        query = query.order("title", { ascending: true, nullsFirst: false });
-        break;
-      case "artist_asc":
-        query = query.order("artist", { ascending: true, nullsFirst: false });
-        break;
-      case "recommended":
-      default:
-        query = query
-          .order("duration_bucket", { ascending: true, nullsFirst: false })
-          .order("popularity_score", { ascending: false, nullsFirst: false })
-          .order("duration_seconds", { ascending: false, nullsFirst: false })
-          .order("rank", { ascending: true, nullsFirst: false })
-          .order("last_seen_at", { ascending: false, nullsFirst: false });
+    if (options?.artist) {
+      query = query.ilike("artist", buildLoosePattern(options.artist));
     }
-  }
 
-  const { data, error, count } = await query.range(offset, offset + PAGE_SIZE - 1);
+    const searchTerm = normalizeSearchQuery(options?.search);
+    if (searchTerm) {
+      const pattern = buildLoosePattern(searchTerm);
+      const orParts = [
+        `title.ilike.${pattern}`,
+        `artist.ilike.${pattern}`,
+        `album.ilike.${pattern}`,
+        `genre.ilike.${pattern}`
+      ];
+      if (/^\d+$/.test(searchTerm)) {
+        orParts.unshift(`asset_id.eq.${searchTerm}`);
+      }
+      query = query.or(orParts.join(","));
+    }
 
-  if (error) {
-    console.error("Failed to load Roblox music IDs", error);
+    if (options?.trending) {
+      query = query.not("rank", "is", null).order("rank", { ascending: true, nullsFirst: false });
+    } else {
+      const sort = options?.sort ?? DEFAULT_SORT;
+      switch (sort) {
+        case "popular":
+          query = query
+            .order("popularity_score", { ascending: false, nullsFirst: false })
+            .order("last_seen_at", { ascending: false, nullsFirst: false });
+          break;
+        case "newest":
+          query = query.order("last_seen_at", { ascending: false, nullsFirst: false });
+          break;
+        case "duration_desc":
+          query = query
+            .order("duration_seconds", { ascending: false, nullsFirst: false })
+            .order("popularity_score", { ascending: false, nullsFirst: false });
+          break;
+        case "duration_asc":
+          query = query
+            .order("duration_seconds", { ascending: true, nullsFirst: false })
+            .order("popularity_score", { ascending: false, nullsFirst: false });
+          break;
+        case "title_asc":
+          query = query.order("title", { ascending: true, nullsFirst: false });
+          break;
+        case "artist_asc":
+          query = query.order("artist", { ascending: true, nullsFirst: false });
+          break;
+        case "recommended":
+        default:
+          query = query
+            .order("duration_bucket", { ascending: true, nullsFirst: false })
+            .order("popularity_score", { ascending: false, nullsFirst: false })
+            .order("duration_seconds", { ascending: false, nullsFirst: false })
+            .order("rank", { ascending: true, nullsFirst: false })
+            .order("last_seen_at", { ascending: false, nullsFirst: false });
+      }
+    }
+
+    const { data, error, count } = await query.range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      reportLoadError("Failed to load Roblox music IDs", error);
+      return { songs: [], total: 0, totalPages: 1 };
+    }
+
+    const total = count ?? data?.length ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    return { songs: (data ?? []) as MusicRow[], total, totalPages };
+  } catch (error) {
+    reportLoadError("Failed to load Roblox music IDs", error);
     return { songs: [], total: 0, totalPages: 1 };
   }
-
-  const total = count ?? data?.length ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  return { songs: (data ?? []) as MusicRow[], total, totalPages };
 }
 
 export async function loadRobloxMusicIdsPageData(

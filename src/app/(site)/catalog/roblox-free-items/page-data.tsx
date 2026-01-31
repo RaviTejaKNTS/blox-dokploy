@@ -100,18 +100,28 @@ export async function loadFreeItemsPageData(
   page: number,
   filters: FreeItemsPageFilters = {}
 ): Promise<PageData> {
-  const { items, total } = await listFreeItems(page, PAGE_SIZE, filters);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  return { items, total, totalPages };
+  try {
+    const { items, total } = await listFreeItems(page, PAGE_SIZE, filters);
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    return { items, total, totalPages };
+  } catch (error) {
+    console.error("Failed to load free items page data", error);
+    return { items: [], total: 0, totalPages: 1 };
+  }
 }
 
 export async function loadFreeItemCategories(): Promise<CategoryOption[]> {
-  const categories = await getFreeItemCategories();
-  return categories.map((entry) => ({
-    slug: slugify(entry.category),
-    label: entry.category,
-    count: entry.count
-  }));
+  try {
+    const categories = await getFreeItemCategories();
+    return categories.map((entry) => ({
+      slug: slugify(entry.category),
+      label: entry.category,
+      count: entry.count
+    }));
+  } catch (error) {
+    console.error("Failed to load free item categories", error);
+    return [];
+  }
 }
 
 export async function loadFreeItemCategoryBySlug(slug: string): Promise<CategoryOption | null> {
@@ -121,12 +131,17 @@ export async function loadFreeItemCategoryBySlug(slug: string): Promise<Category
 
 export async function loadFreeItemSubcategories(category: string): Promise<SubcategoryOption[]> {
   if (!category) return [];
-  const subcategories = await getFreeItemSubcategories(category);
-  return subcategories.map((entry) => ({
-    slug: slugify(entry.subcategory),
-    label: entry.subcategory,
-    count: entry.count
-  }));
+  try {
+    const subcategories = await getFreeItemSubcategories(category);
+    return subcategories.map((entry) => ({
+      slug: slugify(entry.subcategory),
+      label: entry.subcategory,
+      count: entry.count
+    }));
+  } catch (error) {
+    console.error("Failed to load free item subcategories", error);
+    return [];
+  }
 }
 
 export async function loadFreeItemSubcategoryBySlug(
