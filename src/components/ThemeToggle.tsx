@@ -1,23 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { trackEvent } from "@/lib/analytics";
+import { getThemePreference, updateThemePreference } from "@/app/actions/preferences";
+import { THEME_COOKIE, type Theme, normalizeTheme } from "@/lib/theme";
 
-type Theme = "light" | "dark";
-
-const STORAGE_KEY = "roblox-codes-theme";
+function readThemeCookie(): Theme | null {
+  if (typeof document === "undefined") return null;
+  const cookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${THEME_COOKIE}=`));
+  if (!cookie) return null;
+  const value = decodeURIComponent(cookie.split("=").slice(1).join("="));
+  return normalizeTheme(value);
+}
 
 function resolvePreferredTheme(): Theme {
-  if (typeof window === "undefined") {
+  if (typeof document === "undefined") {
     return "dark";
   }
 
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") {
-    return stored;
-  }
+  const rootTheme = normalizeTheme(document.documentElement.dataset.theme ?? null);
+  if (rootTheme) return rootTheme;
 
-  return "dark";
+  return readThemeCookie() ?? "dark";
 }
 
 function applyTheme(theme: Theme) {
@@ -30,19 +36,35 @@ function applyTheme(theme: Theme) {
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [hydrated, setHydrated] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const preferred = resolvePreferredTheme();
     setTheme(preferred);
     applyTheme(preferred);
     setHydrated(true);
+    startTransition(() => {
+      getThemePreference()
+        .then((result) => {
+          const remoteTheme = normalizeTheme(result?.theme ?? null);
+          if (remoteTheme && remoteTheme !== preferred) {
+            setTheme(remoteTheme);
+            applyTheme(remoteTheme);
+            document.cookie = `${THEME_COOKIE}=${encodeURIComponent(remoteTheme)}; path=/; max-age=31536000`;
+          }
+        })
+        .catch(() => null);
+    });
   }, []);
 
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     applyTheme(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
+    document.cookie = `${THEME_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=31536000`;
+    startTransition(() => {
+      updateThemePreference(next).catch(() => null);
+    });
     trackEvent("theme_toggle", { theme: next });
   };
 
@@ -54,6 +76,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={label}
       title={label}
+      disabled={isPending}
       className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-surface-muted text-foreground shadow-soft transition hover:-translate-y-[1px] hover:border-border/40 hover:bg-surface"
     >
       <span className="sr-only">{label}</span>

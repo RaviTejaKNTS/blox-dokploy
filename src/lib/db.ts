@@ -1368,8 +1368,15 @@ export type FreeItem = {
 export type FreeItemsFilters = {
   category?: string;
   subcategory?: string;
+  search?: string;
   sort?: 'newest' | 'popular' | 'updated';
 };
+
+function buildFreeItemsSearchPattern(value: string): string {
+  const cleaned = value.replace(/[%_]/g, " ").trim();
+  const pattern = cleaned.replace(/[^a-z0-9]+/gi, "%").replace(/%{2,}/g, "%");
+  return `%${pattern}%`;
+}
 
 async function fetchFreeItems(
   page: number,
@@ -1383,7 +1390,6 @@ async function fetchFreeItems(
     .from('roblox_catalog_items')
     .select('asset_id, name, description, category, subcategory, creator_name, creator_id, creator_type, asset_type_id, favorite_count, last_seen_at, created_at', { count: 'exact' })
     .eq('price_robux', 0)
-    .eq('is_for_sale', true)
     .eq('is_deleted', false)
     .not('name', 'is', null);
 
@@ -1393,6 +1399,20 @@ async function fetchFreeItems(
 
   if (filters.subcategory) {
     query = query.eq('subcategory', filters.subcategory);
+  }
+
+  const searchTerm = (filters.search ?? "").trim();
+  if (searchTerm) {
+    const pattern = buildFreeItemsSearchPattern(searchTerm);
+    const orParts = [
+      `name.ilike.${pattern}`,
+      `description.ilike.${pattern}`,
+      `creator_name.ilike.${pattern}`
+    ];
+    if (/^\d+$/.test(searchTerm)) {
+      orParts.unshift(`asset_id.eq.${searchTerm}`);
+    }
+    query = query.or(orParts.join(","));
   }
 
   // Apply sorting
@@ -1449,7 +1469,6 @@ export async function getFreeItemsCount(filters: FreeItemsFilters = {}): Promise
         .from('roblox_catalog_items')
         .select('asset_id', { count: 'exact', head: true })
         .eq('price_robux', 0)
-        .eq('is_for_sale', true)
         .eq('is_deleted', false)
         .not('name', 'is', null);
 
@@ -1459,6 +1478,20 @@ export async function getFreeItemsCount(filters: FreeItemsFilters = {}): Promise
 
       if (filters.subcategory) {
         query = query.eq('subcategory', filters.subcategory);
+      }
+
+      const searchTerm = (filters.search ?? "").trim();
+      if (searchTerm) {
+        const pattern = buildFreeItemsSearchPattern(searchTerm);
+        const orParts = [
+          `name.ilike.${pattern}`,
+          `description.ilike.${pattern}`,
+          `creator_name.ilike.${pattern}`
+        ];
+        if (/^\d+$/.test(searchTerm)) {
+          orParts.unshift(`asset_id.eq.${searchTerm}`);
+        }
+        query = query.or(orParts.join(","));
       }
 
       const { count, error } = await query;
@@ -1483,7 +1516,6 @@ export async function getFreeItemCategories(): Promise<Array<{ category: string;
         .from('roblox_catalog_items')
         .select('category')
         .eq('price_robux', 0)
-        .eq('is_for_sale', true)
         .eq('is_deleted', false)
         .not('name', 'is', null)
         .not('category', 'is', null);
@@ -1520,7 +1552,6 @@ export async function getFreeItemSubcategories(category?: string): Promise<Array
         .from('roblox_catalog_items')
         .select('subcategory')
         .eq('price_robux', 0)
-        .eq('is_for_sale', true)
         .eq('is_deleted', false)
         .not('name', 'is', null)
         .not('subcategory', 'is', null);

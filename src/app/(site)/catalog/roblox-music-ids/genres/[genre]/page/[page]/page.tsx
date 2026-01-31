@@ -17,28 +17,30 @@ import {
 export const revalidate = 2592000;
 
 type PageProps = {
-  params: { genre: string; page: string };
+  params: Promise<{ genre: string; page: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { genre, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
   return {
     title: `Genre Music IDs - Page ${pageNumber} | ${SITE_NAME}`,
     robots: { index: false, follow: true },
     alternates: {
-      canonical: `${BASE_PATH}/genres/${params.genre}/page/${pageNumber}`
+      canonical: `${BASE_PATH}/genres/${genre}/page/${pageNumber}`
     }
   };
 }
 
 export default async function GenreMusicIdsPaginatedPage({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { genre: genreSlug, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }
 
-  const genre = await loadGenreOptionBySlug(params.genre);
+  const genre = await loadGenreOptionBySlug(genreSlug);
   if (!genre) {
     notFound();
   }

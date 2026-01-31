@@ -7,6 +7,7 @@ import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools
 import { ContentSlot } from "@/components/ContentSlot";
 import { RobloxIdExtractorClient } from "./RobloxIdExtractorClient";
 import { supabaseAdmin } from "@/lib/supabase";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 3600;
 
@@ -286,6 +287,12 @@ export default async function RobloxIdExtractorPage() {
               </section>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {tool?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="tool" entityId={tool.id} />
         </div>
       ) : null}
 

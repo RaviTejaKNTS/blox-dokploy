@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { MusicCoverImage } from "@/components/MusicCoverImage";
+import { CommentsSection } from "@/components/comments/CommentsSection";
+import { Suspense } from "react";
 import { MusicIdsBrowser } from "./MusicIdsBrowser";
 import { supabaseAdmin } from "@/lib/supabase";
 import { breadcrumbJsonLd, CATALOG_DESCRIPTION, SITE_URL, webPageJsonLd } from "@/lib/seo";
@@ -29,6 +31,7 @@ export type MusicRow = {
 };
 
 export type CatalogContentHtml = {
+  id?: string | null;
   title?: string | null;
   introHtml?: string;
   howHtml?: string;
@@ -770,12 +773,20 @@ export function renderRobloxMusicIdsPage({
 
       <MusicCatalogNav active="all" />
 
-      <MusicIdsBrowser
-        initialSongs={songs}
-        initialTotalPages={totalPages}
-        currentPage={currentPage}
-        basePath={BASE_PATH}
-      />
+      <Suspense
+        fallback={
+          <div className="rounded-2xl border border-border/60 bg-surface/60 p-6 text-sm text-muted">
+            Loading music IDs...
+          </div>
+        }
+      >
+        <MusicIdsBrowser
+          initialSongs={songs}
+          initialTotalPages={totalPages}
+          currentPage={currentPage}
+          basePath={BASE_PATH}
+        />
+      </Suspense>
 
       <CatalogAdSlot />
 
@@ -832,6 +843,12 @@ export function renderRobloxMusicIdsPage({
             </section>
           ) : null}
         </section>
+      ) : null}
+
+      {contentHtml?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="catalog" entityId={contentHtml.id} />
+        </div>
       ) : null}
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: pageSchema }} />

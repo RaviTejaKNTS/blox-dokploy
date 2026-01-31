@@ -17,7 +17,7 @@ import { GameCard } from "@/components/GameCard";
 import { ToolCard } from "@/components/ToolCard";
 import { SocialShare } from "@/components/SocialShare";
 import { ContentSlot } from "@/components/ContentSlot";
-import dynamic from "next/dynamic";
+import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
@@ -44,17 +44,13 @@ import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { ArticleCard } from "@/components/ArticleCard";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 86400; // daily
 
 const CODES_IN_ARTICLE_AD_SLOT = "6147197177";
 
-const LazyCodeBlockEnhancer = dynamic(
-  () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),
-  { ssr: false }
-);
-
-export type Params = { params: { slug: string } };
+export type Params = { params: Promise<{ slug: string }> };
 
 interface FaqEntry {
   question: string;
@@ -329,7 +325,7 @@ function formatSocialLabel(platform: string, link: UniverseSocialLink, creatorNa
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const slug = params.slug;
+  const { slug } = await params;
   const game = await getGameBySlug(slug);
 
   if (!game || !game.is_published) {
@@ -419,7 +415,8 @@ async function fetchGameData(slug: string) {
 }
 
 export default async function GamePage({ params }: Params) {
-  const result = await fetchGameData(params.slug);
+  const { slug } = await params;
+  const result = await fetchGameData(slug);
 
   if (result.error === 'NOT_FOUND') {
     notFound();
@@ -1089,7 +1086,10 @@ export default async function GamePage({ params }: Params) {
             })
           }}
         />
-        <LazyCodeBlockEnhancer />
+        <div className="mt-10">
+          <CommentsSection entityType="code" entityId={game.id} />
+        </div>
+        <CodeBlockEnhancer />
       </article>
 
       {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0) ? (

@@ -23,11 +23,12 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  params: { genre: string };
+  params: Promise<{ genre: string }>;
 };
 
 export default async function GenreMusicIdsPage({ params }: PageProps) {
-  const genre = await loadGenreOptionBySlug(params.genre);
+  const { genre: genreSlug } = await params;
+  const genre = await loadGenreOptionBySlug(genreSlug);
   if (!genre) {
     notFound();
   }

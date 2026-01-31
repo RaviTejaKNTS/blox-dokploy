@@ -4,24 +4,26 @@ import { buildListData, buildMetadata, ListPageView, PAGE_SIZE } from "../../pag
 import { renderMarkdown } from "@/lib/markdown";
 
 type PageProps = {
-  params: { slug: string; page: string };
+  params: Promise<{ slug: string; page: string }>;
 };
 
 export const revalidate = 86400; // daily
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { slug, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
-  return buildMetadata(params.slug, pageNumber);
+  return buildMetadata(slug, pageNumber);
 }
 
 export default async function GameListPageWithPagination({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { slug, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }
 
-  const data = await buildListData(params.slug, pageNumber);
+  const data = await buildListData(slug, pageNumber);
   const totalPages = Math.max(1, Math.ceil(data.totalEntries / PAGE_SIZE));
   if (pageNumber > totalPages) {
     notFound();
@@ -37,7 +39,7 @@ export default async function GameListPageWithPagination({ params }: PageProps) 
 
   return (
     <ListPageView
-      slug={params.slug}
+      slug={slug}
       list={data.list}
       entries={data.entries}
       jumpEntries={data.jumpEntries}

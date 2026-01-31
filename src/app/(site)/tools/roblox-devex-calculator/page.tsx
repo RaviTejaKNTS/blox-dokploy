@@ -6,6 +6,7 @@ import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { DevexCalculatorClient } from "./DevexCalculatorClient";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import {
   DEVEX_DEFAULT_TARGET_ROBUX,
   DEVEX_DEFAULT_TARGET_USD,
@@ -269,6 +270,12 @@ export default async function RobloxDevexPage() {
               </section>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {tool?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="tool" entityId={tool.id} />
         </div>
       ) : null}
 

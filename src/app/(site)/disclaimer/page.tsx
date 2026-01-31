@@ -46,7 +46,7 @@ export default function DisclaimerPage() {
       <article className="prose dark:prose-invert max-w-none game-copy space-y-10">
         <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Disclaimer from Bloxodes.com</h1>
-          <p className="text-base text-muted sm:text-lg">Effective Date: October 3, 2025 · Last Updated: October 3, 2025</p>
+          <p className="text-base text-muted sm:text-lg">Effective Date: January 31, 2026 · Last Updated: January 31, 2026</p>
           <p className="text-base text-muted sm:text-lg">
             Bloxodes.com provides Roblox codes, guides, and related information to help players enjoy their gaming experience. While we
             strive for accuracy and reliability, it is important for readers to understand the limitations of our service. This Disclaimer
@@ -97,6 +97,18 @@ export default function DisclaimerPage() {
             By using Bloxodes.com, you agree that you are responsible for how you use the information provided. This includes verifying codes
             in-game and using them at your own discretion. We strongly encourage users never to share their Roblox account credentials,
             passwords, or sensitive personal details with anyone claiming to provide codes or rewards.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Accounts and Roblox Linking</h2>
+          <p>
+            Accounts are optional and are provided to support features like comments, preferences, and Roblox linking. You are responsible
+            for maintaining the confidentiality of your sign-in credentials and for activity under your account.
+          </p>
+          <p>
+            If you choose to link a Roblox account, the connection uses Roblox&apos;s official OAuth flow. We never ask for or receive your
+            Roblox password.
           </p>
         </section>
 

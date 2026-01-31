@@ -7,11 +7,12 @@ import "@/styles/article-content.css";
 export const revalidate = 86400; // daily
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export default async function GameListPage({ params }: PageProps) {
-  const data = await buildListData(params.slug, 1);
+  const { slug } = await params;
+  const data = await buildListData(slug, 1);
   const [heroHtml, introHtml, outroHtml] = await Promise.all([
     data.list.hero_md ? renderMarkdown(data.list.hero_md) : Promise.resolve(""),
     data.list.intro_md ? renderMarkdown(data.list.intro_md) : Promise.resolve(""),
@@ -20,7 +21,7 @@ export default async function GameListPage({ params }: PageProps) {
 
   return (
     <ListPageView
-      slug={params.slug}
+      slug={slug}
       list={data.list as NonNullable<Awaited<ReturnType<typeof getGameListMetadata>>>}
       entries={data.entries}
       jumpEntries={data.jumpEntries}
@@ -35,5 +36,6 @@ export default async function GameListPage({ params }: PageProps) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  return buildMetadata(params.slug, 1);
+  const { slug } = await params;
+  return buildMetadata(slug, 1);
 }

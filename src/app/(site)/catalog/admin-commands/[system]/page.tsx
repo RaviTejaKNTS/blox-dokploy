@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
 import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -54,6 +55,7 @@ type CommandItem = {
 };
 
 type CatalogContentHtml = {
+  id?: string | null;
   title: string | null;
   introHtml: string;
   howHtml: string;
@@ -354,6 +356,7 @@ async function buildCatalogContent(systemSlug: string): Promise<{ contentHtml: C
 
   return {
     contentHtml: {
+      id: catalog.id ?? null,
       title: catalog.title ?? null,
       introHtml,
       howHtml,
@@ -366,8 +369,9 @@ async function buildCatalogContent(systemSlug: string): Promise<{ contentHtml: C
   };
 }
 
-export async function generateMetadata({ params }: { params: { system: string } }): Promise<Metadata> {
-  const dataset = await loadAdminCommandDataset(params.system);
+export async function generateMetadata({ params }: { params: Promise<{ system: string }> }): Promise<Metadata> {
+  const { system } = await params;
+  const dataset = await loadAdminCommandDataset(system);
   if (!dataset) {
     return {
       title: `Roblox Admin Commands | ${SITE_NAME}`,
@@ -378,7 +382,7 @@ export async function generateMetadata({ params }: { params: { system: string } 
     };
   }
 
-  const catalog = await getCatalogPageContentByCodes(getCatalogCodeCandidates(params.system));
+  const catalog = await getCatalogPageContentByCodes(getCatalogCodeCandidates(system));
   const title =
     resolveSeoTitle(catalog?.seo_title) ??
     catalog?.title ??
@@ -410,12 +414,13 @@ export async function generateMetadata({ params }: { params: { system: string } 
   };
 }
 
-export default async function AdminCommandSystemPage({ params }: { params: { system: string } }) {
+export default async function AdminCommandSystemPage({ params }: { params: Promise<{ system: string }> }) {
+  const { system } = await params;
   const [{ contentHtml }, datasets] = await Promise.all([
-    buildCatalogContent(params.system),
+    buildCatalogContent(system),
     loadAdminCommandDatasets(),
   ]);
-  const dataset = datasets.find((entry) => entry.system.slug === params.system);
+  const dataset = datasets.find((entry) => entry.system.slug === system);
   if (!dataset) {
     notFound();
   }
@@ -673,6 +678,12 @@ export default async function AdminCommandSystemPage({ params }: { params: { sys
             ))}
           </div>
         </section>
+      ) : null}
+
+      {contentHtml?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="catalog" entityId={contentHtml.id} />
+        </div>
       ) : null}
 
       <script

@@ -6,6 +6,7 @@ import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
 import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { loadAdminCommandDatasets } from "@/lib/admin-commands";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 86400;
 
@@ -13,6 +14,7 @@ const CANONICAL = `${SITE_URL.replace(/\/$/, "")}/catalog/admin-commands`;
 const CATALOG_CODE_CANDIDATES = ["admin-commands"];
 
 type CatalogContentHtml = {
+  id?: string | null;
   title: string | null;
   introHtml: string;
   howHtml: string;
@@ -61,6 +63,7 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
 
   return {
     contentHtml: {
+      id: catalog.id ?? null,
       title: catalog.title ?? null,
       introHtml,
       howHtml,
@@ -232,6 +235,12 @@ export default async function AdminCommandsHubPage() {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {contentHtml?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="catalog" entityId={contentHtml.id} />
+        </div>
       ) : null}
     </div>
   );

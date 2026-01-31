@@ -21,17 +21,3 @@ create index if not exists idx_article_source_images_article on public.article_s
 create index if not exists idx_article_source_images_source on public.article_source_images (source_host, source_url);
 
 alter table public.article_source_images enable row level security;
-
-drop policy if exists "admin_manage_article_source_images" on public.article_source_images;
-create policy "admin_manage_article_source_images" on public.article_source_images
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );

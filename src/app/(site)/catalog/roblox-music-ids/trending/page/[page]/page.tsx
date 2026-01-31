@@ -16,11 +16,12 @@ import {
 export const revalidate = 2592000;
 
 type PageProps = {
-  params: { page: string };
+  params: Promise<{ page: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
   return {
     title: `Trending Music IDs - Page ${pageNumber} | ${SITE_NAME}`,
@@ -32,7 +33,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function TrendingMusicIdsPaginatedPage({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }

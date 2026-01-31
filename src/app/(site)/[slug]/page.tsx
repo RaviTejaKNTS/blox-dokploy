@@ -2,7 +2,7 @@ import { permanentRedirect, notFound } from "next/navigation";
 import legacySlugs from "@/data/slug_oldslugs.json";
 
 type PageProps = {
-  params: { slug?: string };
+  params: Promise<{ slug?: string }>;
 };
 
 const ARTICLE_REDIRECT_SLUGS = new Set([
@@ -42,12 +42,13 @@ function resolveLegacySlug(slug?: string) {
 }
 
 export default async function LegacySlugPage({ params }: PageProps) {
-  const normalized = params.slug?.trim().toLowerCase();
+  const { slug } = await params;
+  const normalized = slug?.trim().toLowerCase();
   if (normalized && ARTICLE_REDIRECT_SLUGS.has(normalized)) {
     permanentRedirect(`/articles/${normalized}`);
   }
 
-  const canonicalSlug = resolveLegacySlug(params.slug);
+  const canonicalSlug = resolveLegacySlug(slug);
   if (!canonicalSlug) {
     notFound();
   }

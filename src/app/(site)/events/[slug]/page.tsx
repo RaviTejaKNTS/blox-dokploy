@@ -1,13 +1,15 @@
-import { EVENTS_REVALIDATE_SECONDS, renderEventsPage } from "./events-page";
+import { renderEventsPage } from "./events-page";
 
-export const revalidate = EVENTS_REVALIDATE_SECONDS;
+// Must be a literal for Next segment config extraction.
+export const revalidate = 3600;
 
 export { generateMetadata } from "./events-page";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export default async function EventsPage({ params }: PageProps) {
-  return renderEventsPage({ slug: params.slug });
+  const { slug } = await params;
+  return renderEventsPage({ slug });
 }

@@ -11,11 +11,12 @@ import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/
 export const revalidate = 3600; // 1 hour
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const data = await getChecklistPageBySlug(params.slug);
+  const { slug } = await params;
+  const data = await getChecklistPageBySlug(slug);
   if (!data) return {};
 
   const { page } = data;
@@ -49,7 +50,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ChecklistPage({ params }: PageProps) {
-  const data = await getChecklistPageBySlug(params.slug);
+  const { slug } = await params;
+  const data = await getChecklistPageBySlug(slug);
   if (!data) {
     notFound();
   }

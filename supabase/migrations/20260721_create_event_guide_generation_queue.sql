@@ -26,17 +26,3 @@ before update on public.event_guide_generation_queue
 for each row execute function public.set_updated_at();
 
 alter table public.event_guide_generation_queue enable row level security;
-
-drop policy if exists "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue;
-create policy "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );

@@ -1,37 +1,23 @@
 import "./globals.css";
 import { ReactNode } from "react";
-import dynamicImport from "next/dynamic";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { ConsentGate } from "@/components/consent/ConsentGate";
 import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { LayoutClientAnalytics, LayoutGlobalSearch } from "@/components/LayoutClient";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, organizationJsonLd, siteJsonLd } from "@/lib/seo";
-
-const GlobalSearchOverlay = dynamicImport(
-  () =>
-    import("@/components/GlobalSearchOverlay").then((mod) => ({
-      default: mod.GlobalSearchOverlay
-    })),
-  { ssr: false, loading: () => null }
-);
-
-const VercelAnalytics = dynamicImport(
-  () => import("@vercel/analytics/react").then((mod) => mod.Analytics),
-  { ssr: false, loading: () => null }
-);
-
-const VercelSpeedInsights = dynamicImport(
-  () => import("@vercel/speed-insights/next").then((mod) => mod.SpeedInsights),
-  { ssr: false, loading: () => null }
-);
+import { THEME_COOKIE } from "@/lib/theme";
 
 const themeScript = `(() => {
-  const storageKey = "roblox-codes-theme";
+  const cookieKey = "${THEME_COOKIE}";
   try {
-    const stored = window.localStorage.getItem(storageKey);
-    const theme = stored === "light" || stored === "dark" ? stored : "dark";
+    const cookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(cookieKey + "="));
+    const value = cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : null;
+    const theme = value === "light" || value === "dark" ? value : "dark";
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
     root.dataset.theme = theme;
@@ -47,8 +33,6 @@ const structuredData = JSON.stringify({
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 const googleAdSenseClientId =
   process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID ?? "ca-pub-5243258773824278";
-export const dynamic = "force-static";
-
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
@@ -145,14 +129,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ConsentBanner />
           <ConsentGate category="analytics">
             <GoogleAnalytics measurementId={googleAnalyticsId} />
-            <VercelAnalytics />
-            <VercelSpeedInsights />
+            <LayoutClientAnalytics />
           </ConsentGate>
           <ConsentGate category="marketing">
             <GoogleAdSense clientId={googleAdSenseClientId} />
           </ConsentGate>
           <AnalyticsTracker />
-          <GlobalSearchOverlay />
+          <LayoutGlobalSearch />
           {children}
         </ConsentProvider>
       </body>

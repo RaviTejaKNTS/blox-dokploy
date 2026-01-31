@@ -17,28 +17,30 @@ import {
 export const revalidate = 2592000;
 
 type PageProps = {
-  params: { artist: string; page: string };
+  params: Promise<{ artist: string; page: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { artist, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
   return {
     title: `Artist Music IDs - Page ${pageNumber} | ${SITE_NAME}`,
     robots: { index: false, follow: true },
     alternates: {
-      canonical: `${BASE_PATH}/artists/${params.artist}/page/${pageNumber}`
+      canonical: `${BASE_PATH}/artists/${artist}/page/${pageNumber}`
     }
   };
 }
 
 export default async function ArtistMusicIdsPaginatedPage({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { artist: artistSlug, page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }
 
-  const artist = await loadArtistOptionBySlug(params.artist);
+  const artist = await loadArtistOptionBySlug(artistSlug);
   if (!artist) {
     notFound();
   }

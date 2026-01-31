@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { CopyCodeButton } from "@/components/CopyCodeButton";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import { breadcrumbJsonLd, CATALOG_DESCRIPTION, SITE_URL, webPageJsonLd } from "@/lib/seo";
 
 const PAGE_SIZE = 24;
@@ -32,6 +33,7 @@ export type DecalRow = {
 };
 
 export type CatalogContentHtml = {
+    id?: string | null;
     title?: string | null;
     introHtml?: string;
     howHtml?: string;
@@ -534,6 +536,12 @@ export function renderRobloxDecalIdsPage({
                         </div>
                     ) : null}
                 </section>
+            ) : null}
+
+            {contentHtml?.id ? (
+                <div className="mt-10">
+                    <CommentsSection entityType="catalog" entityId={contentHtml.id} />
+                </div>
             ) : null}
 
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: listSchema }} />

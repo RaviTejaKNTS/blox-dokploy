@@ -9,6 +9,7 @@ import { loadForgeOreDataset } from "@/lib/forge/ores";
 import { loadForgeWeaponDataset } from "@/lib/forge/weapons";
 import { ContentSlot } from "@/components/ContentSlot";
 import { ForgeCalculatorClient } from "./ForgeCalculatorClient";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 3600;
 
@@ -250,6 +251,12 @@ export default async function ForgeCalculatorPage() {
               </section>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {tool?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="tool" entityId={tool.id} />
         </div>
       ) : null}
 

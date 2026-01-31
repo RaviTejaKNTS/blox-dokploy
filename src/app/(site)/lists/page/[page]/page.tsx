@@ -6,11 +6,12 @@ import { LISTS_DESCRIPTION } from "@/lib/seo";
 export const revalidate = 86400; // daily
 
 type PageProps = {
-  params: { page: string };
+  params: Promise<{ page: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
   const title = pageNumber > 1 ? `Roblox Game Lists - Page ${pageNumber}` : "Roblox Game Lists";
   return {
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ListsPaginatedPage({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }

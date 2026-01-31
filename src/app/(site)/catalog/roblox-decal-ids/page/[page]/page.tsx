@@ -53,6 +53,7 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
 
     return {
         contentHtml: {
+            id: catalog.id ?? null,
             title: catalog.title ?? null,
             introHtml,
             howHtml,

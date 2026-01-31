@@ -6,11 +6,12 @@ import { TOOLS_DESCRIPTION } from "@/lib/seo";
 export const revalidate = 21600; // 6 hours
 
 type PageProps = {
-  params: { page: string };
+  params: Promise<{ page: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
   const title = pageNumber > 1 ? `Roblox Tools & Calculators - Page ${pageNumber}` : "Roblox Tools & Calculators";
   return {
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ToolsPaginatedPage({ params }: PageProps) {
-  const pageNumber = Number(params.page);
+  const { page } = await params;
+  const pageNumber = Number(page);
   if (!Number.isFinite(pageNumber) || pageNumber < 1) {
     notFound();
   }

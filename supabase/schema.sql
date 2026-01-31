@@ -385,15 +385,51 @@ create unique index if not exists idx_event_guide_generation_queue_event_id
   on public.event_guide_generation_queue (event_id);
 
 
--- admin users table
-create table if not exists public.admin_users (
+-- app users table (role-based access)
+create table if not exists public.app_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  role text not null default 'editor' check (role in ('owner','editor','viewer')),
+  role text not null default 'user' check (role in ('admin','user')),
+  email text,
+  display_name text,
+  email_login_enabled boolean not null default false,
+  preferences jsonb not null default '{}'::jsonb,
+  roblox_user_id bigint,
+  roblox_username text,
+  roblox_display_name text,
+  roblox_profile_url text,
+  roblox_avatar_url text,
+  roblox_linked_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_admin_users_role on public.admin_users (role);
+create index if not exists idx_app_users_role on public.app_users (role);
+create unique index if not exists idx_app_users_roblox_user_id
+  on public.app_users (roblox_user_id)
+  where roblox_user_id is not null;
+
+-- comments table (initially for codes pages)
+create table if not exists public.comments (
+  id uuid primary key default uuid_generate_v4(),
+  entity_type text not null check (entity_type in ('code', 'article', 'catalog', 'event', 'list', 'tool')),
+  entity_id uuid not null,
+  parent_id uuid references public.comments(id) on delete cascade,
+  author_id uuid not null references public.app_users(user_id) on delete cascade,
+  body_md text not null,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'deleted')),
+  moderation jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_comments_entity_created on public.comments (entity_type, entity_id, created_at desc);
+create index if not exists idx_comments_parent on public.comments (parent_id);
+create index if not exists idx_comments_author on public.comments (author_id);
+
+create trigger trg_comments_updated_at
+before update on public.comments
+for each row
+execute function public.set_updated_at();
 
 -- articles table
 create table if not exists public.articles (
@@ -563,6 +599,86 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function public.is_admin(user_uuid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.app_users au
+    where au.user_id = user_uuid
+      and au.role = 'admin'
+  );
+$$;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  has_email_provider boolean;
+begin
+  has_email_provider :=
+    coalesce(new.raw_app_meta_data->>'provider', '') = 'email'
+    or (coalesce(new.raw_app_meta_data->'providers', '[]'::jsonb) ? 'email');
+
+  insert into public.app_users (user_id, role, email, display_name, email_login_enabled)
+  values (
+    new.id,
+    'user',
+    new.email,
+    coalesce(
+      new.raw_user_meta_data->>'full_name',
+      new.raw_user_meta_data->>'name',
+      new.raw_user_meta_data->>'display_name',
+      split_part(coalesce(new.email, ''), '@', 1)
+    ),
+    has_email_provider
+  )
+  on conflict (user_id)
+  do update set
+    email = excluded.email,
+    display_name = excluded.display_name;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
+create or replace function public.sync_app_user_on_auth_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.app_users
+    set email = new.email,
+        display_name = coalesce(
+          new.raw_user_meta_data->>'full_name',
+          new.raw_user_meta_data->>'name',
+          new.raw_user_meta_data->>'display_name',
+          split_part(coalesce(new.email, ''), '@', 1)
+        ),
+        updated_at = now()
+  where user_id = new.id;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_updated on auth.users;
+create trigger on_auth_user_updated
+after update of email, raw_user_meta_data on auth.users
+for each row execute function public.sync_app_user_on_auth_update();
+
 -- stamp published_at only when is_published flips to true
 create or replace function public.set_article_published_at() returns trigger as $$
 begin
@@ -648,8 +764,8 @@ create trigger trg_checklist_items_normalize
 before insert or update on public.checklist_items
 for each row execute function public.trg_normalize_section_code();
 
-drop trigger if exists trg_admin_users_updated_at on public.admin_users;
-create trigger trg_admin_users_updated_at before update on public.admin_users
+drop trigger if exists trg_app_users_updated_at on public.app_users;
+create trigger trg_app_users_updated_at before update on public.app_users
 for each row execute function public.set_updated_at();
 
 drop trigger if exists trg_articles_updated_at on public.articles;
@@ -745,162 +861,96 @@ end;
 $$;
 
 -- RLS
-alter table public.games enable row level security;
-alter table public.codes enable row level security;
-alter table public.authors enable row level security;
-alter table public.admin_users enable row level security;
-alter table public.articles enable row level security;
-alter table public.game_generation_queue enable row level security;
-alter table public.article_generation_queue enable row level security;
-alter table public.event_guide_generation_queue enable row level security;
-alter table public.roblox_universes enable row level security;
-alter table public.roblox_groups enable row level security;
-alter table public.roblox_universe_social_links enable row level security;
-alter table public.roblox_universe_media enable row level security;
-alter table public.roblox_universe_badges enable row level security;
-alter table public.roblox_universe_gamepasses enable row level security;
-alter table public.roblox_universe_stats_daily enable row level security;
-alter table public.roblox_universe_sort_runs enable row level security;
-alter table public.roblox_universe_sort_definitions enable row level security;
-alter table public.roblox_universe_sort_entries enable row level security;
-alter table public.roblox_universe_search_snapshots enable row level security;
-alter table public.roblox_universe_place_servers enable row level security;
-alter table public.article_source_images enable row level security;
+do $$
+declare r record;
+begin
+  for r in select schemaname, tablename, policyname from pg_policies where schemaname = 'public' loop
+    execute format('drop policy if exists %I on %I.%I', r.policyname, r.schemaname, r.tablename);
+  end loop;
 
--- Policy: allow read of published games and their codes to anon
-drop policy if exists "read_published_games" on public.games;
-create policy "read_published_games" on public.games
-  for select using (is_published = true);
+  for r in select schemaname, tablename from pg_tables where schemaname = 'public' loop
+    execute format('alter table %I.%I enable row level security', r.schemaname, r.tablename);
+  end loop;
 
-drop policy if exists "admin_manage_games" on public.games;
-create policy "admin_manage_games" on public.games
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
+  for r in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('drop policy if exists "admin_full_access" on public.%I', r.tablename);
+    execute format(
+      'create policy "admin_full_access" on public.%I for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()))',
+      r.tablename
+    );
+  end loop;
+end $$;
 
-drop policy if exists "read_codes_of_published_games" on public.codes;
-create policy "read_codes_of_published_games" on public.codes
-  for select using (
-    exists (select 1 from public.games g where g.id = codes.game_id and g.is_published = true)
-  );
-
-drop policy if exists "admin_manage_codes" on public.codes;
-create policy "admin_manage_codes" on public.codes
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
-
-drop policy if exists "read_authors" on public.authors;
-create policy "read_authors" on public.authors
-  for select using (true);
-
-drop policy if exists "admin_manage_authors" on public.authors;
-create policy "admin_manage_authors" on public.authors
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
-
-drop policy if exists "admin_manage_article_source_images" on public.article_source_images;
-create policy "admin_manage_article_source_images" on public.article_source_images
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
-
-drop policy if exists "admin_read_self" on public.admin_users;
-create policy "admin_read_self" on public.admin_users
+drop policy if exists "app_users_read_self" on public.app_users;
+create policy "app_users_read_self" on public.app_users
   for select using (auth.uid() = user_id);
 
-drop policy if exists "admin_manage_game_generation_queue" on public.game_generation_queue;
-create policy "admin_manage_game_generation_queue" on public.game_generation_queue
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
+drop policy if exists "app_users_insert_self" on public.app_users;
+create policy "app_users_insert_self" on public.app_users
+  for insert with check (auth.uid() = user_id and role = 'user');
+
+drop policy if exists "app_users_update_self" on public.app_users;
+create policy "app_users_update_self" on public.app_users
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id and role = 'user');
+
+drop policy if exists "comments_select_public" on public.comments;
+create policy "comments_select_public" on public.comments
+  for select using (
+    status = 'approved'
+    or author_id = auth.uid()
+    or public.is_admin(auth.uid())
   );
 
-drop policy if exists "admin_manage_article_generation_queue" on public.article_generation_queue;
-create policy "admin_manage_article_generation_queue" on public.article_generation_queue
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
+drop policy if exists "comments_insert_authenticated" on public.comments;
+create policy "comments_insert_authenticated" on public.comments
+  for insert with check (
+    auth.uid() = author_id
+    and status = 'pending'
+    and moderation is null
   );
 
-drop policy if exists "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue;
-create policy "admin_manage_event_guide_generation_queue" on public.event_guide_generation_queue
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
+drop policy if exists "comments_admin_update" on public.comments;
+create policy "comments_admin_update" on public.comments
+  for update using (public.is_admin(auth.uid()))
+  with check (public.is_admin(auth.uid()));
+
+drop policy if exists "comments_update_own" on public.comments;
+create policy "comments_update_own" on public.comments
+  for update using (auth.uid() = author_id)
   with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
+    auth.uid() = author_id
+    and status = 'pending'
+    and moderation is null
   );
 
-drop policy if exists "read_published_articles" on public.articles;
-create policy "read_published_articles" on public.articles
-  for select using (is_published = true);
+drop policy if exists "comments_delete_own" on public.comments;
+create policy "comments_delete_own" on public.comments
+  for delete using (auth.uid() = author_id);
 
-drop policy if exists "admin_manage_articles" on public.articles;
-create policy "admin_manage_articles" on public.articles
-  for all
-  using (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au where au.user_id = auth.uid()
-    )
-  );
+create or replace function public.trg_comments_revalidate_code()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.entity_type = 'code' and new.status = 'approved' and (tg_op = 'INSERT' or old.status is distinct from new.status) then
+    insert into public.revalidation_events (entity_type, slug, source)
+    select 'code', g.slug, 'comment'
+    from public.games g
+    where g.id = new.entity_id
+    on conflict (entity_type, slug)
+    do update set
+      source = excluded.source,
+      created_at = now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_comments_revalidate_code on public.comments;
+create trigger trg_comments_revalidate_code
+after insert or update on public.comments
+for each row execute function public.trg_comments_revalidate_code();
 
 -- Admin insert/update via service role (bypass RLS)
 -- Upsert helper for codes (ensures last_seen_at is bumped; first_seen_at preserved)

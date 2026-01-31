@@ -5,14 +5,16 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes, type CatalogFaqEntry } from "@/lib/catalog";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 86400;
 
 type PageProps = {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 };
 
 type CatalogContentHtml = {
+  id?: string | null;
   title: string | null;
   introHtml: string;
   howHtml: string;
@@ -69,6 +71,7 @@ async function buildCatalogContent(code: string): Promise<{ contentHtml: Catalog
 
   return {
     contentHtml: {
+      id: catalog.id ?? null,
       title: catalog.title ?? null,
       introHtml,
       howHtml,
@@ -82,7 +85,8 @@ async function buildCatalogContent(code: string): Promise<{ contentHtml: Catalog
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const code = normalizeCatalogCode(params.slug ?? []);
+  const { slug } = await params;
+  const code = normalizeCatalogCode(slug ?? []);
   const canonical = `${SITE_URL.replace(/\/$/, "")}/catalog/${code}`;
   if (!code) {
     return {
@@ -125,7 +129,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CatalogFallbackPage({ params }: PageProps) {
-  const code = normalizeCatalogCode(params.slug ?? []);
+  const { slug } = await params;
+  const code = normalizeCatalogCode(slug ?? []);
   if (!code) {
     notFound();
   }
@@ -229,6 +234,12 @@ export default async function CatalogFallbackPage({ params }: PageProps) {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {contentHtml?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="catalog" entityId={contentHtml.id} />
+        </div>
       ) : null}
     </div>
   );

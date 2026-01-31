@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GameListItem } from "@/components/GameListItem";
 import { SocialShare } from "@/components/SocialShare";
 import { ContentSlot } from "@/components/ContentSlot";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import {
   getGameListBySlug,
   getGameListMetadata,
@@ -488,6 +489,10 @@ export function ListPageView({
           ) : null}
 
           <Pagination slug={slug} currentPage={page} totalPages={totalPages} />
+
+          <div className="pt-10">
+            <CommentsSection entityType="list" entityId={list.id} />
+          </div>
         </div>
 
         <div className="mt-0 space-y-6 lg:w-[320px]">

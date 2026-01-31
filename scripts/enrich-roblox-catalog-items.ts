@@ -42,6 +42,28 @@ const RATE_LIMIT_REQUEUE_MINUTES = Math.max(
 const LOG_LEVEL = (process.env.ROBLOX_CATALOG_ENRICH_LOG_LEVEL ?? "info").toLowerCase();
 const MAX_ERROR_LOGS = Math.max(0, Math.floor(Number(process.env.ROBLOX_CATALOG_ENRICH_MAX_ERROR_LOGS ?? "5")));
 
+const SAFE_MODE_STRIKES = Math.max(1, Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_STRIKES ?? "3")));
+const SAFE_MODE_MIN_REQUEST_MS = Math.max(
+  0,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_MIN_REQUEST_MS ?? "1500"))
+);
+const SAFE_MODE_MAX_REQUEST_MS = Math.max(
+  SAFE_MODE_MIN_REQUEST_MS,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_MAX_REQUEST_MS ?? "5000"))
+);
+const SAFE_MODE_CONCURRENCY = Math.max(
+  1,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_CONCURRENCY ?? "1"))
+);
+const SAFE_MODE_BATCH_LIMIT = Math.max(
+  1,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_BATCH_LIMIT ?? "50"))
+);
+const SAFE_MODE_BATCH_DELAY_MS = Math.max(
+  0,
+  Math.floor(Number(process.env.ROBLOX_CATALOG_SAFE_MODE_BATCH_DELAY_MS ?? "1500"))
+);
+
 const REFRESH_HOURS = Math.max(1, Number(process.env.ROBLOX_CATALOG_REFRESH_HOURS ?? "168"));
 const RETRY_HOURS = Math.max(1, Number(process.env.ROBLOX_CATALOG_RETRY_HOURS ?? "6"));
 const MAX_RETRY_HOURS = Math.max(RETRY_HOURS, Number(process.env.ROBLOX_CATALOG_MAX_RETRY_HOURS ?? "72"));
@@ -162,9 +184,18 @@ let requestGate: Promise<void> = Promise.resolve();
 let rateLimitUntil = 0;
 let rateLimitStrikes = 0;
 let dynamicMinIntervalMs = REQUEST_MIN_INTERVAL_MS;
+let safeMode = false;
+
+function currentMinInterval() {
+  return safeMode ? SAFE_MODE_MIN_REQUEST_MS : REQUEST_MIN_INTERVAL_MS;
+}
+
+function currentMaxInterval() {
+  return safeMode ? SAFE_MODE_MAX_REQUEST_MS : REQUEST_MAX_INTERVAL_MS;
+}
 
 async function throttleRequest() {
-  if (REQUEST_MIN_INTERVAL_MS <= 0 && rateLimitUntil <= Date.now()) return;
+  if (currentMinInterval() <= 0 && rateLimitUntil <= Date.now()) return;
   let release: () => void = () => undefined;
   const prev = requestGate;
   requestGate = new Promise<void>((resolve) => {
@@ -185,15 +216,30 @@ async function throttleRequest() {
   release();
 }
 
+function enableSafeMode(reason: string) {
+  if (safeMode) return;
+  safeMode = true;
+  dynamicMinIntervalMs = Math.max(dynamicMinIntervalMs, SAFE_MODE_MIN_REQUEST_MS);
+  if (SAFE_MODE_MAX_REQUEST_MS > 0) {
+    dynamicMinIntervalMs = Math.min(dynamicMinIntervalMs, SAFE_MODE_MAX_REQUEST_MS);
+  }
+  logInfo(
+    `Safe mode enabled (${reason}). minInterval=${dynamicMinIntervalMs}ms, concurrency=${SAFE_MODE_CONCURRENCY}, batchLimit=${SAFE_MODE_BATCH_LIMIT}`
+  );
+}
+
 function noteRateLimit(retryAfterMs?: number) {
   rateLimitStrikes = Math.min(rateLimitStrikes + 1, 10);
   const exponential = RATE_LIMIT_COOLDOWN_MS * Math.pow(2, rateLimitStrikes - 1);
   const cooldown = Math.min(RATE_LIMIT_MAX_COOLDOWN_MS, Math.max(exponential, retryAfterMs ?? 0));
   rateLimitUntil = Math.max(rateLimitUntil, Date.now() + cooldown);
   dynamicMinIntervalMs = Math.min(
-    REQUEST_MAX_INTERVAL_MS,
-    Math.max(dynamicMinIntervalMs * 2, REQUEST_MIN_INTERVAL_MS)
+    currentMaxInterval(),
+    Math.max(dynamicMinIntervalMs * 2, currentMinInterval())
   );
+  if (rateLimitStrikes >= SAFE_MODE_STRIKES) {
+    enableSafeMode(`rate-limit strikes=${rateLimitStrikes}`);
+  }
   logInfo(`Rate limit hit. Cooling down ${cooldown}ms. Min interval now ${dynamicMinIntervalMs}ms.`);
 }
 
@@ -201,8 +247,8 @@ function noteRequestSuccess() {
   if (rateLimitStrikes > 0) {
     rateLimitStrikes -= 1;
   }
-  if (dynamicMinIntervalMs > REQUEST_MIN_INTERVAL_MS) {
-    dynamicMinIntervalMs = Math.max(REQUEST_MIN_INTERVAL_MS, Math.floor(dynamicMinIntervalMs * 0.9));
+  if (dynamicMinIntervalMs > currentMinInterval()) {
+    dynamicMinIntervalMs = Math.max(currentMinInterval(), Math.floor(dynamicMinIntervalMs * 0.9));
   }
 }
 
@@ -415,8 +461,9 @@ async function run() {
       break;
     }
 
+    const baseLimit = safeMode ? SAFE_MODE_BATCH_LIMIT : ENRICH_LIMIT;
     const batchLimit =
-      ENRICH_MAX_TOTAL > 0 ? Math.min(ENRICH_LIMIT, ENRICH_MAX_TOTAL - totalProcessed) : ENRICH_LIMIT;
+      ENRICH_MAX_TOTAL > 0 ? Math.min(baseLimit, ENRICH_MAX_TOTAL - totalProcessed) : baseLimit;
     const queue = await pickQueueItems(batchLimit);
     if (!queue.length) {
       if (batchIndex === 0) {
@@ -427,7 +474,7 @@ async function run() {
 
     batchIndex += 1;
     logInfo(
-      `Starting enrichment batch ${batchIndex}: ${queue.length} items (processed ${totalProcessed} so far, minInterval=${dynamicMinIntervalMs}ms).`
+      `Starting enrichment batch ${batchIndex}: ${queue.length} items (processed ${totalProcessed} so far, minInterval=${dynamicMinIntervalMs}ms, mode=${safeMode ? "safe" : "normal"}).`
     );
 
     const itemUpdates: Record<string, unknown>[] = [];
@@ -436,7 +483,7 @@ async function run() {
     const errorStats = new Map<string, number>();
     let loggedErrors = 0;
 
-    await promisePool(queue, ENRICH_CONCURRENCY, async (entry) => {
+    await promisePool(queue, safeMode ? SAFE_MODE_CONCURRENCY : ENRICH_CONCURRENCY, async (entry) => {
       const assetId = entry.asset_id;
       const attempts = entry.attempts ?? 0;
       const priority = entry.priority ?? "new";
@@ -606,7 +653,7 @@ async function run() {
       `Batch ${batchIndex} complete. Items: ${queue.length}, updates: ${itemUpdates.length}, thumbnails: ${thumbnailTargets.length}.`
     );
 
-    await sleep(withJitter(BATCH_DELAY_MS, RETRY_JITTER_MS));
+    await sleep(withJitter(safeMode ? SAFE_MODE_BATCH_DELAY_MS : BATCH_DELAY_MS, RETRY_JITTER_MS));
   }
 
   logInfo(

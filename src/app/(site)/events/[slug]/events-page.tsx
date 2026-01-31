@@ -11,6 +11,7 @@ import { ContentSlot } from "@/components/ContentSlot";
 import { GameCard } from "@/components/GameCard";
 import { SocialShare } from "@/components/SocialShare";
 import { ToolCard } from "@/components/ToolCard";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import {
   listPublishedArticlesByUniverseId,
   listPublishedChecklistsByUniverseId,
@@ -31,7 +32,7 @@ import { buildEndCountdown, formatDateTimeLabel, formatDuration } from "./eventT
 export const EVENTS_REVALIDATE_SECONDS = 3600;
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 type UniverseSummary = {
@@ -434,7 +435,8 @@ async function hydrateCurrent(events: VirtualEvent[]): Promise<CurrentEventView[
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const page = await loadEventsPage(params.slug);
+  const { slug } = await params;
+  const page = await loadEventsPage(slug);
   if (!page) return {};
 
   const universeName = page.universe?.display_name ?? page.universe?.name ?? "this game";
@@ -1150,6 +1152,11 @@ export async function renderEventsPage({ slug }: { slug: string }) {
         </div>
 
         {page.author ? <AuthorCard author={page.author} bioHtml={processedAuthorBioHtml ?? ""} /> : null}
+
+        <div className="mt-10">
+          <CommentsSection entityType="event" entityId={page.id} />
+        </div>
+
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: blogPostingSchema }} />
         {eventListSchema ? (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: eventListSchema }} />

@@ -78,16 +78,6 @@ const nextConfig = {
   images: {
     // Disable Next image optimizer to avoid Vercel billing and serve images directly.
     unoptimized: true,
-    domains: [
-      "tr.rbxcdn.com",
-      "rbxcdn.com",
-      "rbxcdn.net",
-      "roblox.com",
-      "robloxden.com",
-      "ggpht.com",
-      "googleusercontent.com",
-      "bmwksaykcsndsvgspapz.supabase.co",
-    ],
     remotePatterns: [
       { protocol: "https", hostname: "**.roblox.com" },
       { protocol: "https", hostname: "**.robloxden.com" },
@@ -102,9 +92,9 @@ const nextConfig = {
     ],
     formats: ["image/avif", "image/webp"],
   },
+  serverExternalPackages: ["@supabase/supabase-js"],
   experimental: {
     serverActions: { allowedOrigins: ["*"] },
-    serverComponentsExternalPackages: ["@supabase/supabase-js"],
   },
   async redirects() {
     return [

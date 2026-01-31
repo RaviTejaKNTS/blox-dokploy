@@ -79,6 +79,9 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
             <Link href="/privacy-policy" className="transition hover:text-foreground">
               Privacy Policy
             </Link>
+            <Link href="/terms-of-service" className="transition hover:text-foreground">
+              Terms of Service
+            </Link>
             <Link href="/disclaimer" className="transition hover:text-foreground">
               Disclaimer
             </Link>

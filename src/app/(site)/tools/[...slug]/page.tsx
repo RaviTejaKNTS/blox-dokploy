@@ -7,6 +7,7 @@ import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { supabaseAdmin } from "@/lib/supabase";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 3600;
 
@@ -14,7 +15,7 @@ const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
 const TOOL_AD_SLOT = "3529946151";
 
 type PageProps = {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 };
 
 function normalizeToolCode(slugParts: string[]): string {
@@ -91,7 +92,8 @@ async function buildToolContent(code: string): Promise<{
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const code = normalizeToolCode(params.slug ?? []);
+  const { slug } = await params;
+  const code = normalizeToolCode(slug ?? []);
   const canonical = `${SITE_URL.replace(/\/$/, "")}/tools/${code}`;
   if (!code) {
     return {
@@ -138,7 +140,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ToolFallbackPage({ params }: PageProps) {
-  const code = normalizeToolCode(params.slug ?? []);
+  const { slug } = await params;
+  const code = normalizeToolCode(slug ?? []);
   if (!code) {
     notFound();
   }
@@ -286,6 +289,12 @@ export default async function ToolFallbackPage({ params }: PageProps) {
               </div>
             </section>
           ) : null}
+        </div>
+      ) : null}
+
+      {tool?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="tool" entityId={tool.id} />
         </div>
       ) : null}
 

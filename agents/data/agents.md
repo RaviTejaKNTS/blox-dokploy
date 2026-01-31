@@ -21,7 +21,7 @@ These are the tables/views the site and APIs read from most often.
   - roblox_music_ids_ranked_view (sorted/filterable catalog)
   - roblox_music_genres_view, roblox_music_artists_view (filter options)
 - Admin / ops
-  - admin_users (admin auth / gating)
+  - app_users (role-based access)
   - RPC: search_site (site-wide search aggregator)
 
 ## Local markdown datasets (tools and catalog)

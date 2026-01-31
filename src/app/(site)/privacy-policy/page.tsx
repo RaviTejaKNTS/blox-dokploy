@@ -4,7 +4,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "Privacy Policy";
 const description =
-  "Privacy policy for Bloxodes: no accounts, how we use AdSense and analytics, cookies/local storage, and your rights.";
+  "Privacy policy for Bloxodes: account data, cookies, analytics, ads, and your rights.";
 const canonical = `${SITE_URL.replace(/\/$/, "")}/privacy-policy`;
 const ogImage = `${SITE_URL}/og-image.png`;
 
@@ -48,20 +48,20 @@ export default function PrivacyPolicyPage() {
         <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{title}</h1>
           <p className="text-base text-muted sm:text-lg">
-            Privacy policy for Bloxodes: no accounts, how we use AdSense and analytics, cookies/local storage, and your rights.
+            Privacy policy for Bloxodes: account data, cookies, analytics, ads, and your rights.
           </p>
         </header>
 
         <section className="space-y-4">
           <p>
-            <strong>Effective Date:</strong> October 3, 2025
+            <strong>Effective Date:</strong> January 31, 2026
             <br />
-            <strong>Last Updated:</strong> December 9, 2025
+            <strong>Last Updated:</strong> January 31, 2026
           </p>
           <p>
             Bloxodes.com ("Bloxodes," "we," "our," or "us") publishes Roblox guides, checklists, and tools. We designed this site to
-            maximize privacy: we do not have user accounts, comments, or newsletters. We do not ask you to register, and we do not collect
-            your name, email, address, or password.
+            maximize privacy while still offering optional accounts for comments, personalization, and Roblox linking. Most pages can be
+            used without signing in, but if you create an account we will collect the minimum data needed to run those features.
           </p>
           <p>
             This Privacy Policy explains the technical data we collect, how we use it, and your rights. We wrote this to align with global
@@ -75,9 +75,23 @@ export default function PrivacyPolicyPage() {
             <div>
               <p className="font-medium">We do not collect:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Names, physical addresses, phone numbers, or passwords.</li>
-                <li>Registration data (we have no signup forms).</li>
+                <li>Payment or billing information.</li>
+                <li>Physical addresses, phone numbers, or government IDs.</li>
+                <li>Your Roblox password or login credentials (we never ask for them).</li>
               </ul>
+            </div>
+            <div>
+              <p className="font-medium">Account and profile data (only if you sign up):</p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Email address for sign-in and account recovery.</li>
+                <li>Authentication data managed by our auth provider (passwords are stored securely and never in plain text).</li>
+                <li>Display name and preferences (such as theme).</li>
+                <li>Roblox linking data you choose to connect (Roblox user ID, username, display name, avatar, and profile URL).</li>
+                <li>Comments you post and the timestamps associated with them.</li>
+              </ul>
+              <p className="text-sm text-muted">
+                Email verification is required before password-based sign-in is enabled.
+              </p>
             </div>
             <div>
               <p className="font-medium">We may collect automatically (technical data):</p>
@@ -92,8 +106,8 @@ export default function PrivacyPolicyPage() {
               <ul className="list-disc pl-6 space-y-2">
                 <li>Email: If you email us, we receive your address and message to reply. We do not add you to marketing lists.</li>
                 <li>
-                  Checklists and tools: Your progress is stored in your browser&apos;s local storage and stays on your device. We do not
-                  transmit it to our servers.
+                  Checklists and tools: Your progress is stored in your browser&apos;s local storage and stays on your device unless a
+                  feature explicitly saves it to your account.
                 </li>
               </ul>
             </div>
@@ -140,10 +154,11 @@ export default function PrivacyPolicyPage() {
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">4. Cookies and Local Storage</h2>
           <div className="space-y-2">
-            <p className="font-medium">Essential / functional (local storage):</p>
+            <p className="font-medium">Essential / functional:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Theme preference.</li>
-              <li>Checklist progress for guides and tools.</li>
+              <li>Authentication/session cookies (so you stay signed in).</li>
+              <li>Theme preference (cookie + account preference when signed in).</li>
+              <li>Checklist progress for guides and tools (stored in local storage).</li>
               <li>Consent state so we do not ask on every page.</li>
             </ul>
           </div>
@@ -158,7 +173,8 @@ export default function PrivacyPolicyPage() {
             <a href="/cookie-settings" className="text-primary underline-offset-4 hover:underline">
               cookie settings
             </a>{" "}
-            page, or block/delete cookies in your browser. Clearing cookies will reset checklist progress and theme preferences.
+            page, or block/delete cookies in your browser. Clearing cookies will reset checklist progress and theme preferences and sign you
+            out of your account.
           </p>
         </section>
 
@@ -168,6 +184,7 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc pl-6 space-y-2">
             <li>Google (AdSense/Analytics) as an independent controller for ads and measurement.</li>
             <li>Vercel for secure hosting, edge delivery, and performance monitoring (Analytics/Speed Insights run by default).</li>
+            <li>Supabase for authentication, database storage, and account management.</li>
           </ul>
           <p>We may disclose information if required by law or to protect our rights and users.</p>
         </section>
@@ -187,13 +204,14 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6 space-y-2">
               <li>Non-essential analytics and ads are off by default until you accept.</li>
               <li>Withdraw consent anytime at the cookie settings page.</li>
-              <li>Access/delete: we do not keep accounts; clearing cookies removes local identifiers.</li>
+              <li>Access, correction, or deletion: manage profile details in your account, or contact us to request deletion.</li>
             </ul>
 
             <p className="font-medium">United States (California, Virginia, Colorado, etc.):</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>Opt out of targeted ads and analytics via the cookie settings page.</li>
               <li>We do not share personal info for third-party direct marketing.</li>
+              <li>You may request access or deletion of account data by contacting us.</li>
             </ul>
 
             <p className="font-medium">India (DPDP Act 2023):</p>
@@ -219,7 +237,19 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">9. Bloxodes Chrome Extension</h2>
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">9. Account System and Roblox Linking</h2>
+          <p>
+            Creating an account is optional. If you sign in, you can use email/password (after verification) or Google. We store the minimum
+            account data needed to run profiles, comments, and preferences.
+          </p>
+          <p>
+            Linking a Roblox account uses Roblox&apos;s official OAuth flow and happens on Roblox domains. We never see your Roblox password.
+            You can unlink your Roblox account at any time in your account settings.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">10. Bloxodes Chrome Extension</h2>
           <p>
             The Bloxodes Chrome Extension does not collect, store, transmit, or share personal data. It only retrieves publicly available
             Roblox game data (codes) and displays them. It contains no analytics or tracking code.
@@ -227,7 +257,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">10. Contact Us</h2>
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">11. Contact Us</h2>
           <p>
             <strong>Email:</strong> <a href="mailto:getbloxodes@gmail.com">getbloxodes@gmail.com</a>
             <br />

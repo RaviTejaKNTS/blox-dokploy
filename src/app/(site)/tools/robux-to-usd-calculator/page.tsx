@@ -7,6 +7,7 @@ import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools
 import { ContentSlot } from "@/components/ContentSlot";
 import { fetchRobuxBundles } from "./robux-bundles";
 import { RobuxPurchaseClient } from "./RobuxPurchaseClient";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 import {
   DEFAULT_HAS_PREMIUM,
   DEFAULT_TARGET_ROBUX,
@@ -280,6 +281,12 @@ export default async function RobloxPurchasePage() {
               </section>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {tool?.id ? (
+        <div className="mt-10">
+          <CommentsSection entityType="tool" entityId={tool.id} />
         </div>
       ) : null}
 

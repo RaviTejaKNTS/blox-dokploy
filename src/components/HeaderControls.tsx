@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { FiCalendar, FiCheckSquare, FiFileText, FiGrid, FiKey, FiList, FiTool } from "react-icons/fi";
+import { FiCalendar, FiCheckSquare, FiFileText, FiGrid, FiKey, FiList, FiTool, FiUser } from "react-icons/fi";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function HeaderControls() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [accountAvatar, setAccountAvatar] = useState<string | null>(null);
+  const [accountLabel, setAccountLabel] = useState("Account");
 
   const close = () => setOpen(false);
   const openSearch = () => {
@@ -28,6 +30,30 @@ export function HeaderControls() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAccountAvatar() {
+      try {
+        const res = await fetch("/api/account/avatar", { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { avatarUrl?: string | null; displayName?: string | null };
+        if (!active) return;
+        setAccountAvatar(typeof data.avatarUrl === "string" ? data.avatarUrl : null);
+        const label = typeof data.displayName === "string" && data.displayName.trim() ? data.displayName.trim() : "Account";
+        setAccountLabel(label);
+      } catch {
+        // ignore avatar fetch failures
+      }
+    }
+
+    loadAccountAvatar();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const navLinks = [
@@ -95,7 +121,24 @@ export function HeaderControls() {
           <span>Search</span>
         </button>
 
-        <div className="mt-auto">
+        <div className="mt-auto space-y-3">
+          <Link
+            href="/account"
+            className="inline-flex items-center justify-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
+          >
+            {accountAvatar ? (
+              <img
+                src={accountAvatar}
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5 rounded-full border border-border/40 object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <FiUser aria-hidden className="h-4 w-4" />
+            )}
+            <span>Account</span>
+          </Link>
           <ThemeToggle />
         </div>
       </div>
@@ -128,6 +171,24 @@ export function HeaderControls() {
           </svg>
           <span className="hidden sm:inline">Search</span>
         </button>
+        <Link
+          href="/account"
+          aria-label={accountLabel}
+          title={accountLabel}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-surface-muted text-foreground shadow-soft transition hover:-translate-y-[1px] hover:border-border/40 hover:bg-surface overflow-hidden"
+        >
+          {accountAvatar ? (
+            <img
+              src={accountAvatar}
+              alt=""
+              aria-hidden="true"
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <FiUser aria-hidden className="h-4 w-4" />
+          )}
+        </Link>
         <ThemeToggle />
       </div>
 

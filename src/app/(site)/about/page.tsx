@@ -3,7 +3,8 @@ import "@/styles/article-content.css";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const title = "About Bloxodes.com";
-const description = "Learn how Bloxodes.com grew from a Robux calculator into a Roblox hub for tools, checklists, live lists, codes, and guides.";
+const description =
+  "Learn how Bloxodes.com grew from a Robux calculator into a Roblox hub for tools, checklists, live lists, codes, guides, and optional accounts.";
 const canonical = `${SITE_URL.replace(/\/$/, "")}/about`;
 const ogImage = `${SITE_URL}/og-image.png`;
 
@@ -47,8 +48,8 @@ export default function AboutPage() {
         <header className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">About Bloxodes.com</h1>
           <p className="text-base text-muted sm:text-lg">
-            Today, Bloxodes is a growing Roblox hub with tools, checklists, live lists, codes, and reference pages designed to keep players
-            informed and prepared.
+            Today, Bloxodes is a growing Roblox hub with tools, checklists, live lists, codes, reference pages, and optional accounts to help
+            players stay informed and connected.
           </p>
         </header>
 
@@ -91,6 +92,10 @@ export default function AboutPage() {
               : Some Roblox games get chaotic fast. Checklists turn that chaos into a path. Our checklists help you track progress across
               quests, items, upgrades, regions, and milestones, so you always know what you have done and what is next. Currently, we are
               storing these directly on your browser.
+            </li>
+            <li>
+              <strong>Accounts &amp; profiles</strong>: Optional sign-in lets you comment, manage preferences, and link a Roblox account to
+              unlock Roblox-specific features and personalization.
             </li>
             <li>
               <strong>

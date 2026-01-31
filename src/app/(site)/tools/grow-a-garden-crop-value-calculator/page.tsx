@@ -10,6 +10,7 @@ import { GrowGardenCropValueCalculatorClient } from "./GrowGardenCropValueCalcul
 import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ToolContent } from "@/lib/tools";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 3600; // 1 hour to pick up Supabase edits sooner
 
@@ -254,6 +255,12 @@ export default async function GrowGardenCropValueCalculatorPage() {
                 </section>
               </>
             ) : null}
+          </div>
+        ) : null}
+
+        {tool?.id ? (
+          <div className="mt-10">
+            <CommentsSection entityType="tool" entityId={tool.id} />
           </div>
         ) : null}
 

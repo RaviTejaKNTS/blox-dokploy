@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { AuthorCard } from "@/components/AuthorCard";
 import { SocialShare } from "@/components/SocialShare";
-import dynamic from "next/dynamic";
+import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
 import { authorAvatarUrl } from "@/lib/avatar";
@@ -36,15 +36,11 @@ import { ToolCard } from "@/components/ToolCard";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { buildArticleContentBlocks } from "@/lib/ad-placement";
+import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 604800; // weekly
 
-const LazyCodeBlockEnhancer = dynamic(
-  () => import("@/components/CodeBlockEnhancer").then((mod) => mod.CodeBlockEnhancer),
-  { ssr: false }
-);
-
-type Params = { params: { slug: string } };
+type Params = { params: Promise<{ slug: string }> };
 
 function collectAuthorSameAs(author?: Author | null): string[] {
   if (!author) return [];
@@ -53,7 +49,8 @@ function collectAuthorSameAs(author?: Author | null): string[] {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const article = await getArticleBySlug(params.slug);
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
   if (!article) return {};
 
   const canonicalUrl = `${SITE_URL}/articles/${article.slug}`;
@@ -93,7 +90,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ArticlePage({ params }: Params) {
-  const article = await getArticleBySlug(params.slug);
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
   if (!article) {
     notFound();
   }
@@ -318,12 +316,16 @@ async function renderArticlePage(article: ArticleWithRelations) {
           <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
         ) : null}
 
+        <div className="mt-10">
+          <CommentsSection entityType="article" entityId={article.id} />
+        </div>
+
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
         {articleHowToData ? (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleHowToData }} />
         ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbData }} />
-      <LazyCodeBlockEnhancer />
+      <CodeBlockEnhancer />
       </article>
 
       <aside className="space-y-4">

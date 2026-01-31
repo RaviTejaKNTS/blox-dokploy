@@ -39,10 +39,10 @@ function revalidateForCode(slug: string) {
   revalidatePath("/codes");
   revalidatePath("/"); // home shows featured codes
   revalidatePath("/sitemap.xml");
-  revalidateTag(`code:${slug}`);
-  revalidateTag("codes");
-  revalidateTag("codes-index");
-  revalidateTag("home");
+  revalidateTag(`code:${slug}`, { expire: 0 });
+  revalidateTag("codes", { expire: 0 });
+  revalidateTag("codes-index", { expire: 0 });
+  revalidateTag("home", { expire: 0 });
 }
 
 function revalidateForArticle(slug: string) {
@@ -50,9 +50,9 @@ function revalidateForArticle(slug: string) {
   revalidatePath("/articles");
   revalidatePath("/"); // home shows latest articles
   revalidatePath("/sitemap.xml");
-  revalidateTag(`article:${slug}`);
-  revalidateTag("articles");
-  revalidateTag("articles-index");
+  revalidateTag(`article:${slug}`, { expire: 0 });
+  revalidateTag("articles", { expire: 0 });
+  revalidateTag("articles-index", { expire: 0 });
 }
 
 function revalidateForList(slug: string) {
@@ -61,17 +61,17 @@ function revalidateForList(slug: string) {
   revalidatePath(`/lists/${slug}/page/[page]`);
   revalidatePath("/lists");
   revalidatePath("/sitemap.xml");
-  revalidateTag(`list:${slug}`);
-  revalidateTag("lists");
-  revalidateTag("lists-index");
+  revalidateTag(`list:${slug}`, { expire: 0 });
+  revalidateTag("lists", { expire: 0 });
+  revalidateTag("lists-index", { expire: 0 });
 }
 
 function revalidateForAuthor(slug: string) {
   revalidatePath(`/authors/${slug}`);
   revalidatePath("/authors");
-  revalidateTag(`author:${slug}`);
-  revalidateTag("authors");
-  revalidateTag("authors-index");
+  revalidateTag(`author:${slug}`, { expire: 0 });
+  revalidateTag("authors", { expire: 0 });
+  revalidateTag("authors-index", { expire: 0 });
 }
 
 function revalidateForEvents(slug: string) {
@@ -85,7 +85,7 @@ function revalidateForChecklists(slug: string) {
   revalidatePath("/checklists/page/[page]");
   revalidatePath(`/checklists/${slug}`);
   revalidatePath("/sitemap.xml");
-  revalidateTag("checklists-index");
+  revalidateTag("checklists-index", { expire: 0 });
 }
 
 function revalidateForTools(slug: string) {
@@ -93,17 +93,17 @@ function revalidateForTools(slug: string) {
   revalidatePath("/tools/page/[page]");
   revalidatePath(`/tools/${slug}`);
   revalidatePath("/sitemap.xml");
-  revalidateTag("tools-index");
+  revalidateTag("tools-index", { expire: 0 });
 }
 
 function revalidateForCatalog(slug: string) {
   revalidatePath("/catalog");
   if (slug) {
     revalidatePath(`/catalog/${slug}`);
-    revalidateTag(`catalog:${slug}`);
+    revalidateTag(`catalog:${slug}`, { expire: 0 });
   }
   revalidatePath("/sitemap.xml");
-  revalidateTag("catalog-index");
+  revalidateTag("catalog-index", { expire: 0 });
 }
 
 function revalidateForMusic() {

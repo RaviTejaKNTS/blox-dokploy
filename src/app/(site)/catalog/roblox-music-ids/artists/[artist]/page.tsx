@@ -23,11 +23,12 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  params: { artist: string };
+  params: Promise<{ artist: string }>;
 };
 
 export default async function ArtistMusicIdsPage({ params }: PageProps) {
-  const artist = await loadArtistOptionBySlug(params.artist);
+  const { artist: artistSlug } = await params;
+  const artist = await loadArtistOptionBySlug(artistSlug);
   if (!artist) {
     notFound();
   }

@@ -21,7 +21,7 @@ import {
 // Cache author pages for a month; on-demand revalidation keeps them fresh
 export const revalidate = 2592000; // monthly
 
-type Params = { params: { slug: string } };
+type Params = { params: Promise<{ slug: string }> };
 
 function markdownToPlain(text?: string | null): string {
   if (!text) return "";
@@ -33,7 +33,8 @@ function markdownToPlain(text?: string | null): string {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const author = await getAuthorBySlug(params.slug);
+  const { slug } = await params;
+  const author = await getAuthorBySlug(slug);
   if (!author) {
     return {};
   }
@@ -66,7 +67,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function AuthorPage({ params }: Params) {
-  const author = await getAuthorBySlug(params.slug);
+  const { slug } = await params;
+  const author = await getAuthorBySlug(slug);
   if (!author) {
     return notFound();
   }
