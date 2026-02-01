@@ -107,6 +107,8 @@ create table if not exists public.roblox_universes (
   social_links jsonb not null default '{}'::jsonb,
   raw_metadata jsonb not null default '{}'::jsonb,
   raw_details jsonb not null default '{}'::jsonb,
+  created_at_api timestamptz,
+  updated_at_api timestamptz,
   first_seen_at timestamptz not null default now(),
   last_seen_in_sort timestamptz,
   last_seen_in_search timestamptz,

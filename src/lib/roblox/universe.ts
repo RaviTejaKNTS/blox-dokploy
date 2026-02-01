@@ -21,6 +21,8 @@ type RobloxGameDetail = {
   rootPlaceId?: number;
   name?: string;
   description?: string;
+  created?: string;
+  updated?: string;
   creator?: {
     id?: number;
     name?: string;
@@ -84,6 +86,13 @@ function numberValue(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function normalizeTimestamp(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toISOString();
 }
 
 async function safeScrapeMetadata(robloxLink: string): Promise<RobloxGameMetadata | null> {
@@ -164,6 +173,8 @@ export async function ensureUniverseForRobloxLink(
   const votes = gameDetail?.votes ?? {};
   const likes = votes?.upVotes ?? gameDetail?.totalUpVotes ?? null;
   const dislikes = votes?.downVotes ?? gameDetail?.totalDownVotes ?? null;
+  const createdAtApi = normalizeTimestamp(gameDetail?.created ?? null);
+  const updatedAtApi = normalizeTimestamp(gameDetail?.updated ?? null);
 
   const insertPayload = {
     universe_id: universeId,
@@ -190,6 +201,8 @@ export async function ensureUniverseForRobloxLink(
     favorites,
     likes,
     dislikes,
+    created_at_api: createdAtApi,
+    updated_at_api: updatedAtApi,
     raw_details: {
       source: "games_api",
       fetched_at: new Date().toISOString(),

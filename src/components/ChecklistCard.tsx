@@ -75,15 +75,6 @@ export function ChecklistCard({
   }, [session.status, session.userId, accountDone, slug, totalItems, localVersion]);
 
   useEffect(() => {
-    const handleProgressEvent = (event: Event) => {
-      if (session.userId) return;
-      const custom = event as CustomEvent<{ slug: string; checkedCount: number; totalCount: number }>;
-      const detail = custom.detail;
-      if (!detail || detail.slug !== slug) return;
-      setLocalVersion((prev) => prev + 1);
-    };
-
-    window.addEventListener("checklist-progress", handleProgressEvent as EventListener);
     if (!session.userId) {
       const handleStorage = (event: StorageEvent) => {
         if (event.key === `checklist:${slug}`) {
@@ -93,11 +84,10 @@ export function ChecklistCard({
       window.addEventListener("storage", handleStorage);
       return () => {
         window.removeEventListener("storage", handleStorage);
-        window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
       };
     }
     return () => {
-      window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
+      // no-op
     };
   }, [session.userId, slug]);
 

@@ -32,6 +32,8 @@ type RobloxGameDetail = {
   rootPlaceId?: number;
   name?: string;
   description?: string;
+  created?: string;
+  updated?: string;
   sourceName?: string;
   creator?: {
     id?: number;
@@ -285,6 +287,13 @@ function pickBoolean(source: Record<string, unknown> | null | undefined, ...keys
     }
   }
   return null;
+}
+
+function normalizeTimestamp(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toISOString();
 }
 
 const UNIVERSE_SOCIAL_FIELDS: Array<{ key: string; field: string }> = [
@@ -622,6 +631,12 @@ function mapGameDetail(
   const detailGenreL1 = typeof game.genre_l1 === "string" ? game.genre_l1 : null;
   const detailGenreL2 = typeof game.genre_l2 === "string" ? game.genre_l2 : null;
   const detailIsAllGenre = typeof game.isAllGenre === "boolean" ? game.isAllGenre : null;
+  const createdAtApi = normalizeTimestamp(
+    pickString(metadata?.raw ?? null, "created", "createdAt", "created_at") ?? game.created ?? null
+  );
+  const updatedAtApi = normalizeTimestamp(
+    pickString(metadata?.raw ?? null, "updated", "updatedAt", "updated_at") ?? game.updated ?? null
+  );
 
   const genreValue = detailGenre ?? metadataGenre ?? null;
   const genreL1Value = metadataGenreL1 ?? detailGenreL1 ?? genreValue;
@@ -707,6 +722,8 @@ function mapGameDetail(
     favorites,
     likes,
     dislikes,
+    created_at_api: createdAtApi,
+    updated_at_api: updatedAtApi,
     raw_details: rawDetails,
     raw_metadata: rawMetadata,
     social_links: metadata?.socialLinks ?? {}
