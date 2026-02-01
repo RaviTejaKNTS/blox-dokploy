@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { createHash } from "node:crypto";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const CATALOG_DETAILS_API = "https://catalog.roblox.com/v1/search/items/details";
 const CATALOG_CATEGORIES_API = "https://catalog.roblox.com/v1/categories";

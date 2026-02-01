@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { slugify } from "@/lib/slug";
 
 const EXPLORE_BASE = "https://apis.roblox.com/explore-api/v1";

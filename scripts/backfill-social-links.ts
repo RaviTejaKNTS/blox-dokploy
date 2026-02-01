@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SOCIAL_LINK_FIELDS,
   type SocialLinkType,

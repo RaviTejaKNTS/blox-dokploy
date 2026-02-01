@@ -1,6 +1,6 @@
 // scripts/seed-trending-lists.ts
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 type ListConfig = {
   slug: string;

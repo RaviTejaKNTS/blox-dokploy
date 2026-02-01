@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import OpenAI from "openai";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { revalidateEventsByUniverseIds } from "./lib/revalidate-events";
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;

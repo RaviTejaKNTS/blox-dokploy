@@ -6,7 +6,7 @@
  */
 
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const REQUEST_DELAY_MS = 400;
 const MAX_UGC_PAGES = parseInt(process.env.MAX_UGC_PAGES || "10000"); // ~300K items (30 per page)

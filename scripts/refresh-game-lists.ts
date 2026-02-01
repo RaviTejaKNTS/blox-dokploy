@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const METRICS = ["playing", "visits", "favorites", "likes"] as const;
 type MetricKey = (typeof METRICS)[number];

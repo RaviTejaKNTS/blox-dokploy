@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const THUMBNAILS_API = "https://thumbnails.roblox.com/v1/assets";
 const USER_AGENT = "BloxodesMusicThumbnailBot/1.0";

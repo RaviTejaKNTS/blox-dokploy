@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { promises as fs } from "node:fs";
 import { detectProvider, getCodeDisplayPriority, scrapeSources } from "@/lib/scraper";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { Game } from "@/lib/db";
 import { sanitizeCodeDisplay, normalizeCodeKey } from "@/lib/code-normalization";
 

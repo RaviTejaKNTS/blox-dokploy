@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const ECONOMY_DETAILS_API = (assetId: number) => `https://economy.roblox.com/v2/assets/${assetId}/details`;
 const THUMBNAILS_API = "https://thumbnails.roblox.com/v1/assets";

@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { slugify, stripCodesSuffix } from "@/lib/slug";
 
 const PAGE_SIZE = Number(process.env.UNIVERSE_SLUG_BATCH ?? "500");

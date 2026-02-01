@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { slugify } from "@/lib/slug";
 
 const GAME_DETAILS_API = "https://games.roblox.com/v1/games";

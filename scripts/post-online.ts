@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { promises as fs } from 'node:fs';
 import { format } from 'date-fns';
 import crypto from 'node:crypto';
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { SITE_URL } from "@/lib/seo";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;

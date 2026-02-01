@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import crypto from "node:crypto";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
 const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET;

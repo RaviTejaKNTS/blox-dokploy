@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { appendCodesSuffix, normalizeGameSlug, stripCodesSuffix } from "@/lib/slug";
 
 const PAGE_SIZE = Number(process.env.GAME_SLUG_SYNC_BATCH ?? "500");

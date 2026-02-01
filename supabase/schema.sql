@@ -571,6 +571,18 @@ create table if not exists public.checklist_items (
 create index if not exists idx_checklist_items_page_section on public.checklist_items (page_id, section_code);
 create index if not exists idx_checklist_items_page on public.checklist_items (page_id);
 
+create table if not exists public.user_checklist_progress (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  checklist_slug text not null,
+  checked_item_ids text[] not null default '{}'::text[],
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, checklist_slug)
+);
+
+create index if not exists idx_user_checklist_progress_slug
+  on public.user_checklist_progress (checklist_slug);
+
 -- helper to normalize section_code
 create or replace function public.normalize_section_code(raw text) returns text as $$
 declare
@@ -759,6 +771,10 @@ drop trigger if exists trg_checklist_items_updated_at on public.checklist_items;
 create trigger trg_checklist_items_updated_at before update on public.checklist_items
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_user_checklist_progress_updated_at on public.user_checklist_progress;
+create trigger trg_user_checklist_progress_updated_at before update on public.user_checklist_progress
+for each row execute function public.set_updated_at();
+
 drop trigger if exists trg_checklist_items_normalize on public.checklist_items;
 create trigger trg_checklist_items_normalize
 before insert or update on public.checklist_items
@@ -893,6 +909,23 @@ drop policy if exists "app_users_update_self" on public.app_users;
 create policy "app_users_update_self" on public.app_users
   for update using (auth.uid() = user_id)
   with check (auth.uid() = user_id and role = 'user');
+
+drop policy if exists "user_checklist_progress_select_own" on public.user_checklist_progress;
+create policy "user_checklist_progress_select_own" on public.user_checklist_progress
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "user_checklist_progress_insert_own" on public.user_checklist_progress;
+create policy "user_checklist_progress_insert_own" on public.user_checklist_progress
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "user_checklist_progress_update_own" on public.user_checklist_progress;
+create policy "user_checklist_progress_update_own" on public.user_checklist_progress
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "user_checklist_progress_delete_own" on public.user_checklist_progress;
+create policy "user_checklist_progress_delete_own" on public.user_checklist_progress
+  for delete using (auth.uid() = user_id);
 
 drop policy if exists "comments_select_public" on public.comments;
 create policy "comments_select_public" on public.comments

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const TOOLBOX_SEARCH_API = "https://apis.roblox.com/toolbox-service/v2/assets:search";
 const TOOLBOX_PAGE_SIZE = Number(process.env.ROBLOX_TOOLBOX_PAGE_SIZE ?? "100");

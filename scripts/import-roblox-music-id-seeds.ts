@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { readFile } from "node:fs/promises";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const SEED_FILE = process.env.ROBLOX_MUSIC_SEED_FILE ?? "docs/roblox-music-id-seeds.md";
 const SEED_SOURCE = process.env.ROBLOX_MUSIC_SEED_SOURCE ?? "seed_web";

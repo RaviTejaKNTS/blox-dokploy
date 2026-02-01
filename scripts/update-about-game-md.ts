@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import OpenAI from "openai";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 type GameRow = {
   id: string;

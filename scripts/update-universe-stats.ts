@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const GAME_DETAILS_API = "https://games.roblox.com/v1/games";
 const BATCH_SIZE = Number(process.env.UNIVERSE_STATS_BATCH_SIZE ?? "50");

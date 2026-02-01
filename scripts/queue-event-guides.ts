@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const WAIT_HOURS = Number(process.env.EVENT_GUIDE_WAIT_HOURS ?? "6");
 const MIN_DURATION_HOURS = Number(process.env.EVENT_GUIDE_MIN_DURATION_HOURS ?? "24");

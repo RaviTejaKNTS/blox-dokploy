@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import OpenAI from "openai";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { slugify } from "@/lib/slug";
 import { revalidateEventSlugs } from "./lib/revalidate-events";
 

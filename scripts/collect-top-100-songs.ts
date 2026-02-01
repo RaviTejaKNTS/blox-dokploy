@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const TOP_SONGS_API = "https://apis.roblox.com/music-discovery/v1/top-songs";
 const PRODUCTINFO_API = (assetId: number) => `https://api.roblox.com/marketplace/productinfo?assetId=${assetId}`;

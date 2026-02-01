@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ensureUniverseForRobloxLink } from "@/lib/roblox/universe";
 
 const PAGE_SIZE = Number(process.env.ROBLOX_BACKFILL_PAGE_SIZE ?? "200");

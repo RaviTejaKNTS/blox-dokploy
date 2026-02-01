@@ -6,6 +6,14 @@ import { FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import type { ChecklistItem } from "@/lib/db";
 import { ContentSlot } from "@/components/ContentSlot";
 import { trackEvent } from "@/lib/analytics";
+import {
+  loadAccountChecklistProgress,
+  readLocalChecklistProgress,
+  saveAccountChecklistProgress,
+  updateChecklistProgressCount,
+  useChecklistSession,
+  writeLocalChecklistProgress
+} from "@/lib/checklist-progress-client";
 
 type SectionBlock = {
   code: string;
@@ -300,6 +308,10 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const session = useChecklistSession();
+  const checkedRef = useRef(checked);
+  const pendingPersistRef = useRef(false);
+  const changeVersionRef = useRef(0);
   const availableHeight = DEFAULT_BOARD_HEIGHT;
   const [isNarrow, setIsNarrow] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
@@ -386,25 +398,58 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
   // Height is fixed to avoid column reflow after hydration.
 
   useEffect(() => {
-    const key = `checklist:${slug}`;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setChecked(new Set(parsed.filter((id): id is string => typeof id === "string")));
-        }
-      }
-    } catch {
-      // ignore
-    }
+    checkedRef.current = checked;
+  }, [checked]);
+
+  useEffect(() => {
+    pendingPersistRef.current = false;
+    changeVersionRef.current = 0;
   }, [slug]);
 
-  const storageKey = `checklist:${slug}`;
+  useEffect(() => {
+    if (session.status !== "ready") return;
+
+    if (pendingPersistRef.current) {
+      const ids = Array.from(checkedRef.current);
+      if (session.userId) {
+        void saveAccountChecklistProgress(slug, ids);
+        updateChecklistProgressCount(session.userId, slug, ids.length);
+      } else {
+        const merged = new Set(readLocalChecklistProgress(slug));
+        ids.forEach((id) => merged.add(id));
+        const mergedIds = Array.from(merged);
+        setChecked(new Set(mergedIds));
+        writeLocalChecklistProgress(slug, mergedIds);
+      }
+      pendingPersistRef.current = false;
+      return;
+    }
+
+    if (!session.userId) {
+      setChecked(new Set(readLocalChecklistProgress(slug)));
+      return;
+    }
+
+    let isActive = true;
+    void (async () => {
+      const loadVersion = changeVersionRef.current;
+      const ids = await loadAccountChecklistProgress(slug);
+      if (!isActive) return;
+      if (changeVersionRef.current !== loadVersion) return;
+      setChecked(new Set(ids));
+      updateChecklistProgressCount(session.userId, slug, ids.length);
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [session.status, session.userId, slug]);
   const lastMilestoneRef = useRef(0);
   const milestonesInitialized = useRef(false);
 
   const toggleItem = (item: ChecklistItem) => {
+    const sessionReady = session.status === "ready";
+    changeVersionRef.current += 1;
     setChecked((prev) => {
       const next = new Set(prev);
       const nextChecked = !next.has(item.id);
@@ -413,10 +458,17 @@ export function ChecklistBoard({ slug, items, descriptionHtml, className }: Chec
       } else {
         next.delete(item.id);
       }
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(Array.from(next)));
-      } catch {
-        // ignore storage errors
+      const nextIds = Array.from(next);
+
+      if (sessionReady) {
+        if (session.userId) {
+          void saveAccountChecklistProgress(slug, nextIds);
+          updateChecklistProgressCount(session.userId, slug, nextIds.length);
+        } else {
+          writeLocalChecklistProgress(slug, nextIds);
+        }
+      } else {
+        pendingPersistRef.current = true;
       }
       trackEvent("checklist_item_toggle", {
         checklist_slug: slug,

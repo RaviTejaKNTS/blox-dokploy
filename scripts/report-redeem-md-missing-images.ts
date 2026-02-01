@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const DEFAULT_PAGE_SIZE = Number(process.env.REDEEM_MD_PAGE_SIZE ?? "500");
 const DEFAULT_OUTPUT_PATH = process.env.REDEEM_MD_OUTPUT ?? "redeem-md-missing-images.md";

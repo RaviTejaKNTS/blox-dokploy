@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import {
+  readLocalChecklistProgress,
+  useChecklistProgressIndex,
+  useChecklistSession
+} from "@/lib/checklist-progress-client";
 
 type ChecklistCardProps = {
   id: string;
@@ -26,31 +31,6 @@ function formatUpdatedLabel(updatedAt: string | null): string | null {
   }
 }
 
-function storageKey(slug: string) {
-  return `checklist:${slug}`;
-}
-
-function computeProgress(slug: string, totalItems: number): Progress {
-  let done = 0;
-  try {
-    const raw = localStorage.getItem(storageKey(slug));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        done = parsed.filter((id) => typeof id === "string").length;
-      }
-    }
-  } catch {
-    // ignore storage errors
-  }
-  const clampedDone = Math.min(done, totalItems);
-  return {
-    done: clampedDone,
-    total: totalItems,
-    percent: totalItems ? Math.round((clampedDone / totalItems) * 100) : 0
-  };
-}
-
 export function ChecklistCard({
   slug,
   title,
@@ -60,49 +40,66 @@ export function ChecklistCard({
   updatedAt,
   itemsCount
 }: ChecklistCardProps) {
+  const session = useChecklistSession();
+  const progressIndex = useChecklistProgressIndex(session.status === "ready" ? session.userId : null);
+  const accountDone =
+    session.userId && progressIndex.userId === session.userId ? (progressIndex.counts[slug] ?? 0) : 0;
   const updatedLabel = formatUpdatedLabel(updatedAt);
   const totalItems = typeof itemsCount === "number" ? itemsCount : 0;
-  const [progress, setProgress] = useState<Progress>(() => ({
-    done: 0,
-    total: totalItems,
-    percent: totalItems ? 0 : 0
-  }));
+  const [localVersion, setLocalVersion] = useState(0);
   const fallbackImage = "/og-image.png";
   const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
     if (event.currentTarget.src.endsWith(fallbackImage)) return;
     event.currentTarget.src = fallbackImage;
   };
 
-  useEffect(() => {
-    setProgress(computeProgress(slug, totalItems));
-  }, [slug, totalItems]);
+  const progress = useMemo<Progress>(() => {
+    if (session.status !== "ready") {
+      return { done: 0, total: totalItems, percent: totalItems ? 0 : 0 };
+    }
+    if (session.userId) {
+      const clampedDone = Math.min(accountDone, totalItems);
+      return {
+        done: clampedDone,
+        total: totalItems,
+        percent: totalItems ? Math.round((clampedDone / totalItems) * 100) : 0
+      };
+    }
+    const localDone = readLocalChecklistProgress(slug).length;
+    const clampedDone = Math.min(localDone, totalItems);
+    return {
+      done: clampedDone,
+      total: totalItems,
+      percent: totalItems ? Math.round((clampedDone / totalItems) * 100) : 0
+    };
+  }, [session.status, session.userId, accountDone, slug, totalItems, localVersion]);
 
   useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === storageKey(slug)) {
-        setProgress(computeProgress(slug, totalItems));
-      }
-    };
     const handleProgressEvent = (event: Event) => {
+      if (session.userId) return;
       const custom = event as CustomEvent<{ slug: string; checkedCount: number; totalCount: number }>;
       const detail = custom.detail;
       if (!detail || detail.slug !== slug) return;
-      const total = totalItems || detail.totalCount || 0;
-      const done = Math.min(detail.checkedCount, total);
-      setProgress({
-        done,
-        total,
-        percent: total ? Math.round((done / total) * 100) : 0
-      });
+      setLocalVersion((prev) => prev + 1);
     };
 
-    window.addEventListener("storage", handleStorage);
     window.addEventListener("checklist-progress", handleProgressEvent as EventListener);
+    if (!session.userId) {
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === `checklist:${slug}`) {
+          setLocalVersion((prev) => prev + 1);
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+      return () => {
+        window.removeEventListener("storage", handleStorage);
+        window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
+      };
+    }
     return () => {
-      window.removeEventListener("storage", handleStorage);
       window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
     };
-  }, [slug, totalItems]);
+  }, [session.userId, slug]);
 
   return (
     <Link

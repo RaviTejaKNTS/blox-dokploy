@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readLocalChecklistProgress, useChecklistSession } from "@/lib/checklist-progress-client";
 
 type Progress = { done: number; total: number; percent: number };
 
@@ -10,23 +11,8 @@ type ChecklistProgressHeaderProps = {
   totalItems: number;
 };
 
-function storageKey(slug: string) {
-  return `checklist:${slug}`;
-}
-
 function computeProgress(slug: string, totalItems: number): Progress {
-  let done = 0;
-  try {
-    const raw = localStorage.getItem(storageKey(slug));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        done = parsed.filter((id) => typeof id === "string").length;
-      }
-    }
-  } catch {
-    // ignore storage errors
-  }
+  const done = readLocalChecklistProgress(slug).length;
   const clampedDone = Math.min(done, totalItems);
   return {
     done: clampedDone,
@@ -36,6 +22,7 @@ function computeProgress(slug: string, totalItems: number): Progress {
 }
 
 export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistProgressHeaderProps) {
+  const session = useChecklistSession();
   const [progress, setProgress] = useState<Progress>(() => ({
     done: 0,
     total: totalItems,
@@ -43,8 +30,9 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
   }));
 
   useEffect(() => {
+    if (session.status !== "ready" || session.userId) return;
     setProgress(computeProgress(slug, totalItems));
-  }, [slug, totalItems]);
+  }, [session.status, session.userId, slug, totalItems]);
 
   useEffect(() => {
     const handleProgressEvent = (event: Event) => {
@@ -60,19 +48,23 @@ export function ChecklistProgressHeader({ title, slug, totalItems }: ChecklistPr
       });
     };
 
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === storageKey(slug)) {
-        setProgress(computeProgress(slug, totalItems));
-      }
-    };
-
     window.addEventListener("checklist-progress", handleProgressEvent as EventListener);
-    window.addEventListener("storage", handleStorage);
+    if (!session.userId) {
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === `checklist:${slug}`) {
+          setProgress(computeProgress(slug, totalItems));
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+      return () => {
+        window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
+        window.removeEventListener("storage", handleStorage);
+      };
+    }
     return () => {
       window.removeEventListener("checklist-progress", handleProgressEvent as EventListener);
-      window.removeEventListener("storage", handleStorage);
     };
-  }, [slug, totalItems]);
+  }, [session.userId, slug, totalItems]);
 
   return (
     <div className="flex w-full flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:gap-3">

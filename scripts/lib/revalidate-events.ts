@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const REVALIDATE_ENDPOINT = process.env.REVALIDATE_ENDPOINT;
 const REVALIDATE_SECRET = process.env.REVALIDATE_SECRET;
