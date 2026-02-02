@@ -13,6 +13,7 @@ import { collectAuthorSocials } from "@/lib/author-socials";
 import {
   ARTICLES_DESCRIPTION,
   CHECKLISTS_DESCRIPTION,
+  EVENTS_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/seo";
 import {
   getArticleBySlug,
+  getEventsPageByUniverseId,
   type ArticleWithRelations,
   type Author,
   listPublishedArticlesByUniverseId,
@@ -33,10 +35,13 @@ import { ChecklistCard } from "@/components/ChecklistCard";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ToolCard } from "@/components/ToolCard";
+import { EventsPageCard } from "@/components/EventsPageCard";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { buildArticleContentBlocks } from "@/lib/ad-placement";
 import { CommentsSection } from "@/components/comments/CommentsSection";
+import { formatUpdatedLabel } from "@/lib/updated-label";
+import { getUniverseEventSummary } from "@/lib/events-summary";
 
 export const revalidate = 604800; // weekly
 
@@ -114,18 +119,26 @@ async function renderArticlePage(article: ArticleWithRelations) {
   const universeId = (article as any).universe_id ?? null;
   const universeLabel = article.universe?.display_name ?? article.universe?.name ?? article.title;
   const relatedTools: ToolListEntry[] = universeId ? await listPublishedToolsByUniverseId(universeId, 3) : [];
+  const relatedEventsPage = universeId ? await getEventsPageByUniverseId(universeId) : null;
+  const eventSummary = universeId ? await getUniverseEventSummary(universeId) : null;
 
   // Prefer articles in the same universe; fall back to latest articles if none
   let relatedArticles: ArticleWithRelations[] = [];
+  let relatedFromUniverse = false;
   if (universeId) {
     const sameUniverse = await listPublishedArticlesByUniverseId(universeId, 6, 0);
     relatedArticles = sameUniverse.filter((entry) => entry.id !== article.id).slice(0, 5);
+    relatedFromUniverse = relatedArticles.length > 0;
   }
   if (!relatedArticles.length) {
     const { articles: latestArticles } = await listPublishedArticlesPage(1, 5);
     relatedArticles = latestArticles.filter((entry) => entry.id !== article.id).slice(0, 5);
   }
-  const relatedHeading = relatedArticles.length ? (universeId ? `${universeLabel} articles` : "Latest articles") : null;
+  const relatedHeading = relatedArticles.length
+    ? relatedFromUniverse
+      ? `${universeLabel} articles`
+      : "Latest articles"
+    : null;
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
   const publishedDate = new Date(article.published_at);
   const updatedDate = new Date(article.updated_at);
@@ -225,6 +238,29 @@ async function renderArticlePage(article: ArticleWithRelations) {
       itemsCount
     };
   });
+  const eventsSummary = relatedEventsPage?.meta_description?.trim() || EVENTS_DESCRIPTION;
+  const eventsUpdatedLabel = relatedEventsPage
+    ? formatUpdatedLabel(relatedEventsPage.updated_at || relatedEventsPage.published_at || relatedEventsPage.created_at)
+    : null;
+  const eventsCard =
+    relatedEventsPage && relatedEventsPage.slug
+      ? {
+          slug: relatedEventsPage.slug,
+          title: relatedEventsPage.title,
+          summary: eventsSummary,
+          universeName:
+            relatedEventsPage.universe?.display_name ??
+            relatedEventsPage.universe?.name ??
+            universeLabel,
+          coverImage: null,
+          fallbackIcon: relatedEventsPage.universe?.icon_url ?? null,
+          eventName: eventSummary?.featured?.name ?? null,
+          eventTimeLabel: eventSummary?.featured?.timeLabel ?? null,
+          status: eventSummary?.featured?.status ?? "none",
+          counts: eventSummary?.counts ?? { upcoming: 0, current: 0, past: 0 },
+          updatedLabel: eventsUpdatedLabel
+        }
+      : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
@@ -353,7 +389,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               {relatedCodes.map((g) => (
                 <div
                   key={g.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="article_sidebar"
                   data-analytics-target-type="codes"
@@ -366,6 +402,23 @@ async function renderArticlePage(article: ArticleWithRelations) {
           </section>
         ) : null}
 
+        {eventsCard ? (
+          <section className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">Events for {universeLabel}</h3>
+            <div className="space-y-3">
+              <div
+                className="block"
+                data-analytics-event="related_content_click"
+                data-analytics-source-type="article_sidebar"
+                data-analytics-target-type="event"
+                data-analytics-target-slug={eventsCard.slug}
+              >
+                <EventsPageCard {...eventsCard} />
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {relatedChecklistCards.length ? (
           <section className="space-y-3">
             <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
@@ -373,7 +426,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               {relatedChecklistCards.map((card) => (
                 <div
                   key={card.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="article_sidebar"
                   data-analytics-target-type="checklist"
@@ -393,7 +446,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               {relatedArticles.slice(0, 5).map((item) => (
                 <div
                   key={item.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="article_sidebar"
                   data-analytics-target-type="article"
@@ -413,7 +466,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
               {relatedTools.map((tool) => (
                 <div
                   key={tool.id ?? tool.code}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="article_sidebar"
                   data-analytics-target-type="tool"

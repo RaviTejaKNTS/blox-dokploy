@@ -83,7 +83,11 @@ export function EventsPageCard({
   const normalizedIcon = normalizeImageUrl(fallbackIcon);
   const statusStyle = STATUS_STYLES[status] ?? STATUS_STYLES.none;
   const countsLabel = buildCountsLabel(counts);
-  const fallbackTitle = eventName ? eventName : "Events overview";
+  const totalEvents = (counts.upcoming ?? 0) + (counts.current ?? 0) + (counts.past ?? 0);
+  const fallbackTitle = eventName || title || "Events overview";
+  const timeLabel =
+    eventTimeLabel ??
+    (totalEvents > 0 ? "Schedules and countdowns" : "No scheduled events yet");
 
   return (
     <Link href={`/events/${slug}`} prefetch={false} className="group block h-full">
@@ -92,8 +96,8 @@ export function EventsPageCard({
           className="pointer-events-none absolute inset-0 opacity-70 transition duration-700 group-hover:opacity-100"
           aria-hidden
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(79,70,229,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.14),transparent_35%)]" />
-          <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-transparent to-background/80" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(15,23,42,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(15,23,42,0.1),transparent_35%)] dark:bg-[radial-gradient(circle_at_12%_18%,rgba(79,70,229,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.14),transparent_35%)]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/10 via-transparent to-slate-950/20 dark:from-background/40 dark:to-background/80" />
         </div>
 
         <div className="relative">
@@ -122,7 +126,7 @@ export function EventsPageCard({
                 <span className="text-sm font-semibold text-foreground">{displayUniverse}</span>
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent dark:from-background/95 dark:via-background/40" />
             <div className="absolute left-4 top-4 flex items-center gap-2">
               <span className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${statusStyle.badge}`}>
                 {statusStyle.label}
@@ -130,11 +134,7 @@ export function EventsPageCard({
             </div>
             <div className="absolute bottom-4 left-4 right-4 space-y-1">
               <p className="text-base font-semibold text-white drop-shadow-sm line-clamp-1">{fallbackTitle}</p>
-              {eventTimeLabel ? (
-                <p className="text-xs text-white/80">{eventTimeLabel}</p>
-              ) : (
-                <p className="text-xs text-white/70">Countdowns and schedules</p>
-              )}
+              <p className="text-xs text-white/80">{timeLabel}</p>
             </div>
           </div>
         </div>

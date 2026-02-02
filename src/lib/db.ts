@@ -1121,6 +1121,22 @@ export type ChecklistSummaryRow = {
   items?: Array<{ count?: number }>;
 };
 
+export type EventsPageSummary = {
+  id: string;
+  universe_id: number;
+  slug: string;
+  title: string;
+  meta_description?: string | null;
+  published_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  universe?: {
+    display_name?: string | null;
+    name?: string | null;
+    icon_url?: string | null;
+  } | null;
+};
+
 const cachedListPublishedChecklists = unstable_cache(
   async (limit: number, offset: number) => {
     const sb = supabaseAdmin();
@@ -1262,6 +1278,38 @@ export async function listPublishedChecklistsByUniverseId(universeId: number, li
 
   if (error) throw error;
   return (data ?? []) as ChecklistSummaryRow[];
+}
+
+export async function getEventsPageByUniverseId(universeId: number): Promise<EventsPageSummary | null> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("events_pages")
+        .select(
+          "id, universe_id, slug, title, meta_description, published_at, created_at, updated_at, universe:roblox_universes(universe_id, display_name, name, icon_url)"
+        )
+        .eq("is_published", true)
+        .eq("universe_id", universeId)
+        .not("slug", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data || !(data as { slug?: string | null }).slug) return null;
+      const raw = data as EventsPageSummary & { universe?: EventsPageSummary["universe"] | EventsPageSummary["universe"][] };
+      const universe = Array.isArray(raw.universe) ? raw.universe[0] ?? null : raw.universe ?? null;
+      return { ...raw, universe };
+    },
+    [`eventsPageByUniverse:${universeId}`],
+    {
+      revalidate: 3600,
+      tags: ["events-pages"]
+    }
+  );
+
+  return cached();
 }
 
 export async function getGameBySlug(slug: string): Promise<GameWithAuthor | null> {

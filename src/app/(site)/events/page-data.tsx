@@ -341,6 +341,13 @@ function pickCoverEvent(
   const past = grouped.past.find((event) => event.primaryThumbnailUrl);
   if (past) return { event: past, bucket: "past" };
 
+  const fallbackUpcoming = grouped.upcoming[0];
+  if (fallbackUpcoming) return { event: fallbackUpcoming, bucket: "upcoming" };
+  const fallbackCurrent = grouped.current[0];
+  if (fallbackCurrent) return { event: fallbackCurrent, bucket: "current" };
+  const fallbackPast = grouped.past[0];
+  if (fallbackPast) return { event: fallbackPast, bucket: "past" };
+
   return null;
 }
 

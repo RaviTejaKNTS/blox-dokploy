@@ -15,6 +15,7 @@ import { ActiveCodes } from "@/components/ActiveCodes";
 import { ExpiredCodes } from "@/components/ExpiredCodes";
 import { GameCard } from "@/components/GameCard";
 import { ToolCard } from "@/components/ToolCard";
+import { EventsPageCard } from "@/components/EventsPageCard";
 import { SocialShare } from "@/components/SocialShare";
 import { ContentSlot } from "@/components/ContentSlot";
 import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
@@ -25,6 +26,7 @@ import { collectAuthorSocials } from "@/lib/author-socials";
 import { isCodeWithinNewThreshold, sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
+  getEventsPageByUniverseId,
   listGamesWithActiveCounts,
   listGamesWithActiveCountsByUniverseId,
   listPublishedArticlesByUniverseId,
@@ -35,6 +37,7 @@ import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools"
 import {
   CHECKLISTS_DESCRIPTION,
   CODES_DESCRIPTION,
+  EVENTS_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
@@ -45,6 +48,8 @@ import { extractHowToSteps } from "@/lib/how-to";
 import { ChecklistCard } from "@/components/ChecklistCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { CommentsSection } from "@/components/comments/CommentsSection";
+import { formatUpdatedLabel } from "@/lib/updated-label";
+import { getUniverseEventSummary } from "@/lib/events-summary";
 
 export const revalidate = 86400; // daily
 
@@ -691,6 +696,8 @@ export default async function GamePage({ params }: Params) {
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
   const relatedArticles = universeId ? await listPublishedArticlesByUniverseId(universeId, 3) : [];
   const relatedTools: ToolListEntry[] = universeId ? await listPublishedToolsByUniverseId(universeId, 3) : [];
+  const relatedEventsPage = universeId ? await getEventsPageByUniverseId(universeId) : null;
+  const eventSummary = universeId ? await getUniverseEventSummary(universeId) : null;
   const relatedGame = universeId ? await listGamesWithActiveCountsByUniverseId(universeId, 1) : [];
 
   const relatedChecklistCards = relatedChecklists.map((row) => {
@@ -712,6 +719,29 @@ export default async function GamePage({ params }: Params) {
       itemsCount
     };
   });
+  const eventsSummary = relatedEventsPage?.meta_description?.trim() || EVENTS_DESCRIPTION;
+  const eventsUpdatedLabel = relatedEventsPage
+    ? formatUpdatedLabel(relatedEventsPage.updated_at || relatedEventsPage.published_at || relatedEventsPage.created_at)
+    : null;
+  const eventsCard =
+    relatedEventsPage && relatedEventsPage.slug
+      ? {
+          slug: relatedEventsPage.slug,
+          title: relatedEventsPage.title,
+          summary: eventsSummary,
+          universeName:
+            relatedEventsPage.universe?.display_name ??
+            relatedEventsPage.universe?.name ??
+            universeLabel,
+          coverImage: null,
+          fallbackIcon: relatedEventsPage.universe?.icon_url ?? null,
+          eventName: eventSummary?.featured?.name ?? null,
+          eventTimeLabel: eventSummary?.featured?.timeLabel ?? null,
+          status: eventSummary?.featured?.status ?? "none",
+          counts: eventSummary?.counts ?? { upcoming: 0, current: 0, past: 0 },
+          updatedLabel: eventsUpdatedLabel
+        }
+      : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,1.25fr)]">
@@ -1092,7 +1122,7 @@ export default async function GamePage({ params }: Params) {
         <CodeBlockEnhancer />
       </article>
 
-      {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0) ? (
+      {(suggestedCodes.length > 0 || relatedChecklistCards.length > 0 || relatedArticles.length > 0 || relatedTools.length > 0 || Boolean(eventsCard)) ? (
         <aside className="space-y-4">
           <SocialShare
             url={canonicalUrl}
@@ -1108,6 +1138,23 @@ export default async function GamePage({ params }: Params) {
             minHeight="clamp(280px, 40vw, 600px)"
           />
 
+          {eventsCard ? (
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">Events for {universeLabel}</h3>
+              <div className="space-y-3">
+                <div
+                  className="block"
+                  data-analytics-event="related_content_click"
+                  data-analytics-source-type="codes_sidebar"
+                  data-analytics-target-type="event"
+                  data-analytics-target-slug={eventsCard.slug}
+                >
+                  <EventsPageCard {...eventsCard} />
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           {relatedChecklistCards.length ? (
             <section className="space-y-3">
               <h3 className="text-lg font-semibold text-foreground">{universeLabel} checklist</h3>
@@ -1115,7 +1162,7 @@ export default async function GamePage({ params }: Params) {
                 {relatedChecklistCards.map((card) => (
                   <div
                     key={card.id}
-                    className="contents"
+                    className="block"
                     data-analytics-event="related_content_click"
                     data-analytics-source-type="codes_sidebar"
                     data-analytics-target-type="checklist"
@@ -1135,7 +1182,7 @@ export default async function GamePage({ params }: Params) {
                 {relatedArticles.slice(0, 3).map((item) => (
                   <div
                     key={item.id}
-                    className="contents"
+                    className="block"
                     data-analytics-event="related_content_click"
                     data-analytics-source-type="codes_sidebar"
                     data-analytics-target-type="article"
@@ -1155,7 +1202,7 @@ export default async function GamePage({ params }: Params) {
                 {relatedTools.map((tool) => (
                   <div
                     key={tool.id ?? tool.code}
-                    className="contents"
+                    className="block"
                     data-analytics-event="related_content_click"
                     data-analytics-source-type="codes_sidebar"
                     data-analytics-target-type="tool"
@@ -1220,7 +1267,7 @@ export default async function GamePage({ params }: Params) {
                 {suggestedCodes.map((g) => (
                   <div
                     key={g.id}
-                    className="contents"
+                    className="block"
                     data-analytics-event="related_content_click"
                     data-analytics-source-type="codes_sidebar"
                     data-analytics-target-type="codes"

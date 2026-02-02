@@ -1181,7 +1181,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
               {relatedCodes.map((g) => (
                 <div
                   key={g.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="events_sidebar"
                   data-analytics-target-type="codes"
@@ -1201,7 +1201,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
               {relatedChecklistCards.map((card) => (
                 <div
                   key={card.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="events_sidebar"
                   data-analytics-target-type="checklist"
@@ -1221,7 +1221,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
               {relatedArticles.map((item) => (
                 <div
                   key={item.id}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="events_sidebar"
                   data-analytics-target-type="article"
@@ -1241,7 +1241,7 @@ export async function renderEventsPage({ slug }: { slug: string }) {
               {relatedTools.map((tool) => (
                 <div
                   key={tool.id ?? tool.code}
-                  className="contents"
+                  className="block"
                   data-analytics-event="related_content_click"
                   data-analytics-source-type="events_sidebar"
                   data-analytics-target-type="tool"
