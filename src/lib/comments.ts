@@ -28,7 +28,8 @@ export type CommentRow = {
   body_md: string | null;
   status: CommentEntry["status"];
   created_at: string;
-  author_id: string;
+  author_id: string | null;
+  guest_name: string | null;
   author: {
     display_name: string | null;
     roblox_avatar_url: string | null;
@@ -58,8 +59,8 @@ function formatCommentDate(value: string | null | undefined): string {
 
 function normalizeAuthor(row: CommentRow): CommentAuthor {
   return {
-    id: row.author_id,
-    display_name: row.author?.display_name ?? null,
+    id: row.author_id ?? `guest:${row.id}`,
+    display_name: row.author?.display_name ?? row.guest_name ?? "Guest",
     roblox_avatar_url: row.author?.roblox_avatar_url ?? null,
     roblox_display_name: row.author?.roblox_display_name ?? null,
     roblox_username: row.author?.roblox_username ?? null,
@@ -87,7 +88,7 @@ async function fetchApprovedComments(entityType: string, entityId: string): Prom
   const { data, error } = await supabase
     .from("comments")
     .select(
-      "id, parent_id, body_md, status, created_at, author_id, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
+      "id, parent_id, body_md, status, created_at, author_id, guest_name, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
     )
     .eq("entity_type", entityType)
     .eq("entity_id", entityId)

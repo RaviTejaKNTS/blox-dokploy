@@ -416,7 +416,9 @@ create table if not exists public.comments (
   entity_type text not null check (entity_type in ('code', 'article', 'catalog', 'event', 'list', 'tool')),
   entity_id uuid not null,
   parent_id uuid references public.comments(id) on delete cascade,
-  author_id uuid not null references public.app_users(user_id) on delete cascade,
+  author_id uuid references public.app_users(user_id) on delete cascade,
+  guest_name text,
+  guest_email text,
   body_md text not null,
   status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'deleted')),
   moderation jsonb,
@@ -941,6 +943,19 @@ drop policy if exists "comments_insert_authenticated" on public.comments;
 create policy "comments_insert_authenticated" on public.comments
   for insert with check (
     auth.uid() = author_id
+    and status = 'pending'
+    and moderation is null
+  );
+
+drop policy if exists "comments_insert_guest" on public.comments;
+create policy "comments_insert_guest" on public.comments
+  for insert with check (
+    auth.uid() is null
+    and author_id is null
+    and guest_name is not null
+    and length(trim(guest_name)) >= 2
+    and guest_email is not null
+    and position('@' in guest_email) > 1
     and status = 'pending'
     and moderation is null
   );

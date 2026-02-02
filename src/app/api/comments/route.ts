@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_ENTITY_TYPES = new Set(["code", "article", "catalog", "event", "list", "tool"]);
 const MAX_BODY_LENGTH = 1000;
+const MAX_GUEST_NAME_LENGTH = 60;
+const MAX_GUEST_EMAIL_LENGTH = 120;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type ModerationResult = {
@@ -66,6 +68,21 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeEmail(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
+function isValidGuestEmail(value: string): boolean {
+  if (!value) return false;
+  if (value.length > MAX_GUEST_EMAIL_LENGTH) return false;
+  if (!value.includes("@")) return false;
+  const [local, domain] = value.split("@");
+  if (!local || !domain) return false;
+  if (!domain.includes(".")) return false;
+  return true;
+}
+
 async function runModeration(input: string): Promise<ModerationResponse | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -98,6 +115,8 @@ export async function POST(request: Request) {
     const entityId = normalizeString(payload?.entityId);
     const parentId = normalizeString(payload?.parentId || "");
     const body = normalizeString(payload?.body);
+    const guestName = normalizeString(payload?.guestName);
+    const guestEmail = normalizeEmail(payload?.guestEmail);
 
     if (!ALLOWED_ENTITY_TYPES.has(entityType)) {
       return NextResponse.json({ error: "Invalid comment target." }, { status: 400 });
@@ -121,7 +140,12 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "You must be logged in to comment." }, { status: 401 });
+      if (!guestName || guestName.length < 2 || guestName.length > MAX_GUEST_NAME_LENGTH) {
+        return NextResponse.json({ error: "Please enter a valid name to comment." }, { status: 400 });
+      }
+      if (!isValidGuestEmail(guestEmail)) {
+        return NextResponse.json({ error: "Please enter a valid email address to comment." }, { status: 400 });
+      }
     }
 
     if (parentId) {
@@ -141,7 +165,9 @@ export async function POST(request: Request) {
         entity_type: entityType,
         entity_id: entityId,
         parent_id: parentId || null,
-        author_id: user.id,
+        author_id: user?.id ?? null,
+        guest_name: user ? null : guestName,
+        guest_email: user ? null : guestEmail,
         body_md: body,
         status: "pending"
       })
@@ -167,7 +193,7 @@ export async function POST(request: Request) {
     const { data: commentRow, error: commentError } = await admin
       .from("comments")
       .select(
-        "id, parent_id, body_md, status, created_at, author_id, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
+        "id, parent_id, body_md, status, created_at, author_id, guest_name, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
       )
       .eq("id", inserted.id)
       .maybeSingle();

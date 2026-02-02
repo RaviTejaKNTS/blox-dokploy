@@ -29,6 +29,8 @@ type SessionState = {
 type CommentNode = CommentEntry & { replies: CommentNode[] };
 
 const MAX_BODY_LENGTH = 1000;
+const MAX_GUEST_NAME_LENGTH = 60;
+const MAX_GUEST_EMAIL_LENGTH = 120;
 const FALLBACK_ICONS = [FiUser, FiZap, FiStar, FiCompass, FiCoffee, FiFeather];
 const FALLBACK_COLORS = [
   "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
@@ -159,6 +161,8 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
   const [comments, setComments] = useState<CommentEntry[]>(initialComments);
   const [session, setSession] = useState<SessionState>({ status: "loading", user: null });
   const [newBody, setNewBody] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
@@ -199,7 +203,18 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
 
   const commentTree = useMemo(() => buildTree(comments), [comments]);
   const commentCount = comments.length;
-  const canSubmit = Boolean(session.user) && !isSubmitting;
+  const guestNameTrimmed = guestName.trim();
+  const guestEmailTrimmed = guestEmail.trim();
+  const guestNameValid =
+    guestNameTrimmed.length >= 2 && guestNameTrimmed.length <= MAX_GUEST_NAME_LENGTH;
+  const guestEmailValid =
+    guestEmailTrimmed.length > 5 &&
+    guestEmailTrimmed.length <= MAX_GUEST_EMAIL_LENGTH &&
+    guestEmailTrimmed.includes("@") &&
+    guestEmailTrimmed.split("@")[1]?.includes(".");
+  const isAuthenticated = Boolean(session.user);
+  const guestInfoValid = guestNameValid && guestEmailValid;
+  const canSubmit = !isSubmitting && (isAuthenticated || guestInfoValid);
 
   function resetReplyForm() {
     setActiveReplyId(null);
@@ -229,8 +244,14 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
     setError(null);
 
     if (!session.user) {
-      setError("Please sign in to comment.");
-      return;
+      if (!guestNameValid) {
+        setError("Please enter your name to comment.");
+        return;
+      }
+      if (!guestEmailValid) {
+        setError("Please enter a valid email address to comment.");
+        return;
+      }
     }
 
     const trimmed = body.trim();
@@ -245,6 +266,23 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
     }
 
     const tempId = `temp-${Date.now()}`;
+    const author = session.user
+      ? {
+          id: session.user.id,
+          display_name: session.user.display_name,
+          roblox_avatar_url: session.user.roblox_avatar_url,
+          roblox_display_name: session.user.roblox_display_name,
+          roblox_username: session.user.roblox_username,
+          role: session.user.role
+        }
+      : {
+          id: `guest:${tempId}`,
+          display_name: guestNameTrimmed,
+          roblox_avatar_url: null,
+          roblox_display_name: null,
+          roblox_username: null,
+          role: null
+        };
     const optimistic: CommentEntry = {
       id: tempId,
       parent_id: parentId,
@@ -253,14 +291,7 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
       status: "pending",
       created_at: new Date().toISOString(),
       created_label: "Just now",
-      author: {
-        id: session.user.id,
-        display_name: session.user.display_name,
-        roblox_avatar_url: session.user.roblox_avatar_url,
-        roblox_display_name: session.user.roblox_display_name,
-        roblox_username: session.user.roblox_username,
-        role: session.user.role
-      }
+      author
     };
 
     setComments((prev) => [...prev, optimistic]);
@@ -268,15 +299,21 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
     setIsSubmitting(true);
 
     try {
+      const requestPayload: Record<string, string | null> = {
+        entityType,
+        entityId,
+        parentId,
+        body: trimmed
+      };
+      if (!session.user) {
+        requestPayload.guestName = guestNameTrimmed;
+        requestPayload.guestEmail = guestEmailTrimmed;
+      }
+
       const res = await fetch("/api/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityType,
-          entityId,
-          parentId,
-          body: trimmed
-        })
+        body: JSON.stringify(requestPayload)
       });
       const payload = await res.json();
       if (!res.ok) {
@@ -464,27 +501,76 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-              <p>Sign in to join the conversation.</p>
-              <Link
-                href={loginHref}
-                className="inline-flex items-center justify-center rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
-              >
-                Log in
-              </Link>
+            <div className="space-y-2 text-sm text-muted">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p>Comment as a guest or sign in to use your account.</p>
+                <Link
+                  href={loginHref}
+                  className="inline-flex items-center justify-center rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent"
+                >
+                  Log in
+                </Link>
+              </div>
+              <p className="text-xs text-muted">
+                We&apos;ll show your name publicly. Your email stays private and is only used for moderation.
+              </p>
             </div>
           )}
 
           <form onSubmit={handleNewSubmit} className="space-y-3">
+            {!session.user ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label
+                    htmlFor="guest-name"
+                    className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted"
+                  >
+                    Name
+                  </label>
+                  <input
+                    id="guest-name"
+                    name="guest-name"
+                    type="text"
+                    autoComplete="name"
+                    value={guestName}
+                    onChange={(event) => setGuestName(event.target.value)}
+                    maxLength={MAX_GUEST_NAME_LENGTH}
+                    placeholder="Your name"
+                    className="w-full rounded-[var(--radius-lg)] border border-border/60 bg-background/80 px-4 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    htmlFor="guest-email"
+                    className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="guest-email"
+                    name="guest-email"
+                    type="email"
+                    autoComplete="email"
+                    value={guestEmail}
+                    onChange={(event) => setGuestEmail(event.target.value)}
+                    maxLength={MAX_GUEST_EMAIL_LENGTH}
+                    placeholder="you@example.com"
+                    className="w-full rounded-[var(--radius-lg)] border border-border/60 bg-background/80 px-4 py-2 text-sm text-foreground placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+            ) : null}
             <textarea
               name="body"
               value={newBody}
               onChange={(event) => setNewBody(event.target.value)}
               rows={4}
               maxLength={MAX_BODY_LENGTH}
-              placeholder={session.user ? "Write a comment..." : "Log in to write a comment..."}
+              placeholder={session.user ? "Write a comment..." : "Write a comment as a guest..."}
               className="w-full rounded-[var(--radius-lg)] border border-border/60 bg-background/80 px-4 py-3 text-sm text-foreground placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-              disabled={!session.user || isSubmitting}
+              disabled={isSubmitting}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
               <span>{newBody.length}/{MAX_BODY_LENGTH}</span>
@@ -513,6 +599,8 @@ export function CommentsClient({ entityType, entityId, initialComments }: Commen
                 replyError={replyError}
                 isSubmitting={isSubmitting}
                 sessionUser={session.user}
+                isAuthenticated={isAuthenticated}
+                guestInfoValid={guestInfoValid}
                 editingId={editingId}
                 editBody={editBody}
                 editError={editError}
@@ -546,6 +634,8 @@ function CommentThread({
   replyError,
   isSubmitting,
   sessionUser,
+  isAuthenticated,
+  guestInfoValid,
   editingId,
   editBody,
   editError,
@@ -566,6 +656,8 @@ function CommentThread({
   replyError: string | null;
   isSubmitting: boolean;
   sessionUser: SessionUser | null;
+  isAuthenticated: boolean;
+  guestInfoValid: boolean;
   editingId: string | null;
   editBody: string;
   editError: string | null;
@@ -586,6 +678,7 @@ function CommentThread({
   const isReplyActive = node.id === activeReplyId;
   const isEditing = node.id === editingId;
   const canManage = sessionUser?.id === node.author.id;
+  const canReply = !isSubmitting && (isAuthenticated || guestInfoValid);
 
   return (
     <div className="space-y-4 rounded-[var(--radius-lg)] border border-border/60 bg-background/70 px-4 py-4">
@@ -646,7 +739,7 @@ function CommentThread({
             />
           )}
           <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            {sessionUser ? (
+            {isAuthenticated ? (
               <button
                 type="button"
                 onClick={() => onReplyOpen(node.id)}
@@ -655,9 +748,18 @@ function CommentThread({
                 Reply
               </button>
             ) : (
-              <Link href={loginHref} className="transition hover:text-accent">
-                Log in to reply
-              </Link>
+              <>
+                <button
+                  type="button"
+                  onClick={() => onReplyOpen(node.id)}
+                  className="transition hover:text-accent"
+                >
+                  Reply as guest
+                </button>
+                <Link href={loginHref} className="transition hover:text-accent">
+                  Log in
+                </Link>
+              </>
             )}
             {canManage ? (
               <>
@@ -688,7 +790,7 @@ function CommentThread({
                 maxLength={MAX_BODY_LENGTH}
                 placeholder="Write a reply..."
                 className="w-full rounded-[var(--radius-lg)] border border-border/60 bg-background/80 px-4 py-3 text-sm text-foreground placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                disabled={!sessionUser || isSubmitting}
+                disabled={isSubmitting}
               />
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
                 <span>{replyBody.length}/{MAX_BODY_LENGTH}</span>
@@ -702,13 +804,16 @@ function CommentThread({
                   </button>
                   <button
                     type="submit"
-                    disabled={!sessionUser || isSubmitting}
+                    disabled={!canReply}
                     className="inline-flex items-center justify-center rounded-full border border-border/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? "Posting..." : "Post reply"}
                   </button>
                 </div>
               </div>
+              {!isAuthenticated && !guestInfoValid ? (
+                <p className="text-xs text-muted">Add your name and email above to reply as a guest.</p>
+              ) : null}
               {replyError ? <p className="text-sm text-red-400">{replyError}</p> : null}
             </form>
           ) : null}
@@ -725,6 +830,8 @@ function CommentThread({
               replyError={replyError}
               isSubmitting={isSubmitting}
               sessionUser={sessionUser}
+              isAuthenticated={isAuthenticated}
+              guestInfoValid={guestInfoValid}
               editingId={editingId}
               editBody={editBody}
               editError={editError}

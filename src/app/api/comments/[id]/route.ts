@@ -142,7 +142,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const { data: commentRow, error: commentError } = await admin
       .from("comments")
       .select(
-        "id, parent_id, body_md, status, created_at, author_id, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
+        "id, parent_id, body_md, status, created_at, author_id, guest_name, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
       )
       .eq("id", id)
       .maybeSingle();
