@@ -30,7 +30,7 @@ export async function GET() {
       pages.push({
         loc: withSiteUrl(`/events/${row.slug}`),
         changefreq: "daily",
-        priority: "0.6",
+        priority: "0.8",
         lastmod: toIsoDate(updated)
       });
     }

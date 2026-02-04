@@ -34,7 +34,7 @@ export async function GET() {
       pageMap.set(path, {
         loc: withSiteUrl(path),
         changefreq: "weekly",
-        priority: "0.7",
+        priority: "0.9",
         lastmod: toIsoDate(updated)
       });
     }

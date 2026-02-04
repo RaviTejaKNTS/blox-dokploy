@@ -89,7 +89,6 @@ export const metadata = {
     images: [`${SITE_URL}/og-image.png`]
   },
   alternates: {
-    canonical: SITE_URL,
     types: { "application/rss+xml": `${SITE_URL}/feed.xml` }
   },
   manifest: "/site.webmanifest",
@@ -118,7 +117,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://www.roblox.com" />
         <link rel="preconnect" href="https://images.rbxcdn.com" />
         <link rel="preconnect" href="https://bmwksaykcsndsvgspapz.supabase.co" />
-        <link rel="preconnect" href="https://robloxden.com" />
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://lh3.ggpht.com" />
       </head>

@@ -23,7 +23,7 @@ import { monthYear } from "@/lib/date";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { AuthorCard } from "@/components/AuthorCard";
 import { collectAuthorSocials } from "@/lib/author-socials";
-import { isCodeWithinNewThreshold, sortCodesByFirstSeenDesc } from "@/lib/code-utils";
+import { sortCodesByFirstSeenDesc } from "@/lib/code-utils";
 import {
   getGameBySlug,
   getEventsPageByUniverseId,
@@ -649,21 +649,10 @@ export default async function GamePage({ params }: Params) {
     position: index + 1,
     name: code.code,
     item: {
-      "@type": "Product",
+      "@type": "Thing",
       name: `${game.name} code ${code.code}`,
-      sku: code.code,
       description: code.rewards_text ?? undefined,
-      dateCreated: code.first_seen_at ? new Date(code.first_seen_at).toISOString() : undefined,
-      additionalProperty: [
-        { "@type": "PropertyValue", name: "code", value: code.code },
-        { "@type": "PropertyValue", name: "is_new", value: isCodeWithinNewThreshold(code, nowMs) },
-        ...(code.rewards_text
-          ? [{ "@type": "PropertyValue", name: "rewards", value: code.rewards_text }]
-          : []),
-        ...(code.first_seen_at
-          ? [{ "@type": "PropertyValue", name: "added_at", value: new Date(code.first_seen_at).toISOString() }]
-          : [])
-      ]
+      url: canonicalUrl
     }
   }));
   const faqEntries: { question: string; answer: string }[] = [];

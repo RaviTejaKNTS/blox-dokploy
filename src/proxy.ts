@@ -51,7 +51,6 @@ const CONSENT_HEADER = "x-require-consent";
 const CONSENT_COOKIE = "require-consent";
 const CONSENT_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const CANONICAL_HOST = "bloxodes.com";
-const LEGACY_HOST = "www.bloxodes.com";
 
 const ARTICLE_REDIRECT_SLUGS = new Set([
   "when-does-the-museum-open-in-jailbreak-roblox",
@@ -156,6 +155,15 @@ function getRequestHostname(req: NextRequest) {
   return host.split(":")[0].toLowerCase();
 }
 
+function shouldRedirectToCanonicalHost(hostname: string) {
+  if (hostname === CANONICAL_HOST) return false;
+  if (hostname === "localhost") return false;
+  if (hostname === "127.0.0.1") return false;
+  if (hostname === "[::1]") return false;
+  if (hostname.endsWith(".localhost")) return false;
+  return true;
+}
+
 export function proxy(req: NextRequest) {
   // Prefer Vercel geo (works when DNS is on Vercel), fall back to Cloudflare if proxied.
   const country =
@@ -169,6 +177,21 @@ export function proxy(req: NextRequest) {
   const url = req.nextUrl;
   const hostname = getRequestHostname(req);
   const attachConsentState = shouldAttachConsentState(url.pathname);
+  const hostRedirectNeeded = shouldRedirectToCanonicalHost(hostname);
+  const legacyPath = resolveLegacyRedirectPath(url.pathname);
+  const pathRedirectNeeded = Boolean(legacyPath && legacyPath !== url.pathname);
+
+  if (hostRedirectNeeded || pathRedirectNeeded) {
+    const redirectUrl = url.clone();
+    if (hostRedirectNeeded) {
+      redirectUrl.hostname = CANONICAL_HOST;
+      redirectUrl.port = "";
+    }
+    if (legacyPath) {
+      redirectUrl.pathname = legacyPath;
+    }
+    return applyConsentState(NextResponse.redirect(redirectUrl, 301), requiresConsent, attachConsentState);
+  }
 
   if (
     url.searchParams.has("code") &&
@@ -187,30 +210,7 @@ export function proxy(req: NextRequest) {
       redirectUrl.searchParams.set("code", code);
     }
     redirectUrl.searchParams.set("next", nextPath || "/account");
-    if (hostname === LEGACY_HOST) {
-      redirectUrl.hostname = CANONICAL_HOST;
-      redirectUrl.port = "";
-    }
     return applyConsentState(NextResponse.redirect(redirectUrl), requiresConsent, attachConsentState);
-  }
-
-  const hostRedirectNeeded = hostname === LEGACY_HOST;
-  const legacyPath = resolveLegacyRedirectPath(url.pathname);
-  const pathRedirectNeeded = Boolean(legacyPath && legacyPath !== url.pathname);
-
-  if (hostRedirectNeeded || pathRedirectNeeded) {
-    const redirectUrl = url.clone();
-
-    if (hostRedirectNeeded) {
-      redirectUrl.hostname = CANONICAL_HOST;
-      redirectUrl.port = "";
-    }
-
-    if (legacyPath) {
-      redirectUrl.pathname = legacyPath;
-    }
-
-    return applyConsentState(NextResponse.redirect(redirectUrl, 301), requiresConsent, attachConsentState);
   }
 
   // Pass a header downstream so layouts can decide whether to show consent UI.

@@ -27,7 +27,7 @@ export async function GET() {
       pages.push({
         loc: withSiteUrl(`/authors/${row.slug}`),
         changefreq: "monthly",
-        priority: "0.5",
+        priority: "0.3",
         lastmod: toIsoDate(row.updated_at)
       });
     }

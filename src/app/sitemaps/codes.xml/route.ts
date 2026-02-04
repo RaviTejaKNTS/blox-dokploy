@@ -28,7 +28,7 @@ export async function GET() {
       pages.push({
         loc: withSiteUrl(`/codes/${row.slug}`),
         changefreq: "weekly",
-        priority: "0.9",
+        priority: "0.7",
         lastmod: toIsoDate(row.updated_at)
       });
     }

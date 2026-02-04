@@ -30,7 +30,7 @@ export async function GET() {
       pages.push({
         loc: withSiteUrl(`/checklists/${row.slug}`),
         changefreq: "weekly",
-        priority: "0.7",
+        priority: "0.9",
         lastmod: toIsoDate(updated)
       });
     }
