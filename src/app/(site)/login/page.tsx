@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { signIn, signInWithGoogle, signOut, signUp } from "./actions";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false
+    }
+  }
+};
 
 type AuthPageProps = {
   searchParams?: Promise<{ error?: string | string[]; success?: string | string[]; next?: string | string[] }>;

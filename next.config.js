@@ -62,6 +62,12 @@ const nextConfig = {
         ]
       },
       {
+        source: "/sitemaps/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=21600, stale-while-revalidate=86400" }
+        ]
+      },
+      {
         source: "/robots.txt",
         headers: [
           { key: "Cache-Control", value: "public, s-maxage=86400, stale-while-revalidate=604800" }
@@ -95,16 +101,6 @@ const nextConfig = {
   serverExternalPackages: ["@supabase/supabase-js"],
   experimental: {
     serverActions: { allowedOrigins: ["*"] },
-  },
-  async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.bloxodes.com" }],
-        destination: "https://bloxodes.com/:path*",
-        permanent: true,
-      },
-    ];
   },
 };
 

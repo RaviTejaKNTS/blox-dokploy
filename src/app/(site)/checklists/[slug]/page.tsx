@@ -18,7 +18,7 @@ import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ToolCard } from "@/components/ToolCard";
 import { ChecklistCard } from "@/components/ChecklistCard";
-import { EventsPageCard } from "@/components/EventsPageCard";
+import { EventsPageCard, type EventsPageCardProps } from "@/components/EventsPageCard";
 import { SocialShare } from "@/components/SocialShare";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import { getUniverseEventSummary } from "@/lib/events-summary";
@@ -169,7 +169,7 @@ export default async function ChecklistPage({ params }: PageProps) {
   const eventsUpdatedLabel = relatedEventsPage
     ? formatUpdatedLabel(relatedEventsPage.updated_at || relatedEventsPage.published_at || relatedEventsPage.created_at)
     : null;
-  const eventsCard =
+  const eventsCard: EventsPageCardProps | null =
     relatedEventsPage && relatedEventsPage.slug
       ? {
           slug: relatedEventsPage.slug,
@@ -183,7 +183,7 @@ export default async function ChecklistPage({ params }: PageProps) {
           fallbackIcon: relatedEventsPage.universe?.icon_url ?? null,
           eventName: eventSummary?.featured?.name ?? null,
           eventTimeLabel: eventSummary?.featured?.timeLabel ?? null,
-          status: eventSummary?.featured?.status ?? "none",
+          status: (eventSummary?.featured?.status ?? "none") as EventsPageCardProps["status"],
           counts: eventSummary?.counts ?? { upcoming: 0, current: 0, past: 0 },
           updatedLabel: eventsUpdatedLabel
         }

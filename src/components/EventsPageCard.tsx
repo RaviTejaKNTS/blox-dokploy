@@ -7,7 +7,7 @@ type EventCounts = {
   past: number;
 };
 
-type EventsPageCardProps = {
+export type EventsPageCardProps = {
   slug: string;
   title: string;
   summary: string;
