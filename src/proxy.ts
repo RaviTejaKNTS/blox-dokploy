@@ -121,6 +121,11 @@ function normalizeSlugSegment(value: string) {
 
 function resolveLegacyRedirectPath(pathname: string): string | null {
   const normalizedPath = pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+  // Never canonicalize legacy slugs inside the `/codes/*` namespace.
+  // We only support legacy root slugs here.
+  if (/^\/codes(?:\/|$)/i.test(normalizedPath)) {
+    return null;
+  }
 
   const rootMatch = normalizedPath.match(/^\/([^/]+)$/);
   if (rootMatch) {
