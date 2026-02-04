@@ -134,15 +134,6 @@ function resolveLegacyRedirectPath(pathname: string): string | null {
     }
   }
 
-  const codeMatch = normalizedPath.match(/^\/codes\/([^/]+)$/i);
-  if (codeMatch) {
-    const slug = normalizeSlugSegment(codeMatch[1]);
-    const canonical = LEGACY_SLUG_MAP.get(slug);
-    if (canonical) {
-      return `/codes/${canonical}`;
-    }
-  }
-
   return null;
 }
 
@@ -153,6 +144,15 @@ function getRequestHostname(req: NextRequest) {
     req.nextUrl.host;
 
   return host.split(":")[0].toLowerCase();
+}
+
+function redirectWithStatus(url: URL, status: 301 | 302 | 307 | 308 = 307) {
+  return new NextResponse(null, {
+    status,
+    headers: {
+      Location: url.toString()
+    }
+  });
 }
 
 function shouldRedirectToCanonicalHost(hostname: string) {
@@ -190,7 +190,7 @@ export function proxy(req: NextRequest) {
     if (legacyPath) {
       redirectUrl.pathname = legacyPath;
     }
-    return applyConsentState(NextResponse.redirect(redirectUrl, 301), requiresConsent, attachConsentState);
+    return applyConsentState(redirectWithStatus(redirectUrl, 301), requiresConsent, attachConsentState);
   }
 
   if (
