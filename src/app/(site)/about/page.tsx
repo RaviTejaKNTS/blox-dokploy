@@ -139,7 +139,7 @@ export default function AboutPage() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How We Keep Things Accurate</h2>
+          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">How We Keep Things Accurate and Updated</h2>
           <p>We know Roblox related info can get outdated quickly, like the codes expire, mechanics change, and trends shift overnight.</p>
           <p>So we built Bloxodes around freshness and clarity.</p>
           <p>Here is how we work:</p>
@@ -162,7 +162,7 @@ export default function AboutPage() {
           <p>Bloxodes is built to be safe and straightforward:</p>
           <ul className="list-disc pl-6">
             <li>We do not sell codes.</li>
-            <li>We do not ask for your Roblox password or login.</li>
+            <li>We do not ask for your Roblox password.</li>
             <li>We do not promise "free Robux" or fake rewards.</li>
             <li>We do not claim to be affiliated with Roblox or any game developer.</li>
           </ul>
