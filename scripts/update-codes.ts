@@ -168,7 +168,8 @@ async function processGame(sb: ReturnType<typeof supabaseAdmin>, game: GameRow):
 
   let upserted = 0;
 
-  for (const c of codes) {
+  for (let i = codes.length - 1; i >= 0; i -= 1) {
+    const c = codes[i];
     const displayCode = sanitizeCodeDisplay(c.code);
     if (!displayCode) {
       continue;
