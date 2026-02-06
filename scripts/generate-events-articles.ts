@@ -2263,6 +2263,10 @@ async function fetchRelatedPagesForUniverse(params: {
 }): Promise<RelatedPage[]> {
   const { universeId, excludeSlug } = params;
 
+  if (universeId == null) {
+    return [];
+  }
+
   const related: RelatedPage[] = [];
   const seen = new Set<string>();
   const addPage = (page: RelatedPage) => {
@@ -2277,9 +2281,7 @@ async function fetchRelatedPagesForUniverse(params: {
       .select("title, slug, meta_description, published_at, updated_at")
       .eq("is_published", true);
 
-    if (universeId) {
-      articleQuery = articleQuery.eq("universe_id", universeId);
-    }
+    articleQuery = articleQuery.eq("universe_id", universeId);
 
     if (excludeSlug) {
       articleQuery = articleQuery.neq("slug", excludeSlug);
@@ -2301,94 +2303,67 @@ async function fetchRelatedPagesForUniverse(params: {
       }
     }
 
-    const hadUniverseArticles = related.some((entry) => entry.type === "article" && universeId !== null);
-
-    if ((!universeId || !hadUniverseArticles) && related.filter((p) => p.type === "article").length === 0) {
-      const { data: fallbackArticles, error: fallbackError } = await supabase
-        .from("articles")
-        .select("title, slug, meta_description, published_at, updated_at")
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .limit(25);
-
-      if (fallbackError) {
-        console.warn("⚠️ Fallback article lookup failed:", fallbackError.message);
-      } else {
-        for (const row of fallbackArticles ?? []) {
-          if (!row?.slug || !row?.title) continue;
-          if (excludeSlug && row.slug === excludeSlug) continue;
-          addPage({
-            type: "article",
-            title: row.title,
-            url: `${SITE_URL}/articles/${row.slug}`,
-            description: truncateForPrompt((row as any).meta_description),
-            updatedAt: (row as any).published_at ?? (row as any).updated_at ?? null
-          });
-        }
-      }
-    }
   } catch (error) {
     console.warn("⚠️ Related articles lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
-  if (universeId) {
-    try {
-      const { data, error } = await supabase
-        .from("games")
-        .select("name, slug, seo_description, updated_at")
-        .eq("universe_id", universeId)
-        .eq("is_published", true)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("games")
+      .select("name, slug, seo_description, updated_at")
+      .eq("universe_id", universeId)
+      .eq("is_published", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (error) {
-        console.warn("⚠️ Failed to fetch codes page:", error.message);
-      } else if (data?.slug) {
+    if (error) {
+      console.warn("⚠️ Failed to fetch codes page:", error.message);
+    } else if (data?.slug) {
+      addPage({
+        type: "codes",
+        title: `${data.name ?? "Game"} codes`,
+        url: `${SITE_URL}/codes/${data.slug}`,
+        description: truncateForPrompt((data as any).seo_description),
+        updatedAt: (data as any).updated_at ?? null
+      });
+    }
+  } catch (error) {
+    console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("checklist_pages_view")
+      .select("title, slug, description_md, content_updated_at")
+      .eq("universe_id", universeId)
+      .eq("is_public", true)
+      .order("content_updated_at", { ascending: false })
+      .limit(3);
+
+    if (error) {
+      console.warn("⚠️ Failed to fetch checklist pages:", error.message);
+    } else {
+      for (const row of data ?? []) {
+        if (!row?.slug || !row?.title) continue;
         addPage({
-          type: "codes",
-          title: `${data.name ?? "Game"} codes`,
-          url: `${SITE_URL}/codes/${data.slug}`,
-          description: truncateForPrompt((data as any).seo_description),
-          updatedAt: (data as any).updated_at ?? null
+          type: "checklist",
+          title: row.title,
+          url: `${SITE_URL}/checklists/${row.slug}`,
+          description: truncateForPrompt((row as any).description_md),
+          updatedAt: (row as any).content_updated_at ?? null
         });
       }
-    } catch (error) {
-      console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
     }
-
-    try {
-      const { data, error } = await supabase
-        .from("checklist_pages_view")
-        .select("title, slug, description_md, content_updated_at")
-        .eq("universe_id", universeId)
-        .eq("is_public", true)
-        .order("content_updated_at", { ascending: false })
-        .limit(3);
-
-      if (error) {
-        console.warn("⚠️ Failed to fetch checklist pages:", error.message);
-      } else {
-        for (const row of data ?? []) {
-          if (!row?.slug || !row?.title) continue;
-          addPage({
-            type: "checklist",
-            title: row.title,
-            url: `${SITE_URL}/checklists/${row.slug}`,
-            description: truncateForPrompt((row as any).description_md),
-            updatedAt: (row as any).content_updated_at ?? null
-          });
-        }
-      }
-    } catch (error) {
-      console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
-    }
+  } catch (error) {
+    console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
   try {
     const { data, error } = await supabase
       .from("tools_view")
       .select("code, title, meta_description, content_updated_at")
+      .eq("universe_id", universeId)
       .eq("is_published", true)
       .order("content_updated_at", { ascending: false })
       .limit(3);
@@ -2414,28 +2389,7 @@ async function fetchRelatedPagesForUniverse(params: {
   return related;
 }
 
-async function interlinkArticleWithRelatedPages(
-  topic: string,
-  article: DraftArticle,
-  pages: RelatedPage[]
-): Promise<DraftArticle> {
-  const cleanedArticle: DraftArticle = {
-    ...article,
-    content_md: replaceEmDashes(article.content_md)
-  };
-
-  const pageBlock = pages
-    .map((page, idx) => {
-      return `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`;
-    })
-    .join("\n\n");
-  const pageBlockText = pages.length ? pageBlock : "No internal pages available.";
-  const linkRules = pages.length
-    ? `- Add 3-4 inline Markdown links where they naturally fit. Spread them out across the article.
-- Use the provided URLs exactly. Do not invent links or add external URLs.
-- If fewer than 3 pages are a good fit, use only the relevant ones without forcing.`
-    : "- Do not add any links because none are provided.";
-
+async function refineEventGuideAfterImages(topic: string, article: DraftArticle): Promise<DraftArticle> {
   const prompt = `
 You are rewriting a Roblox event guide after fact checks and coverage checks. Use the article below as the source of truth: keep every important detail, remove repetition, and improve clarity. 
 Write an article in simple English that is easy for anyone to understand. Use a conversational tone like a professional Roblox gaming writer sharing their Roblox knowledge/experience. The article should feel like a friend talking to a friend while still being factual, helpful, and engaging.
@@ -2469,32 +2423,25 @@ After that, start with a H2 heading and then write the main content following th
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
- Most importantly: Do not add emojis, sources, or reference numbers. The only external URLs allowed are the official Roblox event link and the event thumbnail image URL already present in the article. Internal links provided below are allowed. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or reference numbers. The only external URLs allowed are the official Roblox event link and the event thumbnail image URL already present in the article. No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
+ - Keep any existing Markdown tables and image URLs exactly as they are. Do not remove or reorder them.
+ - Do not add new internal links. Keep any existing links unchanged.
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
  - Never mention sources, research, or citations. Do not add any external URLs other than the official Roblox event link and event thumbnail image URL already present in the article.
  - Keep the official Roblox event link and event thumbnail image if they already exist in the article; do not remove them.
  - Never include bracketed citations like [1] or [2], or any references section.
 
-Internal links:
-${linkRules}
-- Use inline Markdown links: [label](url). Anchor text should read naturally in context.
-- Prefer same-universe pages (codes, checklists, tools, older articles) when relevant.
-- Prefer to use the links according to the context. If possible, instead of writing new lines of text, link into the existing text on if the context makes sense. 
-
 Topic: "${topic}"
 
-Internal pages:
-${pageBlockText}
-
 Original article (do not lose details):
-${cleanedArticle.content_md}
+${article.content_md}
 
 Return JSON:
 {
-  "title": "Keep the title close to the original while making it clearer and more on-point. We need the title to be small, scannable and clean full sentence.",
+  "title": "${article.title}",
   "meta_description": "150-160 character summary",
-  "content_md": "Full Markdown article with internal links inserted where they naturally fit"
+  "content_md": "Full Markdown article"
 }
 `.trim();
 
@@ -2518,19 +2465,107 @@ Return JSON:
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
+    throw new Error(`Final refinement step did not return valid JSON: ${(error as Error).message}`);
+  }
+
+  const { content_md, meta_description } = parsed as Partial<DraftArticle>;
+  if (!content_md || !meta_description) {
+    throw new Error("Final refinement step missing required fields.");
+  }
+
+  return {
+    title: article.title,
+    content_md: content_md.trim(),
+    meta_description: meta_description.trim()
+  };
+}
+
+async function interlinkArticleWithRelatedPages(
+  topic: string,
+  article: DraftArticle,
+  pages: RelatedPage[]
+): Promise<DraftArticle> {
+  const pageBlock = pages
+    .map((page, idx) => {
+      return `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`;
+    })
+    .join("\n\n");
+  const pageBlockText = pages.length ? pageBlock : "No internal pages available.";
+  const linkRules = pages.length
+    ? `- Add up to 3-7 inline Markdown links where they naturally fit. Spread them out across the article.
+- Use the provided URLs exactly. Do not invent links or add external URLs.
+- Do not add links to the same page multiple times.
+- Do not add links that are already present in the article.
+- Add links in a way that add value to the content and are helpful for the user.
+- Add links where they naturally fit. If they do not fit naturall, add a line or two to add the link to the content naturally.
+- Make sure links are contextual to the content and are actually accurate.
+- Do not invent anyinfo, stick to the info you have and make way with that.
+- If fewer than 3 pages are a good fit, use only the relevant ones without forcing.`
+    : "- Do not add any links because none are provided.";
+
+  const prompt = `
+You are inserting internal links into an existing Roblox event guide. Keep all text, headings, tables, and images exactly the same.
+- Only add inline Markdown links by wrapping existing words/phrases: [label](url).
+- Do not add new sentences, do not rewrite, and do not remove content.
+- Use the provided URLs exactly. Do not invent links or add external URLs.
+- Keep existing Markdown tables and image URLs exactly as they are.
+- Keep the official Roblox event link and event thumbnail image exactly as they appear.
+- Spread links across the article where they naturally fit.
+
+Internal link rules:
+${linkRules}
+
+Topic: "${topic}"
+
+Internal pages:
+${pageBlockText}
+
+Article title: ${article.title}
+Meta description: ${article.meta_description}
+Article markdown:
+${article.content_md}
+
+Return JSON:
+{
+  "title": "${article.title}",
+  "meta_description": "${article.meta_description}",
+  "content_md": "Same Markdown with only internal links inserted"
+}
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0.2,
+    max_tokens: 3000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert Roblox editor. Always return valid JSON with title, content_md, and meta_description. Do not add external URLs or change the article text beyond inserting internal links."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
     throw new Error(`Interlinking step did not return valid JSON: ${(error as Error).message}`);
   }
 
-  const { title, content_md, meta_description } = parsed as Partial<DraftArticle>;
-  if (!title || !content_md || !meta_description) {
+  const { content_md } = parsed as Partial<DraftArticle>;
+  if (!content_md) {
     throw new Error("Interlinking step missing required fields.");
   }
 
-  return sanitizeDraftArticle({
-    title: title.trim(),
+  return {
+    title: article.title,
     content_md: content_md.trim(),
-    meta_description: meta_description.trim()
-  });
+    meta_description: article.meta_description.trim()
+  };
 }
 
 async function buildEventGuideTitle(params: {
@@ -3067,16 +3102,7 @@ async function main() {
     const refinedDraft = await refineArticleWithFeedbackLoop(topic, draft, verifiedSources, articleContext);
     console.log(`refined_title="${refinedDraft.title}" word_count=${estimateWordCount(refinedDraft.content_md)}`);
 
-    const relatedPages = await fetchRelatedPagesForUniverse({
-      universeId,
-      excludeSlug: slugify(guideTitle)
-    });
-    console.log(`interlink_candidates=${relatedPages.length}`);
-
-    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, refinedDraft, relatedPages);
-    console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
-
-    let currentDraft = { ...interlinkedDraft, title: guideTitle };
+    let currentDraft = { ...refinedDraft, title: guideTitle };
     console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
     if (currentDraft.content_md.length < 400) {
@@ -3136,11 +3162,34 @@ async function main() {
       });
     }
 
+    const refinedAfterImages = await refineEventGuideAfterImages(topic, currentDraft);
+    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
+    console.log(
+      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
+    );
+    if (refinedUpdated) {
+      currentDraft = refinedAfterImages;
+    }
+
     const cleanedDraft = sanitizeDraftArticle(currentDraft);
     const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
     console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
-    if (cleanedUpdated) {
-      currentDraft = cleanedDraft;
+    currentDraft = cleanedDraft;
+
+    const relatedPages = await fetchRelatedPagesForUniverse({
+      universeId,
+      excludeSlug: article.slug
+    });
+    console.log(`interlink_candidates=${relatedPages.length}`);
+
+    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, currentDraft, relatedPages);
+    const finalDraft = { ...interlinkedDraft, title: guideTitle };
+    const interlinkUpdated = await updateArticleContent(article.id, finalDraft);
+    console.log(
+      `interlinked_title="${finalDraft.title}" word_count=${estimateWordCount(finalDraft.content_md)} updated=${interlinkUpdated}`
+    );
+    if (interlinkUpdated) {
+      currentDraft = finalDraft;
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);

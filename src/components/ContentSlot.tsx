@@ -118,7 +118,7 @@ export function ContentSlot({
   }, [shouldRender, slot, clientId]);
 
   if (!clientId || !isMounted || !marketingAllowed || status === "unfilled") {
-    return <div ref={containerRef} style={{ height: 1 }} />;
+    return <div ref={containerRef} className={className} style={{ minHeight: 1 }} />;
   }
 
   const slotStyle = shouldRender
@@ -131,7 +131,7 @@ export function ContentSlot({
     : { minHeight: 1 };
 
   return (
-    <div ref={containerRef} className={shouldRender ? className : undefined} style={slotStyle}>
+    <div ref={containerRef} className={className} style={slotStyle}>
       {shouldRender ? (
         <ins
           ref={insRef}
