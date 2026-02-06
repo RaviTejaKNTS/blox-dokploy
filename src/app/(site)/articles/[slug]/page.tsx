@@ -8,6 +8,7 @@ import { SocialShare } from "@/components/SocialShare";
 import { CodeBlockEnhancer } from "@/components/CodeBlockEnhancer";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
+import { buildImageGalleries } from "@/lib/article-galleries";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { collectAuthorSocials } from "@/lib/author-socials";
 import {
@@ -38,6 +39,7 @@ import { ToolCard } from "@/components/ToolCard";
 import { EventsPageCard, type EventsPageCardProps } from "@/components/EventsPageCard";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
+import { ArticleImageLightbox } from "@/components/ArticleImageLightbox";
 import { buildArticleContentBlocks } from "@/lib/ad-placement";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 import { formatUpdatedLabel } from "@/lib/updated-label";
@@ -213,7 +215,8 @@ async function renderArticlePage(article: ArticleWithRelations) {
   };
 
   const processedArticleHtml = processHtmlLinks(articleHtml);
-  const articleBlocks = buildArticleContentBlocks(processedArticleHtml.__html);
+  const articleHtmlWithGalleries = buildImageGalleries(processedArticleHtml.__html);
+  const articleBlocks = buildArticleContentBlocks(articleHtmlWithGalleries);
   const processedAuthorBioHtml = authorBioHtml ? processHtmlLinks(authorBioHtml) : null;
 
   const relatedChecklists = universeId ? await listPublishedChecklistsByUniverseId(universeId, 1) : [];
@@ -347,6 +350,7 @@ async function renderArticlePage(article: ArticleWithRelations) {
             )
           )}
         </section>
+        <ArticleImageLightbox />
 
         {article.author ? (
           <AuthorCard author={article.author} bioHtml={processedAuthorBioHtml ?? ""} />
