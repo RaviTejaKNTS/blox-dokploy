@@ -450,6 +450,7 @@ create table if not exists public.articles (
   updated_at timestamptz not null default now(),
   word_count int,
   meta_description text,
+  sources text[] not null default '{}'::text[],
   tags text[] not null default '{}'::text[]
 );
 

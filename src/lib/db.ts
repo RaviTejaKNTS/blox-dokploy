@@ -83,6 +83,7 @@ export type Article = {
   updated_at: string;
   word_count: number | null;
   meta_description: string | null;
+  sources: string[];
   tags: string[];
 };
 

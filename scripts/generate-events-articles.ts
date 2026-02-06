@@ -320,6 +320,21 @@ function normalizeForCompare(value: string): string {
     .trim();
 }
 
+function collectSourceUrls(sources: SourceDocument[]): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    const rawUrl = source.url?.trim();
+    if (!rawUrl) continue;
+    if (!/^https?:\/\//i.test(rawUrl)) continue;
+    const normalized = normalizeUrlForCompare(rawUrl);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    urls.push(rawUrl);
+  }
+  return urls;
+}
+
 function scoreYouTubeResult(result: SearchResult, eventName: string, gameName: string): number {
   const title = normalizeForCompare(result.title ?? "");
   const snippet = normalizeForCompare(result.snippet ?? "");
@@ -2843,7 +2858,7 @@ Return only the shortened title text.
 
 async function insertArticleDraft(
   article: DraftArticle,
-  options: { slug?: string; universeId?: number | null; coverImage?: string | null } = {}
+  options: { slug?: string; universeId?: number | null; coverImage?: string | null; sources?: string[] } = {}
 ): Promise<{ id: string; slug: string }> {
   const slug = options.slug ?? (await ensureUniqueSlug(article.title));
   const wordCount = estimateWordCount(article.content_md);
@@ -2860,6 +2875,7 @@ async function insertArticleDraft(
       universe_id: options.universeId ?? null,
       cover_image: options.coverImage ?? null,
       is_published: false,
+      sources: options.sources ?? [],
       tags: ["events"],
       word_count: wordCount
     })
@@ -3264,6 +3280,7 @@ async function main() {
       eventDetails
     });
     console.log(`sources_collected=${collectedSources.length}`);
+    const sourceUrls = collectSourceUrls(collectedSources);
 
     const verifiedSources = await verifySources(topic, collectedSources);
     console.log(`sources_verified=${verifiedSources.length}`);
@@ -3305,7 +3322,8 @@ async function main() {
     const article = await insertArticleDraft(currentDraft, {
       slug,
       universeId,
-      coverImage
+      coverImage,
+      sources: sourceUrls
     });
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
