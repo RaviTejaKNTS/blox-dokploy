@@ -505,7 +505,7 @@ export function renderRobloxFreeItemsPage({
       {showHero && hasDetails ? (
         <section className="space-y-6">
           {descriptionHtml.length ? (
-            <div className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
+            <div className="prose dark:prose-invert game-copy max-w-3xl">
               {descriptionHtml.map((entry) => (
                 <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
               ))}
@@ -513,7 +513,7 @@ export function renderRobloxFreeItemsPage({
           ) : null}
 
           {howHtml ? (
-            <div className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+            <div className="prose dark:prose-invert game-copy max-w-3xl">
               <div dangerouslySetInnerHTML={{ __html: howHtml }} />
             </div>
           ) : null}
@@ -546,7 +546,7 @@ export function renderRobloxFreeItemsPage({
                       <p className="text-base font-semibold text-foreground">{faq.q}</p>
                     </div>
                     <div
-                      className="prose mt-2 text-[0.98rem] text-foreground/90"
+                      className="prose mt-2"
                       dangerouslySetInnerHTML={{ __html: faq.a }}
                     />
                   </div>

@@ -482,7 +482,7 @@ export function ListPageView({
           {showIntroOutro && outroHtml ? (
             <section className="space-y-4 text-muted">
               <div
-                className="prose dark:prose-invert max-w-none game-copy text-muted"
+                className="prose dark:prose-invert max-w-none game-copy"
                 dangerouslySetInnerHTML={{ __html: outroHtml }}
               />
             </section>

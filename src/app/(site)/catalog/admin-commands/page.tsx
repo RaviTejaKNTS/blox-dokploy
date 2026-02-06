@@ -42,14 +42,14 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
     return { contentHtml: null };
   }
 
-  const introHtml = catalog.intro_md ? await renderMarkdown(catalog.intro_md) : "";
-  const howHtml = catalog.how_it_works_md ? await renderMarkdown(catalog.how_it_works_md) : "";
+  const introHtml = catalog.intro_md ? await renderMarkdown(catalog.intro_md, { paragraphizeLineBreaks: true }) : "";
+  const howHtml = catalog.how_it_works_md ? await renderMarkdown(catalog.how_it_works_md, { paragraphizeLineBreaks: true }) : "";
 
   const descriptionEntries = sortDescriptionEntries(catalog.description_json ?? {});
   const descriptionHtml = await Promise.all(
     descriptionEntries.map(async ([key, value]) => ({
       key,
-      html: await renderMarkdown(value ?? "")
+      html: await renderMarkdown(value ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 
@@ -57,7 +57,7 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
   const faqHtml = await Promise.all(
     faqEntries.map(async (entry) => ({
       q: entry.q,
-      a: await renderMarkdown(entry.a ?? "")
+      a: await renderMarkdown(entry.a ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 
@@ -193,7 +193,7 @@ export default async function AdminCommandsHubPage() {
       ) : null}
 
       {descriptionHtml.length ? (
-        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
+        <section className="prose dark:prose-invert game-copy max-w-3xl">
           {descriptionHtml.map((entry) => (
             <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
           ))}
@@ -201,7 +201,7 @@ export default async function AdminCommandsHubPage() {
       ) : null}
 
       {howHtml ? (
-        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+        <section className="prose dark:prose-invert game-copy max-w-3xl">
           <div dangerouslySetInnerHTML={{ __html: howHtml }} />
         </section>
       ) : null}
@@ -228,7 +228,7 @@ export default async function AdminCommandsHubPage() {
                   <p className="text-base font-semibold text-foreground">{faq.q}</p>
                 </div>
                 <div
-                  className="prose mt-2 text-[0.98rem] text-foreground/90"
+                  className="prose mt-2"
                   dangerouslySetInnerHTML={{ __html: faq.a }}
                 />
               </div>

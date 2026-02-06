@@ -340,7 +340,7 @@ export function RobuxPurchaseClient({
       )}
 
       {hasHowItWorks ? (
-        <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+        <section className="prose dark:prose-invert game-copy max-w-3xl">
           <div dangerouslySetInnerHTML={{ __html: howItWorksHtml ?? "" }} />
         </section>
       ) : null}

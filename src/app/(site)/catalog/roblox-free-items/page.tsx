@@ -36,14 +36,14 @@ async function loadCatalogContent(): Promise<CatalogContentHtml | null> {
     return null;
   }
 
-  const introHtml = catalog.intro_md ? await renderMarkdown(catalog.intro_md) : "";
-  const howHtml = catalog.how_it_works_md ? await renderMarkdown(catalog.how_it_works_md) : "";
+  const introHtml = catalog.intro_md ? await renderMarkdown(catalog.intro_md, { paragraphizeLineBreaks: true }) : "";
+  const howHtml = catalog.how_it_works_md ? await renderMarkdown(catalog.how_it_works_md, { paragraphizeLineBreaks: true }) : "";
 
   const descriptionEntries = sortDescriptionEntries(catalog.description_json ?? {});
   const descriptionHtml = await Promise.all(
     descriptionEntries.map(async ([key, value]) => ({
       key,
-      html: await renderMarkdown(value ?? "")
+      html: await renderMarkdown(value ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 
@@ -51,7 +51,7 @@ async function loadCatalogContent(): Promise<CatalogContentHtml | null> {
   const faqHtml = await Promise.all(
     faqEntries.map(async (entry) => ({
       q: entry.q,
-      a: await renderMarkdown(entry.a ?? "")
+      a: await renderMarkdown(entry.a ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 

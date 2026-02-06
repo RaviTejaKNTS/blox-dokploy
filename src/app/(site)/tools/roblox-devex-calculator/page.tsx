@@ -39,14 +39,14 @@ async function buildToolContent(): Promise<{
   faqHtml: Array<{ q: string; a: string }>;
 }> {
   const tool = (await getToolContent(TOOL_CODE)) ?? null;
-  const introHtml = tool?.intro_md ? await renderMarkdown(tool.intro_md) : "";
-  const howHtml = tool?.how_it_works_md ? await renderMarkdown(tool.how_it_works_md) : "";
+  const introHtml = tool?.intro_md ? await renderMarkdown(tool.intro_md, { paragraphizeLineBreaks: true }) : "";
+  const howHtml = tool?.how_it_works_md ? await renderMarkdown(tool.how_it_works_md, { paragraphizeLineBreaks: true }) : "";
 
   const descriptionEntries = sortDescriptionEntries(tool?.description_json ?? {});
   const descriptionHtml = await Promise.all(
     descriptionEntries.map(async ([key, value]) => ({
       key,
-      html: await renderMarkdown(value ?? "")
+      html: await renderMarkdown(value ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 
@@ -54,7 +54,7 @@ async function buildToolContent(): Promise<{
   const faqHtml = await Promise.all(
     faqEntries.map(async (entry) => ({
       q: entry.q,
-      a: await renderMarkdown(entry.a ?? "")
+      a: await renderMarkdown(entry.a ?? "", { paragraphizeLineBreaks: true })
     }))
   );
 
@@ -229,7 +229,7 @@ export default async function RobloxDevexPage() {
       {(descriptionHtml.length || howHtml || faqHtml.length) ? (
         <div className="space-y-6">
           {descriptionHtml.length ? (
-            <section className="prose dark:prose-invert game-copy max-w-3xl space-y-6">
+            <section className="prose dark:prose-invert game-copy max-w-3xl">
               {descriptionHtml.map((entry) => (
                 <div key={entry.key} dangerouslySetInnerHTML={{ __html: entry.html }} />
               ))}
@@ -237,7 +237,7 @@ export default async function RobloxDevexPage() {
           ) : null}
 
           {howHtml ? (
-            <section className="prose dark:prose-invert game-copy max-w-3xl space-y-2">
+            <section className="prose dark:prose-invert game-copy max-w-3xl">
               <div dangerouslySetInnerHTML={{ __html: howHtml }} />
             </section>
           ) : null}
@@ -261,7 +261,7 @@ export default async function RobloxDevexPage() {
                         <p className="text-base font-semibold text-foreground">{faq.q}</p>
                       </div>
                       <div
-                        className="prose mt-2 text-[0.98rem] text-foreground/90"
+                        className="prose mt-2"
                         dangerouslySetInnerHTML={{ __html: faq.a }}
                       />
                     </div>

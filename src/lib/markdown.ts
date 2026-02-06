@@ -46,6 +46,7 @@ const sanitizeOptions: IOptions = {
     "tr",
     "th",
     "td",
+    "iframe",
     "sup",
     "sub"
   ],
@@ -66,6 +67,7 @@ const sanitizeOptions: IOptions = {
     th: ["class", "align"],
     td: ["class", "align"],
     ol: ["start", "value", "class"],
+    iframe: ["src", "title", "allow", "allowfullscreen", "loading", "referrerpolicy", "width", "height", "frameborder", "class"],
     '*': ["class"]
   },
   allowedSchemes: ["http", "https", "mailto"],
@@ -76,6 +78,161 @@ const sanitizeOptions: IOptions = {
   selfClosing: ["img", "br", "hr"],
   disallowedTagsMode: "discard"
 };
+
+const BLANK_LINE_MARKER = '<p class="md-spacer"></p>';
+
+type RenderMarkdownOptions = {
+  paragraphizeLineBreaks?: boolean;
+};
+
+const YOUTUBE_DIRECTIVE = /\{\{\s*youtube\s*:\s*([^\}]+?)\s*\}\}/gi;
+
+function extractYouTubeId(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(value)) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      return url.pathname.replace(/^\/+/, "").split("/")[0] || null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      const id = url.searchParams.get("v");
+      if (id) return id;
+      const pathParts = url.pathname.split("/").filter(Boolean);
+      const embedIndex = pathParts.indexOf("embed");
+      if (embedIndex >= 0 && pathParts[embedIndex + 1]) return pathParts[embedIndex + 1];
+      const shortsIndex = pathParts.indexOf("shorts");
+      if (shortsIndex >= 0 && pathParts[shortsIndex + 1]) return pathParts[shortsIndex + 1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function injectYouTubeEmbeds(markdown: string): string {
+  if (!markdown || !markdown.includes("youtube")) {
+    return markdown;
+  }
+
+  return markdown.replace(YOUTUBE_DIRECTIVE, (_match, rawValue) => {
+    const videoId = extractYouTubeId(String(rawValue));
+    if (!videoId) return _match;
+
+    return [
+      '<div class="video-embed">',
+      `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}"`,
+      'title="YouTube video player"',
+      'frameborder="0"',
+      'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"',
+      'allowfullscreen',
+      'loading="lazy"',
+      'referrerpolicy="strict-origin-when-cross-origin"></iframe>',
+      "</div>"
+    ].join(" ");
+  });
+}
+
+function preserveBlankLineSpacing(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let blankCount = 0;
+  let inFence = false;
+  let fenceMarker: string | null = null;
+
+  const flushBlanks = () => {
+    if (blankCount === 0) return;
+    output.push("");
+    for (let i = 1; i < blankCount; i += 1) {
+      output.push(BLANK_LINE_MARKER);
+      output.push("");
+    }
+    blankCount = 0;
+  };
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (!inFence) {
+        flushBlanks();
+        inFence = true;
+        fenceMarker = marker;
+        output.push(line);
+        continue;
+      }
+      if (fenceMarker && marker[0] === fenceMarker[0] && marker.length >= fenceMarker.length) {
+        inFence = false;
+        fenceMarker = null;
+        output.push(line);
+        continue;
+      }
+    }
+
+    if (inFence) {
+      output.push(line);
+      continue;
+    }
+
+    if (line.trim() === "") {
+      blankCount += 1;
+      continue;
+    }
+
+    flushBlanks();
+    output.push(line);
+  }
+
+  return output.join("\n");
+}
+
+function splitParagraphsOnLineBreaks(html: string): string {
+  if (!html.includes("<br")) {
+    return html;
+  }
+
+  const $ = load(html);
+
+  $("p").each((_, pNode) => {
+    const paragraph = $(pNode);
+    const nodes = paragraph.contents().toArray();
+    const parts: string[] = [];
+    let current: string[] = [];
+
+    nodes.forEach((node) => {
+      if (node.type === "tag" && node.name === "br") {
+        parts.push(current.join(""));
+        current = [];
+        return;
+      }
+      current.push($.html(node));
+    });
+
+    parts.push(current.join(""));
+
+    if (parts.length <= 1) {
+      return;
+    }
+
+    const replacement = parts
+      .map((part) => part.trim())
+      .map((part) => (part.length ? `<p>${part}</p>` : BLANK_LINE_MARKER))
+      .join("");
+
+    paragraph.replaceWith(replacement);
+  });
+
+  return $.root().children().toArray().map((node) => $.html(node)).join("");
+}
 
 function isImageOnlyElement(element: Cheerio<Element>, $: CheerioAPI): boolean {
   const nodes = element.contents().toArray();
@@ -386,17 +543,22 @@ function wrapTables(html: string): string {
 /**
  * Safely convert markdown to sanitized HTML
  */
-export async function renderMarkdown(markdown: string): Promise<string> {
+export async function renderMarkdown(markdown: string, options: RenderMarkdownOptions = {}): Promise<string> {
   if (!markdown) return "";
 
   try {
     // Convert markdown to HTML
-    const html = await marked(markdown);
+    const normalized = preserveBlankLineSpacing(injectYouTubeEmbeds(markdown));
+    const html = await marked(normalized);
     const adjusted = typeof html === "string" ? adjustOrderedLists(html) : html;
     const withTables = typeof adjusted === "string" ? wrapTables(adjusted) : adjusted;
+    const withParagraphs =
+      typeof withTables === "string" && options.paragraphizeLineBreaks
+        ? splitParagraphsOnLineBreaks(withTables)
+        : withTables;
 
     // Sanitize the HTML
-    return typeof withTables === "string" ? sanitizeHtml(withTables, sanitizeOptions) : "";
+    return typeof withParagraphs === "string" ? sanitizeHtml(withParagraphs, sanitizeOptions) : "";
   } catch (error) {
     console.error("Error rendering markdown:", error);
     return "";
