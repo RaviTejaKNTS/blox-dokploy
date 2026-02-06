@@ -1938,7 +1938,7 @@ After that, start with a H2 heading and then write the main content following th
  - Use tables and bullet points when it makes information easier to scan. Prefer paras to communitate tips, information, etc.
  - Use numbered steps when explaining a process.
  - When mentioning rewards, items or any list or table, include each and every item. Do not skip on anything. This has to be one stop guide that everything that user needs to know.
- - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
+ - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. This is important and never forget it.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
  Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
@@ -1950,6 +1950,7 @@ After that, start with a H2 heading and then write the main content following th
 Internal links:
 ${linkRules}
 - Use inline Markdown links: [label](url). Anchor text should read naturally in context.
+- Links needs to be speard all over the article from top to the bottom whereever they make sense and add value and context. 
 - Prefer same-universe pages (codes, checklists, tools, older articles) when relevant.
 - Prefer to use the links according to the context. If possible, instead of writing new lines of text, link into the existing text on if the context already makes sense. 
 - Do not link every thing in one small section. Links should be spread all over the content natually. This is very important, don't just drop all links at the bottom of content. Add links to the article throught the article contextually.

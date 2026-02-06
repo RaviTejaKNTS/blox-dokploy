@@ -94,6 +94,9 @@ type ArticleContext = {
 };
 
 type EventGuideDetails = {
+  eventId: string;
+  eventLink: string;
+  eventThumbnailUrl: string | null;
   eventName: string;
   gameName: string;
   startUtc: string;
@@ -1835,12 +1838,17 @@ function formatReviewContext(context?: ArticleContext | null): string {
 }
 
 function formatEventDetailsForPrompt(details: EventGuideDetails): string {
+  const thumbnailLine = details.eventThumbnailUrl
+    ? `- Event thumbnail image URL: ${details.eventThumbnailUrl}`
+    : "- Event thumbnail image URL: n/a";
   return [
     "Event details (authoritative):",
     `- Event name: ${details.eventName}`,
     `- Game: ${details.gameName}`,
     `- Start time (UTC): ${details.startUtc}`,
-    `- End time (UTC): ${details.endUtc}`
+    `- End time (UTC): ${details.endUtc}`,
+    `- Official Roblox event link: ${details.eventLink}`,
+    thumbnailLine
   ].join("\n");
 }
 
@@ -1894,11 +1902,15 @@ After that, start with a H2 heading and then write the main content following th
  - When mentioning rewards, items or any list or table, include each and every item. Do not skip on anything. This has to be one stop guide that everything that user needs to know.
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful. Don't need any heading for this section.
+ - Include the official Roblox event link exactly once. Use the exact URL from the event details and explicitly say it is the official Roblox event page so readers can open it directly.
+ - If an event thumbnail image URL is provided in the event details, include it exactly once using Markdown image syntax: ![Alt text](URL). Place it after the intro and before the first H2 heading if possible. Use clear alt text that includes the event name.
+ - If the event thumbnail image URL is listed as n/a, do not add an image.
+ - Do not include any other external URLs.
 
- Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or reference numbers. The only external URLs allowed are the official Roblox event link and the event thumbnail image URL provided above. No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
- - Never mention sources, research, URLs, or citations.
+ - Never mention sources, research, or citations. Do not add any external URLs other than the official Roblox event link and the event thumbnail image URL.
  - Never include bracketed citations like [1] or [2], or any references section.
 
 Research (do not cite or mention):
@@ -2150,7 +2162,8 @@ You are updating a Roblox event guide after ${label}. Keep the same friendly, co
 - If feedback starts with "No", only adjust the parts that were flagged. Keep everything else as close as possible to the original voice.
 - Use the ${label} plus the provided research; do not invent new information.
 - Make only the changes required by the feedback—no extra rewrites.
-- Do not mention sources, research, URLs, or citations.
+- Do not mention sources, research, or citations. Do not add any external URLs other than the official Roblox event link and event thumbnail image already present in the article.
+- Keep the official Roblox event link and event thumbnail image if they already exist in the article; do not remove them.
 - Do not add bracketed references like [1] or [2]. Paraphrase any new text you add.
 
 Topic: "${topic}"
@@ -2456,10 +2469,11 @@ After that, start with a H2 heading and then write the main content following th
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
- Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or reference numbers. The only external URLs allowed are the official Roblox event link and the event thumbnail image URL already present in the article. Internal links provided below are allowed. No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
- - Never mention sources, research, URLs, or citations.
+ - Never mention sources, research, or citations. Do not add any external URLs other than the official Roblox event link and event thumbnail image URL already present in the article.
+ - Keep the official Roblox event link and event thumbnail image if they already exist in the article; do not remove them.
  - Never include bracketed citations like [1] or [2], or any references section.
 
 Internal links:
@@ -2493,7 +2507,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add external URLs."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add external URLs other than the official Roblox event link and event thumbnail image URL already present in the article."
       },
       { role: "user", content: prompt }
     ]
@@ -3009,7 +3023,12 @@ async function main() {
       guideTitle: queueEntry.guide_title ?? null
     });
     const topic = `${gameName} ${eventName} event guide`;
+    const eventLink = `https://www.roblox.com/events/${event.event_id}`;
+    const eventThumbnailUrl = await pickEventThumbnailUrl(event.event_id);
     const eventDetails: EventGuideDetails = {
+      eventId: event.event_id,
+      eventLink,
+      eventThumbnailUrl,
       eventName,
       gameName,
       startUtc: event.start_utc,
