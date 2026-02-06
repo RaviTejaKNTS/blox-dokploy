@@ -1342,11 +1342,29 @@ async function updateQueueStatus(
 }
 
 async function attachGuideToEvent(eventId: string, slug: string): Promise<boolean> {
+  const { data: currentRows, error: currentError } = await supabase
+    .from("roblox_virtual_events")
+    .select("guide_slug")
+    .eq("event_id", eventId)
+    .limit(1);
+
+  if (currentError) {
+    throw new Error(`Failed to load event ${eventId} before linking: ${currentError.message}`);
+  }
+
+  const current = (currentRows ?? [])[0] as { guide_slug?: string | null } | undefined;
+  if (!current) {
+    return false;
+  }
+
+  if (current.guide_slug && current.guide_slug !== slug) {
+    return false;
+  }
+
   const { data, error } = await supabase
     .from("roblox_virtual_events")
     .update({ guide_slug: slug })
     .eq("event_id", eventId)
-    .or("guide_slug.is.null,guide_slug.eq.")
     .select("event_id");
 
   if (error) {
