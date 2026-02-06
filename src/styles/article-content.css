@@ -7,7 +7,32 @@
 
 .prose>*+*,
 .game-copy>*+* {
-  margin-top: 1.5rem;
+  margin-top: 1.75rem;
+}
+
+.prose > :is(div, section) > * + *,
+.game-copy > :is(div, section) > * + * {
+  margin-top: 1.75rem;
+}
+
+.prose p + p,
+.game-copy p + p {
+  margin-top: 1.75rem;
+}
+
+.prose p + .md-spacer,
+.game-copy p + .md-spacer,
+.prose .md-spacer + p,
+.game-copy .md-spacer + p {
+  margin-top: 0;
+}
+
+.prose .md-spacer,
+.game-copy .md-spacer {
+  display: block;
+  height: 1.15em;
+  margin: 0;
+  padding: 0;
 }
 
 .prose img,
@@ -16,6 +41,28 @@
   display: block;
   width: 100%;
   margin: 1.5rem 0;
+}
+
+.prose .video-embed,
+.game-copy .video-embed {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  margin: 2rem 0;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: rgba(var(--color-surface), 0.9);
+  box-shadow: inset 0 0 0 1px rgb(var(--color-border) / 0.35);
+}
+
+.prose .video-embed iframe,
+.game-copy .video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 @media (min-width: 768px) {
@@ -251,8 +298,8 @@
 
 .prose h2,
 .game-copy h2 {
-  font-size: 2rem;
-  line-height: 1.15;
+  font-size: 2.35rem;
+  line-height: 1.12;
   margin: 2.5rem 0 1rem;
 }
 
@@ -273,14 +320,12 @@
 .prose p,
 .game-copy p {
   color: rgba(var(--color-foreground), 0.9);
-}
-
-.game-copy p {
   font-size: 1.08rem;
   letter-spacing: 0.012em;
 }
 
 @media (min-width: 768px) {
+  .prose p,
   .game-copy p {
     font-size: 1.14rem;
     line-height: 1.95;
