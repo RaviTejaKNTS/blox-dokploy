@@ -189,6 +189,50 @@ function isVideoHost(hostname: string): boolean {
   return base.includes("youtube.com") || base.includes("youtu.be") || base.includes("vimeo.com") || base.includes("dailymotion.com");
 }
 
+function extractYouTubeVideoId(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(value)) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+
+    if (host === "youtu.be") {
+      return url.pathname.replace(/^\/+/, "").split("/")[0] || null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      const id = url.searchParams.get("v");
+      if (id) return id;
+      const pathParts = url.pathname.split("/").filter(Boolean);
+      const embedIndex = pathParts.indexOf("embed");
+      if (embedIndex >= 0 && pathParts[embedIndex + 1]) return pathParts[embedIndex + 1];
+      const shortsIndex = pathParts.indexOf("shorts");
+      if (shortsIndex >= 0 && pathParts[shortsIndex + 1]) return pathParts[shortsIndex + 1];
+      const liveIndex = pathParts.indexOf("live");
+      if (liveIndex >= 0 && pathParts[liveIndex + 1]) return pathParts[liveIndex + 1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function normalizeYouTubeVideoUrl(raw: string): string | null {
+  const videoId = extractYouTubeVideoId(raw);
+  if (!videoId) return null;
+  return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
+function hasYouTubeEmbed(markdown: string): boolean {
+  return /\{\{\s*youtube\s*:/i.test(markdown);
+}
+
 function isFandomHost(hostname: string): boolean {
   const base = hostname.replace(/^www\./i, "").toLowerCase();
   return base === "fandom.com" || base.endsWith(".fandom.com") || base.endsWith(".fandomwiki.com");
@@ -198,6 +242,14 @@ function cleanText(value: string | null | undefined): string | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length ? normalized : null;
+}
+
+function normalizeForCompare(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function hashForPath(value: string): string {
@@ -959,6 +1011,69 @@ async function perplexitySearch(query: string, limit: number): Promise<SearchRes
       }))
       .filter((entry) => entry.title && entry.url) ?? []
   );
+}
+
+function scoreYouTubeResult(result: SearchResult, topic: string): number {
+  const title = normalizeForCompare(result.title ?? "");
+  const snippet = normalizeForCompare(result.snippet ?? "");
+  const topicKey = normalizeForCompare(topic);
+  let score = 0;
+
+  if (topicKey && (title.includes(topicKey) || snippet.includes(topicKey))) score += 3;
+
+  const words = topicKey.split(" ").filter((word) => word.length > 2);
+  for (const word of words) {
+    if (title.includes(word)) score += 1;
+    else if (snippet.includes(word)) score += 0.5;
+  }
+
+  if (title.includes("roblox") || snippet.includes("roblox")) score += 1;
+  if (title.includes("guide") || snippet.includes("guide")) score += 1;
+  if (title.includes("event") || snippet.includes("event")) score += 0.5;
+
+  return score;
+}
+
+async function findRelatedYouTubeVideo(topic: string): Promise<string | null> {
+  const baseQuery = ensureRobloxKeyword(topic);
+  const queries = [
+    `site:youtube.com ${baseQuery} guide`,
+    `site:youtube.com ${baseQuery}`,
+    `site:youtube.com ${topic}`
+  ];
+
+  const candidates = new Map<string, { score: number; title: string }>();
+
+  for (const query of queries) {
+    let results: SearchResult[] = [];
+    try {
+      results = await perplexitySearch(query, 8);
+    } catch (error) {
+      console.warn("⚠️ YouTube search failed:", error instanceof Error ? error.message : String(error));
+      continue;
+    }
+
+    for (const result of results) {
+      const normalizedUrl = normalizeYouTubeVideoUrl(result.url);
+      if (!normalizedUrl) continue;
+      const score = scoreYouTubeResult(result, topic);
+      const existing = candidates.get(normalizedUrl);
+      if (!existing || score > existing.score) {
+        candidates.set(normalizedUrl, { score, title: result.title });
+      }
+    }
+
+    if (candidates.size >= 3) {
+      break;
+    }
+  }
+
+  if (!candidates.size) return null;
+
+  const sorted = Array.from(candidates.entries()).sort((a, b) => b[1].score - a[1].score);
+  const [bestUrl, bestMeta] = sorted[0];
+  if (bestMeta.score <= 0) return null;
+  return bestUrl;
 }
 
 type ParsedArticle = {
@@ -2033,6 +2148,72 @@ Return JSON:
   };
 }
 
+async function insertYouTubeEmbedWithAI(params: {
+  topic: string;
+  article: DraftArticle;
+  youtubeUrl: string;
+}): Promise<DraftArticle> {
+  const { topic, article, youtubeUrl } = params;
+
+  const prompt = `
+You are inserting a single YouTube embed directive into an existing Roblox article. Do not rewrite, remove, or reorder content.
+- Insert exactly one standalone line with this format: Embedding link: {{youtube: ${youtubeUrl}}}
+- Place it only between paragraphs or between sections (never inside a paragraph, list, table, or blockquote).
+- Choose the placement where the video makes the most sense and improves the flow for the reader.
+- If no perfect spot exists, place it after the intro paragraph and before the first H2 heading.
+- Keep all existing Markdown, links, tables, and images unchanged.
+- Do not add any other URLs or text.
+
+Topic: "${topic}"
+
+Article title: ${article.title}
+Meta description: ${article.meta_description}
+Article markdown:
+${article.content_md}
+
+Return JSON:
+{
+  "title": "${article.title}",
+  "meta_description": "${article.meta_description}",
+  "content_md": "Same Markdown with the YouTube embed line inserted"
+}
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0.2,
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a careful editor. Only insert the YouTube embed directive line; do not change any other text. Return valid JSON with title, content_md, meta_description."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`YouTube embed step did not return valid JSON: ${(error as Error).message}`);
+  }
+
+  const { content_md } = parsed as Partial<DraftArticle>;
+  if (!content_md) {
+    throw new Error("YouTube embed step missing required fields.");
+  }
+
+  return {
+    title: article.title,
+    content_md: content_md.trim(),
+    meta_description: article.meta_description.trim()
+  };
+}
+
 async function buildShortCoverTitle(title: string, topic: string): Promise<string> {
   const prompt = `
 Create a short, punchy 3-6 word version of this Roblox article title to overlay on a cover image. Keep it clear and scannable. Avoid quotes or extra punctuation.
@@ -2501,6 +2682,26 @@ async function main() {
     );
     if (interlinkUpdated) {
       currentDraft = interlinkedDraft;
+    }
+
+    if (!hasYouTubeEmbed(currentDraft.content_md)) {
+      const youtubeUrl = await findRelatedYouTubeVideo(topic);
+      if (youtubeUrl) {
+        const withEmbed = await insertYouTubeEmbedWithAI({
+          topic,
+          article: currentDraft,
+          youtubeUrl
+        });
+        const embedUpdated = await updateArticleContent(article.id, withEmbed);
+        console.log(`youtube_embed url="${youtubeUrl}" updated=${embedUpdated}`);
+        if (embedUpdated) {
+          currentDraft = withEmbed;
+        }
+      } else {
+        console.log("youtube_embed_skipped=no_video_found");
+      }
+    } else {
+      console.log("youtube_embed_skipped=already_present");
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);

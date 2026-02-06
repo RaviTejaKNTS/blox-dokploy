@@ -2696,9 +2696,10 @@ async function insertYouTubeEmbedWithAI(params: {
 
   const prompt = `
 You are inserting a single YouTube embed directive into an existing Roblox event guide. Do not rewrite, remove, or reorder content.
-- Insert exactly one line with this format: {{youtube: ${youtubeUrl}}}
-- Place it after the intro paragraph and before the first H2 heading.
-- If there is no H2 heading, place it after the first paragraph.
+- Insert exactly one standalone line with this format: Embedding link: {{youtube: ${youtubeUrl}}}
+- Place it only between paragraphs or between sections (never inside a paragraph, list, table, or blockquote).
+- Choose the placement where the video makes the most sense and improves the flow for the reader.
+- If no perfect spot exists, place it after the intro paragraph and before the first H2 heading.
 - Keep all existing Markdown, links, tables, and images unchanged.
 - Do not add any other URLs or text.
 
