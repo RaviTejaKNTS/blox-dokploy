@@ -26,6 +26,8 @@ const themeScript = `(() => {
   }
 })();`;
 
+const growInitializerScript = `!(function(){window.growMe||((window.growMe=function(e){window.growMe._.push(e);}),(window.growMe._=[]));var e=document.createElement("script");(e.type="text/javascript"),(e.src="https://faves.grow.me/main.js"),(e.defer=!0),e.setAttribute("data-grow-faves-site-id","U2l0ZTo3NWQ5YWI3ZC0yNjhjLTRlMDMtYmI2Yy0xODBjYTRiOGQ1ZWQ=");var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t);})();`;
+
 const structuredData = JSON.stringify({
   "@context": "https://schema.org",
   "@graph": [siteJsonLd({ siteUrl: SITE_URL }), organizationJsonLd({ siteUrl: SITE_URL })]
@@ -119,6 +121,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://bmwksaykcsndsvgspapz.supabase.co" />
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://lh3.ggpht.com" />
+        <script data-grow-initializer="" dangerouslySetInnerHTML={{ __html: growInitializerScript }} />
       </head>
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
