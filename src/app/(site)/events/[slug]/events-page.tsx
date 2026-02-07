@@ -460,7 +460,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     alternates: { canonical },
     openGraph: {
-      type: "website",
+      type: "article",
       url: canonical,
       title: seoTitle ?? SITE_NAME,
       description,

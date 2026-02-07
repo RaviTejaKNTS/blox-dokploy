@@ -106,6 +106,8 @@ export default async function GrowGardenCropValueCalculatorPage() {
     buildContent(),
     loadCropDataset()
   ]);
+  const publishedTime = tool ? resolvePublishedAt(tool) : null;
+  const modifiedTime = tool ? resolveModifiedAt(tool) : null;
   const updatedDateValue = modifiedTime;
   const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
   const formattedUpdated = updatedDate
@@ -123,8 +125,8 @@ export default async function GrowGardenCropValueCalculatorPage() {
           tool?.meta_description ??
           "Pick a crop, enter weight and quantity, apply variants and mutations, and see the Sheckles you earn with a clear breakdown.",
         url: CANONICAL,
-        datePublished: tool?.published_at ? new Date(tool.published_at).toISOString() : undefined,
-        dateModified: tool?.updated_at ? new Date(tool.updated_at).toISOString() : undefined,
+        datePublished: publishedTime ? new Date(publishedTime).toISOString() : undefined,
+        dateModified: modifiedTime ? new Date(modifiedTime).toISOString() : undefined,
         breadcrumb: {
           "@type": "BreadcrumbList",
           itemListElement: [

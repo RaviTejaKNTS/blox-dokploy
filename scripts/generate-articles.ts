@@ -342,6 +342,15 @@ function stripSourceCitations(value: string): string {
 function sanitizeDraftArticle(article: DraftArticle): DraftArticle {
   return {
     ...article,
+    title: stripSourceCitations(article.title),
+    meta_description: stripSourceCitations(article.meta_description),
+    content_md: stripSourceCitations(article.content_md)
+  };
+}
+
+function finalizeDraftArticle(article: DraftArticle): DraftArticle {
+  return {
+    ...article,
     title: stripSourceCitations(replaceEmDashes(article.title)),
     meta_description: stripSourceCitations(replaceEmDashes(article.meta_description)),
     content_md: stripSourceCitations(replaceEmDashes(article.content_md))
@@ -2655,6 +2664,30 @@ async function main() {
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
 
+    const refinedAfterImages = await refineArticleAfterImages(topic, currentDraft);
+    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
+    console.log(
+      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
+    );
+    if (refinedUpdated) {
+      currentDraft = refinedAfterImages;
+    }
+
+    const relatedPages = await fetchRelatedPagesForUniverse({
+      universeId: queueEntry.universe_id,
+      excludeSlug: article.slug
+    });
+    console.log(`interlink_candidates=${relatedPages.length}`);
+
+    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, currentDraft, relatedPages);
+    const interlinkUpdated = await updateArticleContent(article.id, interlinkedDraft);
+    console.log(
+      `interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)} updated=${interlinkUpdated}`
+    );
+    if (interlinkUpdated) {
+      currentDraft = interlinkedDraft;
+    }
+
     let articleContentForCleanup = currentDraft.content_md;
     const imageUploadResult = await uploadSourceImagesForArticle({
       articleId: article.id,
@@ -2683,26 +2716,6 @@ async function main() {
       });
     }
 
-    const cleanedDraft = sanitizeDraftArticle(currentDraft);
-    const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
-    console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
-    currentDraft = cleanedDraft;
-
-    const relatedPages = await fetchRelatedPagesForUniverse({
-      universeId: queueEntry.universe_id,
-      excludeSlug: article.slug
-    });
-    console.log(`interlink_candidates=${relatedPages.length}`);
-
-    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, currentDraft, relatedPages);
-    const interlinkUpdated = await updateArticleContent(article.id, interlinkedDraft);
-    console.log(
-      `interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)} updated=${interlinkUpdated}`
-    );
-    if (interlinkUpdated) {
-      currentDraft = interlinkedDraft;
-    }
-
     if (!hasYouTubeEmbed(currentDraft.content_md)) {
       const youtubeUrl = await findRelatedYouTubeVideo(topic);
       if (youtubeUrl) {
@@ -2723,14 +2736,10 @@ async function main() {
       console.log("youtube_embed_skipped=already_present");
     }
 
-    const refinedAfterImages = await refineArticleAfterImages(topic, currentDraft);
-    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
-    console.log(
-      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
-    );
-    if (refinedUpdated) {
-      currentDraft = refinedAfterImages;
-    }
+    const cleanedDraft = finalizeDraftArticle(currentDraft);
+    const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
+    console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
+    currentDraft = cleanedDraft;
 
     await updateQueueStatus(queueEntry.id, "completed", null);
   } catch (error) {

@@ -602,6 +602,15 @@ function stripSourceCitations(value: string): string {
 function sanitizeDraftArticle(article: DraftArticle): DraftArticle {
   return {
     ...article,
+    title: stripSourceCitations(article.title),
+    meta_description: stripSourceCitations(article.meta_description),
+    content_md: stripSourceCitations(article.content_md)
+  };
+}
+
+function finalizeDraftArticle(article: DraftArticle): DraftArticle {
+  return {
+    ...article,
     title: stripSourceCitations(replaceEmDashes(article.title)),
     meta_description: stripSourceCitations(replaceEmDashes(article.meta_description)),
     content_md: stripSourceCitations(replaceEmDashes(article.content_md))
@@ -3337,38 +3346,15 @@ async function main() {
       );
     }
 
-    let articleContentForCleanup = currentDraft.content_md;
-    const imageUploadResult = await uploadSourceImagesForArticle({
-      articleId: article.id,
-      slug,
-      sources: verifiedSources
-    });
-    console.log(`source_images_uploaded=${imageUploadResult.uploaded}`);
-
-    if (imageUploadResult.images.length > 0) {
-      try {
-        const withImages = await reviseArticleWithImages(currentDraft, imageUploadResult.images);
-        const updated = await updateArticleContent(article.id, withImages);
-        console.log(`images_injected word_count=${estimateWordCount(withImages.content_md)} updated=${updated}`);
-        if (updated) {
-          currentDraft = withImages;
-          articleContentForCleanup = withImages.content_md;
-        }
-      } catch (imageError) {
-        console.warn("⚠️ Failed to inject images into article:", imageError instanceof Error ? imageError.message : String(imageError));
-      }
-
-      await cleanupUnusedArticleImages({
-        articleId: article.id,
-        contentMd: articleContentForCleanup,
-        images: imageUploadResult.images
-      });
+    currentDraft = { ...currentDraft, title: guideTitle };
+    const refinedAfterImages = await refineEventGuideAfterImages(topic, currentDraft);
+    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
+    console.log(
+      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
+    );
+    if (refinedUpdated) {
+      currentDraft = refinedAfterImages;
     }
-
-    const cleanedDraft = sanitizeDraftArticle(currentDraft);
-    const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
-    console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
-    currentDraft = cleanedDraft;
 
     const relatedPages = await fetchRelatedPagesForUniverse({
       universeId,
@@ -3384,6 +3370,34 @@ async function main() {
     );
     if (interlinkUpdated) {
       currentDraft = finalDraft;
+    }
+
+    let articleContentForCleanup = currentDraft.content_md;
+    const imageUploadResult = await uploadSourceImagesForArticle({
+      articleId: article.id,
+      slug,
+      sources: verifiedSources
+    });
+    console.log(`source_images_uploaded=${imageUploadResult.uploaded}`);
+
+    if (imageUploadResult.images.length > 0) {
+      try {
+        const withImages = await reviseArticleWithImages(currentDraft, imageUploadResult.images);
+        const updated = await updateArticleContent(article.id, withImages);
+        console.log(`images_injected word_count=${estimateWordCount(withImages.content_md)} updated=${updated}`);
+        if (updated) {
+          currentDraft = { ...withImages, title: guideTitle };
+          articleContentForCleanup = withImages.content_md;
+        }
+      } catch (imageError) {
+        console.warn("⚠️ Failed to inject images into article:", imageError instanceof Error ? imageError.message : String(imageError));
+      }
+
+      await cleanupUnusedArticleImages({
+        articleId: article.id,
+        contentMd: articleContentForCleanup,
+        images: imageUploadResult.images
+      });
     }
 
     if (!hasYouTubeEmbed(currentDraft.content_md)) {
@@ -3407,14 +3421,10 @@ async function main() {
     }
 
     currentDraft = { ...currentDraft, title: guideTitle };
-    const refinedAfterImages = await refineEventGuideAfterImages(topic, currentDraft);
-    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
-    console.log(
-      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
-    );
-    if (refinedUpdated) {
-      currentDraft = refinedAfterImages;
-    }
+    const cleanedDraft = finalizeDraftArticle(currentDraft);
+    const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
+    console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
+    currentDraft = cleanedDraft;
 
     await updateQueueStatus(queueEntry.id, "completed", null);
 
