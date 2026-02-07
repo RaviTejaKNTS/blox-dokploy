@@ -50,6 +50,7 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import { getUniverseEventSummary } from "@/lib/events-summary";
+import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 86400; // daily
 
@@ -344,9 +345,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     return latest;
   }, null);
   const activeCount = codes.filter((code) => code.status === "active").length;
-  const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
+  const baselineUpdatedAt = resolveModifiedAt(game) ?? game.updated_at;
+  const lastContentUpdate = latestCodeFirstSeen && baselineUpdatedAt && latestCodeFirstSeen > baselineUpdatedAt
     ? latestCodeFirstSeen
-    : game.updated_at;
+    : baselineUpdatedAt ?? game.updated_at;
   const when = monthYear();
   const title =
     resolveSeoTitle(game.seo_title) || `${game.name} Codes (${when}) - ${activeCount} Active Codes`;
@@ -360,7 +362,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     : game.cover_image
       ? `${SITE_URL.replace(/\/$/, "")}/${game.cover_image.replace(/^\//, "")}`
       : `${SITE_URL}/og-image.png`;
-  const publishedTime = new Date(game.published_at ?? game.created_at).toISOString();
+  const publishedTimeRaw = resolvePublishedAt(game);
+  const publishedTime = publishedTimeRaw ? new Date(publishedTimeRaw).toISOString() : undefined;
   const modifiedTime = new Date(lastContentUpdate).toISOString();
   const otherMeta: Record<string, string> = {};
   return {
@@ -470,9 +473,10 @@ export default async function GamePage({ params }: Params) {
     return latest;
   }, null);
 
-  const lastContentUpdate = latestCodeFirstSeen && latestCodeFirstSeen > game.updated_at
+  const baselineUpdatedAt = resolveModifiedAt(game) ?? game.updated_at;
+  const lastContentUpdate = latestCodeFirstSeen && baselineUpdatedAt && latestCodeFirstSeen > baselineUpdatedAt
     ? latestCodeFirstSeen
-    : game.updated_at;
+    : baselineUpdatedAt ?? game.updated_at;
 
   const lastUpdatedFormatted = new Date(lastContentUpdate).toLocaleDateString("en-US", {
     month: "long",
@@ -624,7 +628,8 @@ export default async function GamePage({ params }: Params) {
         url: game.author.slug ? `${SITE_URL}/authors/${game.author.slug}` : undefined
       }
       : null;
-  const publishedIso = new Date(game.created_at).toISOString();
+  const publishedAt = resolvePublishedAt(game) ?? game.created_at;
+  const publishedIso = new Date(publishedAt).toISOString();
   const updatedIso = new Date(lastContentUpdate).toISOString();
   const lastCheckedIso = new Date(lastChecked).toISOString();
   const siteBaseUrl = SITE_URL.replace(/\/$/, "");

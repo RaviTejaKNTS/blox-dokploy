@@ -11,6 +11,7 @@ import { GAG_MUTATIONS, GAG_VARIANTS } from "@/lib/grow-a-garden/mutations";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ToolContent } from "@/lib/tools";
 import { CommentsSection } from "@/components/comments/CommentsSection";
+import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 3600; // 1 hour to pick up Supabase edits sooner
 
@@ -74,8 +75,8 @@ export async function generateMetadata(): Promise<Metadata> {
     tool?.meta_description ||
     "Calculate Grow a Garden crop value using average value, weight, variants, and mutations with live breakdowns.";
   const image = tool?.thumb_url || FALLBACK_IMAGE;
-  const publishedTime = tool?.published_at ?? tool?.created_at;
-  const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at;
+  const publishedTime = tool ? resolvePublishedAt(tool) : null;
+  const modifiedTime = tool ? resolveModifiedAt(tool) : null;
 
   return {
     title,
@@ -105,7 +106,7 @@ export default async function GrowGardenCropValueCalculatorPage() {
     buildContent(),
     loadCropDataset()
   ]);
-  const updatedDateValue = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const updatedDateValue = modifiedTime;
   const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
   const formattedUpdated = updatedDate
     ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })

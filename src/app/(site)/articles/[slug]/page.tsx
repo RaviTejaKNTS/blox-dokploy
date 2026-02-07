@@ -44,6 +44,7 @@ import { buildArticleContentBlocks } from "@/lib/ad-placement";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import { getUniverseEventSummary } from "@/lib/events-summary";
+import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 604800; // weekly
 
@@ -70,6 +71,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     (article.meta_description || markdownToPlainText(article.content_md)).trim() || ARTICLES_DESCRIPTION;
   const title = resolveSeoTitle(article.seo_title) ?? article.title;
   const universeName = article.universe?.display_name ?? article.universe?.name ?? null;
+  const publishedAt = resolvePublishedAt(article);
+  const modifiedAt = resolveModifiedAt(article);
 
   return {
     title,
@@ -83,8 +86,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       siteName: SITE_NAME,
       images: [coverImage],
-      publishedTime: new Date(article.published_at).toISOString(),
-      modifiedTime: new Date(article.updated_at).toISOString(),
+      publishedTime: publishedAt ? new Date(publishedAt).toISOString() : undefined,
+      modifiedTime: modifiedAt ? new Date(modifiedAt).toISOString() : undefined,
       authors: article.author ? [article.author.name] : undefined
     },
     twitter: {
@@ -142,8 +145,10 @@ async function renderArticlePage(article: ArticleWithRelations) {
       : "Latest articles"
     : null;
   const authorAvatar = article.author ? authorAvatarUrl(article.author, 72) : null;
-  const publishedDate = new Date(article.published_at);
-  const updatedDate = new Date(article.updated_at);
+  const publishedAt = resolvePublishedAt(article) ?? article.created_at;
+  const modifiedAt = resolveModifiedAt(article) ?? article.updated_at ?? publishedAt;
+  const publishedDate = new Date(publishedAt);
+  const updatedDate = new Date(modifiedAt);
   const formattedUpdated = updatedDate.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",

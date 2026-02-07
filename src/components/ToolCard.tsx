@@ -8,7 +8,8 @@ type ToolCardProps = {
 };
 
 export function ToolCard({ tool }: ToolCardProps) {
-  const updatedLabel = tool.updated_at ? formatDistanceToNow(new Date(tool.updated_at), { addSuffix: true }) : null;
+  const updatedAt = tool.content_updated_at ?? tool.updated_at ?? null;
+  const updatedLabel = updatedAt ? formatDistanceToNow(new Date(updatedAt), { addSuffix: true }) : null;
   const description =
     tool.meta_description?.trim() ||
     tool.intro_md?.replace(/\s+/g, " ").trim().slice(0, 160) ||

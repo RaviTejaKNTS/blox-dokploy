@@ -8,14 +8,15 @@ type ChecklistSitemapRow = {
   slug: string | null;
   updated_at: string | null;
   published_at: string | null;
+  content_updated_at?: string | null;
 };
 
 export async function GET() {
   try {
     const sb = supabaseAdmin();
     const { data, error } = await sb
-      .from("checklist_pages")
-      .select("slug, updated_at, published_at")
+      .from("checklist_pages_view")
+      .select("slug, updated_at, published_at, content_updated_at")
       .eq("is_public", true)
       .not("slug", "is", null)
       .order("updated_at", { ascending: false });
@@ -26,7 +27,7 @@ export async function GET() {
     const pages: SitemapUrlSetEntry[] = [];
     for (const row of rows) {
       if (!row.slug) continue;
-      const updated = row.updated_at ?? row.published_at;
+      const updated = row.content_updated_at ?? row.updated_at ?? row.published_at;
       pages.push({
         loc: withSiteUrl(`/checklists/${row.slug}`),
         changefreq: "weekly",

@@ -7,6 +7,7 @@ import { ChecklistFooterLinks } from "@/components/ChecklistFooterLinks";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 3600; // 1 hour
 
@@ -25,8 +26,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     page.seo_description ||
     (page.description_md ? markdownToPlainText(page.description_md).slice(0, 160) : CHECKLISTS_DESCRIPTION);
   const canonical = `${SITE_URL}/checklists/${page.slug}`;
-  const publishedTime = page.published_at ? new Date(page.published_at).toISOString() : undefined;
-  const updatedTime = page.updated_at ? new Date(page.updated_at).toISOString() : undefined;
+  const publishedAt = resolvePublishedAt(page);
+  const updatedAt = resolveModifiedAt(page);
+  const publishedTime = publishedAt ? new Date(publishedAt).toISOString() : undefined;
+  const updatedTime = updatedAt ? new Date(updatedAt).toISOString() : undefined;
 
   return {
     title: `${titleBase} | ${SITE_NAME}`,
@@ -64,16 +67,9 @@ export default async function ChecklistPage({ params }: PageProps) {
   const coverImage = page.universe?.icon_url || `${SITE_URL}/og-image.png`;
   const descriptionHtml = page.description_md ? await renderMarkdown(page.description_md) : null;
   const leafItems = items.filter((item) => item.section_code.split(".").filter(Boolean).length === 3);
-  const latestItemUpdated = items.reduce<Date | null>((latest, item) => {
-    const dt = item.updated_at ? new Date(item.updated_at) : null;
-    if (!dt) return latest;
-    if (!latest || dt > latest) return dt;
-    return latest;
-  }, null);
-  const publishedDate = page.published_at ? new Date(page.published_at) : new Date(page.created_at);
-  const updatedDate = latestItemUpdated && latestItemUpdated > new Date(page.updated_at)
-    ? latestItemUpdated
-    : new Date(page.updated_at);
+  const publishedDate = new Date(resolvePublishedAt(page) ?? page.created_at);
+  const updatedDateSource = resolveModifiedAt(page) ?? page.updated_at ?? page.created_at;
+  const updatedDate = new Date(updatedDateSource);
   const itemListElements = leafItems.map((item, index) => ({
     "@type": "ListItem",
     position: index + 1,

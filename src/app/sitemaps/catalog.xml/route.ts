@@ -8,14 +8,15 @@ type CatalogSitemapRow = {
   code: string | null;
   updated_at: string | null;
   published_at: string | null;
+  content_updated_at?: string | null;
 };
 
 export async function GET() {
   try {
     const sb = supabaseAdmin();
     const { data, error } = await sb
-      .from("catalog_pages")
-      .select("code, updated_at, published_at")
+      .from("catalog_pages_view")
+      .select("code, updated_at, published_at, content_updated_at")
       .eq("is_published", true)
       .not("code", "is", null)
       .order("updated_at", { ascending: false });
@@ -30,7 +31,7 @@ export async function GET() {
       if (!code) continue;
 
       const path = `/catalog/${code}`;
-      const updated = row.updated_at ?? row.published_at;
+      const updated = row.content_updated_at ?? row.updated_at ?? row.published_at;
       pageMap.set(path, {
         loc: withSiteUrl(path),
         changefreq: "weekly",

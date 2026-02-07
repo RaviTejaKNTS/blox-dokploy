@@ -7,14 +7,15 @@ export const revalidate = 21600; // 6 hours
 type ToolSitemapRow = {
   code: string | null;
   updated_at: string | null;
+  content_updated_at?: string | null;
 };
 
 export async function GET() {
   try {
     const sb = supabaseAdmin();
     const { data, error } = await sb
-      .from("tools")
-      .select("code, updated_at")
+      .from("tools_view")
+      .select("code, updated_at, content_updated_at")
       .eq("is_published", true)
       .not("code", "is", null)
       .order("updated_at", { ascending: false });
@@ -25,11 +26,12 @@ export async function GET() {
     const pages: SitemapUrlSetEntry[] = [];
     for (const row of rows) {
       if (!row.code) continue;
+      const lastmod = toIsoDate(row.content_updated_at ?? row.updated_at);
       pages.push({
         loc: withSiteUrl(`/tools/${row.code}`),
         changefreq: "weekly",
         priority: "0.9",
-        lastmod: toIsoDate(row.updated_at)
+        lastmod
       });
     }
 

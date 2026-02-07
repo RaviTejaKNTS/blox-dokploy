@@ -8,6 +8,7 @@ import { ContentSlot } from "@/components/ContentSlot";
 import { RobloxIdExtractorClient } from "./RobloxIdExtractorClient";
 import { supabaseAdmin } from "@/lib/supabase";
 import { CommentsSection } from "@/components/comments/CommentsSection";
+import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 3600;
 
@@ -98,8 +99,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = resolveSeoTitle(tool.seo_title) ?? tool.title ?? undefined;
   const description = tool.meta_description ?? undefined;
   const image = tool.thumb_url || FALLBACK_IMAGE;
-  const publishedTime = tool.published_at ?? tool.created_at;
-  const modifiedTime = tool.updated_at ?? tool.published_at ?? tool.created_at;
+  const publishedTime = resolvePublishedAt(tool);
+  const modifiedTime = resolveModifiedAt(tool);
 
   return {
     title,
@@ -128,9 +129,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RobloxIdExtractorPage() {
   const { tool, introHtml, howHtml, descriptionHtml, faqHtml } = await buildToolContent();
-  const publishedTime = tool?.published_at ?? tool?.created_at ?? null;
-  const modifiedTime = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
-  const updatedDateValue = tool?.updated_at ?? tool?.published_at ?? tool?.created_at ?? null;
+  const publishedTime = tool ? resolvePublishedAt(tool) : null;
+  const modifiedTime = tool ? resolveModifiedAt(tool) : null;
+  const updatedDateValue = modifiedTime;
   const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
   const formattedUpdated = updatedDate
     ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })

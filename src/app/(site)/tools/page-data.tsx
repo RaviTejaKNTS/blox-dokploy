@@ -3,6 +3,7 @@ import { ToolCard } from "@/components/ToolCard";
 import { listPublishedToolsPage, type ToolListEntry } from "@/lib/tools";
 import { TOOLS_DESCRIPTION, SITE_URL } from "@/lib/seo";
 import { PagePagination } from "@/components/PagePagination";
+import { resolveModifiedAt } from "@/lib/content-dates";
 
 const PAGE_SIZE = 20;
 
@@ -32,7 +33,7 @@ function ToolsPageView({
   showHero: boolean;
 }) {
   const latest = tools.reduce<Date | null>((latestDate, tool) => {
-    const candidate = tool.updated_at ?? tool.published_at ?? tool.created_at;
+    const candidate = resolveModifiedAt(tool);
     if (!candidate) return latestDate;
     const candidateDate = new Date(candidate);
     if (!latestDate || candidateDate > latestDate) return candidateDate;

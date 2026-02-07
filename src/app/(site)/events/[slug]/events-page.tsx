@@ -449,6 +449,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     normalizeText(page.meta_description) ||
     (page.content_md ? markdownToPlainText(page.content_md).slice(0, 160) : `Current, upcoming, and past events for ${universeName}.`);
   const canonical = `${SITE_URL}/events/${page.slug}`;
+  const pageUpdated = parseDate(page.updated_at ?? page.published_at ?? page.created_at);
+  const eventsUpdated = latestTimestamp(metadataEvents.map(eventUpdateTimestamp));
+  const updatedTimestamp = latestTimestamp([pageUpdated, eventsUpdated]);
+  const publishedIso = new Date(page.published_at ?? page.created_at).toISOString();
+  const updatedIso = typeof updatedTimestamp === "number" ? new Date(updatedTimestamp).toISOString() : publishedIso;
 
   return {
     title: seoTitle ? `${seoTitle} | ${SITE_NAME}` : SITE_NAME,
@@ -459,7 +464,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url: canonical,
       title: seoTitle ?? SITE_NAME,
       description,
-      siteName: SITE_NAME
+      siteName: SITE_NAME,
+      publishedTime: publishedIso,
+      modifiedTime: updatedIso
     },
     twitter: {
       card: "summary_large_image",
