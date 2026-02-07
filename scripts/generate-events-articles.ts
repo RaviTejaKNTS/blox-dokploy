@@ -2557,12 +2557,12 @@ After that, start with a H2 heading and then write the main content following th
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
- Most importantly: Do not add emojis, sources, or reference numbers. The only external URLs allowed are the official Roblox event link and the event thumbnail image URL already present in the article. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or new URLs. Keep any existing links unchanged, including the official Roblox event link, the event thumbnail image URL, and any YouTube embeds already present. No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
  - Keep any existing Markdown tables and image URLs exactly as they are. Do not remove or reorder them.
  - Do not add new internal links. Keep any existing links unchanged.
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
- - Never mention sources, research, or citations. Do not add any external URLs other than the official Roblox event link and event thumbnail image URL already present in the article.
+ - Never mention sources, research, or citations. Do not add new external URLs.
  - Keep the official Roblox event link and event thumbnail image if they already exist in the article; do not remove them.
  - Never include bracketed citations like [1] or [2], or any references section.
 
@@ -2588,7 +2588,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add external URLs other than the official Roblox event link and event thumbnail image URL already present in the article."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add new external URLs; keep any existing links unchanged."
       },
       { role: "user", content: prompt }
     ]
@@ -3365,15 +3365,6 @@ async function main() {
       });
     }
 
-    const refinedAfterImages = await refineEventGuideAfterImages(topic, currentDraft);
-    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
-    console.log(
-      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
-    );
-    if (refinedUpdated) {
-      currentDraft = refinedAfterImages;
-    }
-
     const cleanedDraft = sanitizeDraftArticle(currentDraft);
     const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
     console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
@@ -3413,6 +3404,16 @@ async function main() {
       }
     } else {
       console.log("youtube_embed_skipped=already_present");
+    }
+
+    currentDraft = { ...currentDraft, title: guideTitle };
+    const refinedAfterImages = await refineEventGuideAfterImages(topic, currentDraft);
+    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
+    console.log(
+      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
+    );
+    if (refinedUpdated) {
+      currentDraft = refinedAfterImages;
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);

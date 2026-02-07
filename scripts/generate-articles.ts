@@ -1518,9 +1518,10 @@ After that, start with a H2 heading and then write the main content following th
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
 
- Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or new URLs. Keep any existing links/URLs exactly as they are (including internal links and YouTube embeds). No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
  - Keep any existing Markdown tables and image URLs exactly as they are. Do not remove or reorder them.
+ - Keep any existing Markdown links/URLs exactly as they are. Do not remove or rewrite them.
  - Do not add new links or URLs. Keep any existing links unchanged.
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
  - Never mention sources, research, URLs, or citations.
@@ -2027,11 +2028,12 @@ After that, start with a H2 heading and then write the main content following th
  - Before any tables, bullet points, or steps, write a short paragraph that sets the context. This helps the article to flow like a story. This is important and never forget it.
  - Conclude the article with a short friendly takeaway that leaves the reader feeling guided and confident. No need for any cringe ending words like "Happy fishing and defending out there!". Just keep it real and helpful.
 
- Most importantly: Do not add emojis, sources, URLs, or reference numbers. No emdashes anywhere. (Never mention these anywhere in your output)
+ Most importantly: Do not add emojis, sources, or new URLs. Keep any existing links/URLs exactly as they are (including internal links and YouTube embeds). No emdashes anywhere. (Never mention these anywhere in your output)
  Additional writing rules:
  - Keep any existing Markdown tables and image URLs exactly as they are. Do not remove or reorder them.
+ - Keep any existing Markdown links/URLs exactly as they are. Do not remove or rewrite them.
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
- - Never mention sources, research, URLs, or citations.
+ - Never mention sources, research, or citations.
  - Never include bracketed citations like [1] or [2], or any references section.
 
 Topic: "${topic}"
@@ -2056,7 +2058,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add external URLs."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Never mention sources or citations. Do not add new external URLs; keep any existing links unchanged."
       },
       { role: "user", content: prompt }
     ]
@@ -2094,18 +2096,26 @@ async function interlinkArticleWithRelatedPages(
     .join("\n\n");
   const pageBlockText = pages.length ? pageBlock : "No internal pages available.";
   const linkRules = pages.length
-    ? `- Add up to 3-4 inline Markdown links where they naturally fit. Spread them out across the article.
-- Use the provided URLs exactly. Do not invent links or add external URLs.
-- If fewer than 3 pages are a good fit, use only the relevant ones without forcing.`
+    ? `- add only related and useful interlinks where they naturally fit. Else do not add that link if it not suitable. 
+       - Use the provided URLs exactly. Do not invent links or add external URLs.
+       - Spreak the links accross the article. But as mentioned, only link if it perfectly in context to the article. 
+       - Do not use exact match keyword to the title, just write with the flow and interlink with context. 
+       - Do not add more than 3 links in a single paragraph.
+       - Do not add links to the same page multiple times. Use one link only one time.
+       - Do not add links to pages that are not related to the article.
+       - Include all the relant links and only the relavant links.`
     : "- Do not add any links because none are provided.";
 
   const prompt = `
 You are inserting internal links into an existing Roblox article. Keep all text, headings, tables, and images exactly the same.
-- Only add inline Markdown links by wrapping existing words/phrases: [label](url).
-- Do not add new sentences, do not rewrite, and do not remove content.
-- Use the provided URLs exactly. Do not invent links or add external URLs.
-- Keep existing Markdown tables and image URLs exactly as they are.
-- Spread links across the article where they naturally fit.
+  - add only related and useful interlinks where they naturally fit. Else do not add that link if it not suitable. 
+  - Use the provided URLs exactly. Do not invent links or add external URLs.
+  - Spreak the links accross the article. But as mentioned, only link if it perfectly in context to the article. 
+  - Do not use exact match keyword to the title, just write with the flow and interlink with context. 
+  - Do not add more than 3 links in a single paragraph.
+  - Do not add links to the same page multiple times. Use one link only one time.
+  - Do not add links to pages that are not related to the article.
+  - Include all the relant links and only the relavant links.
 
 Internal link rules:
 ${linkRules}
@@ -2673,15 +2683,6 @@ async function main() {
       });
     }
 
-    const refinedAfterImages = await refineArticleAfterImages(topic, currentDraft);
-    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
-    console.log(
-      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
-    );
-    if (refinedUpdated) {
-      currentDraft = refinedAfterImages;
-    }
-
     const cleanedDraft = sanitizeDraftArticle(currentDraft);
     const cleanedUpdated = await updateArticleContent(article.id, cleanedDraft);
     console.log(`emdash_cleanup word_count=${estimateWordCount(cleanedDraft.content_md)} updated=${cleanedUpdated}`);
@@ -2720,6 +2721,15 @@ async function main() {
       }
     } else {
       console.log("youtube_embed_skipped=already_present");
+    }
+
+    const refinedAfterImages = await refineArticleAfterImages(topic, currentDraft);
+    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
+    console.log(
+      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
+    );
+    if (refinedUpdated) {
+      currentDraft = refinedAfterImages;
     }
 
     await updateQueueStatus(queueEntry.id, "completed", null);
