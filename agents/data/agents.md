@@ -24,22 +24,42 @@ These are the tables/views the site and APIs read from most often.
   - app_users (role-based access)
   - RPC: search_site (site-wide search aggregator)
 
-## Local markdown datasets (tools and catalog)
+## Local datasets (tools and catalog)
 - data/Admin commands/*.md
   - Parsed by src/lib/admin-commands.ts.
   - Used by catalog/admin-commands hub and system pages.
-- data/Grow a Garden/crops.md
+- data/Grow a Garden/crops.json
   - Parsed by src/lib/grow-a-garden/crops.ts.
   - Used by tools/grow-a-garden-crop-value-calculator.
-- data/The Forge/ores.md
+- data/Fisch/fish.json
+  - Fisch fish catalog from fischipedia.org.
+- data/The Forge/ores.json
   - Parsed by src/lib/forge/ores.ts.
   - Used by tools/the-forge-crafting-calculator.
-- data/The Forge/weapons.md
+- data/The Forge/weapons.json
   - Parsed by src/lib/forge/weapons.ts.
   - Used by tools/the-forge-crafting-calculator.
-- data/The Forge/armors.md
+- data/The Forge/armors.json
   - Parsed by src/lib/forge/armors.ts.
   - Used by tools/the-forge-crafting-calculator.
+- data/The Forge/pickaxes.json
+  - The Forge pickaxe catalog from theforgewiki.org.
+- data/The Forge/runes.json
+  - The Forge rune catalog from theforgewiki.org.
+- data/The Forge/races.json
+  - The Forge race catalog from theforgewiki.org.
+- data/The Forge/essences.json
+  - The Forge essence catalog from theforgewiki.org.
+- data/The Forge/totems.json
+  - The Forge totem list from theforgewiki.org.
+- data/The Forge/potions.json
+  - The Forge potion list from theforgewiki.org.
+- data/The Forge/enemies.json
+  - The Forge enemy list from theforgewiki.org.
+- data/The Forge/npcs.json
+  - Placeholder dataset (no source page found yet).
+- data/The Forge/locations.json
+  - The Forge locations list from theforgewiki.org.
 
 ## Static configs and JSON
 - src/data/slug_oldslugs.json

@@ -1,0 +1,482 @@
+{
+  "meta": {
+    "title": "The Forge Weapons (Updated)",
+    "updatedAt": "2026-01-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://theforgecalculator.org/mini-wiki",
+        "accessed": "2026-01-07"
+      },
+      {
+        "label": "Images",
+        "url": "https://theforgecalculator.org/mini-wiki",
+        "accessed": "2026-01-07"
+      }
+    ],
+    "columns": [
+      "weapon name",
+      "image (local path)",
+      "class",
+      "base damage",
+      "attack speed (s)",
+      "range (studs)",
+      "sell price",
+      "chance (1/x)",
+      "article"
+    ]
+  },
+  "items": [
+    {
+      "name": "Dagger",
+      "image": "/The%20Forge/Weapons/dagger.webp",
+      "class": "Daggers",
+      "baseDamage": "4.3",
+      "attackSpeed": "0.35",
+      "range": "6",
+      "sellPrice": "$68",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Falchion Knife",
+      "image": "/The%20Forge/Weapons/falchion-knife.webp",
+      "class": "Daggers",
+      "baseDamage": "4.3",
+      "attackSpeed": "0.35",
+      "range": "6",
+      "sellPrice": "$68",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Gladius Daggers",
+      "image": "/The%20Forge/Weapons/gladius-daggers.webp",
+      "class": "Daggers",
+      "baseDamage": "4.3",
+      "attackSpeed": "0.35",
+      "range": "6",
+      "sellPrice": "$68",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Hook",
+      "image": "/The%20Forge/Weapons/hook.webp",
+      "class": "Daggers",
+      "baseDamage": "4.73",
+      "attackSpeed": "0.39",
+      "range": "6",
+      "sellPrice": "$68",
+      "chance": "1/16",
+      "article": "Added"
+    },
+    {
+      "name": "Mace",
+      "image": "/The%20Forge/Weapons/mace.webp",
+      "class": "Mace",
+      "baseDamage": "6",
+      "attackSpeed": "0.46",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Spiked Mace",
+      "image": "/The%20Forge/Weapons/spiked-mace.webp",
+      "class": "Mace",
+      "baseDamage": "6.3",
+      "attackSpeed": "0.46",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Winged Mace",
+      "image": "/The%20Forge/Weapons/winged-mace.webp",
+      "class": "Mace",
+      "baseDamage": "6.6",
+      "attackSpeed": "0.46",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Hammerhead Mace",
+      "image": "/The%20Forge/Weapons/hammerhead-mace.webp",
+      "class": "Mace",
+      "baseDamage": "6.9",
+      "attackSpeed": "0.46",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/8",
+      "article": "Added"
+    },
+    {
+      "name": "Axe",
+      "image": "/The%20Forge/Weapons/axe.webp",
+      "class": "Axe",
+      "baseDamage": "7",
+      "attackSpeed": "0.48",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Battleaxe",
+      "image": "/The%20Forge/Weapons/battleaxe.webp",
+      "class": "Axe",
+      "baseDamage": "7.35",
+      "attackSpeed": "0.48",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Falchion Sword",
+      "image": "/The%20Forge/Weapons/falchion-sword.webp",
+      "class": "Straight Swords",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.59",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Gladius Sword",
+      "image": "/The%20Forge/Weapons/gladius-sword.webp",
+      "class": "Straight Swords",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.5",
+      "range": "8",
+      "sellPrice": "$84",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Rapier",
+      "image": "/The%20Forge/Weapons/rapier.webp",
+      "class": "Straight Swords",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.49",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Candy Cane",
+      "image": "/The%20Forge/Weapons/candy-cane.webp",
+      "class": "Straight Swords",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.44",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/8",
+      "article": "Added"
+    },
+    {
+      "name": "Spear",
+      "image": "/The%20Forge/Weapons/spear.webp",
+      "class": "Spears",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.45",
+      "range": "11",
+      "sellPrice": "$120",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Trident",
+      "image": "/The%20Forge/Weapons/trident.webp",
+      "class": "Spears",
+      "baseDamage": "7.5",
+      "attackSpeed": "0.45",
+      "range": "11",
+      "sellPrice": "$120",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Ironhand",
+      "image": "/The%20Forge/Weapons/ironhand.webp",
+      "class": "Gauntlet",
+      "baseDamage": "7.6",
+      "attackSpeed": "0.51",
+      "range": "6",
+      "sellPrice": "$205",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Curved Handle Axe",
+      "image": "/The%20Forge/Weapons/curved-handle-axe.webp",
+      "class": "Axe",
+      "baseDamage": "7.7",
+      "attackSpeed": "0.48",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Grave Maker",
+      "image": "/The%20Forge/Weapons/grave-maker.webp",
+      "class": "Mace",
+      "baseDamage": "7.8",
+      "attackSpeed": "0.46",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/16",
+      "article": "Added"
+    },
+    {
+      "name": "Boxing Gloves",
+      "image": "/The%20Forge/Weapons/boxing-gloves.webp",
+      "class": "Gauntlet",
+      "baseDamage": "8",
+      "attackSpeed": "0.59",
+      "range": "6",
+      "sellPrice": "$153",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Savage Claws",
+      "image": "/The%20Forge/Weapons/savage-claws.webp",
+      "class": "Gauntlet",
+      "baseDamage": "8",
+      "attackSpeed": "0.47",
+      "range": "6",
+      "sellPrice": "$205",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Spade Armed Axe",
+      "image": "/The%20Forge/Weapons/spade-armed-axe.webp",
+      "class": "Axe",
+      "baseDamage": "8.05",
+      "attackSpeed": "0.48",
+      "range": "8",
+      "sellPrice": "$205",
+      "chance": "1/8",
+      "article": "Added"
+    },
+    {
+      "name": "Uchigatana",
+      "image": "/The%20Forge/Weapons/uchigatana.webp",
+      "class": "Katanas",
+      "baseDamage": "8.5",
+      "attackSpeed": "0.6",
+      "range": "9",
+      "sellPrice": "$324",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Tachi",
+      "image": "/The%20Forge/Weapons/tachi.webp",
+      "class": "Katanas",
+      "baseDamage": "8.925",
+      "attackSpeed": "0.63",
+      "range": "9",
+      "sellPrice": "$324",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Cutlass",
+      "image": "/The%20Forge/Weapons/cutlass.webp",
+      "class": "Straight Swords",
+      "baseDamage": "9.375",
+      "attackSpeed": "0.66",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Chaos",
+      "image": "/The%20Forge/Weapons/chaos.webp",
+      "class": "Straight Swords",
+      "baseDamage": "9.375",
+      "attackSpeed": "0.59",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/16",
+      "article": "Added"
+    },
+    {
+      "name": "Relevator",
+      "image": "/The%20Forge/Weapons/relevator.webp",
+      "class": "Gauntlet",
+      "baseDamage": "9.6",
+      "attackSpeed": "0.69",
+      "range": "6",
+      "sellPrice": "$205",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Angelic Spear",
+      "image": "/The%20Forge/Weapons/angelic-spear.webp",
+      "class": "Spears",
+      "baseDamage": "9.75",
+      "attackSpeed": "0.41",
+      "range": "11",
+      "sellPrice": "$120",
+      "chance": "1/8",
+      "article": "Added"
+    },
+    {
+      "name": "Hell Slayer",
+      "image": "/The%20Forge/Weapons/hell-slayer.webp",
+      "class": "Straight Swords",
+      "baseDamage": "10.175",
+      "attackSpeed": "0.59",
+      "range": "8",
+      "sellPrice": "$120",
+      "chance": "1/10",
+      "article": "Added"
+    },
+    {
+      "name": "Crusader Sword",
+      "image": "/The%20Forge/Weapons/crusader-sword.webp",
+      "class": "Great Swords",
+      "baseDamage": "12",
+      "attackSpeed": "1",
+      "range": "9",
+      "sellPrice": "$485",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Long Sword",
+      "image": "/The%20Forge/Weapons/long-sword.webp",
+      "class": "Great Swords",
+      "baseDamage": "12",
+      "attackSpeed": "1.11",
+      "range": "9",
+      "sellPrice": "$485",
+      "chance": "1/2",
+      "article": "Added"
+    },
+    {
+      "name": "Scythe",
+      "image": "/The%20Forge/Weapons/scythe.webp",
+      "class": "Great Axes",
+      "baseDamage": "14.25",
+      "attackSpeed": "0.95",
+      "range": "9",
+      "sellPrice": "$850",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Double Battle Axe",
+      "image": "/The%20Forge/Weapons/double-battle-axe.webp",
+      "class": "Great Axes",
+      "baseDamage": "15.75",
+      "attackSpeed": "1.05",
+      "range": "9",
+      "sellPrice": "$850",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Greater Battle Axe",
+      "image": "/The%20Forge/Weapons/greater-battle-axe.webp",
+      "class": "Great Axes",
+      "baseDamage": "17.25",
+      "attackSpeed": "1",
+      "range": "9",
+      "sellPrice": "$850",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Comically Large Spoon",
+      "image": "/The%20Forge/Weapons/comically-large-spoon.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "18",
+      "attackSpeed": "1.12",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/16",
+      "article": "Added"
+    },
+    {
+      "name": "Wyvern Axe",
+      "image": "/The%20Forge/Weapons/wyvern-axe.webp",
+      "class": "Great Axes",
+      "baseDamage": "18.75",
+      "attackSpeed": "0.91",
+      "range": "9",
+      "sellPrice": "$850",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Great Sword",
+      "image": "/The%20Forge/Weapons/great-sword.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "20",
+      "attackSpeed": "1.12",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/1",
+      "article": "Added"
+    },
+    {
+      "name": "Hammer",
+      "image": "/The%20Forge/Weapons/hammer.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "22",
+      "attackSpeed": "1.24",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/4",
+      "article": "Added"
+    },
+    {
+      "name": "Dragon Slayer",
+      "image": "/The%20Forge/Weapons/dragon-slayer.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "22",
+      "attackSpeed": "1.12",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/16",
+      "article": "Added"
+    },
+    {
+      "name": "Skull Crusher",
+      "image": "/The%20Forge/Weapons/skull-crusher.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "24",
+      "attackSpeed": "1.4",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/8",
+      "article": "Added"
+    },
+    {
+      "name": "Excalibur",
+      "image": "/The%20Forge/Weapons/excalibur.webp",
+      "class": "Colossal Swords",
+      "baseDamage": "26",
+      "attackSpeed": "1.12",
+      "range": "10",
+      "sellPrice": "$1355",
+      "chance": "1/1000",
+      "article": "Added"
+    }
+  ]
+}

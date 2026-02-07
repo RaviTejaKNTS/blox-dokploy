@@ -79,8 +79,8 @@ Revalidate values are from each page's export const revalidate. Data caches also
 | /tools/roblox-id-extractor | src/app/(site)/tools/roblox-id-extractor/page.tsx | Tool copy from tools_view; client calls /api/roblox-id-extractor. | 3600 |
 | /tools/robux-to-usd-calculator | src/app/(site)/tools/robux-to-usd-calculator/page.tsx | Uses robux-bundles.ts + robux-plans.ts. | 3600 |
 | /tools/roblox-devex-calculator | src/app/(site)/tools/roblox-devex-calculator/page.tsx | Uses tools_view + devex constants; calculator client. | 3600 |
-| /tools/the-forge-crafting-calculator | src/app/(site)/tools/the-forge-crafting-calculator/page.tsx | Uses data/The Forge/ores.md via src/lib/forge/ores.ts. | 3600 |
-| /tools/grow-a-garden-crop-value-calculator | src/app/(site)/tools/grow-a-garden-crop-value-calculator/page.tsx | Uses data/Grow a Garden/crops.md via src/lib/grow-a-garden/crops.ts. | 3600 |
+| /tools/the-forge-crafting-calculator | src/app/(site)/tools/the-forge-crafting-calculator/page.tsx | Uses data/The Forge/ores.json via src/lib/forge/ores.ts. | 3600 |
+| /tools/grow-a-garden-crop-value-calculator | src/app/(site)/tools/grow-a-garden-crop-value-calculator/page.tsx | Uses data/Grow a Garden/crops.json via src/lib/grow-a-garden/crops.ts. | 3600 |
 | /tools/[...slug] | src/app/(site)/tools/[...slug]/page.tsx | Generic tool fallback from tools_view. | 3600 |
 
 ## Authors

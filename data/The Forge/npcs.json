@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "title": "The Forge NPCs",
+    "updatedAt": "2026-02-07",
+    "sources": [],
+    "columns": [
+      "name",
+      "image",
+      "location",
+      "role",
+      "description",
+      "link"
+    ]
+  },
+  "items": []
+}

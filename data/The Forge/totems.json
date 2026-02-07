@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "title": "The Forge Totems",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/items/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "cost",
+      "effect",
+      "section",
+      "category",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Luck Totem",
+      "image": "/The%20Forge/Totems/LuckTotem.webp",
+      "cost": "75 Robux",
+      "effect": "Summons a Luck Totem for 5 minutes, increasing your Luck by 50% .",
+      "section": "Consumables",
+      "category": "Totems",
+      "link": null
+    },
+    {
+      "name": "Warrior Totem",
+      "image": "/The%20Forge/Totems/WarriorTotem.webp",
+      "cost": "75 Robux",
+      "effect": "Summons a Warrior Totem that strongly boosts your damage for about 5 minutes.",
+      "section": "Consumables",
+      "category": "Totems",
+      "link": null
+    },
+    {
+      "name": "Vitality Totem",
+      "image": "/The%20Forge/Totems/VitalityTotem.webp",
+      "cost": "75 Robux",
+      "effect": "Summons a Vitality Totem that steadily regenerates your health for around 5 minutes.",
+      "section": "Consumables",
+      "category": "Totems",
+      "link": null
+    },
+    {
+      "name": "XP Totem",
+      "image": "/The%20Forge/Totems/XpTotem.webp",
+      "cost": "45 Robux",
+      "effect": "Summons an XP Totem for 5 minutes that increases XP gain by 100% earned while it is active.",
+      "section": "Consumables",
+      "category": "Totems",
+      "link": null
+    },
+    {
+      "name": "Miner Totem",
+      "image": "/The%20Forge/Totems/MinerTotem.webp",
+      "cost": "75 Robux",
+      "effect": "Summons a Miner Totem for 5 minutes, granting 20% faster mining and 15% extra mining damage .",
+      "section": "Consumables",
+      "category": "Totems",
+      "link": null
+    }
+  ]
+}

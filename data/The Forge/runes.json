@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "title": "The Forge Runes",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/runes/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "element",
+      "rarity",
+      "effect",
+      "primaryDrop",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Miner Shard",
+      "image": "/The%20Forge/Runes/miner-shard-1.webp",
+      "element": "Mining",
+      "rarity": "Uncommon",
+      "effect": "+5-16% Luck OR +3-10% Yield OR +4-12% Mining Speed OR +8-15% Mining Power",
+      "primaryDrop": "Various Enemies",
+      "link": "/runes/miner-shard.html"
+    },
+    {
+      "name": "Frost Speck",
+      "image": "/The%20Forge/Runes/frost-speck-1.webp",
+      "element": "Ice",
+      "rarity": "Uncommon",
+      "effect": "Slows enemies on hit",
+      "primaryDrop": "Ice Enemies",
+      "link": "/runes/frost-speck.html"
+    },
+    {
+      "name": "Flame Spark",
+      "image": "/The%20Forge/Runes/flame-spark-1.webp",
+      "element": "Fire",
+      "rarity": "Uncommon",
+      "effect": "Burns enemies for damage over time",
+      "primaryDrop": "Fire Enemies",
+      "link": "/runes/flame-spark.html"
+    },
+    {
+      "name": "Venom Crumb",
+      "image": "/The%20Forge/Runes/venom-crumb-1.webp",
+      "element": "Poison",
+      "rarity": "Uncommon",
+      "effect": "Poisons enemies for damage over time",
+      "primaryDrop": "Poison Enemies",
+      "link": "/runes/venom-crumb.html"
+    },
+    {
+      "name": "Chill Dust",
+      "image": "/The%20Forge/Runes/chill-dust-1.webp",
+      "element": "Ice",
+      "rarity": "Rare",
+      "effect": "Stronger slow effect on enemies",
+      "primaryDrop": "Ice Enemies",
+      "link": "/runes/chill-dust.html"
+    },
+    {
+      "name": "Blast Chip",
+      "image": "/The%20Forge/Runes/blast-chip-1.webp",
+      "element": "Explosive",
+      "rarity": "Rare",
+      "effect": "8-20% chance for 20-40% weapon dmg AoE",
+      "primaryDrop": "Bomber",
+      "link": "/runes/blast-chip.html"
+    },
+    {
+      "name": "Drain Edge",
+      "image": "/The%20Forge/Runes/drain-edge-1.webp",
+      "element": "Drain",
+      "rarity": "Rare",
+      "effect": "Lifesteal on hit",
+      "primaryDrop": "Undead Enemies",
+      "link": "/runes/drain-edge.html"
+    },
+    {
+      "name": "Briar Notch",
+      "image": "/The%20Forge/Runes/briar-notch-1.webp",
+      "element": "Thorns",
+      "rarity": "Rare",
+      "effect": "Reflects damage back to attackers",
+      "primaryDrop": "Plant Enemies",
+      "link": "/runes/briar-notch.html"
+    },
+    {
+      "name": "Rage Mark",
+      "image": "/The%20Forge/Runes/rage-mark-1.webp",
+      "element": "Rage",
+      "rarity": "Epic",
+      "effect": "Increases damage as you take hits",
+      "primaryDrop": "Elite Enemies",
+      "link": "/runes/rage-mark.html"
+    },
+    {
+      "name": "Ward Patch",
+      "image": "/The%20Forge/Runes/ward-patch-1.webp",
+      "element": "Defense",
+      "rarity": "Epic",
+      "effect": "Damage reduction on hit",
+      "primaryDrop": "Elite Enemies",
+      "link": "/runes/ward-patch.html"
+    },
+    {
+      "name": "Rot Stitch",
+      "image": "/The%20Forge/Runes/rot-stitch-1.webp",
+      "element": "Decay",
+      "rarity": "Epic",
+      "effect": "Applies decay debuff to enemies",
+      "primaryDrop": "Undead Enemies",
+      "link": "/runes/rot-stitch.html"
+    }
+  ]
+}

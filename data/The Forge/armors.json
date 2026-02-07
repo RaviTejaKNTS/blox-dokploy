@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "title": "The Forge Armor (Updated)",
+    "updatedAt": "2026-01-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://theforgecalculator.org/mini-wiki",
+        "accessed": "2026-01-07"
+      },
+      {
+        "label": "Images",
+        "url": "https://theforgecalculator.org/mini-wiki",
+        "accessed": "2026-01-07"
+      }
+    ],
+    "columns": [
+      "armor name",
+      "image (local path)",
+      "class",
+      "slot",
+      "base health %",
+      "sell price",
+      "chance (1/x)"
+    ]
+  },
+  "items": [
+    {
+      "name": "Light Helmet",
+      "image": "/The%20Forge/Armor/light-helmet.webp",
+      "class": "Light",
+      "slot": "Helmet",
+      "baseHealth": "3.75%",
+      "sellPrice": "$65",
+      "chance": "1/1"
+    },
+    {
+      "name": "Light Leggings",
+      "image": "/The%20Forge/Armor/light-leggings.webp",
+      "class": "Light",
+      "slot": "Leggings",
+      "baseHealth": "4.375%",
+      "sellPrice": "$112.5",
+      "chance": "1/1"
+    },
+    {
+      "name": "Light Chestplate",
+      "image": "/The%20Forge/Armor/light-chestplate.webp",
+      "class": "Light",
+      "slot": "Chestplate",
+      "baseHealth": "5%",
+      "sellPrice": "$225",
+      "chance": "1/1"
+    },
+    {
+      "name": "Medium Helmet",
+      "image": "/The%20Forge/Armor/medium-helmet.webp",
+      "class": "Medium",
+      "slot": "Helmet",
+      "baseHealth": "6.25%",
+      "sellPrice": "$335",
+      "chance": "1/1"
+    },
+    {
+      "name": "Medium Leggings",
+      "image": "/The%20Forge/Armor/medium-leggings.webp",
+      "class": "Medium",
+      "slot": "Leggings",
+      "baseHealth": "7.5%",
+      "sellPrice": "$485",
+      "chance": "1/1"
+    },
+    {
+      "name": "Samurai Helmet",
+      "image": "/The%20Forge/Armor/samurai-helmet.webp",
+      "class": "Medium",
+      "slot": "Helmet",
+      "baseHealth": "8%",
+      "sellPrice": "$335",
+      "chance": "1/2"
+    },
+    {
+      "name": "Medium Chestplate",
+      "image": "/The%20Forge/Armor/medium-chestplate.webp",
+      "class": "Medium",
+      "slot": "Chestplate",
+      "baseHealth": "8.75%",
+      "sellPrice": "$850",
+      "chance": "1/1"
+    },
+    {
+      "name": "Samurai Leggings",
+      "image": "/The%20Forge/Armor/samurai-leggings.webp",
+      "class": "Medium",
+      "slot": "Leggings",
+      "baseHealth": "9%",
+      "sellPrice": "$485",
+      "chance": "1/2"
+    },
+    {
+      "name": "Viking Helmet",
+      "image": "/The%20Forge/Armor/viking-helmet.webp",
+      "class": "Medium",
+      "slot": "Helmet",
+      "baseHealth": "10.5%",
+      "sellPrice": "$335",
+      "chance": "1/4"
+    },
+    {
+      "name": "Viking Leggings",
+      "image": "/The%20Forge/Armor/viking-leggings.webp",
+      "class": "Medium",
+      "slot": "Leggings",
+      "baseHealth": "11%",
+      "sellPrice": "$485",
+      "chance": "1/4"
+    },
+    {
+      "name": "Knight Helmet",
+      "image": "/The%20Forge/Armor/knight-helmet.webp",
+      "class": "Heavy",
+      "slot": "Helmet",
+      "baseHealth": "12.5%",
+      "sellPrice": "$1020",
+      "chance": "1/1"
+    },
+    {
+      "name": "Samurai Chestplate",
+      "image": "/The%20Forge/Armor/samurai-chestplate.webp",
+      "class": "Medium",
+      "slot": "Chestplate",
+      "baseHealth": "12.75%",
+      "sellPrice": "$850",
+      "chance": "1/2"
+    },
+    {
+      "name": "Knight Leggings",
+      "image": "/The%20Forge/Armor/knight-leggings.webp",
+      "class": "Heavy",
+      "slot": "Leggings",
+      "baseHealth": "13.75%",
+      "sellPrice": "$1200",
+      "chance": "1/1"
+    },
+    {
+      "name": "Viking Chestplate",
+      "image": "/The%20Forge/Armor/viking-chestplate.webp",
+      "class": "Medium",
+      "slot": "Chestplate",
+      "baseHealth": "15%",
+      "sellPrice": "$850",
+      "chance": "1/4"
+    },
+    {
+      "name": "Knight Chestplate",
+      "image": "/The%20Forge/Armor/knight-chestplate.webp",
+      "class": "Heavy",
+      "slot": "Chestplate",
+      "baseHealth": "16.25%",
+      "sellPrice": "$1355",
+      "chance": "1/1"
+    },
+    {
+      "name": "Dark Knight Helmet",
+      "image": "/The%20Forge/Armor/dark-knight-helmet.webp",
+      "class": "Heavy",
+      "slot": "Helmet",
+      "baseHealth": "18.75%",
+      "sellPrice": "$1020",
+      "chance": "1/2"
+    },
+    {
+      "name": "Dark Knight Leggings",
+      "image": "/The%20Forge/Armor/dark-knight-leggings.webp",
+      "class": "Heavy",
+      "slot": "Leggings",
+      "baseHealth": "21.875%",
+      "sellPrice": "$1200",
+      "chance": "1/2"
+    },
+    {
+      "name": "Dark Knight Chestplate",
+      "image": "/The%20Forge/Armor/dark-knight-chestplate.webp",
+      "class": "Heavy",
+      "slot": "Chestplate",
+      "baseHealth": "25%",
+      "sellPrice": "$1355",
+      "chance": "1/2"
+    },
+    {
+      "name": "Wolf Helmet",
+      "image": "/The%20Forge/Armor/wolf-helmet.webp",
+      "class": "Heavy",
+      "slot": "Helmet",
+      "baseHealth": "25%",
+      "sellPrice": "$1020",
+      "chance": "1/4"
+    },
+    {
+      "name": "Goblin's Crown",
+      "image": "/The%20Forge/Armor/goblin-s-crown.webp",
+      "class": "Heavy",
+      "slot": "Helmet",
+      "baseHealth": "26%",
+      "sellPrice": "$1020",
+      "chance": "1/6"
+    },
+    {
+      "name": "Raven's Helmet",
+      "image": "/The%20Forge/Armor/raven-s-helmet.webp",
+      "class": "Heavy",
+      "slot": "Helmet",
+      "baseHealth": "26.5%",
+      "sellPrice": "$1020",
+      "chance": "1/8"
+    },
+    {
+      "name": "Wolf Leggings",
+      "image": "/The%20Forge/Armor/wolf-leggings.webp",
+      "class": "Heavy",
+      "slot": "Leggings",
+      "baseHealth": "28%",
+      "sellPrice": "$1200",
+      "chance": "1/4"
+    },
+    {
+      "name": "Raven's Leggings",
+      "image": "/The%20Forge/Armor/raven-s-leggings.webp",
+      "class": "Heavy",
+      "slot": "Leggings",
+      "baseHealth": "29.25%",
+      "sellPrice": "$1200",
+      "chance": "1/8"
+    },
+    {
+      "name": "Wolf Chestplate",
+      "image": "/The%20Forge/Armor/wolf-chestplate.webp",
+      "class": "Heavy",
+      "slot": "Chestplate",
+      "baseHealth": "35%",
+      "sellPrice": "$1355",
+      "chance": "1/4"
+    },
+    {
+      "name": "Raven's Chestplate",
+      "image": "/The%20Forge/Armor/raven-s-chestplate.webp",
+      "class": "Heavy",
+      "slot": "Chestplate",
+      "baseHealth": "37%",
+      "sellPrice": "$1355",
+      "chance": "1/8"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "title": "The Forge Essences",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/items/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "tier",
+      "description",
+      "section",
+      "category",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Tiny Essence",
+      "image": "/The%20Forge/Essences/TinyEssence.webp",
+      "tier": "Tier 1",
+      "description": "A faint remnant of a creature's life force. Though weak, it still holds enough energy to slightly empower low-tier gear and early weapons.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Small Essence",
+      "image": "/The%20Forge/Essences/SmallEssence.webp",
+      "tier": "Tier 2",
+      "description": "A modest fragment of raw spirit, harvested from lesser foes. Commonly used as entry-level upgrade fuel for beginner and mid-range builds.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Medium Essence",
+      "image": "/The%20Forge/Essences/MediumEssence.webp",
+      "tier": "Tier 3",
+      "description": "A solid core of condensed vitality, typically found in the remains of stronger creatures. Ideal for mid-tier upgrades and solid step-up gear.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Large Essence",
+      "image": "/The%20Forge/Essences/LargeEssence.webp",
+      "tier": "Tier 4",
+      "description": "A solid core of condensed vitality, typically found in the remains of stronger creatures. Ideal for mid-tier upgrades and solid step-up gear.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Greater Essence",
+      "image": "/The%20Forge/Essences/GreaterEssence.webp",
+      "tier": "Tier 5",
+      "description": "A refined and potent concentration of life force, claimed from powerful adversaries. Essential for advanced enhancements and late-game weapons.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Epic Essence",
+      "image": "/The%20Forge/Essences/EpicEssence.webp",
+      "tier": "Tier 6",
+      "description": "An extraordinary crystal of swirling energy, fused with the memories of countless fallen enemies. A cornerstone of high-end upgrades and signature builds.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Superior Essence",
+      "image": "/The%20Forge/Essences/SuperiorEssence.webp",
+      "tier": "Tier 7",
+      "description": "A gleaming reservoir of pure essence. Only the mightiest foes leave behind such a treasure. Used for top-tier upgrades and unlocking additional rune slots on endgame gear.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    },
+    {
+      "name": "Legendary Essence",
+      "image": "/The%20Forge/Essences/LegendaryEssence.webp",
+      "tier": "Tier 8",
+      "description": "A legendary font of power, radiant with golden light. Sought by masters of the forge to achieve unmatched strength and unlock hidden rune paths.",
+      "section": "Essences",
+      "category": null,
+      "link": null
+    }
+  ]
+}

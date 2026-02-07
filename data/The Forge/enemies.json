@@ -1,0 +1,279 @@
+{
+  "meta": {
+    "title": "The Forge Enemies",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/enemies/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "health",
+      "damage",
+      "level",
+      "gold",
+      "experience",
+      "area",
+      "group",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Zombie",
+      "image": "/The%20Forge/Enemies/zombie-1.webp",
+      "health": "20-52 HP",
+      "damage": "6-11.2 DMG",
+      "level": "1-5",
+      "gold": "5-10$",
+      "experience": "10-20 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Undead Enemies",
+      "link": "/enemies/zombie.html"
+    },
+    {
+      "name": "Delver Zombie",
+      "image": "/The%20Forge/Enemies/delver-zombie-1.webp",
+      "health": "40-175 HP",
+      "damage": "12-30.4 DMG",
+      "level": "1-10",
+      "gold": "10-20$",
+      "experience": "20-40 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Undead Enemies",
+      "link": "/enemies/delver-zombie.html"
+    },
+    {
+      "name": "Elite Zombie",
+      "image": "/The%20Forge/Enemies/elite-zombie-1.webp",
+      "health": "70-295 HP",
+      "damage": "20 DMG",
+      "level": "1-10",
+      "gold": "5-10$",
+      "experience": "10-20 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Undead Enemies",
+      "link": "/enemies/elite-zombie.html"
+    },
+    {
+      "name": "Brute Zombie",
+      "image": "/The%20Forge/Enemies/brute-zombie-1.webp",
+      "health": "220-370 HP",
+      "damage": "28-47.5 DMG",
+      "level": "5-10",
+      "gold": "32.5-45$",
+      "experience": "43-60 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Undead Enemies",
+      "link": "/enemies/brute-zombie.html"
+    },
+    {
+      "name": "Bomber",
+      "image": "/The%20Forge/Enemies/bomber-1.webp",
+      "health": "60-120 HP",
+      "damage": "70 DMG",
+      "level": "1-5",
+      "gold": "50-100$",
+      "experience": "20-40 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/bomber.html"
+    },
+    {
+      "name": "Skeleton Rogue",
+      "image": "/The%20Forge/Enemies/skeleton-rogue-1.webp",
+      "health": "75-120 HP",
+      "damage": "7-22.8 DMG",
+      "level": "1-10",
+      "gold": "14.5-29$",
+      "experience": "37.5-75 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/skeleton-rogue.html"
+    },
+    {
+      "name": "Axe Skeleton",
+      "image": "/The%20Forge/Enemies/axe-skeleton-1.webp",
+      "health": "125-215 HP",
+      "damage": "15-38 DMG",
+      "level": "1-10",
+      "gold": "19-38$",
+      "experience": "48.5-97 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/axe-skeleton.html"
+    },
+    {
+      "name": "Deathaxe Skeleton",
+      "image": "/The%20Forge/Enemies/deathaxe-skeleton-1.webp",
+      "health": "300-420 HP",
+      "damage": "50-91 DMG",
+      "level": "1-5",
+      "gold": "35-70$",
+      "experience": "58.5-117 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/deathaxe-skeleton.html"
+    },
+    {
+      "name": "Elite Skeleton Rogue",
+      "image": "/The%20Forge/Enemies/elite-skeleton-rogue-1.webp",
+      "health": "250-295 HP",
+      "damage": "45-95 DMG",
+      "level": "1-10",
+      "gold": "35-70$",
+      "experience": "67.5-135 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/elite-skeleton-rogue.html"
+    },
+    {
+      "name": "Elite Deathaxe Skeleton",
+      "image": "/The%20Forge/Enemies/elite-deathaxe-skeleton-1.webp",
+      "health": "300-570 HP",
+      "damage": "50-123.5 DMG",
+      "level": "1-10",
+      "gold": "45-90$",
+      "experience": "90-180 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/elite-deathaxe-skeleton.html"
+    },
+    {
+      "name": "Blight Pyromancer",
+      "image": "/The%20Forge/Enemies/blight-pyromancer.webp",
+      "health": "300-500 HP",
+      "damage": "45-70 DMG",
+      "level": "1-5",
+      "gold": "50-100$",
+      "experience": "95-190 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/blight-pyromancer.html"
+    },
+    {
+      "name": "Reaper",
+      "image": "/The%20Forge/Enemies/reaper-1.webp",
+      "health": "800-1200 HP",
+      "damage": "65-90 DMG",
+      "level": "1-3",
+      "gold": "65-130$",
+      "experience": "110-220 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/reaper.html"
+    },
+    {
+      "name": "Slime",
+      "image": "/The%20Forge/Enemies/slime-1.webp",
+      "health": "300-435 HP",
+      "damage": "20 DMG",
+      "level": "1-10",
+      "gold": "43-86$",
+      "experience": "43-86 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/slime.html"
+    },
+    {
+      "name": "Blazing Slime",
+      "image": "/The%20Forge/Enemies/blazing-slime-1.webp",
+      "health": "600-870 HP",
+      "damage": "35 DMG",
+      "level": "1-10",
+      "gold": "65-130$",
+      "experience": "55-110 XP",
+      "area": "Iron Valley Enemies",
+      "group": "Skeleton & Special Enemies",
+      "link": "/enemies/blazing-slime.html"
+    },
+    {
+      "name": "Crystal Spider",
+      "image": "/The%20Forge/Enemies/crystal-spider.webp",
+      "health": "600-720 HP",
+      "damage": "55 DMG",
+      "level": "1-5",
+      "gold": "80-160$",
+      "experience": "125-250 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "Spiders",
+      "link": "/enemies/crystal-spider.html"
+    },
+    {
+      "name": "Diamond Spider",
+      "image": "/The%20Forge/Enemies/diamond-spider.webp",
+      "health": "1000-1300 HP",
+      "damage": "70 DMG",
+      "level": "1-5",
+      "gold": "95-190$",
+      "experience": "145-290 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "Spiders",
+      "link": "/enemies/diamond-spider.html"
+    },
+    {
+      "name": "Prismarine Spider",
+      "image": "/The%20Forge/Enemies/prismarine-spider.webp",
+      "health": "7500-11500 HP",
+      "damage": "90 DMG",
+      "level": "1-5",
+      "gold": "110-220$",
+      "experience": "170-340 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "Spiders",
+      "link": "/enemies/prismarine-spider.html"
+    },
+    {
+      "name": "Common Orc",
+      "image": "/The%20Forge/Enemies/common-orc.webp",
+      "health": "800-1000 HP",
+      "damage": "85 DMG",
+      "level": "1-5",
+      "gold": "100-200$",
+      "experience": "150-300 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "The Peak (Inner Caverns)",
+      "link": "/enemies/common-orc.html"
+    },
+    {
+      "name": "Elite Orc",
+      "image": "/The%20Forge/Enemies/elite-orc.webp",
+      "health": "2000-2200 HP",
+      "damage": "100 DMG",
+      "level": "1-5",
+      "gold": "145-290$",
+      "experience": "200-400 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "The Peak (Inner Caverns)",
+      "link": "/enemies/elite-orc.html"
+    },
+    {
+      "name": "Yeti",
+      "image": "/The%20Forge/Enemies/yeti.webp",
+      "health": "10000-14000 HP",
+      "damage": "125 DMG",
+      "level": "1-5",
+      "gold": "180-360$",
+      "experience": "250-500 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "The Peak (Inner Caverns)",
+      "link": "/enemies/yeti.html"
+    },
+    {
+      "name": "Crystal Golem",
+      "image": "/The%20Forge/Enemies/crystal-golem.webp",
+      "health": "3000-4000 HP",
+      "damage": "125 DMG",
+      "level": "1-5",
+      "gold": "150-300$",
+      "experience": "225-450 XP",
+      "area": "Frostpire Expanse Enemies",
+      "group": "The Peak (Inner Caverns)",
+      "link": "/enemies/crystal-golem.html"
+    }
+  ]
+}

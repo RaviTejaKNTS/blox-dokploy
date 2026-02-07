@@ -25,23 +25,56 @@ export type CropDataset = {
   source: string | null;
 };
 
-const CROPS_MD_PATHS = [
-  path.join(process.cwd(), "data", "Grow a Garden", "crops.md")
-];
+type CropSource = {
+  label?: string | null;
+  url?: string | null;
+  accessed?: string | null;
+};
 
-async function readCropsMarkdown(): Promise<string> {
-  for (const candidate of CROPS_MD_PATHS) {
-    try {
-      return await fs.readFile(candidate, "utf8");
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code !== "ENOENT") {
-        throw err;
-      }
+type CropRow = {
+  name?: string | null;
+  image?: string | null;
+  shecklesPrice?: string | null;
+  robuxPrice?: string | null;
+  priceFloorValue?: string | null;
+  averageValue?: string | null;
+  priceFloorWeight?: string | null;
+  averageWeight?: string | null;
+  minimumWeight?: string | null;
+  hugeChance?: string | null;
+  tier?: string | null;
+  stock?: string | null;
+  multiHarvest?: string | null;
+  obtainable?: string | null;
+  eventType?: string | null;
+};
+
+type CropJson = {
+  meta?: {
+    updatedAt?: string | null;
+    sources?: CropSource[] | null;
+    source?: string | null;
+  } | null;
+  items?: CropRow[] | null;
+};
+
+const CROPS_JSON_PATH = path.join(process.cwd(), "data", "Grow a Garden", "crops.json");
+
+async function readCropsJson(): Promise<CropJson> {
+  try {
+    const raw = await fs.readFile(CROPS_JSON_PATH, "utf8");
+    const parsed = JSON.parse(raw) as CropJson | CropRow[];
+    if (Array.isArray(parsed)) {
+      return { items: parsed };
     }
+    return parsed ?? {};
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      throw new Error(`Missing crops data file. Expected: ${CROPS_JSON_PATH}`);
+    }
+    throw err;
   }
-
-  throw new Error(`Missing crops data file. Expected one of: ${CROPS_MD_PATHS.join(", ")}`);
 }
 
 function parseNumber(value: string): number | null {
@@ -60,30 +93,6 @@ function parsePercent(value: string): number | null {
   return num === null ? null : num;
 }
 
-function parseTableBlock(block: string): { rows: string[][]; heading: string | null } {
-  const lines = block
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const tableStart = lines.findIndex((line) => line.startsWith("|"));
-  if (tableStart === -1) return { rows: [], heading: null };
-
-  const headingLine = lines[tableStart] ?? null;
-
-  const rows: string[][] = [];
-  for (let i = tableStart + 2; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (!line?.startsWith("|")) break;
-    const parts = line.split("|").slice(1, -1).map((part) => part.trim());
-    if (parts.length > 1) {
-      rows.push(parts);
-    }
-  }
-
-  return { rows, heading: headingLine };
-}
-
 function dedupeByName(rows: CropRecord[]): CropRecord[] {
   const seen = new Map<string, CropRecord>();
   for (const row of rows) {
@@ -100,83 +109,62 @@ function dedupeByName(rows: CropRecord[]): CropRecord[] {
   return Array.from(seen.values());
 }
 
+function resolveUpdatedAt(sources: CropSource[] | null | undefined, updatedAt?: string | null): string | null {
+  if (updatedAt) return updatedAt;
+  return sources?.find((source) => source.accessed)?.accessed ?? null;
+}
+
+function resolveSource(sources: CropSource[] | null | undefined, fallback?: string | null): string | null {
+  if (fallback) return fallback;
+  if (!sources || sources.length === 0) return null;
+  const urls = sources.map((source) => source.url).filter((value): value is string => Boolean(value));
+  return urls.length ? urls.join(" | ") : null;
+}
+
 export async function loadCropDataset(): Promise<CropDataset> {
-  const md = await readCropsMarkdown();
-
-  const generatedMatch = md.match(/Generated:\s*([^\n]+)/i);
-  const dataLastUpdatedOn = generatedMatch?.[1]?.trim() ?? null;
-
-  const sourceMatch = md.match(/Source:\s*([^\n]+)/i);
-  const source = sourceMatch?.[1]?.trim() ?? null;
-
-  const sections = md.split(/^##\s+/gm).filter((section) => section.trim().length > 0);
+  const json = await readCropsJson();
+  const items = json.items ?? [];
+  const sources = json.meta?.sources ?? null;
+  const dataLastUpdatedOn = resolveUpdatedAt(sources ?? undefined, json.meta?.updatedAt ?? null);
+  const source = resolveSource(sources ?? undefined, json.meta?.source ?? null);
 
   const crops: CropRecord[] = [];
 
-  sections.forEach((section) => {
-    // Only consider tables with crop info; skip the tier-only lists.
-    if (!section.toLowerCase().includes("crops info")) return;
+  items.forEach((row) => {
+    const name = row.name?.trim();
+    if (!name) return;
 
-    const sectionTitle = section.split("\n")[0]?.trim() ?? null;
-    const { rows } = parseTableBlock(section);
-    if (!rows.length) return;
+    const averageValue = parseNumber(row.averageValue ?? "");
+    const averageWeight = parseWeight(row.averageWeight ?? "");
+    if (averageValue === null || averageWeight === null) return;
 
-    const eventTypeMatch = sectionTitle?.match(/\(([^)]+)\)/);
-    const eventType = eventTypeMatch?.[1] ?? null;
+    const baseValueFloor = parseNumber(row.priceFloorValue ?? "");
+    const baseWeightFloor = parseWeight(row.priceFloorWeight ?? "");
+    const minWeight = parseWeight(row.minimumWeight ?? "");
+    const hugeChance = row.hugeChance ? parsePercent(row.hugeChance) : null;
+    const tier = row.tier ?? "";
+    const stock = row.stock ?? null;
+    const obtainableLabel = row.obtainable?.toLowerCase() ?? "";
+    const obtainable =
+      obtainableLabel === "✓" || obtainableLabel === "yes"
+        ? true
+        : obtainableLabel === "✗" || obtainableLabel === "no"
+          ? false
+          : null;
 
-    rows.forEach((cells) => {
-      // Expected columns (index-based):
-      // Expected columns (index-based):
-      // 0 name
-      // 1 image (optional)
-      // 1/2 Sheckle
-      // 2/3 Sheckles Price
-      // 3/4 Price-Floor Value (baseline)
-      // 4/5 Average Value
-      // 5/6 Price-Floor Weight
-      // 6/7 Average Weight
-      // 7/8 Minimum Weight
-      // 8/9 Huge Chance
-      // 9/10 Tier
-      // 10/11 Stock
-      // 11/12 Multi-Harvest
-      // 12/13 Obtainable
-      const hasImageColumn = Boolean(cells[1]?.includes("/Grow%20a%20Garden/") || cells[1]?.match(/\.(png|jpg|jpeg|webp)$/i));
-      const offset = hasImageColumn ? 1 : 0;
-      if (cells.length < 12 + offset) return;
-      const name = cells[0];
-      const imageUrl = hasImageColumn ? cells[1] : null;
-      const baseValueFloor = parseNumber(cells[3 + offset]);
-      const averageValue = parseNumber(cells[4 + offset]);
-      const baseWeightFloor = parseWeight(cells[5 + offset]);
-      const averageWeight = parseWeight(cells[6 + offset]);
-      const minWeight = parseWeight(cells[7 + offset]);
-      const hugeChance = cells[8 + offset] ? parsePercent(cells[8 + offset]) : null;
-      const tier = cells[9 + offset] ?? "";
-      const stock = cells[10 + offset] ?? null;
-      const obtainable =
-        cells[12 + offset]?.toLowerCase() === "✓" || cells[12 + offset]?.toLowerCase() === "yes"
-          ? true
-          : cells[12 + offset]?.toLowerCase() === "✗" || cells[12 + offset]?.toLowerCase() === "no"
-            ? false
-            : null;
-
-      if (!name || averageValue === null || averageWeight === null) return;
-
-      crops.push({
-        name,
-        imageUrl: imageUrl?.trim() || null,
-        tier,
-        baseValue: averageValue,
-        baseWeightKg: averageWeight,
-        baseValueFloor,
-        baseWeightFloorKg: baseWeightFloor,
-        minWeightKg: minWeight,
-        hugeChancePercent: hugeChance,
-        stock,
-        obtainable,
-        eventType
-      });
+    crops.push({
+      name,
+      imageUrl: row.image?.trim() || null,
+      tier,
+      baseValue: averageValue,
+      baseWeightKg: averageWeight,
+      baseValueFloor,
+      baseWeightFloorKg: baseWeightFloor,
+      minWeightKg: minWeight,
+      hugeChancePercent: hugeChance,
+      stock,
+      obtainable,
+      eventType: row.eventType ?? null
     });
   });
 

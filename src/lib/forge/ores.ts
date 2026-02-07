@@ -8,7 +8,34 @@ export type ForgeOreDataset = {
   source: string | null;
 };
 
-const ORE_MD_PATHS = [path.join(process.cwd(), "data", "The Forge", "ores.md")];
+type ForgeOreSource = {
+  label?: string | null;
+  url?: string | null;
+  accessed?: string | null;
+};
+
+type ForgeOreRow = {
+  name?: string | null;
+  image?: string | null;
+  region?: string | null;
+  rarity?: string | null;
+  dropChance?: string | null;
+  multiplier?: string | null;
+  sellPrice?: string | null;
+  trait?: string | null;
+  rocks?: string | null;
+  description?: string | null;
+};
+
+type ForgeOreJson = {
+  meta?: {
+    updatedAt?: string | null;
+    sources?: ForgeOreSource[] | null;
+  } | null;
+  items?: ForgeOreRow[] | null;
+};
+
+const ORE_JSON_PATH = path.join(process.cwd(), "data", "The Forge", "ores.json");
 const RARITY_VALUES: Ore["rarity"][] = [
   "Common",
   "Uncommon",
@@ -21,19 +48,21 @@ const RARITY_VALUES: Ore["rarity"][] = [
   "Exotic"
 ];
 
-async function readOresMarkdown(): Promise<string> {
-  for (const candidate of ORE_MD_PATHS) {
-    try {
-      return await fs.readFile(candidate, "utf8");
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code !== "ENOENT") {
-        throw err;
-      }
+async function readOresJson(): Promise<ForgeOreJson> {
+  try {
+    const raw = await fs.readFile(ORE_JSON_PATH, "utf8");
+    const parsed = JSON.parse(raw) as ForgeOreJson | ForgeOreRow[];
+    if (Array.isArray(parsed)) {
+      return { items: parsed };
     }
+    return parsed ?? {};
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      throw new Error(`Missing ores data file. Expected: ${ORE_JSON_PATH}`);
+    }
+    throw err;
   }
-
-  throw new Error(`Missing ores data file. Expected: ${ORE_MD_PATHS.join(", ")}`);
 }
 
 function toSlug(value: string): string {
@@ -96,102 +125,56 @@ function normalizeRarity(value: string): Ore["rarity"] {
   return match ?? "Common";
 }
 
-function parseSections(md: string): Array<{ zone: string; rows: string[][] }> {
-  const sections = md.split(/^##\s+/gm).filter((section) => section.trim().length > 0);
-  const parsed: Array<{ zone: string; rows: string[][] }> = [];
-
-  sections.forEach((section) => {
-    const lines = section
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    if (!lines.length) return;
-
-    const zone = lines[0];
-    const tableStart = lines.findIndex((line) => line.startsWith("|"));
-    if (tableStart === -1) return;
-
-    const rows: string[][] = [];
-    for (let i = tableStart + 2; i < lines.length; i += 1) {
-      const line = lines[i];
-      if (!line.startsWith("|")) break;
-      const parts = line.split("|").slice(1, -1).map((part) => part.trim());
-      if (!parts.length) continue;
-      rows.push(parts);
-    }
-
-    if (rows.length) {
-      parsed.push({ zone, rows });
-    }
-  });
-
-  return parsed;
+function resolveSource(sources: ForgeOreSource[] | null | undefined): string | null {
+  if (!sources || sources.length === 0) return null;
+  const primary = sources.find((source) => (source.label ?? "").toLowerCase() === "source" && source.url);
+  return primary?.url ?? sources.find((source) => source.url)?.url ?? null;
 }
 
-function normalizeColumns(parts: string[]): string[] {
-  const targetLength = 10;
-
-  if (parts.length === 10) return parts;
-  if (parts.length === 9) {
-    const [name, image, rarity, chance, multiplier, price, trait, rocks, description] = parts;
-    return [name, image, "", rarity, chance, multiplier, price, trait, rocks, description];
-  }
-  if (parts.length === 8) {
-    const [name, rarity, chance, multiplier, price, trait, rocks, description] = parts;
-    return [name, "", "", rarity, chance, multiplier, price, trait, rocks, description];
-  }
-  if (parts.length > 10) {
-    const name = parts[0];
-    const image = parts[1];
-    const region = parts[2];
-    const rarity = parts[3];
-    const chance = parts[4];
-    const multiplier = parts[5];
-    const price = parts[6];
-    const rocks = parts[parts.length - 2];
-    const description = parts[parts.length - 1];
-    const trait = parts.slice(7, parts.length - 2).filter(Boolean).join(" / ");
-    return [name, image, region, rarity, chance, multiplier, price, trait, rocks, description];
-  }
-  return parts.concat(new Array(targetLength - parts.length).fill(""));
+function resolveUpdatedAt(sources: ForgeOreSource[] | null | undefined, updatedAt?: string | null): string | null {
+  if (updatedAt) return updatedAt;
+  return sources?.find((source) => source.accessed)?.accessed ?? null;
 }
 
 export async function loadForgeOreDataset(): Promise<ForgeOreDataset> {
-  const md = await readOresMarkdown();
-
-  const sourceMatch = md.match(/Source:\s*([^\n]+)/i);
-  const sourceLine = sourceMatch?.[1]?.trim() ?? null;
-  const accessedMatch = sourceLine?.match(/\(accessed\s*([^)]+)\)/i) ?? null;
-  const dataLastUpdatedOn = accessedMatch?.[1]?.trim() ?? null;
-  const source = sourceLine ? sourceLine.replace(accessedMatch?.[0] ?? "", "").trim() : null;
-
-  const sections = parseSections(md);
+  const json = await readOresJson();
+  const items = json.items ?? [];
+  const sources = json.meta?.sources ?? null;
+  const dataLastUpdatedOn = resolveUpdatedAt(sources ?? undefined, json.meta?.updatedAt ?? null);
+  const source = resolveSource(sources ?? undefined);
   const ores: Ore[] = [];
 
-  sections.forEach(({ zone, rows }) => {
-    rows.forEach((row) => {
-      const [name, imageUrl, , rarity, chance, multiplier, price, trait, ,] = normalizeColumns(row);
-      if (!name) return;
+  items.forEach((row) => {
+    const name = row.name?.trim();
+    if (!name) return;
 
-      const dropChanceRatio = parseDropChance(chance);
-      const parsedMultiplier = parseMultiplier(multiplier);
-      const sellPrice = parseNumber(price);
-      const hasTrait = Boolean(trait && trait.toLowerCase() !== "none");
+    const region = row.region?.trim();
+    if (!region) return;
 
-      ores.push({
-        id: toSlug(name),
-        name,
-        imageUrl: imageUrl || null,
-        rarity: normalizeRarity(rarity || "Common"),
-        areaGroup: zone as Ore["areaGroup"],
-        dropChanceRatio: dropChanceRatio ?? 0,
-        multiplier: parsedMultiplier ?? 0,
-        sellPrice,
-        hasTrait,
-        traitName: null,
-        traitEffectShort: hasTrait ? trait : null,
-        traitType: hasTrait ? inferTraitType(trait) : null
-      });
+    const rarityLabel = row.rarity?.trim() ?? "Common";
+    const dropChance = row.dropChance ?? "";
+    const multiplier = row.multiplier ?? "";
+    const price = row.sellPrice ?? "";
+    const trait = row.trait?.trim() ?? "";
+    const hasTrait = Boolean(trait && trait.toLowerCase() !== "none");
+
+    const dropChanceRatio = parseDropChance(dropChance) ?? 0;
+    const parsedMultiplier = parseMultiplier(multiplier) ?? 0;
+    const sellPrice = parseNumber(price);
+
+    ores.push({
+      id: toSlug(name),
+      name,
+      imageUrl: row.image ?? null,
+      rarity: normalizeRarity(rarityLabel),
+      areaGroup: region as Ore["areaGroup"],
+      dropChanceRatio,
+      multiplier: parsedMultiplier,
+      sellPrice,
+      hasTrait,
+      traitName: null,
+      traitEffectShort: hasTrait ? trait : null,
+      traitType: hasTrait ? inferTraitType(trait) : null
     });
   });
 

@@ -8,21 +8,47 @@ export type ForgeArmorDataset = {
   source: string | null;
 };
 
-const ARMOR_MD_PATHS = [path.join(process.cwd(), "data", "The Forge", "armors.md")];
+type ForgeArmorSource = {
+  label?: string | null;
+  url?: string | null;
+  accessed?: string | null;
+};
 
-async function readArmorMarkdown(): Promise<string> {
-  for (const candidate of ARMOR_MD_PATHS) {
-    try {
-      return await fs.readFile(candidate, "utf8");
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code !== "ENOENT") {
-        throw err;
-      }
+type ForgeArmorRow = {
+  name?: string | null;
+  image?: string | null;
+  class?: string | null;
+  slot?: string | null;
+  baseHealth?: string | null;
+  sellPrice?: string | null;
+  chance?: string | null;
+};
+
+type ForgeArmorJson = {
+  meta?: {
+    updatedAt?: string | null;
+    sources?: ForgeArmorSource[] | null;
+  } | null;
+  items?: ForgeArmorRow[] | null;
+};
+
+const ARMOR_JSON_PATH = path.join(process.cwd(), "data", "The Forge", "armors.json");
+
+async function readArmorJson(): Promise<ForgeArmorJson> {
+  try {
+    const raw = await fs.readFile(ARMOR_JSON_PATH, "utf8");
+    const parsed = JSON.parse(raw) as ForgeArmorJson | ForgeArmorRow[];
+    if (Array.isArray(parsed)) {
+      return { items: parsed };
     }
+    return parsed ?? {};
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      throw new Error(`Missing armor data file. Expected: ${ARMOR_JSON_PATH}`);
+    }
+    throw err;
   }
-
-  throw new Error(`Missing armor data file. Expected: ${ARMOR_MD_PATHS.join(", ")}`);
 }
 
 function toSlug(value: string): string {
@@ -78,54 +104,38 @@ function weightClassToGroup(weightClass: ArmorWeightClass): ArmorWeightGroup {
   return "Heavy";
 }
 
-function parseRows(md: string): string[][] {
-  const lines = md
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const tableStart = lines.findIndex((line) => line.startsWith("|"));
-  if (tableStart === -1) return [];
-
-  const rows: string[][] = [];
-  for (let i = tableStart + 2; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (!line.startsWith("|")) break;
-    const parts = line.split("|").slice(1, -1).map((part) => part.trim());
-    rows.push(parts);
-  }
-  return rows;
+function resolveSource(sources: ForgeArmorSource[] | null | undefined): string | null {
+  if (!sources || sources.length === 0) return null;
+  const primary = sources.find((source) => (source.label ?? "").toLowerCase() === "source" && source.url);
+  return primary?.url ?? sources.find((source) => source.url)?.url ?? null;
 }
 
-function normalizeColumns(parts: string[]): string[] {
-  const targetLength = 7;
-  if (parts.length === targetLength) return parts;
-  if (parts.length > targetLength) return parts.slice(0, targetLength);
-  return parts.concat(new Array(targetLength - parts.length).fill(""));
+function resolveUpdatedAt(sources: ForgeArmorSource[] | null | undefined, updatedAt?: string | null): string | null {
+  if (updatedAt) return updatedAt;
+  return sources?.find((source) => source.accessed)?.accessed ?? null;
 }
 
 export async function loadForgeArmorDataset(): Promise<ForgeArmorDataset> {
-  const md = await readArmorMarkdown();
-
-  const sourceMatch = md.match(/Source:\s*([^\n]+)/i);
-  const sourceLine = sourceMatch?.[1]?.trim() ?? null;
-  const accessedMatch = sourceLine?.match(/\(accessed\s*([^)]+)\)/i) ?? null;
-  const dataLastUpdatedOn = accessedMatch?.[1]?.trim() ?? null;
-  const source = sourceLine ? sourceLine.replace(accessedMatch?.[0] ?? "", "").trim() : null;
-
-  const rows = parseRows(md);
+  const json = await readArmorJson();
+  const items = json.items ?? [];
+  const sources = json.meta?.sources ?? null;
+  const dataLastUpdatedOn = resolveUpdatedAt(sources ?? undefined, json.meta?.updatedAt ?? null);
+  const source = resolveSource(sources ?? undefined);
   const armorPieces: ArmorPiece[] = [];
 
-  rows.forEach((row) => {
-    const [name, imageUrl, classLabel, slotLabel, healthValue, priceValue, chanceValue] = normalizeColumns(row);
+  items.forEach((row) => {
+    const name = row.name?.trim();
     if (!name) return;
 
+    const classLabel = row.class?.trim() ?? "";
+    const slotLabel = row.slot?.trim() ?? "";
     const weightClass = normalizeWeightClass(classLabel);
     const slot = normalizeSlot(slotLabel);
     if (!weightClass || !slot) return;
 
-    const baseHealthPercent = parseNumber(healthValue) ?? 0;
-    const sellPrice = parseNumber(priceValue);
-    const chanceRatio = parseDropChance(chanceValue) ?? 1;
+    const baseHealthPercent = parseNumber(row.baseHealth ?? "") ?? 0;
+    const sellPrice = parseNumber(row.sellPrice ?? "");
+    const chanceRatio = parseDropChance(row.chance ?? "") ?? 1;
 
     armorPieces.push({
       id: toSlug(name),
@@ -136,7 +146,7 @@ export async function loadForgeArmorDataset(): Promise<ForgeArmorDataset> {
       chanceRatio,
       sellPrice: sellPrice ?? 0,
       baseWeightGroup: weightClassToGroup(weightClass),
-      imageUrl: imageUrl || null
+      imageUrl: row.image ?? null
     });
   });
 

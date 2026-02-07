@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "title": "The Forge Potions",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/items/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "cost",
+      "effect",
+      "section",
+      "category",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Health Potion I",
+      "image": "/The%20Forge/Potions/Health-potions.webp",
+      "cost": "150 Gold",
+      "effect": "Recover I: Restores 30 health over 5 seconds.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    },
+    {
+      "name": "Health Potion II",
+      "image": "/The%20Forge/Potions/Health-potions.webp",
+      "cost": "150 Gold",
+      "effect": "Recover II: Restores 75 health over 5 seconds.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    },
+    {
+      "name": "Damage Potion",
+      "image": "/The%20Forge/Potions/Damage-potions.webp",
+      "cost": "250 Gold",
+      "effect": "Grants 10% bonus damage for 60 seconds.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    },
+    {
+      "name": "Miner Potion",
+      "image": "/The%20Forge/Potions/miner-potion.webp",
+      "cost": "500 Gold",
+      "effect": "Increases mining speed by 15% for 300 seconds.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    },
+    {
+      "name": "Speed Potion",
+      "image": "/The%20Forge/Potions/speed-potion.webp",
+      "cost": "200 Gold",
+      "effect": "Grants 15% bonus movement speed for 60 seconds.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    },
+    {
+      "name": "Luck Potion",
+      "image": "/The%20Forge/Potions/luck-potion.webp",
+      "cost": "350 Gold",
+      "effect": "Boosts your Luck by 20% for 300 seconds, raising the odds of rare drops while you farm.",
+      "section": "Consumables",
+      "category": "Potions",
+      "link": null
+    }
+  ]
+}

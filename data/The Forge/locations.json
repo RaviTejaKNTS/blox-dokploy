@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "title": "The Forge Locations",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/locations/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "type",
+      "description",
+      "area",
+      "group",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "The Forge",
+      "image": "/The%20Forge/Locations/the-forge-480w.webp",
+      "type": "Service Area",
+      "description": "The core blacksmithing area where players forge weapons and armor from ores.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/the-forge.html"
+    },
+    {
+      "name": "Enhancing Area",
+      "image": "/The%20Forge/Locations/enhancing-area-480w.webp",
+      "type": "Service Area",
+      "description": "Upgrade weapons and armor to boost their base stats and effectiveness.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/enhancing-area.html"
+    },
+    {
+      "name": "Runemaker Area",
+      "image": "/The%20Forge/Locations/runemaker-area-480w.webp",
+      "type": "Service Area",
+      "description": "Slot runes into equipment for powerful passive effects.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/runemaker-area.html"
+    },
+    {
+      "name": "Maria's Potion Shop",
+      "image": "/The%20Forge/Locations/marias-potion-shop-480w.webp",
+      "type": "Shop",
+      "description": "Sells potions for healing, stamina, and temporary buffs.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/marias-potion-shop.html"
+    },
+    {
+      "name": "Bard Area",
+      "image": "/The%20Forge/Locations/bard-area-480w.webp",
+      "type": "Service Area",
+      "description": "Purchase a lantern to light your path in darker caves.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/bard-area.html"
+    },
+    {
+      "name": "Miner Fred's Shop",
+      "image": "/The%20Forge/Locations/miner-freds-shop-480w.webp",
+      "type": "Shop",
+      "description": "Sells pickaxes: Bronze, Iron, Golden, and Platinum.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/miner-freds-shop.html"
+    },
+    {
+      "name": "Greedy Cey's Shop",
+      "image": "/The%20Forge/Locations/greedy-ceys-shop-480w.webp",
+      "type": "Shop",
+      "description": "Sell ores, runes, and essences for gold.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/greedy-ceys-shop.html"
+    },
+    {
+      "name": "Marbles's Shop",
+      "image": "/The%20Forge/Locations/marbles-shop-480w.webp",
+      "type": "Shop",
+      "description": "Sell forged weapons and armor for gold.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/marbles-shop.html"
+    },
+    {
+      "name": "Wizard's Tower",
+      "image": "/The%20Forge/Locations/wizards-tower-480w.webp",
+      "type": "Service Area",
+      "description": "Reroll your race to try new racial bonuses and builds.",
+      "area": "Stonewake's Cross Locations",
+      "group": null,
+      "link": "/locations/wizards-tower.html"
+    },
+    {
+      "name": "Ruined Cave",
+      "image": null,
+      "type": "Mining Zone",
+      "description": "The interior of the fallen castle with high-tier ores and undead enemies.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/ruined-cave.html"
+    },
+    {
+      "name": "Volcanic Depths",
+      "image": "/The%20Forge/Locations/volcanic-depths-480w.webp",
+      "type": "Mining Zone",
+      "description": "Scorching cavern with the rarest ores and fire-based enemies.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/volcanic-depths.html"
+    },
+    {
+      "name": "Goblin Cave",
+      "image": "/The%20Forge/Locations/goblin-cave-480w.webp",
+      "type": "Mining Zone",
+      "description": "Crystal cavern with rare Luminite Crystals and slimes.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/goblin-cave.html"
+    },
+    {
+      "name": "Goblin Village",
+      "image": "/The%20Forge/Locations/goblin-village-480w.webp",
+      "type": "Settlement",
+      "description": "Home of the Goblin King and goblin merchants.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/goblin-village.html"
+    },
+    {
+      "name": "Captain Rowan's Camp",
+      "image": "/The%20Forge/Locations/captain-rowans-camp-480w.webp",
+      "type": "Quest Hub",
+      "description": "Military outpost with combat quests and defensive missions.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/captain-rowans-camp.html"
+    },
+    {
+      "name": "The Forge (FK)",
+      "image": "/The%20Forge/Locations/the-forge-fk-480w.webp",
+      "type": "Service Area",
+      "description": "Forgotten Kingdom's blacksmithing area.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/the-forge-fk.html"
+    },
+    {
+      "name": "Enhancing Area (FK)",
+      "image": "/The%20Forge/Locations/enhancing-area-fk-480w.webp",
+      "type": "Service Area",
+      "description": "Forgotten Kingdom's enhancement station.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/enhancing-area-fk.html"
+    },
+    {
+      "name": "Miner Fred's Shop (FK)",
+      "image": "/The%20Forge/Locations/miner-freds-shop-fk-480w.webp",
+      "type": "Shop",
+      "description": "Sells advanced pickaxes: Cobalt, Titanium, Uranium, Mythril, Lightite.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/miner-freds-shop-fk.html"
+    },
+    {
+      "name": "Wo Shop",
+      "image": null,
+      "type": "Shop",
+      "description": "Sell forged weapons and armor in the Forgotten Kingdom.",
+      "area": "Forgotten Kingdom Locations",
+      "group": null,
+      "link": "/locations/wo-shop.html"
+    }
+  ]
+}

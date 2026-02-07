@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "title": "The Forge Races",
+    "updatedAt": "2026-02-07",
+    "sources": [
+      {
+        "label": "Source",
+        "url": "https://www.theforgewiki.org/races/",
+        "accessed": "2026-02-07"
+      }
+    ],
+    "columns": [
+      "name",
+      "image",
+      "rarity",
+      "rollChance",
+      "damage",
+      "health",
+      "speed",
+      "tier",
+      "link"
+    ]
+  },
+  "items": [
+    {
+      "name": "Human",
+      "image": "/The%20Forge/Races/human-race.webp",
+      "rarity": "Common",
+      "rollChance": "25%",
+      "damage": "+0%",
+      "health": "+0%",
+      "speed": "+0%",
+      "tier": "D",
+      "link": "/races/human-race.html"
+    },
+    {
+      "name": "Elf",
+      "image": "/The%20Forge/Races/elf.webp",
+      "rarity": "Uncommon",
+      "rollChance": "15%",
+      "damage": "+0%",
+      "health": "+0%",
+      "speed": "+5%",
+      "tier": "C",
+      "link": "/races/elf-race.html"
+    },
+    {
+      "name": "Dwarf",
+      "image": "/The%20Forge/Races/dwarf.webp",
+      "rarity": "Uncommon",
+      "rollChance": "15%",
+      "damage": "+0%",
+      "health": "+10%",
+      "speed": "-5%",
+      "tier": "B",
+      "link": "/races/dwarf-race.html"
+    },
+    {
+      "name": "Orc",
+      "image": "/The%20Forge/Races/orc.webp",
+      "rarity": "Uncommon",
+      "rollChance": "12%",
+      "damage": "+10%",
+      "health": "+5%",
+      "speed": "-5%",
+      "tier": "B",
+      "link": "/races/orc-race.html"
+    },
+    {
+      "name": "Goblin",
+      "image": "/The%20Forge/Races/goblin.webp",
+      "rarity": "Uncommon",
+      "rollChance": "10%",
+      "damage": "+5%",
+      "health": "-10%",
+      "speed": "+10%",
+      "tier": "C",
+      "link": "/races/goblin-race.html"
+    },
+    {
+      "name": "Undead",
+      "image": "/The%20Forge/Races/undead-race.webp",
+      "rarity": "Rare",
+      "rollChance": "8%",
+      "damage": "+5%",
+      "health": "+15%",
+      "speed": "-10%",
+      "tier": "B",
+      "link": "/races/undead-race.html"
+    },
+    {
+      "name": "Zombie",
+      "image": "/The%20Forge/Races/zombie.webp",
+      "rarity": "Rare",
+      "rollChance": "7%",
+      "damage": "+10%",
+      "health": "+10%",
+      "speed": "-15%",
+      "tier": "B",
+      "link": "/races/zombie-race.html"
+    },
+    {
+      "name": "Golem",
+      "image": "/The%20Forge/Races/golem.webp",
+      "rarity": "Rare",
+      "rollChance": "6%",
+      "damage": "+5%",
+      "health": "+25%",
+      "speed": "-20%",
+      "tier": "A",
+      "link": "/races/golem-race.html"
+    },
+    {
+      "name": "Shadow",
+      "image": "/The%20Forge/Races/shadow.webp",
+      "rarity": "Epic",
+      "rollChance": "4%",
+      "damage": "+15%",
+      "health": "-5%",
+      "speed": "+15%",
+      "tier": "A",
+      "link": "/races/shadow-race.html"
+    },
+    {
+      "name": "Minotaur",
+      "image": "/The%20Forge/Races/minotaur.webp",
+      "rarity": "Epic",
+      "rollChance": "3%",
+      "damage": "+20%",
+      "health": "+10%",
+      "speed": "-10%",
+      "tier": "A",
+      "link": "/races/minotaur-race.html"
+    },
+    {
+      "name": "Dragonborn",
+      "image": "/The%20Forge/Races/dragonborn.webp",
+      "rarity": "Epic",
+      "rollChance": "2%",
+      "damage": "+15%",
+      "health": "+15%",
+      "speed": "+5%",
+      "tier": "S",
+      "link": "/races/dragonborn-race.html"
+    },
+    {
+      "name": "Angel",
+      "image": "/The%20Forge/Races/angel.webp",
+      "rarity": "Legendary",
+      "rollChance": "1%",
+      "damage": "+10%",
+      "health": "+20%",
+      "speed": "+10%",
+      "tier": "S",
+      "link": "/races/angel-race.html"
+    },
+    {
+      "name": "Demon",
+      "image": "/The%20Forge/Races/demon.webp",
+      "rarity": "Legendary",
+      "rollChance": "1%",
+      "damage": "+25%",
+      "health": "+5%",
+      "speed": "+10%",
+      "tier": "S",
+      "link": "/races/demon-race.html"
+    }
+  ]
+}
