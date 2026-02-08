@@ -2062,7 +2062,7 @@ ${sourceBlock}
 Return JSON:
 {
   "title": "${guideTitle}",
-  "meta_description": "150-160 character summary",
+  "meta_description": "Simple, specific summary with keywords (under 160 characters, no generic phrasing)",
   "content_md": "Full Markdown article"
 }
   `.trim();
@@ -2153,7 +2153,7 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
       {
         role: "system",
         content:
-          "You are an expert Roblox event guide writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
+          "You are an expert Roblox event guide writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
       },
       { role: "user", content: prompt }
     ]
@@ -2326,7 +2326,7 @@ ${article.content_md}
 Return JSON:
 {
   "title": "Keep this close to the original title unless feedback requires a correction",
-  "meta_description": "150-160 character summary",
+  "meta_description": "Simple, specific summary with keywords (under 160 characters, no generic phrasing)",
   "content_md": "Updated Markdown article with only the necessary corrections"
 }
 `.trim();
@@ -2340,7 +2340,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters). Never mention sources or citations, never include bracketed references like [1], and keep any new text paraphrased."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and keep any new text paraphrased."
       },
       { role: "user", content: prompt }
     ]
@@ -2583,7 +2583,7 @@ ${article.content_md}
 Return JSON:
 {
   "title": "${article.title}",
-  "meta_description": "150-160 character summary",
+  "meta_description": "Simple, specific summary with keywords (under 160 characters, no generic phrasing)",
   "content_md": "Full Markdown article"
 }
 `.trim();
@@ -3112,7 +3112,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox content editor. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be concise, hooky, and include keywords (around 150-160 characters)."
+          "You are an expert Roblox content editor. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic."
       },
       { role: "user", content: prompt }
     ]
