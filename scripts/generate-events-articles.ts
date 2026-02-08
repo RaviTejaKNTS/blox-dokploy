@@ -1762,7 +1762,7 @@ async function gatherResearchNotes(topic: string, questions: string[]): Promise<
 async function sonarSourceLinks(params: { event: EventGuideDetails; limit?: number }): Promise<string[]> {
   const limit = params.limit ?? 7;
   const startPt = formatEventStartPt(params.event.startUtc);
-  const prompt = `what are accurate sources to write an article on ${params.event.eventName} event guide on ${params.event.gameName}. Give me 3-7 good sources to collect the needed info. The event started at ${startPt} and I need only sources that are specific to this event updated after the event started. Just give me source links and nothing more.`;
+  const prompt = `what are accurate sources to write an article on ${params.event.eventName} event guide on ${params.event.gameName}. The official Roblox event link is ${params.event.eventLink}. Give me 3-7 good sources to collect the needed info. The event started at ${startPt} and I need only sources that are specific to this event updated after the event started. Just give me source links and nothing more.`;
 
   const completion = await perplexity.chat.completions.create({
     model: "sonar",
