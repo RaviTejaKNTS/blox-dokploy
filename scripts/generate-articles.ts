@@ -1492,9 +1492,51 @@ function formatReviewContext(context?: ArticleContext | null): string {
   return sections.length ? `\n\nContext to enforce:\n${sections.join("\n\n")}` : "";
 }
 
-function buildArticlePrompt(topic: string, sources: SourceDocument[], context?: ArticleContext | null): string {
+async function preflightCoverageNotes(
+  topic: string,
+  sources: SourceDocument[],
+  context?: ArticleContext | null
+): Promise<string | null> {
+  const reviewContext = formatReviewContext(context);
+  const prompt = `
+List the crucial information a Roblox article must cover for the topic. Keep it concise and actionable so a writer can include every key point.
+Stay strictly on the topic; do not broaden scope or add adjacent topics.
+Return a short bullet list. Do not add citations or URLs.
+
+Topic: "${topic}"
+${reviewContext}
+
+Relevant research:
+${formatSourcesForReview(sources)}
+  `.trim();
+
+  const completion = await perplexity.chat.completions.create({
+    model: "sonar",
+    temperature: 0,
+    max_tokens: 500,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You produce concise coverage checklists for Roblox articles. Stay strictly on topic and list only crucial points readers expect."
+      },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const notes = completion.choices[0]?.message?.content?.trim();
+  return notes && notes.length > 0 ? notes : null;
+}
+
+function buildArticlePrompt(
+  topic: string,
+  sources: SourceDocument[],
+  context?: ArticleContext | null,
+  coverageNotes?: string | null
+): string {
   const sourceBlock = formatSourcesForPrompt(sources);
   const contextBlock = formatContextBlock(context);
+  const coverageBlock = coverageNotes ? `\n\nCoverage checklist (from Perplexity):\n${coverageNotes}` : "";
 
   return `
 Use the research below to write a Roblox article.
@@ -1507,6 +1549,9 @@ Start with an intro that directly gets into the core topic of the article. No fl
  - Think about what type of intro serves the article best and use that.
  - No gnereic statements even if they are accurate. Instead you can bring out a interesting point, raise a question, tell an experience, highlight the pain point, break the misconception, put an bold opinion. (Should be accurate to the sources)
  - Keep it short, consise and easy to understand.
+ - Stay strictly on the topic "${topic}". Do not broaden scope of article. If a related item appears in sources, only use it to clarify confusion and keep the focus on the topic.
+ - Title must stay strictly about the topic (no extra targets like "X and Y").
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
 After that, start with a H2 heading and then write the main content following these rules:
  - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
@@ -1535,6 +1580,8 @@ After that, start with a H2 heading and then write the main content following th
  - Do not copy or quote sentences from the research. Paraphrase everything in fresh wording.
  - Never mention sources, research, URLs, or citations.
  - Never include bracketed citations like [1] or [2], or any references section.
+
+${contextBlock}${coverageBlock}
 
 Research (do not cite or mention):
 ${sourceBlock}
@@ -1577,16 +1624,16 @@ Return JSON:
 {
   "intent": "1-2 sentences about the search intent",
   "must_cover": ["5-8 specific coverage points", "..."],
+  "outline": ["4-8 short section ideas", "..."],
   "reader_questions": ["3-5 questions the article must answer"]
 }
   `.trim();
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const completion = await perplexity.chat.completions.create({
+      model: "sonar",
       temperature: 0.2,
       max_tokens: 500,
-      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Return only valid JSON." },
         { role: "user", content: prompt }
@@ -1628,7 +1675,7 @@ async function draftArticle(prompt: string): Promise<DraftArticle> {
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Keep the title strictly about the given topic; do not broaden scope or add extra targets. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and do not quote the research; paraphrase it in your own words."
       },
       { role: "user", content: prompt }
     ]
@@ -1685,6 +1732,7 @@ async function checkArticleCoverage(
   const prompt = `
 Check if this Roblox article misses any crucial information that readers expect for the topic. Only consider topics that are very close to "${topic}" and crucial for the intent—skip tangents or nice-to-haves. If the article already covers everything important, reply exactly: No
 If something critical is missing, list the missing pieces and the exact text to add so it can be inserted as-is. Keep it concise and actionable, and note where it should go (intro, quick answer, specific section).
+Stay strictly on the topic; do not suggest covering adjacent items or expanding scope.
 
 Topic: "${topic}"
 
@@ -1730,6 +1778,7 @@ async function factCheckArticle(
 Fact check this Roblox article. Search broadly. If everything is accurate, reply exactly: Yes
 If anything is incorrect, missing, or misleading, reply starting with: No
 Then give clear details of what is wrong and how to change it, including the correct information needed. Be explicit about what to fix and provide replacement wording where possible.
+Keep corrections strictly on the topic; do not broaden scope. If the article drifts to another item, instruct to remove or correct it back to the topic.
 
 Topic: "${topic}"
 
@@ -1780,6 +1829,8 @@ You are updating a Roblox article after ${label}. Keep the same friendly, conver
 - If feedback starts with "No", only adjust the parts that were flagged. Keep everything else as close as possible to the original voice.
 - Use the ${label} plus the provided research; do not invent new information.
 - Make only the changes required by the feedback—no extra rewrites.
+- Keep the article strictly about the topic; do not change or broaden it.
+- Keep the title and content strictly focused on "${topic}". Do not add extra targets (no "X and Y"). Use related items only to correct confusion, then return focus to the topic.
 - Do not mention sources, research, URLs, or citations.
 - Do not add bracketed references like [1] or [2]. Paraphrase any new text you add.
 
@@ -1814,7 +1865,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and keep any new text paraphrased."
+          "You are an expert Roblox writer. Always return valid JSON with title, content_md, and meta_description. Title must be very short, on-point, and include relevant keywords. Keep the title and content strictly about the given topic; do not broaden scope or add extra targets. Meta description must be a simple, specific summary with primary keywords, under 160 characters, and not generic. Never mention sources or citations, never include bracketed references like [1], and keep any new text paraphrased."
       },
       { role: "user", content: prompt }
     ]
@@ -1848,27 +1899,32 @@ async function refineArticleWithFeedbackLoop(
 ): Promise<DraftArticle> {
   let current = draft;
 
-  for (let pass = 1; pass <= MAX_REFINEMENT_PASSES; pass += 1) {
-    console.log(`refinement_pass=${pass}`);
-    let updated = false;
+  const coverageFeedback1 = await checkArticleCoverage(topic, current, sources, context);
+  const coverageLog1 = coverageFeedback1.replace(/\s+/g, " ").slice(0, 200);
+  console.log(`coverage_check_initial="${coverageLog1}${coverageFeedback1.length > 200 ? "..." : ""}"`);
+  if (!isNoCoverageFeedback(coverageFeedback1)) {
+    current = await reviseArticleWithFeedback(topic, current, sources, coverageFeedback1, "coverage feedback initial");
+  }
 
-    const coverageFeedback = await checkArticleCoverage(topic, current, sources, context);
-    const coverageLog = coverageFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`coverage_check_pass_${pass}="${coverageLog}${coverageFeedback.length > 200 ? "..." : ""}"`);
-    if (!isNoCoverageFeedback(coverageFeedback)) {
-      current = await reviseArticleWithFeedback(topic, current, sources, coverageFeedback, `coverage feedback pass ${pass}`);
-      updated = true;
-    }
+  const factCheckFeedback1 = await factCheckArticle(topic, current, sources, context);
+  const factCheckLog1 = factCheckFeedback1.replace(/\s+/g, " ").slice(0, 200);
+  console.log(`fact_check_initial="${factCheckLog1}${factCheckFeedback1.length > 200 ? "..." : ""}"`);
+  if (!isYesFeedback(factCheckFeedback1)) {
+    current = await reviseArticleWithFeedback(topic, current, sources, factCheckFeedback1, "fact-check feedback initial");
+  }
 
-    const factCheckFeedback = await factCheckArticle(topic, current, sources, context);
-    const factCheckLog = factCheckFeedback.replace(/\s+/g, " ").slice(0, 200);
-    console.log(`fact_check_pass_${pass}="${factCheckLog}${factCheckFeedback.length > 200 ? "..." : ""}"`);
-    if (!isYesFeedback(factCheckFeedback)) {
-      current = await reviseArticleWithFeedback(topic, current, sources, factCheckFeedback, `fact-check feedback pass ${pass}`);
-      updated = true;
-    }
+  const coverageFeedback2 = await checkArticleCoverage(topic, current, sources, context);
+  const coverageLog2 = coverageFeedback2.replace(/\s+/g, " ").slice(0, 200);
+  console.log(`coverage_check_second="${coverageLog2}${coverageFeedback2.length > 200 ? "..." : ""}"`);
+  if (!isNoCoverageFeedback(coverageFeedback2)) {
+    current = await reviseArticleWithFeedback(topic, current, sources, coverageFeedback2, "coverage feedback second");
+  }
 
-    if (!updated) break;
+  const factCheckFeedback2 = await factCheckArticle(topic, current, sources, context);
+  const factCheckLog2 = factCheckFeedback2.replace(/\s+/g, " ").slice(0, 200);
+  console.log(`fact_check_final="${factCheckLog2}${factCheckFeedback2.length > 200 ? "..." : ""}"`);
+  if (!isYesFeedback(factCheckFeedback2)) {
+    current = await reviseArticleWithFeedback(topic, current, sources, factCheckFeedback2, "fact-check feedback final");
   }
 
   return current;
@@ -1879,10 +1935,6 @@ async function fetchRelatedPagesForUniverse(params: {
   excludeSlug?: string | null;
 }): Promise<RelatedPage[]> {
   const { universeId, excludeSlug } = params;
-
-  if (universeId == null) {
-    return [];
-  }
 
   const related: RelatedPage[] = [];
   const seen = new Set<string>();
@@ -1898,7 +1950,9 @@ async function fetchRelatedPagesForUniverse(params: {
       .select("title, slug, meta_description, published_at, updated_at")
       .eq("is_published", true);
 
-    articleQuery = articleQuery.eq("universe_id", universeId);
+    if (universeId) {
+      articleQuery = articleQuery.eq("universe_id", universeId);
+    }
 
     if (excludeSlug) {
       articleQuery = articleQuery.neq("slug", excludeSlug);
@@ -1920,67 +1974,94 @@ async function fetchRelatedPagesForUniverse(params: {
       }
     }
 
+    const hadUniverseArticles = related.some((entry) => entry.type === "article" && universeId !== null);
+
+    if ((!universeId || !hadUniverseArticles) && related.filter((p) => p.type === "article").length === 0) {
+      const { data: fallbackArticles, error: fallbackError } = await supabase
+        .from("articles")
+        .select("title, slug, meta_description, published_at, updated_at")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(25);
+
+      if (fallbackError) {
+        console.warn("⚠️ Fallback article lookup failed:", fallbackError.message);
+      } else {
+        for (const row of fallbackArticles ?? []) {
+          if (!row?.slug || !row?.title) continue;
+          if (excludeSlug && row.slug === excludeSlug) continue;
+          addPage({
+            type: "article",
+            title: row.title,
+            url: `${SITE_URL}/articles/${row.slug}`,
+            description: truncateForPrompt((row as any).meta_description),
+            updatedAt: (row as any).published_at ?? (row as any).updated_at ?? null
+          });
+        }
+      }
+    }
   } catch (error) {
     console.warn("⚠️ Related articles lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
-  try {
-    const { data, error } = await supabase
-      .from("games")
-      .select("name, slug, seo_description, updated_at")
-      .eq("universe_id", universeId)
-      .eq("is_published", true)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  if (universeId) {
+    try {
+      const { data, error } = await supabase
+        .from("games")
+        .select("name, slug, seo_description, updated_at")
+        .eq("universe_id", universeId)
+        .eq("is_published", true)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (error) {
-      console.warn("⚠️ Failed to fetch codes page:", error.message);
-    } else if (data?.slug) {
-      addPage({
-        type: "codes",
-        title: `${data.name ?? "Game"} codes`,
-        url: `${SITE_URL}/codes/${data.slug}`,
-        description: truncateForPrompt((data as any).seo_description),
-        updatedAt: (data as any).updated_at ?? null
-      });
-    }
-  } catch (error) {
-    console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("checklist_pages_view")
-      .select("title, slug, description_md, content_updated_at")
-      .eq("universe_id", universeId)
-      .eq("is_public", true)
-      .order("content_updated_at", { ascending: false })
-      .limit(3);
-
-    if (error) {
-      console.warn("⚠️ Failed to fetch checklist pages:", error.message);
-    } else {
-      for (const row of data ?? []) {
-        if (!row?.slug || !row?.title) continue;
+      if (error) {
+        console.warn("⚠️ Failed to fetch codes page:", error.message);
+      } else if (data?.slug) {
         addPage({
-          type: "checklist",
-          title: row.title,
-          url: `${SITE_URL}/checklists/${row.slug}`,
-          description: truncateForPrompt((row as any).description_md),
-          updatedAt: (row as any).content_updated_at ?? null
+          type: "codes",
+          title: `${data.name ?? "Game"} codes`,
+          url: `${SITE_URL}/codes/${data.slug}`,
+          description: truncateForPrompt((data as any).seo_description),
+          updatedAt: (data as any).updated_at ?? null
         });
       }
+    } catch (error) {
+      console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
     }
-  } catch (error) {
-    console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
+
+    try {
+      const { data, error } = await supabase
+        .from("checklist_pages_view")
+        .select("title, slug, description_md, content_updated_at")
+        .eq("universe_id", universeId)
+        .eq("is_public", true)
+        .order("content_updated_at", { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.warn("⚠️ Failed to fetch checklist pages:", error.message);
+      } else {
+        for (const row of data ?? []) {
+          if (!row?.slug || !row?.title) continue;
+          addPage({
+            type: "checklist",
+            title: row.title,
+            url: `${SITE_URL}/checklists/${row.slug}`,
+            description: truncateForPrompt((row as any).description_md),
+            updatedAt: (row as any).content_updated_at ?? null
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
+    }
   }
 
   try {
     const { data, error } = await supabase
       .from("tools_view")
       .select("code, title, meta_description, content_updated_at")
-      .eq("universe_id", universeId)
       .eq("is_published", true)
       .order("content_updated_at", { ascending: false })
       .limit(3);
@@ -2018,6 +2099,7 @@ Start with an intro that directly gets into the core topic of the article. No fl
  - Think about what type of intro serves the article best and use that.
  - No gnereic statements even if they are accurate. Instead you can bring out a interesting point, raise a question, tell an experience, highlight the pain point, break the misconception, put an bold opinion. (Should be accurate to the sources)
  - Keep it short, consise and easy to understand.
+Right after the intro, give the main answer upfront with no heading. Can start with something like "first things first" or "Here's a quick answer" or anything that flows naturally according to the topic. This should be just a small para only covering the most important aspect like in 2-3 lines long. You can also use 2-3 bullet points here if you think that will make it easier to scan. Keep this section conversational and easy to understand.
 
 After that, start with a H2 heading and then write the main content following these rules:
  - The article should flow like a story from the start to the end. Every section should be connected and tell a clean explaination of the said topic. 
@@ -2108,7 +2190,7 @@ async function interlinkArticleWithRelatedPages(
     ? `- add only related and useful interlinks where they naturally fit. Else do not add that link if it not suitable. 
        - Use the provided URLs exactly. Do not invent links or add external URLs.
        - Spreak the links accross the article. But as mentioned, only link if it perfectly in context to the article. 
-       - Do not use exact match keyword to the title, just write with the flow and interlink with context. 
+       - Anchor text does not have to match the page title; use contextual words/phrases that already exist in the article.
        - Do not add more than 3 links in a single paragraph.
        - Do not add links to the same page multiple times. Use one link only one time.
        - Do not add links to pages that are not related to the article.
@@ -2120,7 +2202,7 @@ You are inserting internal links into an existing Roblox article. Keep all text,
   - add only related and useful interlinks where they naturally fit. Else do not add that link if it not suitable. 
   - Use the provided URLs exactly. Do not invent links or add external URLs.
   - Spreak the links accross the article. But as mentioned, only link if it perfectly in context to the article. 
-  - Do not use exact match keyword to the title, just write with the flow and interlink with context. 
+  - Anchor text does not have to match the page title; use contextual words/phrases already present in the article. 
   - Do not add more than 3 links in a single paragraph.
   - Do not add links to the same page multiple times. Use one link only one time.
   - Do not add links to pages that are not related to the article.
@@ -2622,7 +2704,14 @@ async function main() {
     console.log(`sources_verified=${verifiedSources.length}`);
 
     const articleContext = await buildArticleContext(topic, verifiedSources, researchQuestions);
-    const prompt = buildArticlePrompt(topic, verifiedSources, articleContext);
+    const coverageNotes = await preflightCoverageNotes(topic, verifiedSources, articleContext);
+    if (coverageNotes) {
+      console.log(`coverage_preflight_ready chars=${coverageNotes.length}`);
+    } else {
+      console.log("coverage_preflight_skipped=empty");
+    }
+
+    const prompt = buildArticlePrompt(topic, verifiedSources, articleContext, coverageNotes);
     if (LOG_DRAFT_PROMPT) {
       console.log(`draft_prompt=\n${prompt}`);
     } else {
@@ -2634,7 +2723,16 @@ async function main() {
     const refinedDraft = await refineArticleWithFeedbackLoop(topic, draft, verifiedSources, articleContext);
     console.log(`refined_title="${refinedDraft.title}" word_count=${estimateWordCount(refinedDraft.content_md)}`);
 
-    let currentDraft = refinedDraft;
+    const relatedPages = await fetchRelatedPagesForUniverse({
+      universeId: queueEntry.universe_id,
+      excludeSlug: slugify(refinedDraft.title)
+    });
+    console.log(`interlink_candidates=${relatedPages.length}`);
+
+    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, refinedDraft, relatedPages);
+    console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
+
+    let currentDraft = interlinkedDraft;
     console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
     if (currentDraft.content_md.length < 400) {
@@ -2663,30 +2761,6 @@ async function main() {
     });
 
     console.log(`article_saved id=${article.id} slug=${article.slug} cover=${coverImage ?? "none"}`);
-
-    const refinedAfterImages = await refineArticleAfterImages(topic, currentDraft);
-    const refinedUpdated = await updateArticleContent(article.id, refinedAfterImages);
-    console.log(
-      `final_refine_title="${refinedAfterImages.title}" word_count=${estimateWordCount(refinedAfterImages.content_md)} updated=${refinedUpdated}`
-    );
-    if (refinedUpdated) {
-      currentDraft = refinedAfterImages;
-    }
-
-    const relatedPages = await fetchRelatedPagesForUniverse({
-      universeId: queueEntry.universe_id,
-      excludeSlug: article.slug
-    });
-    console.log(`interlink_candidates=${relatedPages.length}`);
-
-    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, currentDraft, relatedPages);
-    const interlinkUpdated = await updateArticleContent(article.id, interlinkedDraft);
-    console.log(
-      `interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)} updated=${interlinkUpdated}`
-    );
-    if (interlinkUpdated) {
-      currentDraft = interlinkedDraft;
-    }
 
     let articleContentForCleanup = currentDraft.content_md;
     const imageUploadResult = await uploadSourceImagesForArticle({

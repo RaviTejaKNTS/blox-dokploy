@@ -69,6 +69,7 @@ Revalidate values are from each page's export const revalidate. Data caches also
 | /catalog/roblox-music-ids/artists/[artist]/page/[page] | src/app/(site)/catalog/roblox-music-ids/artists/[artist]/page/[page]/page.tsx | Paginated artist detail. | 2592000 |
 | /catalog/admin-commands | src/app/(site)/catalog/admin-commands/page.tsx | Admin commands hub; catalog_pages_view + data/Admin commands/*.md. | 86400 |
 | /catalog/admin-commands/[system] | src/app/(site)/catalog/admin-commands/[system]/page.tsx | Command list detail from markdown dataset. | 86400 |
+| /catalog/the-forge/[collection] | src/app/(site)/catalog/the-forge/[collection]/page.tsx | The Forge catalog datasets from data/The Forge/*.json with catalog_pages_view intro/FAQ. | 86400 |
 | /catalog/[...slug] | src/app/(site)/catalog/[...slug]/page.tsx | Generic catalog fallback from catalog_pages_view. | 86400 |
 
 ## Tools
