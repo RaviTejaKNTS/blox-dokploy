@@ -5,6 +5,7 @@ export type CatalogFaqEntry = { q: string; a: string };
 
 export type CatalogPageContent = {
   id?: string;
+  universe_id?: number | null;
   code: string;
   title: string;
   seo_title: string;
@@ -25,9 +26,9 @@ export type CatalogPageContent = {
 };
 
 const CATALOG_SELECT_FIELDS_VIEW =
-  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at, content_updated_at";
+  "id, universe_id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at, content_updated_at";
 const CATALOG_SELECT_FIELDS_BASE =
-  "id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at";
+  "id, universe_id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at";
 const CATALOG_REVALIDATE_SECONDS = 86400;
 
 function normalizeCatalogCodes(codes: string[]): string[] {

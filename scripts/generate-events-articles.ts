@@ -108,8 +108,8 @@ type SourceGatheringResult = {
   researchQuestions: string[];
 };
 
-type RelatedPage = {
-  type: "article" | "codes" | "checklist" | "tool";
+type RelatedUniversePage = {
+  type: "article" | "codes" | "checklist" | "tool" | "catalog" | "events";
   title: string;
   url: string;
   description?: string | null;
@@ -257,50 +257,6 @@ function isVideoHost(hostname: string): boolean {
   return base.includes("youtube.com") || base.includes("youtu.be") || base.includes("vimeo.com") || base.includes("dailymotion.com");
 }
 
-function extractYouTubeVideoId(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-
-  if (/^[a-zA-Z0-9_-]{6,}$/.test(value)) {
-    return value;
-  }
-
-  try {
-    const url = new URL(value);
-    const host = url.hostname.replace(/^www\./, "").toLowerCase();
-
-    if (host === "youtu.be") {
-      return url.pathname.replace(/^\/+/, "").split("/")[0] || null;
-    }
-
-    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
-      const id = url.searchParams.get("v");
-      if (id) return id;
-      const pathParts = url.pathname.split("/").filter(Boolean);
-      const embedIndex = pathParts.indexOf("embed");
-      if (embedIndex >= 0 && pathParts[embedIndex + 1]) return pathParts[embedIndex + 1];
-      const shortsIndex = pathParts.indexOf("shorts");
-      if (shortsIndex >= 0 && pathParts[shortsIndex + 1]) return pathParts[shortsIndex + 1];
-      const liveIndex = pathParts.indexOf("live");
-      if (liveIndex >= 0 && pathParts[liveIndex + 1]) return pathParts[liveIndex + 1];
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function normalizeYouTubeVideoUrl(raw: string): string | null {
-  const videoId = extractYouTubeVideoId(raw);
-  if (!videoId) return null;
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}
-
-function hasYouTubeEmbed(markdown: string): boolean {
-  return /\{\{\s*youtube\s*:/i.test(markdown);
-}
-
 function isFandomHost(hostname: string): boolean {
   const base = hostname.replace(/^www\./i, "").toLowerCase();
   return base === "fandom.com" || base.endsWith(".fandom.com") || base.endsWith(".fandomwiki.com");
@@ -333,22 +289,6 @@ function collectSourceUrls(sources: SourceDocument[]): string[] {
     urls.push(rawUrl);
   }
   return urls;
-}
-
-function scoreYouTubeResult(result: SearchResult, eventName: string, gameName: string): number {
-  const title = normalizeForCompare(result.title ?? "");
-  const snippet = normalizeForCompare(result.snippet ?? "");
-  const eventKey = normalizeForCompare(eventName);
-  const gameKey = normalizeForCompare(gameName);
-  let score = 0;
-
-  if (eventKey && (title.includes(eventKey) || snippet.includes(eventKey))) score += 3;
-  if (gameKey && (title.includes(gameKey) || snippet.includes(gameKey))) score += 2;
-  if (title.includes("roblox") || snippet.includes("roblox")) score += 1;
-  if (title.includes("event") || snippet.includes("event")) score += 1;
-  if (title.includes("guide") || snippet.includes("guide")) score += 1;
-
-  return score;
 }
 
 function titleIncludesEventName(title: string, eventName: string): boolean {
@@ -1513,47 +1453,6 @@ async function perplexitySearch(query: string, limit: number): Promise<SearchRes
   );
 }
 
-async function findRelatedYouTubeVideo(event: EventGuideDetails): Promise<string | null> {
-  const queries = [
-    `site:youtube.com ${event.gameName} ${event.eventName} Roblox event guide`,
-    `site:youtube.com ${event.gameName} ${event.eventName} Roblox`,
-    `site:youtube.com ${event.eventName} Roblox`
-  ];
-
-  const candidates = new Map<string, { score: number; title: string }>();
-
-  for (const query of queries) {
-    let results: SearchResult[] = [];
-    try {
-      results = await perplexitySearch(query, 8);
-    } catch (error) {
-      console.warn("⚠️ YouTube search failed:", error instanceof Error ? error.message : String(error));
-      continue;
-    }
-
-    for (const result of results) {
-      const normalizedUrl = normalizeYouTubeVideoUrl(result.url);
-      if (!normalizedUrl) continue;
-      const score = scoreYouTubeResult(result, event.eventName, event.gameName);
-      const existing = candidates.get(normalizedUrl);
-      if (!existing || score > existing.score) {
-        candidates.set(normalizedUrl, { score, title: result.title });
-      }
-    }
-
-    if (candidates.size >= 3) {
-      break;
-    }
-  }
-
-  if (!candidates.size) return null;
-
-  const sorted = Array.from(candidates.entries()).sort((a, b) => b[1].score - a[1].score);
-  const [bestUrl, bestMeta] = sorted[0];
-  if (bestMeta.score <= 0) return null;
-  return bestUrl;
-}
-
 type ParsedArticle = {
   content: string;
   title: string | null;
@@ -2503,40 +2402,38 @@ async function refineArticleWithFeedbackLoop(
   return current;
 }
 
-async function fetchRelatedPagesForUniverse(params: {
+async function fetchRelatedUniversePages(params: {
   universeId: number | null;
   excludeSlug?: string | null;
-}): Promise<RelatedPage[]> {
+}): Promise<RelatedUniversePage[]> {
   const { universeId, excludeSlug } = params;
+  if (!universeId) return [];
 
-  const related: RelatedPage[] = [];
+  const related: RelatedUniversePage[] = [];
   const seen = new Set<string>();
-  const addPage = (page: RelatedPage) => {
-    if (seen.has(page.url)) return;
+  const addPage = (page: RelatedUniversePage) => {
+    if (!page.url || seen.has(page.url)) return;
     related.push(page);
     seen.add(page.url);
   };
 
   try {
-    let articleQuery = supabase
+    const { data, error } = await supabase
       .from("articles")
-      .select("title, slug, meta_description, published_at, updated_at")
-      .eq("is_published", true);
+      .select("title, slug, meta_description, published_at, updated_at, tags")
+      .eq("is_published", true)
+      .eq("universe_id", universeId)
+      .order("published_at", { ascending: false })
+      .limit(20);
 
-    if (universeId) {
-      articleQuery = articleQuery.eq("universe_id", universeId);
-    }
-
-    if (excludeSlug) {
-      articleQuery = articleQuery.neq("slug", excludeSlug);
-    }
-
-    const { data, error } = await articleQuery.order("published_at", { ascending: false }).limit(25);
     if (error) {
       console.warn("⚠️ Failed to fetch related articles:", error.message);
     } else {
       for (const row of data ?? []) {
         if (!row?.slug || !row?.title) continue;
+        if (excludeSlug && row.slug === excludeSlug) continue;
+        const tags = (row as { tags?: string[] | null }).tags ?? null;
+        if (Array.isArray(tags) && tags.includes("events")) continue;
         addPage({
           type: "article",
           title: row.title,
@@ -2546,98 +2443,70 @@ async function fetchRelatedPagesForUniverse(params: {
         });
       }
     }
-
-    const hadUniverseArticles = related.some((entry) => entry.type === "article" && universeId !== null);
-
-    if ((!universeId || !hadUniverseArticles) && related.filter((p) => p.type === "article").length === 0) {
-      const { data: fallbackArticles, error: fallbackError } = await supabase
-        .from("articles")
-        .select("title, slug, meta_description, published_at, updated_at")
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .limit(25);
-
-      if (fallbackError) {
-        console.warn("⚠️ Fallback article lookup failed:", fallbackError.message);
-      } else {
-        for (const row of fallbackArticles ?? []) {
-          if (!row?.slug || !row?.title) continue;
-          if (excludeSlug && row.slug === excludeSlug) continue;
-          addPage({
-            type: "article",
-            title: row.title,
-            url: `${SITE_URL}/articles/${row.slug}`,
-            description: truncateForPrompt((row as any).meta_description),
-            updatedAt: (row as any).published_at ?? (row as any).updated_at ?? null
-          });
-        }
-      }
-    }
   } catch (error) {
     console.warn("⚠️ Related articles lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
-  if (universeId) {
-    try {
-      const { data, error } = await supabase
-        .from("games")
-        .select("name, slug, seo_description, updated_at")
-        .eq("universe_id", universeId)
-        .eq("is_published", true)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("games")
+      .select("name, slug, seo_description, updated_at")
+      .eq("universe_id", universeId)
+      .eq("is_published", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (error) {
-        console.warn("⚠️ Failed to fetch codes page:", error.message);
-      } else if (data?.slug) {
+    if (error) {
+      console.warn("⚠️ Failed to fetch codes page:", error.message);
+    } else if (data?.slug) {
+      addPage({
+        type: "codes",
+        title: `${data.name ?? "Game"} codes`,
+        url: `${SITE_URL}/codes/${data.slug}`,
+        description: truncateForPrompt((data as any).seo_description),
+        updatedAt: (data as any).updated_at ?? null
+      });
+    }
+  } catch (error) {
+    console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("checklist_pages_view")
+      .select("title, slug, description_md, content_updated_at")
+      .eq("universe_id", universeId)
+      .eq("is_public", true)
+      .order("content_updated_at", { ascending: false })
+      .limit(4);
+
+    if (error) {
+      console.warn("⚠️ Failed to fetch checklist pages:", error.message);
+    } else {
+      for (const row of data ?? []) {
+        if (!row?.slug || !row?.title) continue;
         addPage({
-          type: "codes",
-          title: `${data.name ?? "Game"} codes`,
-          url: `${SITE_URL}/codes/${data.slug}`,
-          description: truncateForPrompt((data as any).seo_description),
-          updatedAt: (data as any).updated_at ?? null
+          type: "checklist",
+          title: row.title,
+          url: `${SITE_URL}/checklists/${row.slug}`,
+          description: truncateForPrompt((row as any).description_md),
+          updatedAt: (row as any).content_updated_at ?? null
         });
       }
-    } catch (error) {
-      console.warn("⚠️ Codes page lookup failed:", error instanceof Error ? error.message : String(error));
     }
-
-    try {
-      const { data, error } = await supabase
-        .from("checklist_pages_view")
-        .select("title, slug, description_md, content_updated_at")
-        .eq("universe_id", universeId)
-        .eq("is_public", true)
-        .order("content_updated_at", { ascending: false })
-        .limit(3);
-
-      if (error) {
-        console.warn("⚠️ Failed to fetch checklist pages:", error.message);
-      } else {
-        for (const row of data ?? []) {
-          if (!row?.slug || !row?.title) continue;
-          addPage({
-            type: "checklist",
-            title: row.title,
-            url: `${SITE_URL}/checklists/${row.slug}`,
-            description: truncateForPrompt((row as any).description_md),
-            updatedAt: (row as any).content_updated_at ?? null
-          });
-        }
-      }
-    } catch (error) {
-      console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
-    }
+  } catch (error) {
+    console.warn("⚠️ Checklist lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
   try {
     const { data, error } = await supabase
       .from("tools_view")
       .select("code, title, meta_description, content_updated_at")
+      .eq("universe_id", universeId)
       .eq("is_published", true)
       .order("content_updated_at", { ascending: false })
-      .limit(3);
+      .limit(4);
 
     if (error) {
       console.warn("⚠️ Failed to fetch tools:", error.message);
@@ -2657,116 +2526,95 @@ async function fetchRelatedPagesForUniverse(params: {
     console.warn("⚠️ Tools lookup failed:", error instanceof Error ? error.message : String(error));
   }
 
+  try {
+    const { data, error } = await supabase
+      .from("catalog_pages_view")
+      .select("code, title, meta_description, content_updated_at")
+      .eq("universe_id", universeId)
+      .eq("is_published", true)
+      .order("content_updated_at", { ascending: false })
+      .limit(4);
+
+    if (error) {
+      console.warn("⚠️ Failed to fetch catalog pages:", error.message);
+    } else {
+      for (const row of data ?? []) {
+        if (!row?.code || !row?.title) continue;
+        addPage({
+          type: "catalog",
+          title: row.title,
+          url: `${SITE_URL}/catalog/${row.code}`,
+          description: truncateForPrompt((row as any).meta_description),
+          updatedAt: (row as any).content_updated_at ?? null
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("⚠️ Catalog lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("events_pages")
+      .select("title, slug, meta_description, published_at, updated_at, is_published")
+      .eq("universe_id", universeId)
+      .eq("is_published", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("⚠️ Failed to fetch events page:", error.message);
+    } else if (data?.slug && data.title) {
+      addPage({
+        type: "events",
+        title: data.title,
+        url: `${SITE_URL}/events/${data.slug}`,
+        description: truncateForPrompt((data as any).meta_description),
+        updatedAt: (data as any).published_at ?? (data as any).updated_at ?? null
+      });
+    }
+  } catch (error) {
+    console.warn("⚠️ Events page lookup failed:", error instanceof Error ? error.message : String(error));
+  }
+
   return related;
 }
 
-async function interlinkArticleWithRelatedPages(
-  topic: string,
-  article: DraftArticle,
-  pages: RelatedPage[]
-): Promise<DraftArticle> {
-  const pageBlock = pages
-    .map((page, idx) => {
-      return `PAGE ${idx + 1}\nTitle: ${page.title}\nURL: ${page.url}\nMeta Description: ${page.description ?? "n/a"}`;
-    })
-    .join("\n\n");
-  const pageBlockText = pages.length ? pageBlock : "No internal pages available.";
-  const linkRules = pages.length
-    ? `- Add up to 3-7 inline Markdown links where they naturally fit. Spread them out across the article.
-- Use the provided URLs exactly. Do not invent links or add external URLs.
-- Do not add links to the same page multiple times.
-- Do not add links that are already present in the article.
-- Add links in a way that add value to the content and are helpful for the user.
-- Add links where they naturally fit. If they do not fit naturall, add a line or two to add the link to the content naturally.
-- Make sure links are contextual to the content and are actually accurate.
-- Anchor text does not have to match the page title; use contextual words/phrases already in the article.
-- Do not invent anyinfo, stick to the info you have and make way with that.
-- If fewer than 3 pages are a good fit, use only the relevant ones without forcing.`
-    : "- Do not add any links because none are provided.";
-
-  const prompt = `
-You are inserting internal links into an existing Roblox event guide. Keep all text, headings, tables, and images exactly the same.
-- Only add inline Markdown links by wrapping existing words/phrases: [label](url).
-- Do not add new sentences, do not rewrite, and do not remove content.
-- Use the provided URLs exactly. Do not invent links or add external URLs.
-- Keep existing Markdown tables and image URLs exactly as they are.
-- Keep the official Roblox event link and event thumbnail image exactly as they appear.
-- Spread links across the article where they naturally fit.
-- Anchor text does not have to match the page title; use contextual words/phrases already in the article.
-
-Internal link rules:
-${linkRules}
-
-Topic: "${topic}"
-
-Internal pages:
-${pageBlockText}
-
-Article title: ${article.title}
-Meta description: ${article.meta_description}
-Article markdown:
-${article.content_md}
-
-Return JSON:
-{
-  "title": "${article.title}",
-  "meta_description": "${article.meta_description}",
-  "content_md": "Same Markdown with only internal links inserted"
-}
-`.trim();
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    temperature: 0.2,
-    max_tokens: 3000,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an expert Roblox editor. Always return valid JSON with title, content_md, and meta_description. Do not add external URLs or change the article text beyond inserting internal links."
-      },
-      { role: "user", content: prompt }
-    ]
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "";
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    throw new Error(`Interlinking step did not return valid JSON: ${(error as Error).message}`);
-  }
-
-  const { content_md } = parsed as Partial<DraftArticle>;
-  if (!content_md) {
-    throw new Error("Interlinking step missing required fields.");
-  }
-
-  return {
-    title: article.title,
-    content_md: content_md.trim(),
-    meta_description: article.meta_description.trim()
-  };
-}
-
-async function insertYouTubeEmbedWithAI(params: {
+async function insertRelatedLinksSection(params: {
   topic: string;
   article: DraftArticle;
-  youtubeUrl: string;
+  pages: RelatedUniversePage[];
+  event: EventGuideDetails;
 }): Promise<DraftArticle> {
-  const { topic, article, youtubeUrl } = params;
+  const { topic, article, pages, event } = params;
+  if (!pages.length) return article;
+
+  const pageBlock = pages
+    .map(
+      (page, idx) =>
+        `PAGE ${idx + 1}\nType: ${page.type}\nTitle: ${page.title}\nURL: ${page.url}\nDescription: ${page.description ?? "n/a"}`
+    )
+    .join("\n\n");
 
   const prompt = `
-You are inserting a single YouTube embed directive into an existing Roblox event guide. Do not rewrite, remove, or reorder content.
-- Insert exactly one standalone line with this format: Embedding link: {{youtube: ${youtubeUrl}}}
-- Place it only between paragraphs or between sections (never inside a paragraph, list, table, or blockquote).
-- Choose the placement where the video makes the most sense and improves the flow for the reader.
-- If no perfect spot exists, place it after the intro paragraph and before the first H2 heading.
-- Keep all existing Markdown, links, tables, and images unchanged.
-- Do not add any other URLs or text.
+You are adding a small related-links section to an existing Roblox event guide. Do not change any existing text, headings, tables, or links.
+- Insert exactly one small section near the end (just above or just below the final takeaway/outro paragraph).
+- The section should include only highly related links from the provided list.
+- Use natural language anchor text; do NOT use exact page titles as anchor text.
+- Provide a short, accurate description for each link that matches the destination page.
+- Use inline Markdown links: [text](url).
+- Include 3-6 links total; if fewer are truly relevant, include only those. If none fit, leave the guide unchanged.
+- Do not add any links not in the provided list.
+- Keep the guide strictly on topic: "${topic}".
+- Keep the official Roblox event link and event thumbnail image exactly as they appear; do not remove or change them.
 
-Topic: "${topic}"
+Event details (authoritative):
+- Event name: ${event.eventName}
+- Game: ${event.gameName}
+- Official Roblox event link: ${event.eventLink}
+
+Related pages:
+${pageBlock}
 
 Article title: ${article.title}
 Meta description: ${article.meta_description}
@@ -2777,7 +2625,7 @@ Return JSON:
 {
   "title": "${article.title}",
   "meta_description": "${article.meta_description}",
-  "content_md": "Same Markdown with the YouTube embed line inserted"
+  "content_md": "Same Markdown with only the related section inserted"
 }
 `.trim();
 
@@ -2790,7 +2638,7 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are a careful editor. Only insert the YouTube embed directive line; do not change any other text. Return valid JSON with title, content_md, meta_description."
+          "You add a small related-links section near the outro. Only insert the section; do not rewrite or reorder content. Return valid JSON with title, content_md, meta_description."
       },
       { role: "user", content: prompt }
     ]
@@ -2801,12 +2649,12 @@ Return JSON:
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`YouTube embed step did not return valid JSON: ${(error as Error).message}`);
+    throw new Error(`Related links step did not return valid JSON: ${(error as Error).message}`);
   }
 
   const { content_md } = parsed as Partial<DraftArticle>;
   if (!content_md) {
-    throw new Error("YouTube embed step missing required fields.");
+    throw new Error("Related links step missing required fields.");
   }
 
   return {
@@ -3365,16 +3213,7 @@ async function main() {
     const refinedDraft = await refineArticleWithFeedbackLoop(topic, draft, verifiedSources, articleContext);
     console.log(`refined_title="${refinedDraft.title}" word_count=${estimateWordCount(refinedDraft.content_md)}`);
 
-    const relatedPages = await fetchRelatedPagesForUniverse({
-      universeId,
-      excludeSlug: slugify(guideTitle)
-    });
-    console.log(`interlink_candidates=${relatedPages.length}`);
-
-    const interlinkedDraft = await interlinkArticleWithRelatedPages(topic, { ...refinedDraft, title: guideTitle }, relatedPages);
-    console.log(`interlinked_title="${interlinkedDraft.title}" word_count=${estimateWordCount(interlinkedDraft.content_md)}`);
-
-    let currentDraft = { ...interlinkedDraft, title: guideTitle };
+    let currentDraft = { ...refinedDraft, title: guideTitle };
     console.log(`final_title="${currentDraft.title}" word_count=${estimateWordCount(currentDraft.content_md)}`);
 
     if (currentDraft.content_md.length < 400) {
@@ -3435,24 +3274,31 @@ async function main() {
       });
     }
 
-    if (!hasYouTubeEmbed(currentDraft.content_md)) {
-      const youtubeUrl = await findRelatedYouTubeVideo(eventDetails);
-      if (youtubeUrl) {
-        const withEmbed = await insertYouTubeEmbedWithAI({
+    const relatedPages = await fetchRelatedUniversePages({
+      universeId,
+      excludeSlug: article.slug
+    });
+    console.log(`related_pages_candidates=${relatedPages.length}`);
+    if (relatedPages.length > 0) {
+      try {
+        const withRelated = await insertRelatedLinksSection({
           topic,
           article: currentDraft,
-          youtubeUrl
+          pages: relatedPages,
+          event: eventDetails
         });
-        const embedUpdated = await updateArticleContent(article.id, withEmbed);
-        console.log(`youtube_embed url="${youtubeUrl}" updated=${embedUpdated}`);
-        if (embedUpdated) {
-          currentDraft = withEmbed;
+        const relatedUpdated = await updateArticleContent(article.id, withRelated);
+        console.log(
+          `related_links_inserted word_count=${estimateWordCount(withRelated.content_md)} updated=${relatedUpdated}`
+        );
+        if (relatedUpdated) {
+          currentDraft = { ...withRelated, title: guideTitle };
         }
-      } else {
-        console.log("youtube_embed_skipped=no_video_found");
+      } catch (relatedError) {
+        console.warn("⚠️ Failed to insert related links section:", relatedError instanceof Error ? relatedError.message : String(relatedError));
       }
     } else {
-      console.log("youtube_embed_skipped=already_present");
+      console.log("related_links_skipped=no_candidates");
     }
 
     const topicGuardFeedback = await checkTopicAdherence(topic, currentDraft, eventDetails, articleContext);

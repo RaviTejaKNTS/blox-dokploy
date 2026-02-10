@@ -1535,6 +1535,7 @@ execute function public.set_updated_at();
 -- catalog pages table for item/id listing pages
 create table if not exists public.catalog_pages (
   id uuid primary key default uuid_generate_v4(),
+  universe_id bigint references public.roblox_universes(universe_id) on delete set null,
   code text not null unique,
   title text not null,
   seo_title text not null,
@@ -1554,6 +1555,7 @@ create table if not exists public.catalog_pages (
 );
 
 create index if not exists idx_catalog_pages_is_published on public.catalog_pages (is_published);
+create index if not exists idx_catalog_pages_universe_id on public.catalog_pages (universe_id);
 
 create trigger trg_catalog_pages_updated_at
 before update on public.catalog_pages
