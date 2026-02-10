@@ -222,6 +222,7 @@ export const FORGE_CATALOGS: ForgeCatalogConfig[] = [
     groupLabel: "Area",
     badgeKey: "type",
     descriptionKey: "description",
+    stats: [],
     linkKey: "link",
     maxStats: 2
   }
