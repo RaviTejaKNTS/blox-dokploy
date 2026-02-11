@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { QuizRunner } from "@/components/QuizRunner";
 import { getQuizPageByCode, loadQuizData } from "@/lib/quizzes";
 import { markdownToPlainText } from "@/lib/markdown";
-import type { QuizData, QuizOption, QuizQuestion } from "@/lib/quiz-types";
+import type { QuizData, QuizQuestion } from "@/lib/quiz-types";
 import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
@@ -11,16 +11,6 @@ export const revalidate = 3600; // 1 hour
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
-
-const QUESTION_COUNT = {
-  easy: 5,
-  medium: 5,
-  hard: 5
-} as const;
-
-type Difficulty = keyof typeof QUESTION_COUNT;
-
-type AttemptQuestion = QuizQuestion & { difficulty: Difficulty; options: QuizOption[] };
 
 function pickThumbnail(value: unknown): string | null {
   if (!value) return null;
@@ -35,19 +25,6 @@ function pickThumbnail(value: unknown): string | null {
     }
   }
   return null;
-}
-
-function buildStaticAttempt(quizData: QuizData): AttemptQuestion[] {
-  const build = (difficulty: Difficulty) => {
-    const list = quizData[difficulty] ?? [];
-    return list.slice(0, QUESTION_COUNT[difficulty]).map((question) => ({
-      ...question,
-      difficulty,
-      options: question.options ?? []
-    }));
-  };
-
-  return [...build("easy"), ...build("medium"), ...build("hard")];
 }
 
 function flattenQuestions(quizData: QuizData): QuizQuestion[] {
@@ -108,7 +85,6 @@ export default async function QuizPage({ params }: PageProps) {
   const canonical = `${SITE_URL}/quizzes/${page.code}`;
   const publishedTime = page.published_at || page.created_at || null;
   const modifiedTime = page.content_updated_at || page.updated_at || publishedTime || null;
-  const initialAttempt = buildStaticAttempt(quizData);
   const allQuestions = flattenQuestions(quizData);
 
   const structuredData = {
@@ -170,7 +146,6 @@ export default async function QuizPage({ params }: PageProps) {
         questions={quizData}
         heroImage={heroImage}
         heroAlt={heroAlt}
-        initialAttempt={initialAttempt}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     </>

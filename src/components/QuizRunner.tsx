@@ -22,7 +22,6 @@ type QuizRunnerProps = {
   questions: QuizData;
   heroImage?: string | null;
   heroAlt?: string | null;
-  initialAttempt?: AttemptQuestion[];
 };
 
 type SessionState = { status: "loading" | "ready"; userId: string | null };
@@ -66,6 +65,19 @@ function pickQuestions(pool: QuizQuestion[], seenIds: Set<string>, count: number
   }
 
   return picks;
+}
+
+function buildAttemptFromPool(quizData: QuizData): AttemptQuestion[] {
+  const build = (difficulty: Difficulty) => {
+    const list = quizData[difficulty] ?? [];
+    return list.slice(0, LEVEL_CONFIG[difficulty]).map((question) => ({
+      ...question,
+      difficulty,
+      options: question.options ?? []
+    }));
+  };
+
+  return [...build("easy"), ...build("medium"), ...build("hard")];
 }
 
 function buildAttempt(quizData: QuizData, seenQuestionIds: string[]): AttemptQuestion[] {
@@ -199,17 +211,16 @@ export function QuizRunner(props: QuizRunnerProps) {
   const { quizCode, title, description, questions } = props;
   const heroImage = props.heroImage ?? null;
   const heroAlt = props.heroAlt ?? null;
-  const initialAttempt = props.initialAttempt ?? [];
   const [session, setSession] = useState<SessionState>({ status: "loading", userId: null });
   const [progressStatus, setProgressStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [seenQuestionIds, setSeenQuestionIds] = useState<string[]>([]);
-  const [attempt, setAttempt] = useState<AttemptQuestion[]>(() => initialAttempt);
+  const staticAttempt = useMemo(() => buildAttemptFromPool(questions), [questions]);
+  const [attempt, setAttempt] = useState<AttemptQuestion[]>(() => staticAttempt);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showSummary, setShowSummary] = useState(false);
   const [savedAttemptKey, setSavedAttemptKey] = useState<string | null>(null);
   const lastSavedAttempt = useRef<string | null>(null);
-  const hydratedAttempt = useRef(false);
   const storageKey = useMemo(() => getStorageKey(quizCode), [quizCode]);
 
   useEffect(() => {
@@ -282,7 +293,6 @@ export function QuizRunner(props: QuizRunnerProps) {
   }, [session.status, session.userId, quizCode]);
 
   const readyToStart = session.status === "ready" && progressStatus === "ready";
-  const hasInitialAttempt = initialAttempt.length > 0;
 
   const startNewAttempt = useCallback(() => {
     const nextAttempt = buildAttempt(questions, seenQuestionIds);
@@ -295,8 +305,7 @@ export function QuizRunner(props: QuizRunnerProps) {
   }, [questions, seenQuestionIds]);
 
   useEffect(() => {
-    if (!readyToStart || hydratedAttempt.current) return;
-    hydratedAttempt.current = true;
+    if (!readyToStart) return;
     if (typeof window !== "undefined") {
       try {
         const raw = window.localStorage.getItem(storageKey);
@@ -434,7 +443,7 @@ export function QuizRunner(props: QuizRunnerProps) {
     startNewAttempt();
   };
 
-  if (!readyToStart && !hasInitialAttempt) {
+  if (!readyToStart && staticAttempt.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-muted">
         Preparing your quiz...
