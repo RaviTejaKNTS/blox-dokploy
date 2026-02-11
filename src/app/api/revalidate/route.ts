@@ -10,7 +10,8 @@ type Payload =
   | { type: "checklist"; slug: string }
   | { type: "tool"; slug: string }
   | { type: "catalog"; slug: string }
-  | { type: "music"; slug: string };
+  | { type: "music"; slug: string }
+  | { type: "quiz"; slug: string };
 
 const MUSIC_CATALOG_CODES = new Set(["roblox-music-ids"]);
 
@@ -88,6 +89,14 @@ function revalidateForChecklists(slug: string) {
   revalidateTag("checklists-index", { expire: 0 });
 }
 
+function revalidateForQuizzes(slug: string) {
+  revalidatePath("/quizzes");
+  revalidatePath(`/quizzes/${slug}`);
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/sitemaps/quizzes.xml");
+  revalidateTag("quizzes-index", { expire: 0 });
+}
+
 function revalidateForTools(slug: string) {
   revalidatePath("/tools");
   revalidatePath("/tools/page/[page]");
@@ -163,6 +172,9 @@ export async function POST(request: Request) {
       break;
     case "checklist":
       revalidateForChecklists(slug);
+      break;
+    case "quiz":
+      revalidateForQuizzes(slug);
       break;
     case "tool":
       revalidateForTools(slug);

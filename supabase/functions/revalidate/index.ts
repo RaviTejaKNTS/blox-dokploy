@@ -4,7 +4,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type EventRow = {
   id: string;
-  entity_type: "code" | "article" | "list" | "author" | "event" | "checklist" | "tool" | "catalog" | "music";
+  entity_type:
+    | "code"
+    | "article"
+    | "list"
+    | "author"
+    | "event"
+    | "checklist"
+    | "tool"
+    | "catalog"
+    | "music"
+    | "quiz";
   slug: string;
 };
 

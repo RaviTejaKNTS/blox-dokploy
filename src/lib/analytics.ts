@@ -4,7 +4,21 @@ type AnalyticsParams = Record<string, string | number | boolean | null | undefin
 
 export function trackEvent(eventName: string, params?: AnalyticsParams) {
   if (typeof window === "undefined") return;
-  const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
+  const win = window as {
+    gtag?: (...args: unknown[]) => void;
+    __ga4Initialized?: boolean;
+    __bloxodesConsent?: {
+      requiresConsent: boolean;
+      analytics: boolean;
+      decided: boolean;
+    };
+  };
+  if (!win.__ga4Initialized) return;
+  const consent = win.__bloxodesConsent;
+  if (consent?.requiresConsent) {
+    if (!consent.decided || !consent.analytics) return;
+  }
+  const gtag = win.gtag;
   if (typeof gtag !== "function") return;
 
   const cleaned: Record<string, string | number | boolean> = {};

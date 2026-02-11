@@ -3,7 +3,17 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-type SearchItemType = "codes" | "article" | "checklist" | "list" | "tool" | "catalog" | "event" | "author" | "music";
+type SearchItemType =
+  | "codes"
+  | "article"
+  | "checklist"
+  | "quiz"
+  | "list"
+  | "tool"
+  | "catalog"
+  | "event"
+  | "author"
+  | "music";
 
 type SearchRow = {
   entity_type: string;
@@ -30,6 +40,7 @@ const TYPE_MAP: Record<string, SearchItemType> = {
   code: "codes",
   article: "article",
   checklist: "checklist",
+  quiz: "quiz",
   list: "list",
   tool: "tool",
   catalog: "catalog",

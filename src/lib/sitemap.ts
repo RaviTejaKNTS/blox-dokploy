@@ -25,6 +25,7 @@ export const MAIN_SITEMAP_ROUTES: MainSitemapRoute[] = [
   { path: "/lists", changefreq: "weekly", priority: "0.7" },
   { path: "/tools", changefreq: "weekly", priority: "0.9" },
   { path: "/checklists", changefreq: "weekly", priority: "0.9" },
+  { path: "/quizzes", changefreq: "weekly", priority: "0.9" },
   { path: "/events", changefreq: "weekly", priority: "0.8" },
   { path: "/authors", changefreq: "monthly", priority: "0.3" },
   { path: "/catalog", changefreq: "weekly", priority: "0.9" },

@@ -1,9 +1,11 @@
 import "./globals.css";
 import { ReactNode } from "react";
+import Script from "next/script";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { ConsentGate } from "@/components/consent/ConsentGate";
+import { ConsentMode } from "@/components/consent/ConsentMode";
 import { GoogleAdSense } from "@/components/GoogleAdSense";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { LayoutClientAnalytics, LayoutGlobalSearch } from "@/components/LayoutClient";
@@ -21,6 +23,60 @@ const themeScript = `(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
     root.dataset.theme = theme;
+  } catch (error) {
+    /* noop */
+  }
+})();`;
+
+const consentModeScript = `(() => {
+  try {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);};
+
+    var requireCookie = document.cookie
+      .split("; ")
+      .find(function(row){return row.startsWith("require-consent=");});
+    var requiresConsent = requireCookie ? requireCookie.split("=").slice(1).join("=") === "1" : true;
+
+    var stored = null;
+    try {
+      stored = JSON.parse(window.localStorage.getItem("gdpr-consent") || "null");
+    } catch (error) {
+      stored = null;
+    }
+
+    var decided = stored && typeof stored.decided === "boolean" ? stored.decided : false;
+    var analytics = stored && typeof stored.analytics === "boolean" ? stored.analytics : false;
+    var marketing = stored && typeof stored.marketing === "boolean" ? stored.marketing : false;
+
+    if (!requiresConsent) {
+      decided = true;
+      analytics = true;
+      marketing = true;
+    }
+
+    var signal = {
+      ad_storage: !requiresConsent || (decided && marketing) ? "granted" : "denied",
+      analytics_storage: !requiresConsent || (decided && analytics) ? "granted" : "denied",
+      ad_user_data: !requiresConsent || (decided && marketing) ? "granted" : "denied",
+      ad_personalization: !requiresConsent || (decided && marketing) ? "granted" : "denied",
+      wait_for_update: 500
+    };
+
+    window.gtag("consent", "default", signal);
+    window.__bloxodesConsentDefaultsSet = true;
+    window.__bloxodesConsentDefaults = {
+      ad_storage: signal.ad_storage,
+      analytics_storage: signal.analytics_storage,
+      ad_user_data: signal.ad_user_data,
+      ad_personalization: signal.ad_personalization
+    };
+    window.__bloxodesConsent = {
+      requiresConsent: requiresConsent,
+      decided: decided,
+      analytics: analytics,
+      marketing: marketing
+    };
   } catch (error) {
     /* noop */
   }
@@ -121,12 +177,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://bmwksaykcsndsvgspapz.supabase.co" />
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://lh3.ggpht.com" />
-        <script data-grow-initializer="" dangerouslySetInnerHTML={{ __html: growInitializerScript }} />
       </head>
       <body className="min-h-screen bg-background text-foreground transition-colors duration-300">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: consentModeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+        <Script id="grow-initializer" strategy="afterInteractive">
+          {growInitializerScript}
+        </Script>
         <ConsentProvider>
+          <ConsentMode />
           <ConsentBanner />
           <ConsentGate category="analytics">
             <GoogleAnalytics measurementId={googleAnalyticsId} />

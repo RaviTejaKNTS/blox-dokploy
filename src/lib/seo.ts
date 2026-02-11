@@ -6,13 +6,15 @@ export const SITE_URL = DEFAULT_SITE_URL;
 
 export const SITE_NAME = "Bloxodes";
 export const SITE_DESCRIPTION =
-  "Your Roblox hub for codes, articles, checklists, catalog pages, live ranking lists, and tools. Updated throughout the day with fresh data.";
+  "Your Roblox hub for codes, articles, checklists, quizzes, catalog pages, live ranking lists, and tools. Updated throughout the day with fresh data.";
 export const CODES_DESCRIPTION =
   "Track active Roblox game codes, rewards, and redemption tips with frequent updates.";
 export const ARTICLES_DESCRIPTION =
   "Roblox articles and guides with tips, updates, and walkthroughs to help you play smarter.";
 export const CHECKLISTS_DESCRIPTION =
   "Guided Roblox checklists to track steps, tasks, and rewards in your favorite games. Stay organized and mark progress as you play.";
+export const QUIZZES_DESCRIPTION =
+  "Roblox quizzes with 15-question runs to test in-game knowledge across easy, medium, and hard levels.";
 export const LISTS_DESCRIPTION =
   "Live ranking lists powered by Roblox data to highlight trending, rising, and top experiences.";
 export const TOOLS_DESCRIPTION =

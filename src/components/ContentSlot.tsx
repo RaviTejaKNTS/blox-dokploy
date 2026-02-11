@@ -103,17 +103,10 @@ export function ContentSlot({
       }
     }
 
-    const timeout = window.setTimeout(() => {
-      if (ins.getAttribute("data-ad-status") !== "filled" && ins.getBoundingClientRect().height < 10) {
-        setStatus("unfilled");
-      }
-    }, 6000);
-
     updateStatus();
 
     return () => {
       observer.disconnect();
-      window.clearTimeout(timeout);
     };
   }, [shouldRender, slot, clientId]);
 

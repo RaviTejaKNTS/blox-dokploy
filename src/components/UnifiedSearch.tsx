@@ -140,7 +140,7 @@ export function UnifiedSearch({ autoFocus = false }: Props) {
           </p>
         )
       ) : (
-        <p className="text-sm text-muted">Start typing to search articles, codes, checklists, tools, and lists.</p>
+        <p className="text-sm text-muted">Start typing to search articles, codes, checklists, quizzes, tools, and lists.</p>
       )}
 
       {canSearch && loading && results.length === 0 ? (

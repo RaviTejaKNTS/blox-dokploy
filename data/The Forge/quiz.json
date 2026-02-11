@@ -1,0 +1,1448 @@
+{
+  "easy": [
+    {
+      "id": "E1",
+      "question": "Which NPC’s job is to sell Pickaxes (in towns like Stonewake’s Cross)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Maria"
+        },
+        {
+          "id": "B",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "C",
+          "text": "Runemaker"
+        },
+        {
+          "id": "D",
+          "text": "Marbles"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E2",
+      "question": "Who is the Potions seller you can find in towns (including Stonewake’s Cross)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Maria"
+        },
+        {
+          "id": "B",
+          "text": "Greedy Cey"
+        },
+        {
+          "id": "C",
+          "text": "Enhancer"
+        },
+        {
+          "id": "D",
+          "text": "Wo"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E3",
+      "question": "Which NPC upgrades your weapons/armor using Essences?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Wizard"
+        },
+        {
+          "id": "B",
+          "text": "Enhancer"
+        },
+        {
+          "id": "C",
+          "text": "Runemaker"
+        },
+        {
+          "id": "D",
+          "text": "Sensei Moro"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E4",
+      "question": "After you have rune slots, where do you go to attach (socket/embed) Runes?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "B",
+          "text": "Runemaker"
+        },
+        {
+          "id": "C",
+          "text": "Maria"
+        },
+        {
+          "id": "D",
+          "text": "Goblin King"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E5",
+      "question": "Who is the main Tutorial/Main Quest giver at the start?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sensei Moro"
+        },
+        {
+          "id": "B",
+          "text": "Captain Rowan"
+        },
+        {
+          "id": "C",
+          "text": "Auron"
+        },
+        {
+          "id": "D",
+          "text": "Skal"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E6",
+      "question": "What tool lets you travel from Stonewake’s Cross to other regions like Forgotten Kingdom?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Portal Tool"
+        },
+        {
+          "id": "B",
+          "text": "Demonite Key"
+        },
+        {
+          "id": "C",
+          "text": "Goblin Cave Key"
+        },
+        {
+          "id": "D",
+          "text": "Unknown Key"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E7",
+      "question": "What level do you need to reach to use the portal to unlock Forgotten Kingdom?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Level 5"
+        },
+        {
+          "id": "B",
+          "text": "Level 10"
+        },
+        {
+          "id": "C",
+          "text": "Level 25"
+        },
+        {
+          "id": "D",
+          "text": "Level 70"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E8",
+      "question": "Which quest rewards the “Unknown Key” used to unlock Fallen Angel’s Cave (Arcane Pickaxe area)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Tomo’s Lost Cat"
+        },
+        {
+          "id": "B",
+          "text": "Bard’s Guitar (Lost Guitar)"
+        },
+        {
+          "id": "C",
+          "text": "Goblin King Quests"
+        },
+        {
+          "id": "D",
+          "text": "Sensei Moro Questline"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E9",
+      "question": "Stonewake’s Pickaxe is found in which secret area of Stonewake’s Cross?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Inner Cave"
+        },
+        {
+          "id": "B",
+          "text": "Ashen Passage"
+        },
+        {
+          "id": "C",
+          "text": "Goblin Cave"
+        },
+        {
+          "id": "D",
+          "text": "Underwater Chamber"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E10",
+      "question": "Which region is “World 2”?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "B",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "C",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "D",
+          "text": "Raven Cave"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E11",
+      "question": "Which path inside Ruined Cave leads toward Volcanic Depths?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ashen Passage"
+        },
+        {
+          "id": "B",
+          "text": "Inner Cave"
+        },
+        {
+          "id": "C",
+          "text": "Underwater Chamber"
+        },
+        {
+          "id": "D",
+          "text": "Fallen Angel’s Cave"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E12",
+      "question": "What node blocks the Volcanic Depths entrance in Ashen Passage?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Volcanic Rock"
+        },
+        {
+          "id": "B",
+          "text": "Basalt Vein"
+        },
+        {
+          "id": "C",
+          "text": "Icy Boulder"
+        },
+        {
+          "id": "D",
+          "text": "Floating Crystal"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E13",
+      "question": "Which merchant is described as buying unequipped weapons/armor/pickaxes (gear) rather than being the pickaxe shop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Marbles"
+        },
+        {
+          "id": "B",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "C",
+          "text": "Enhancer"
+        },
+        {
+          "id": "D",
+          "text": "Isaac"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E14",
+      "question": "Which NPC is specifically mentioned as buying raw ores/unwanted items (you can sell to them)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Greedy Cey"
+        },
+        {
+          "id": "B",
+          "text": "Maria"
+        },
+        {
+          "id": "C",
+          "text": "Goblin King"
+        },
+        {
+          "id": "D",
+          "text": "Malik"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E15",
+      "question": "The “Index” is used mainly for checking what about an ore you already mined?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Which weapon type it guarantees"
+        },
+        {
+          "id": "B",
+          "text": "Which rocks/nodes can drop it"
+        },
+        {
+          "id": "C",
+          "text": "Which NPC sells it"
+        },
+        {
+          "id": "D",
+          "text": "Which boss must be killed first"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E16",
+      "question": "Critical Mining is about…",
+      "options": [
+        {
+          "id": "A",
+          "text": "Forging faster by skipping the rhythm minigame"
+        },
+        {
+          "id": "B",
+          "text": "Hitting weak points to deal extra mining damage"
+        },
+        {
+          "id": "C",
+          "text": "Turning ores into Essences"
+        },
+        {
+          "id": "D",
+          "text": "Adding a third rune slot at +2"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E17",
+      "question": "Which region is the snowy third-world area?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "B",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "C",
+          "text": "Volcanic Depths"
+        },
+        {
+          "id": "D",
+          "text": "Inner Cave"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E18",
+      "question": "Which of these areas is explicitly listed as having a Runemaker station?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ashen Passage"
+        },
+        {
+          "id": "B",
+          "text": "Inner Cave"
+        },
+        {
+          "id": "C",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "D",
+          "text": "The Peak"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "E19",
+      "question": "What is the name of the starting region (World 1 hub)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "B",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "C",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "D",
+          "text": "Raven Cave"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E20",
+      "question": "In the early area called “The Cave,” which enemy is listed as present there?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Pebble"
+        },
+        {
+          "id": "B",
+          "text": "Yeti"
+        },
+        {
+          "id": "C",
+          "text": "Goblin Guard"
+        },
+        {
+          "id": "D",
+          "text": "Skeleton"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    }
+  ],
+  "medium": [
+    {
+      "id": "M1",
+      "question": "What enhancement level is required to unlock the first rune slot on weapons/armor?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+1"
+        },
+        {
+          "id": "B",
+          "text": "+2"
+        },
+        {
+          "id": "C",
+          "text": "+3"
+        },
+        {
+          "id": "D",
+          "text": "+6"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M2",
+      "question": "What enhancement level unlocks the second rune slot (where supported)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+4"
+        },
+        {
+          "id": "B",
+          "text": "+5"
+        },
+        {
+          "id": "C",
+          "text": "+6"
+        },
+        {
+          "id": "D",
+          "text": "+7"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M3",
+      "question": "According to the Runemaker, which item type already has rune slots (so it doesn’t need +3/+6 first)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Weapons"
+        },
+        {
+          "id": "B",
+          "text": "Armor"
+        },
+        {
+          "id": "C",
+          "text": "Pickaxes"
+        },
+        {
+          "id": "D",
+          "text": "Ores"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M4",
+      "question": "What does the Runemaker charge (besides having the rune) to embed a rune?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Gold + Essences"
+        },
+        {
+          "id": "B",
+          "text": "Gold + Ores"
+        },
+        {
+          "id": "C",
+          "text": "Gold + Totems"
+        },
+        {
+          "id": "D",
+          "text": "Gold + Race Rerolls"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M5",
+      "question": "Marbles will buy weapons/armor/pickaxes only if they are…",
+      "options": [
+        {
+          "id": "A",
+          "text": "Enhanced to +3 or higher"
+        },
+        {
+          "id": "B",
+          "text": "Forged with at least 10 ores"
+        },
+        {
+          "id": "C",
+          "text": "Unequipped"
+        },
+        {
+          "id": "D",
+          "text": "Socketed with a rune"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M6",
+      "question": "Which pickaxe is obtained by destroying ice in the Underwater Chamber of Frostspire Expanse?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Prismatic Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Stonewake’s Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Arcane Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Void Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M7",
+      "question": "What level requirement is commonly stated for reaching Frostspire Expanse?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Level 10"
+        },
+        {
+          "id": "B",
+          "text": "Level 25"
+        },
+        {
+          "id": "C",
+          "text": "Level 50"
+        },
+        {
+          "id": "D",
+          "text": "Level 70"
+        }
+      ],
+      "correctOptionId": "D",
+      "image": null
+    },
+    {
+      "id": "M8",
+      "question": "Which pickaxe is listed as requiring Sensei Moro Quest 6, then purchased from the shop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Snow Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Frost Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Tungsten Pickaxe"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M9",
+      "question": "Which pickaxe is listed as requiring Sensei Moro Quest 7, then purchased from the shop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Frost Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Aqua Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Void Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Prismatic Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M10",
+      "question": "Which pickaxe is listed as requiring Sensei Moro Quest 8, then purchased from the shop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Snow Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Void Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Tungsten Pickaxe"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M11",
+      "question": "Which pickaxe is found in Fallen Angel’s Cave (unlocked via the “Unknown Key”)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Stonewake’s Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Arcane Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Prismatic Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Dragon Head Pickaxe"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M12",
+      "question": "Stonewake’s Pickaxe is listed as costing 3333 and located…",
+      "options": [
+        {
+          "id": "A",
+          "text": "In a boulder in Inner Cave"
+        },
+        {
+          "id": "B",
+          "text": "In the Underwater Chamber ice"
+        },
+        {
+          "id": "C",
+          "text": "In the Goblin Cave throne room"
+        },
+        {
+          "id": "D",
+          "text": "In Ashen Passage behind Basalt Veins"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M13",
+      "question": "Which Frostspire shop pickaxe is listed with Mine Speed −15%?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aqua Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Tungsten Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Snow Pickaxe"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M14",
+      "question": "Which Frostspire shop pickaxe is listed with Mine Power 200 and Mine Speed +5%?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Aqua Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Tungsten Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Void Pickaxe"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M15",
+      "question": "Bananite is described as being mined from Rocks and Boulders in…",
+      "options": [
+        {
+          "id": "A",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "B",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "C",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "D",
+          "text": "Raven Cave"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M16",
+      "question": "What chance is listed for Bananite in Stonewake’s Cross (in some guides)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "1/16"
+        },
+        {
+          "id": "B",
+          "text": "1/22"
+        },
+        {
+          "id": "C",
+          "text": "1/30"
+        },
+        {
+          "id": "D",
+          "text": "1/44"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M17",
+      "question": "Darkryte is described as mainly coming from which rock type in Forgotten Kingdom?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Basalt Vein"
+        },
+        {
+          "id": "B",
+          "text": "Volcanic Rock"
+        },
+        {
+          "id": "C",
+          "text": "Icy Boulder"
+        },
+        {
+          "id": "D",
+          "text": "Pebble"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M18",
+      "question": "Basalt Vein in Ashen Passage is listed as requiring what base damage to mine?",
+      "options": [
+        {
+          "id": "A",
+          "text": "33"
+        },
+        {
+          "id": "B",
+          "text": "78"
+        },
+        {
+          "id": "C",
+          "text": "115"
+        },
+        {
+          "id": "D",
+          "text": "320"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M19",
+      "question": "In many enhancement explanations, what happens when an enhancement attempt fails?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The item breaks permanently"
+        },
+        {
+          "id": "B",
+          "text": "The enhancement level drops by 1"
+        },
+        {
+          "id": "C",
+          "text": "Your rune slots reset to 0"
+        },
+        {
+          "id": "D",
+          "text": "The item becomes “cursed” and unsellable"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M20",
+      "question": "Enhancing gear requires Essences — and those are commonly described as coming from…",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mining rocks"
+        },
+        {
+          "id": "B",
+          "text": "Killing enemies"
+        },
+        {
+          "id": "C",
+          "text": "Buying from Miner Fred"
+        },
+        {
+          "id": "D",
+          "text": "Fishing in Frostspire"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    }
+  ],
+  "hard": [
+    {
+      "id": "H1",
+      "question": "Which pickaxe is obtained by completing Auron, Mjelatkhan, and Morveth’s quests inside Raven Cave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Dragon Head Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Heavenly Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Prismatic Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Arcane Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H2",
+      "question": "Which pickaxe is obtained by completing the Maze Quests in the Secret Maze (Hidden Maze)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Void Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Heavenly Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Tungsten Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Stonewake’s Pickaxe"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H3",
+      "question": "Which location is directly tied to getting the Prismatic Pickaxe by destroying ice?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Underwater Chamber"
+        },
+        {
+          "id": "B",
+          "text": "Fallen Angel’s Cave"
+        },
+        {
+          "id": "C",
+          "text": "Inner Cave"
+        },
+        {
+          "id": "D",
+          "text": "Ashen Passage"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H4",
+      "question": "To unlock Goblin Cave for Tomo’s Lost Cat quest, how many Goblin King quests must be completed?",
+      "options": [
+        {
+          "id": "A",
+          "text": "3"
+        },
+        {
+          "id": "B",
+          "text": "4"
+        },
+        {
+          "id": "C",
+          "text": "5"
+        },
+        {
+          "id": "D",
+          "text": "7"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "H5",
+      "question": "What title reward is explicitly mentioned for completing Tomo’s Lost Cat quest?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Guitar Finder"
+        },
+        {
+          "id": "B",
+          "text": "Cat Lover"
+        },
+        {
+          "id": "C",
+          "text": "Cave Raider"
+        },
+        {
+          "id": "D",
+          "text": "Goblin Bane"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H6",
+      "question": "In Tomo’s Lost Cat quest, the final hiding spot is behind a wall that is…",
+      "options": [
+        {
+          "id": "A",
+          "text": "An illusory/fake wall you can run through"
+        },
+        {
+          "id": "B",
+          "text": "A Basalt Vein you must mine"
+        },
+        {
+          "id": "C",
+          "text": "A locked stone gate needing a key"
+        },
+        {
+          "id": "D",
+          "text": "An ice barrier you must destroy"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H7",
+      "question": "Which race is listed with Gifted Miner (+mining damage, +better forge) and a Critical Mining passive?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Dwarf"
+        },
+        {
+          "id": "B",
+          "text": "Elf"
+        },
+        {
+          "id": "C",
+          "text": "Orc"
+        },
+        {
+          "id": "D",
+          "text": "Human"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H8",
+      "question": "Which race is listed with “Blessed: +3% Luck and +3% Extra XP”?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Human"
+        },
+        {
+          "id": "B",
+          "text": "Shadow"
+        },
+        {
+          "id": "C",
+          "text": "Goblin"
+        },
+        {
+          "id": "D",
+          "text": "Zombie"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H9",
+      "question": "Which race is commonly listed with a shop discount trait called “Bargain”?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Goblin"
+        },
+        {
+          "id": "B",
+          "text": "Minotaur"
+        },
+        {
+          "id": "C",
+          "text": "Dwarf"
+        },
+        {
+          "id": "D",
+          "text": "Shadow"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H10",
+      "question": "Which race is listed with “Phantom Step” (a chance to dodge by turning into a shadow)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Shadow"
+        },
+        {
+          "id": "B",
+          "text": "Orc"
+        },
+        {
+          "id": "C",
+          "text": "Elf"
+        },
+        {
+          "id": "D",
+          "text": "Human"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H11",
+      "question": "In ore trait mixing rules, what’s the minimum percentage often referenced to start applying a trait?",
+      "options": [
+        {
+          "id": "A",
+          "text": "5%"
+        },
+        {
+          "id": "B",
+          "text": "10%"
+        },
+        {
+          "id": "C",
+          "text": "20%"
+        },
+        {
+          "id": "D",
+          "text": "30%"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H12",
+      "question": "In ore trait mixing rules, what percentage is referenced for reaching “full potential” trait strength?",
+      "options": [
+        {
+          "id": "A",
+          "text": "10%"
+        },
+        {
+          "id": "B",
+          "text": "15%"
+        },
+        {
+          "id": "C",
+          "text": "25%"
+        },
+        {
+          "id": "D",
+          "text": "30%"
+        }
+      ],
+      "correctOptionId": "D",
+      "image": null
+    },
+    {
+      "id": "H13",
+      "question": "Which Relic ore is described as coming from a Lucky Block and having a 0x multiplier?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Fichillium"
+        },
+        {
+          "id": "B",
+          "text": "Bananite"
+        },
+        {
+          "id": "C",
+          "text": "Darkryte"
+        },
+        {
+          "id": "D",
+          "text": "Iceite"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H14",
+      "question": "Runes can be applied at Runemaker stations in Stonewake’s Cross, Forgotten Kingdom, or Frostspire Expanse. Which location below is not listed as a Runemaker station location?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "B",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "C",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "D",
+          "text": "Ashen Passage"
+        }
+      ],
+      "correctOptionId": "D",
+      "image": null
+    },
+    {
+      "id": "H15",
+      "question": "Which NPC is explicitly noted as appearing in both Stonewake’s Cross and Forgotten Kingdom as the Potions seller?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Maria"
+        },
+        {
+          "id": "B",
+          "text": "Wo"
+        },
+        {
+          "id": "C",
+          "text": "Isaac"
+        },
+        {
+          "id": "D",
+          "text": "Gurak"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H16",
+      "question": "Which pickaxe is listed at 1,350,000 Gold, has −5% Mine Speed, and is tied to Sensei Moro Quest 8 before purchase?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Void Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Frost Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Prismatic Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H17",
+      "question": "Which pickaxe is listed at 750,000 Gold, has 3 rune slots, and is tied to Sensei Moro Quest 6 before purchase?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Snow Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Aqua Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Tungsten Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Dragon Head Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H18",
+      "question": "Which pickaxe is listed at 1,000,000 Gold and is tied to Sensei Moro Quest 7 before purchase?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mist Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Frost Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Void Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Heavenly Pickaxe"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H19",
+      "question": "Which statement matches how “Critical Mining” is described in guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It guarantees a higher rarity ore every 10 hits"
+        },
+        {
+          "id": "B",
+          "text": "It triggers weak points that you can hit for increased damage"
+        },
+        {
+          "id": "C",
+          "text": "It converts ores into essences when you mine"
+        },
+        {
+          "id": "D",
+          "text": "It unlocks rune slots without enhancement"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H20",
+      "question": "Which statement about the Runemaker is explicitly stated in a wiki description?",
+      "options": [
+        {
+          "id": "A",
+          "text": "He crafts runes from ores"
+        },
+        {
+          "id": "B",
+          "text": "He embeds runes into your gear (and charges for it)"
+        },
+        {
+          "id": "C",
+          "text": "He upgrades gear using essences"
+        },
+        {
+          "id": "D",
+          "text": "He sells pickaxes depending on the region"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    }
+  ]
+}
