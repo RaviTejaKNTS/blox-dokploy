@@ -13,6 +13,7 @@ export type QuizPage = {
   code: string;
   title: string;
   description_md?: string | null;
+  about_md?: string | null;
   seo_title?: string | null;
   seo_description?: string | null;
   is_published: boolean;
@@ -40,9 +41,9 @@ export type QuizListEntry = Pick<
 };
 
 const QUIZ_SELECT_FIELDS_VIEW =
-  "id, universe_id, code, title, description_md, seo_title, seo_description, is_published, published_at, created_at, updated_at, content_updated_at, universe";
+  "id, universe_id, code, title, description_md, about_md, seo_title, seo_description, is_published, published_at, created_at, updated_at, content_updated_at, universe";
 const QUIZ_SELECT_FIELDS_BASE =
-  "id, universe_id, code, title, description_md, seo_title, seo_description, is_published, published_at, created_at, updated_at";
+  "id, universe_id, code, title, description_md, about_md, seo_title, seo_description, is_published, published_at, created_at, updated_at";
 
 const QUIZ_DATA_MAP: Record<string, string> = {
   "the-forge": path.join(process.cwd(), "data", "The Forge", "quiz.json")

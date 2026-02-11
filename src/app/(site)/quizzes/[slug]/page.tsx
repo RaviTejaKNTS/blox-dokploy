@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { formatDistanceToNow } from "date-fns";
+import "@/styles/article-content.css";
 import { QuizRunner } from "@/components/QuizRunner";
 import { getQuizPageByCode, loadQuizData } from "@/lib/quizzes";
-import { markdownToPlainText } from "@/lib/markdown";
+import { markdownToPlainText, renderMarkdown } from "@/lib/markdown";
 import type { QuizData, QuizQuestion } from "@/lib/quiz-types";
 import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
 
@@ -80,11 +82,24 @@ export default async function QuizPage({ params }: PageProps) {
   const description = page.description_md
     ? markdownToPlainText(page.description_md).replace(/\s+/g, " ").trim()
     : null;
+  const descriptionHtml = page.description_md
+    ? await renderMarkdown(page.description_md, { paragraphizeLineBreaks: true })
+    : "";
+  const aboutHtml = page.about_md
+    ? await renderMarkdown(page.about_md, { paragraphizeLineBreaks: true })
+    : "";
   const heroImage = pickThumbnail(page.universe?.thumbnail_urls) || page.universe?.icon_url || null;
-  const heroAlt = page.universe?.display_name ?? page.universe?.name ?? page.title;
+  const gameName = page.universe?.display_name ?? page.universe?.name ?? page.title;
+  const heroAlt = `${gameName} Quiz Thumbnail`;
   const canonical = `${SITE_URL}/quizzes/${page.code}`;
   const publishedTime = page.published_at || page.created_at || null;
   const modifiedTime = page.content_updated_at || page.updated_at || publishedTime || null;
+  const updatedDateValue = modifiedTime;
+  const updatedDate = updatedDateValue ? new Date(updatedDateValue) : null;
+  const formattedUpdated = updatedDate
+    ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
   const allQuestions = flattenQuestions(quizData);
 
   const structuredData = {
@@ -139,14 +154,44 @@ export default async function QuizPage({ params }: PageProps) {
 
   return (
     <>
+      <nav aria-label="Breadcrumb" className="mb-6 text-xs uppercase tracking-[0.25em] text-muted">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li className="flex items-center gap-2">
+            <a href="/" className="font-semibold text-muted transition hover:text-accent">
+              Home
+            </a>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <a href="/quizzes" className="font-semibold text-muted transition hover:text-accent">
+              Quizzes
+            </a>
+            <span className="text-muted/60">&gt;</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="font-semibold text-foreground/80">{page.title}</span>
+          </li>
+        </ol>
+      </nav>
       <QuizRunner
         quizCode={page.code}
         title={page.title}
         description={description}
+        descriptionHtml={descriptionHtml}
+        updatedLabel={formattedUpdated}
+        updatedRelativeLabel={updatedRelativeLabel}
         questions={quizData}
         heroImage={heroImage}
         heroAlt={heroAlt}
       />
+      {aboutHtml ? (
+        <section className="mt-10 border-t border-border/60 pt-6" id="about">
+          <div
+            className="prose dark:prose-invert max-w-none game-copy"
+            dangerouslySetInnerHTML={{ __html: aboutHtml }}
+          />
+        </section>
+      ) : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     </>
   );

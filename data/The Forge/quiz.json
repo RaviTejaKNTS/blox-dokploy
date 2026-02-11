@@ -479,6 +479,486 @@
       ],
       "correctOptionId": "A",
       "image": null
+    },
+    {
+      "id": "E21",
+      "question": "What is the first world/new-save starting area called?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Stonewake’s Cross"
+        },
+        {
+          "id": "B",
+          "text": "Forgotten Kingdom"
+        },
+        {
+          "id": "C",
+          "text": "Frostspire Expanse"
+        },
+        {
+          "id": "D",
+          "text": "Ashen Passage"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E22",
+      "question": "In Stonewake’s Cross, what’s the main mining cave the early quests send you into?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The Cave"
+        },
+        {
+          "id": "B",
+          "text": "Goblin Cave"
+        },
+        {
+          "id": "C",
+          "text": "Raven Cave"
+        },
+        {
+          "id": "D",
+          "text": "Frozen Webs"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E23",
+      "question": "Who runs the pickaxe shop (Miner Fred’s shop) in the early game?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "B",
+          "text": "Marbles"
+        },
+        {
+          "id": "C",
+          "text": "Wo"
+        },
+        {
+          "id": "D",
+          "text": "Greedy Cey"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E24",
+      "question": "In Stonewake’s Cross, who is the equipment buyer you sell crafted gear to?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Marbles"
+        },
+        {
+          "id": "B",
+          "text": "Wo"
+        },
+        {
+          "id": "C",
+          "text": "Runemaker"
+        },
+        {
+          "id": "D",
+          "text": "Enhancer"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E25",
+      "question": "Which NPC starts the tutorial questline near the forge area?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sensei Moro"
+        },
+        {
+          "id": "B",
+          "text": "Bard"
+        },
+        {
+          "id": "C",
+          "text": "Umut the Brave"
+        },
+        {
+          "id": "D",
+          "text": "Captain Rowan"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E26",
+      "question": "Which NPC inside The Cave gives the repeating “kill zombies” style tasks?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Umut the Brave"
+        },
+        {
+          "id": "B",
+          "text": "Nord"
+        },
+        {
+          "id": "C",
+          "text": "Wizard"
+        },
+        {
+          "id": "D",
+          "text": "Greedy Cey"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E27",
+      "question": "What level do you need before you can travel to the Forgotten Kingdom?",
+      "options": [
+        {
+          "id": "A",
+          "text": "10"
+        },
+        {
+          "id": "B",
+          "text": "25"
+        },
+        {
+          "id": "C",
+          "text": "50"
+        },
+        {
+          "id": "D",
+          "text": "70"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E28",
+      "question": "Which NPC do you go to at the end of early progression to get the Portal Tool?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Wizard"
+        },
+        {
+          "id": "B",
+          "text": "Bard"
+        },
+        {
+          "id": "C",
+          "text": "Enhancer"
+        },
+        {
+          "id": "D",
+          "text": "Runemaker"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E29",
+      "question": "Which side quest rewards the “Unknown Key”?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Bard’s Lost Guitar"
+        },
+        {
+          "id": "B",
+          "text": "Tomo’s Lost Cat"
+        },
+        {
+          "id": "C",
+          "text": "Basalt Extraction"
+        },
+        {
+          "id": "D",
+          "text": "Cure for Isaac"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E30",
+      "question": "What does the Unknown Key open?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The gate to Fallen Angel’s Cave"
+        },
+        {
+          "id": "B",
+          "text": "The door to Frozen Webs"
+        },
+        {
+          "id": "C",
+          "text": "The chest in Captain Rowan’s Camp"
+        },
+        {
+          "id": "D",
+          "text": "The portal to Frostspire Expanse"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E31",
+      "question": "What pickaxe is sold behind the Unknown Key gate?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Arcane Pickaxe"
+        },
+        {
+          "id": "B",
+          "text": "Mythril Pickaxe"
+        },
+        {
+          "id": "C",
+          "text": "Uranium Pickaxe"
+        },
+        {
+          "id": "D",
+          "text": "Cobalt Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E32",
+      "question": "What is the base cost of the Arcane Pickaxe?",
+      "options": [
+        {
+          "id": "A",
+          "text": "125,000 Gold"
+        },
+        {
+          "id": "B",
+          "text": "75,000 Gold"
+        },
+        {
+          "id": "C",
+          "text": "110,000 Gold"
+        },
+        {
+          "id": "D",
+          "text": "250,000 Gold"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E33",
+      "question": "How many rune slots does the Arcane Pickaxe have?",
+      "options": [
+        {
+          "id": "A",
+          "text": "3"
+        },
+        {
+          "id": "B",
+          "text": "2"
+        },
+        {
+          "id": "C",
+          "text": "1"
+        },
+        {
+          "id": "D",
+          "text": "0"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E34",
+      "question": "Tomo’s missing cat is found inside which cave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Goblin Cave"
+        },
+        {
+          "id": "B",
+          "text": "Secret Cave"
+        },
+        {
+          "id": "C",
+          "text": "Fallen Angel’s Cave"
+        },
+        {
+          "id": "D",
+          "text": "Demon’s Hideout"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E35",
+      "question": "What title do you get for completing Tomo’s Lost Cat?",
+      "options": [
+        {
+          "id": "A",
+          "text": "CatLover"
+        },
+        {
+          "id": "B",
+          "text": "Goblin Bane"
+        },
+        {
+          "id": "C",
+          "text": "Bard’s Friend"
+        },
+        {
+          "id": "D",
+          "text": "Frostwalker"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E36",
+      "question": "What unlocks access to the Goblin Cave (Forgotten Kingdom)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Completing all Goblin King quests"
+        },
+        {
+          "id": "B",
+          "text": "Buying the Better Forge gamepass"
+        },
+        {
+          "id": "C",
+          "text": "Reaching Level 70"
+        },
+        {
+          "id": "D",
+          "text": "Defeating the Golem boss"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E37",
+      "question": "Where can you usually find the Goblin King in the Forgotten Kingdom?",
+      "options": [
+        {
+          "id": "A",
+          "text": "By the forge near the Enhancer and Runemaker"
+        },
+        {
+          "id": "B",
+          "text": "Deep inside Volcanic Depths"
+        },
+        {
+          "id": "C",
+          "text": "Inside The Cave in Stonewake’s Cross"
+        },
+        {
+          "id": "D",
+          "text": "At the Frostspire spawn pier"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E38",
+      "question": "Which gamepass is known for boosting forge quality (“Better Forge”)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Better Forge"
+        },
+        {
+          "id": "B",
+          "text": "Fast Forge"
+        },
+        {
+          "id": "C",
+          "text": "Extra Rerolls"
+        },
+        {
+          "id": "D",
+          "text": "Starter Pack"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E39",
+      "question": "What rock type is associated with getting Fichillium?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Lucky Block"
+        },
+        {
+          "id": "B",
+          "text": "Basalt Core"
+        },
+        {
+          "id": "C",
+          "text": "Frost Fossil"
+        },
+        {
+          "id": "D",
+          "text": "Arcane Crystal"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E40",
+      "question": "Which statement best matches Fichillium-crafted items?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They have 0 stats and don’t sell for cash"
+        },
+        {
+          "id": "B",
+          "text": "They always roll Legendary"
+        },
+        {
+          "id": "C",
+          "text": "They double rune drop rates"
+        },
+        {
+          "id": "D",
+          "text": "They unlock Frostspire Expanse early"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
     }
   ],
   "medium": [
@@ -961,6 +1441,486 @@
       ],
       "correctOptionId": "B",
       "image": null
+    },
+    {
+      "id": "M21",
+      "question": "At what enhancement level do weapons/armor unlock the first rune slot?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+3"
+        },
+        {
+          "id": "B",
+          "text": "+2"
+        },
+        {
+          "id": "C",
+          "text": "+5"
+        },
+        {
+          "id": "D",
+          "text": "+10"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M22",
+      "question": "At what enhancement level is the second rune slot unlocked?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+6"
+        },
+        {
+          "id": "B",
+          "text": "+4"
+        },
+        {
+          "id": "C",
+          "text": "+8"
+        },
+        {
+          "id": "D",
+          "text": "+10"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M23",
+      "question": "What is the max enhancement level mentioned for weapons/armor in common guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "10"
+        },
+        {
+          "id": "B",
+          "text": "15"
+        },
+        {
+          "id": "C",
+          "text": "20"
+        },
+        {
+          "id": "D",
+          "text": "5"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M24",
+      "question": "Which NPC do you use to attach (socket) runes after enhancing gear?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Runemaker"
+        },
+        {
+          "id": "B",
+          "text": "Enhancer"
+        },
+        {
+          "id": "C",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "D",
+          "text": "Greedy Cey"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M25",
+      "question": "Enhancing gear primarily costs gold plus what resource?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Essences"
+        },
+        {
+          "id": "B",
+          "text": "Ores"
+        },
+        {
+          "id": "C",
+          "text": "Runes"
+        },
+        {
+          "id": "D",
+          "text": "Titles"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M26",
+      "question": "Before Bard’s guitar can be collected, what must you do first?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Start the quest by talking to Bard"
+        },
+        {
+          "id": "B",
+          "text": "Reach Level 10"
+        },
+        {
+          "id": "C",
+          "text": "Buy a Luck Potion"
+        },
+        {
+          "id": "D",
+          "text": "Equip the Goblin race"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M27",
+      "question": "In The Cave, what general route leads you to the locked gate for Fallen Angel’s Cave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Follow the wall on your right / take the right path"
+        },
+        {
+          "id": "B",
+          "text": "Always go left past Nord"
+        },
+        {
+          "id": "C",
+          "text": "Drop into the Secret Cave first"
+        },
+        {
+          "id": "D",
+          "text": "Go straight to the ladder room"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M28",
+      "question": "Goblin King Quest #2 requires $10,000 plus which gem?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Topaz"
+        },
+        {
+          "id": "B",
+          "text": "Diamond"
+        },
+        {
+          "id": "C",
+          "text": "Emerald"
+        },
+        {
+          "id": "D",
+          "text": "Ruby"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M29",
+      "question": "Goblin King Quest #5 requires $25,000 plus which ore/gem?",
+      "options": [
+        {
+          "id": "A",
+          "text": "5 Rubies"
+        },
+        {
+          "id": "B",
+          "text": "5 Diamonds"
+        },
+        {
+          "id": "C",
+          "text": "5 Topaz"
+        },
+        {
+          "id": "D",
+          "text": "5 Emeralds"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M30",
+      "question": "What total amount of gold do you pay across the full Goblin King questline (not counting ores)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "$75,000"
+        },
+        {
+          "id": "B",
+          "text": "$50,000"
+        },
+        {
+          "id": "C",
+          "text": "$100,000"
+        },
+        {
+          "id": "D",
+          "text": "$125,000"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M31",
+      "question": "“Monke Need Bananite” asks you to bring how many Bananite?",
+      "options": [
+        {
+          "id": "A",
+          "text": "30"
+        },
+        {
+          "id": "B",
+          "text": "10"
+        },
+        {
+          "id": "C",
+          "text": "50"
+        },
+        {
+          "id": "D",
+          "text": "5"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M32",
+      "question": "“Cure for Isaac” requires you to bring Isaac what item?",
+      "options": [
+        {
+          "id": "A",
+          "text": "1 Health Potion"
+        },
+        {
+          "id": "B",
+          "text": "1 Mana Potion"
+        },
+        {
+          "id": "C",
+          "text": "10 Tiny Essence"
+        },
+        {
+          "id": "D",
+          "text": "1 Unknown Key"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M33",
+      "question": "“Basalt Extraction” is the quest where you mine Basalt Rock and Basalt Core for which NPC?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Barakkulf"
+        },
+        {
+          "id": "B",
+          "text": "Gurak"
+        },
+        {
+          "id": "C",
+          "text": "Maria"
+        },
+        {
+          "id": "D",
+          "text": "Malik"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M34",
+      "question": "Which NPC gives the Demonite-related quest that rewards a key to open Demon’s Hideout?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Skal"
+        },
+        {
+          "id": "B",
+          "text": "Line"
+        },
+        {
+          "id": "C",
+          "text": "Walter"
+        },
+        {
+          "id": "D",
+          "text": "Azuk"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M35",
+      "question": "What secret area is specifically tied to that Demonite key?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Demon’s Hideout"
+        },
+        {
+          "id": "B",
+          "text": "Fallen Angel’s Cave"
+        },
+        {
+          "id": "C",
+          "text": "Secret Cave"
+        },
+        {
+          "id": "D",
+          "text": "Goblin Lord Room"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M36",
+      "question": "When does Frostspire Expanse become available (common requirement)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "After Level 70 (with Portal Tool)"
+        },
+        {
+          "id": "B",
+          "text": "After Level 10 (with Portal Tool)"
+        },
+        {
+          "id": "C",
+          "text": "After defeating Goblin King"
+        },
+        {
+          "id": "D",
+          "text": "After buying Arcane Pickaxe"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M37",
+      "question": "Which weapon is specifically called out as craftable at the Frostspire forge area?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Excalibur"
+        },
+        {
+          "id": "B",
+          "text": "Tin Uchigatana"
+        },
+        {
+          "id": "C",
+          "text": "Copper Dagger"
+        },
+        {
+          "id": "D",
+          "text": "Stone Club"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M38",
+      "question": "In the Forgotten Kingdom, which NPC is the gear buyer (the “sell your gear here” NPC)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Wo"
+        },
+        {
+          "id": "B",
+          "text": "Marbles"
+        },
+        {
+          "id": "C",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "D",
+          "text": "Bard"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M39",
+      "question": "Greedy Cey is most associated with selling which kinds of things?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ores/essences/runes"
+        },
+        {
+          "id": "B",
+          "text": "Only weapons"
+        },
+        {
+          "id": "C",
+          "text": "Only armor"
+        },
+        {
+          "id": "D",
+          "text": "Only pickaxes"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M40",
+      "question": "Which combo correctly describes Fichillium in most databases/guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Relic ore + 0x multiplier"
+        },
+        {
+          "id": "B",
+          "text": "Legendary ore + 3x multiplier"
+        },
+        {
+          "id": "C",
+          "text": "Rare ore + 1.75x multiplier"
+        },
+        {
+          "id": "D",
+          "text": "Mythical ore + 10x multiplier"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
     }
   ],
   "hard": [
@@ -1442,6 +2402,486 @@
         }
       ],
       "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H21",
+      "question": "According to Arcane Pickaxe guides, equipping which race can lower its price to $110,000?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Goblin"
+        },
+        {
+          "id": "B",
+          "text": "Dwarf"
+        },
+        {
+          "id": "C",
+          "text": "Elf"
+        },
+        {
+          "id": "D",
+          "text": "Orc"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H22",
+      "question": "Which Goblin passive is commonly described as giving a shopping discount?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Bargain"
+        },
+        {
+          "id": "B",
+          "text": "Sneaky"
+        },
+        {
+          "id": "C",
+          "text": "Fragile Bones"
+        },
+        {
+          "id": "D",
+          "text": "Muscular"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H23",
+      "question": "Which race’s “Gifted Miner” passive includes +5 Better Forge?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Dwarf"
+        },
+        {
+          "id": "B",
+          "text": "Shadow"
+        },
+        {
+          "id": "C",
+          "text": "Undead"
+        },
+        {
+          "id": "D",
+          "text": "Minotaur"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H24",
+      "question": "What is the Better Forge gamepass bonus commonly listed as?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+30 Better Forge"
+        },
+        {
+          "id": "B",
+          "text": "+30 Mining Damage"
+        },
+        {
+          "id": "C",
+          "text": "+30% XP"
+        },
+        {
+          "id": "D",
+          "text": "+30 Rune Drop Rate"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H25",
+      "question": "Which enhancement milestone unlocks the second rune slot?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+6"
+        },
+        {
+          "id": "B",
+          "text": "+4"
+        },
+        {
+          "id": "C",
+          "text": "+8"
+        },
+        {
+          "id": "D",
+          "text": "+10"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H26",
+      "question": "From which enhancement level do failures commonly start dropping your level by 1?",
+      "options": [
+        {
+          "id": "A",
+          "text": "+3"
+        },
+        {
+          "id": "B",
+          "text": "+1"
+        },
+        {
+          "id": "C",
+          "text": "+6"
+        },
+        {
+          "id": "D",
+          "text": "+10"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H27",
+      "question": "In most directions to Bard’s guitar, you enter The Cave and go left past which NPC before the hidden entrance?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Umut the Brave"
+        },
+        {
+          "id": "B",
+          "text": "Nord"
+        },
+        {
+          "id": "C",
+          "text": "Miner Fred"
+        },
+        {
+          "id": "D",
+          "text": "Wizard"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H28",
+      "question": "Bard’s guitar is described as sitting next to what object in the Secret Cave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "A skeleton"
+        },
+        {
+          "id": "B",
+          "text": "A forge anvil"
+        },
+        {
+          "id": "C",
+          "text": "A glowing portal"
+        },
+        {
+          "id": "D",
+          "text": "A chest labeled “Bard”"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H29",
+      "question": "The Unknown Key’s gate leads into which named cave area?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Fallen Angel’s Cave"
+        },
+        {
+          "id": "B",
+          "text": "Secret Cave"
+        },
+        {
+          "id": "C",
+          "text": "Demon’s Hideout"
+        },
+        {
+          "id": "D",
+          "text": "Frozen Webs"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H30",
+      "question": "In Goblin Cave, where is Tomo’s cat hidden according to multiple guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Behind a waterfall/illusion wall area"
+        },
+        {
+          "id": "B",
+          "text": "On top of the Forgotten Kingdom Wizard Tower"
+        },
+        {
+          "id": "C",
+          "text": "In the Stonewake’s Cross campfire area"
+        },
+        {
+          "id": "D",
+          "text": "Inside Demon’s Hideout behind Skal"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H31",
+      "question": "Tomo the Explorist is described as standing where in Stonewake’s Cross?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Behind Greedy Cey on the road toward the Wizard"
+        },
+        {
+          "id": "B",
+          "text": "Inside The Cave next to Nord"
+        },
+        {
+          "id": "C",
+          "text": "At the Frostspire spawn pier"
+        },
+        {
+          "id": "D",
+          "text": "In Volcanic Depths beside Skal"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H32",
+      "question": "Goblin King Quest #1 requires $5,000 plus which ore?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Gold"
+        },
+        {
+          "id": "B",
+          "text": "Topaz"
+        },
+        {
+          "id": "C",
+          "text": "Emerald"
+        },
+        {
+          "id": "D",
+          "text": "Ruby"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H33",
+      "question": "What total gold is required to finish all Goblin King quests (excluding ores)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "$75,000"
+        },
+        {
+          "id": "B",
+          "text": "$85,000"
+        },
+        {
+          "id": "C",
+          "text": "$60,000"
+        },
+        {
+          "id": "D",
+          "text": "$100,000"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H34",
+      "question": "Which gem is NOT required anywhere in the Goblin King quest chain?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sapphire"
+        },
+        {
+          "id": "B",
+          "text": "Topaz"
+        },
+        {
+          "id": "C",
+          "text": "Diamond"
+        },
+        {
+          "id": "D",
+          "text": "Ruby"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H35",
+      "question": "What key reward is described after completing the final Goblin King quest?",
+      "options": [
+        {
+          "id": "A",
+          "text": "A key that unlocks Goblin Cave"
+        },
+        {
+          "id": "B",
+          "text": "The Unknown Key"
+        },
+        {
+          "id": "C",
+          "text": "A key that unlocks Fallen Angel’s Cave"
+        },
+        {
+          "id": "D",
+          "text": "A key that unlocks Secret Cave"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H36",
+      "question": "Which description best matches Fichillium in major ore lists?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Relic ore, 0x multiplier, price $0"
+        },
+        {
+          "id": "B",
+          "text": "Rare ore, 1.75x multiplier, price $26.25"
+        },
+        {
+          "id": "C",
+          "text": "Legendary ore, 3x multiplier, price $500"
+        },
+        {
+          "id": "D",
+          "text": "Mythical ore, 10x multiplier, price $10,000"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H37",
+      "question": "Which source rock is repeatedly tied to mining Fichillium?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Lucky Block"
+        },
+        {
+          "id": "B",
+          "text": "Basalt Vein"
+        },
+        {
+          "id": "C",
+          "text": "Arcane Crystal"
+        },
+        {
+          "id": "D",
+          "text": "Frost Fossil"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H38",
+      "question": "What is Fichillium commonly described as (functionally) in guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "An Easter egg / ad for Abyss"
+        },
+        {
+          "id": "B",
+          "text": "The best endgame multiplier ore"
+        },
+        {
+          "id": "C",
+          "text": "The only ore that guarantees Legendary crafts"
+        },
+        {
+          "id": "D",
+          "text": "The ore needed to open Frostspire"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H39",
+      "question": "Arcane Pickaxe is widely described as having how many rune slots?",
+      "options": [
+        {
+          "id": "A",
+          "text": "3"
+        },
+        {
+          "id": "B",
+          "text": "2"
+        },
+        {
+          "id": "C",
+          "text": "1"
+        },
+        {
+          "id": "D",
+          "text": "0"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H40",
+      "question": "In Arcane Pickaxe directions, how do guides say you find the Fallen Angel’s Cave gate inside The Cave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Follow the wall on your right until you see the gate"
+        },
+        {
+          "id": "B",
+          "text": "Go left, then drop into Secret Cave first"
+        },
+        {
+          "id": "C",
+          "text": "Talk to Nord, then climb the ladder room"
+        },
+        {
+          "id": "D",
+          "text": "Defeat the Goblin King in Stonewake’s Cross"
+        }
+      ],
+      "correctOptionId": "A",
       "image": null
     }
   ]

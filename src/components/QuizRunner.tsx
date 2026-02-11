@@ -19,6 +19,9 @@ type QuizRunnerProps = {
   quizCode: string;
   title: string;
   description?: string | null;
+  descriptionHtml?: string | null;
+  updatedLabel?: string | null;
+  updatedRelativeLabel?: string | null;
   questions: QuizData;
   heroImage?: string | null;
   heroAlt?: string | null;
@@ -208,7 +211,7 @@ function sanitizeAnswers(
 }
 
 export function QuizRunner(props: QuizRunnerProps) {
-  const { quizCode, title, description, questions } = props;
+  const { quizCode, title, description, descriptionHtml, questions, updatedLabel, updatedRelativeLabel } = props;
   const heroImage = props.heroImage ?? null;
   const heroAlt = props.heroAlt ?? null;
   const [session, setSession] = useState<SessionState>({ status: "loading", userId: null });
@@ -462,9 +465,21 @@ export function QuizRunner(props: QuizRunnerProps) {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent/80">Roblox Quiz</p>
-        <h1 className="text-3xl font-semibold text-foreground md:text-4xl">{title}</h1>
-        {description ? <p className="max-w-3xl text-sm text-muted md:text-base">{description}</p> : null}
+        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">{title}</h1>
+        {updatedLabel ? (
+          <p className="text-sm text-foreground/80">
+            Updated on <span className="font-semibold text-foreground">{updatedLabel}</span>
+            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+          </p>
+        ) : null}
+        {descriptionHtml ? (
+          <div
+            className="prose dark:prose-invert game-copy max-w-3xl"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
+        ) : description ? (
+          <p className="max-w-3xl text-sm text-muted md:text-base">{description}</p>
+        ) : null}
       </header>
 
       {!showSummary ? (
