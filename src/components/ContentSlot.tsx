@@ -16,6 +16,8 @@ type ContentSlotProps = {
   adFormat?: string;
   fullWidthResponsive?: boolean;
   textAlign?: "left" | "center" | "right" | "start" | "end";
+  collapseOnUnfilled?: boolean;
+  collapseAfterMs?: number;
 };
 
 const DEFAULT_MIN_HEIGHT = 250;
@@ -31,7 +33,9 @@ export function ContentSlot({
   adLayoutKey,
   adFormat = "fluid",
   fullWidthResponsive = false,
-  textAlign = "center"
+  textAlign = "center",
+  collapseOnUnfilled = true,
+  collapseAfterMs = 0
 }: ContentSlotProps) {
   const { requiresConsent, state, shouldShowBanner } = useConsent();
   const [isMounted, setIsMounted] = useState(false);
@@ -40,6 +44,7 @@ export function ContentSlot({
   const insRef = useRef<HTMLModElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasPushedRef = useRef(false);
+  const unfilledTimeoutRef = useRef<number | null>(null);
 
   const marketingAllowed = useMemo(() => {
     if (!requiresConsent) return true;
@@ -78,13 +83,39 @@ export function ContentSlot({
     const ins = insRef.current;
     if (!ins) return;
 
+    const clearUnfilledTimeout = () => {
+      if (unfilledTimeoutRef.current !== null) {
+        window.clearTimeout(unfilledTimeoutRef.current);
+        unfilledTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleUnfilled = () => {
+      if (!collapseOnUnfilled) return;
+      if (!collapseAfterMs || collapseAfterMs <= 0) {
+        setStatus("unfilled");
+        return;
+      }
+      if (unfilledTimeoutRef.current !== null) return;
+      unfilledTimeoutRef.current = window.setTimeout(() => {
+        setStatus("unfilled");
+        unfilledTimeoutRef.current = null;
+      }, collapseAfterMs);
+    };
+
     const updateStatus = () => {
       const next = ins.getAttribute("data-ad-status");
       if (next === "filled" || next === "unfilled") {
-        setStatus(next);
+        if (next === "filled") {
+          clearUnfilledTimeout();
+          setStatus("filled");
+        } else {
+          scheduleUnfilled();
+        }
         return;
       }
       if (ins.getBoundingClientRect().height > 10) {
+        clearUnfilledTimeout();
         setStatus("filled");
       }
     };
@@ -106,9 +137,10 @@ export function ContentSlot({
     updateStatus();
 
     return () => {
+      clearUnfilledTimeout();
       observer.disconnect();
     };
-  }, [shouldRender, slot, clientId]);
+  }, [shouldRender, slot, clientId, collapseOnUnfilled, collapseAfterMs]);
 
   if (!clientId || !isMounted || !marketingAllowed || status === "unfilled") {
     return <div ref={containerRef} className={className} style={{ minHeight: 1 }} />;
