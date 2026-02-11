@@ -22,6 +22,7 @@ type QuizRunnerProps = {
   questions: QuizData;
   heroImage?: string | null;
   heroAlt?: string | null;
+  initialAttempt?: AttemptQuestion[];
 };
 
 type SessionState = { status: "loading" | "ready"; userId: string | null };
@@ -198,15 +199,17 @@ export function QuizRunner(props: QuizRunnerProps) {
   const { quizCode, title, description, questions } = props;
   const heroImage = props.heroImage ?? null;
   const heroAlt = props.heroAlt ?? null;
+  const initialAttempt = props.initialAttempt ?? [];
   const [session, setSession] = useState<SessionState>({ status: "loading", userId: null });
   const [progressStatus, setProgressStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [seenQuestionIds, setSeenQuestionIds] = useState<string[]>([]);
-  const [attempt, setAttempt] = useState<AttemptQuestion[]>([]);
+  const [attempt, setAttempt] = useState<AttemptQuestion[]>(() => initialAttempt);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showSummary, setShowSummary] = useState(false);
   const [savedAttemptKey, setSavedAttemptKey] = useState<string | null>(null);
   const lastSavedAttempt = useRef<string | null>(null);
+  const hydratedAttempt = useRef(false);
   const storageKey = useMemo(() => getStorageKey(quizCode), [quizCode]);
 
   useEffect(() => {
@@ -279,6 +282,7 @@ export function QuizRunner(props: QuizRunnerProps) {
   }, [session.status, session.userId, quizCode]);
 
   const readyToStart = session.status === "ready" && progressStatus === "ready";
+  const hasInitialAttempt = initialAttempt.length > 0;
 
   const startNewAttempt = useCallback(() => {
     const nextAttempt = buildAttempt(questions, seenQuestionIds);
@@ -291,42 +295,44 @@ export function QuizRunner(props: QuizRunnerProps) {
   }, [questions, seenQuestionIds]);
 
   useEffect(() => {
-    if (readyToStart && attempt.length === 0) {
-      if (typeof window !== "undefined") {
-        try {
-          const raw = window.localStorage.getItem(storageKey);
-          const parsed = raw ? (JSON.parse(raw) as PersistedState) : null;
-          if (parsed && parsed.version === STORAGE_VERSION && Array.isArray(parsed.attempt)) {
-            const restoredAttempt = restoreAttempt(parsed.attempt, questions);
-            if (restoredAttempt) {
-              const rawAnswers =
-                parsed.answers && typeof parsed.answers === "object" && !Array.isArray(parsed.answers)
-                  ? (parsed.answers as Record<string, string>)
-                  : {};
-              const restoredAnswers = sanitizeAnswers(rawAnswers, restoredAttempt);
-              const answeredCount = Object.keys(restoredAnswers).length;
-              const total = restoredAttempt.length;
-              const restoredShowSummary = Boolean(parsed.showSummary && answeredCount === total);
-              const safeIndex = Math.min(
-                Math.max(Number.isFinite(parsed.currentIndex) ? parsed.currentIndex : 0, 0),
-                Math.max(0, total - 1)
-              );
-              setAttempt(restoredAttempt);
-              setAnswers(restoredAnswers);
-              setCurrentIndex(safeIndex);
-              setShowSummary(restoredShowSummary);
-              setSavedAttemptKey(parsed.savedAttemptKey ?? null);
-              if (parsed.savedAttemptKey) {
-                lastSavedAttempt.current = parsed.savedAttemptKey;
-              }
-              return;
+    if (!readyToStart || hydratedAttempt.current) return;
+    hydratedAttempt.current = true;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? (JSON.parse(raw) as PersistedState) : null;
+        if (parsed && parsed.version === STORAGE_VERSION && Array.isArray(parsed.attempt)) {
+          const restoredAttempt = restoreAttempt(parsed.attempt, questions);
+          if (restoredAttempt) {
+            const rawAnswers =
+              parsed.answers && typeof parsed.answers === "object" && !Array.isArray(parsed.answers)
+                ? (parsed.answers as Record<string, string>)
+                : {};
+            const restoredAnswers = sanitizeAnswers(rawAnswers, restoredAttempt);
+            const answeredCount = Object.keys(restoredAnswers).length;
+            const total = restoredAttempt.length;
+            const restoredShowSummary = Boolean(parsed.showSummary && answeredCount === total);
+            const safeIndex = Math.min(
+              Math.max(Number.isFinite(parsed.currentIndex) ? parsed.currentIndex : 0, 0),
+              Math.max(0, total - 1)
+            );
+            setAttempt(restoredAttempt);
+            setAnswers(restoredAnswers);
+            setCurrentIndex(safeIndex);
+            setShowSummary(restoredShowSummary);
+            setSavedAttemptKey(parsed.savedAttemptKey ?? null);
+            if (parsed.savedAttemptKey) {
+              lastSavedAttempt.current = parsed.savedAttemptKey;
             }
+            return;
           }
-        } catch {
-          // Ignore invalid stored state
         }
+      } catch {
+        // Ignore invalid stored state
       }
+    }
 
+    if (attempt.length === 0) {
       startNewAttempt();
     }
   }, [readyToStart, attempt.length, startNewAttempt, questions, storageKey]);
@@ -428,7 +434,7 @@ export function QuizRunner(props: QuizRunnerProps) {
     startNewAttempt();
   };
 
-  if (!readyToStart) {
+  if (!readyToStart && !hasInitialAttempt) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-muted">
         Preparing your quiz...
