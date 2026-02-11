@@ -34,7 +34,7 @@ export function ContentSlot({
   adFormat = "fluid",
   fullWidthResponsive = false,
   textAlign = "center",
-  collapseOnUnfilled = true,
+  collapseOnUnfilled = false,
   collapseAfterMs = 0
 }: ContentSlotProps) {
   const { requiresConsent, state, shouldShowBanner } = useConsent();
@@ -75,8 +75,9 @@ export function ContentSlot({
     return () => observer.disconnect();
   }, [isMounted, isInView, rootMargin]);
 
+  const shouldCollapse = collapseOnUnfilled && status === "unfilled";
   const shouldRender =
-    Boolean(clientId) && isMounted && marketingAllowed && isInView && status !== "unfilled";
+    Boolean(clientId) && isMounted && marketingAllowed && isInView && !shouldCollapse;
 
   useEffect(() => {
     if (!shouldRender || typeof window === "undefined") return;
@@ -110,7 +111,9 @@ export function ContentSlot({
           clearUnfilledTimeout();
           setStatus("filled");
         } else {
-          scheduleUnfilled();
+          if (status !== "filled") {
+            scheduleUnfilled();
+          }
         }
         return;
       }
@@ -140,10 +143,16 @@ export function ContentSlot({
       clearUnfilledTimeout();
       observer.disconnect();
     };
-  }, [shouldRender, slot, clientId, collapseOnUnfilled, collapseAfterMs]);
+  }, [shouldRender, slot, clientId, collapseOnUnfilled, collapseAfterMs, status]);
 
-  if (!clientId || !isMounted || !marketingAllowed || status === "unfilled") {
-    return <div ref={containerRef} className={className} style={{ minHeight: 1 }} />;
+  if (!clientId || !isMounted || !marketingAllowed || shouldCollapse) {
+    return (
+      <div
+        ref={containerRef}
+        className={className}
+        style={{ minHeight: shouldCollapse ? minHeight : 1 }}
+      />
+    );
   }
 
   const slotStyle = shouldRender

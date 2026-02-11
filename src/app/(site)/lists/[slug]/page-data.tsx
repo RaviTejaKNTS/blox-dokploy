@@ -471,7 +471,6 @@ export function ListPageView({
                       adLayoutKey="-cc+6e-70-he+1wy"
                       adFormat="fluid"
                       minHeight={120}
-                      collapseAfterMs={15000}
                     />
                   );
                 }
