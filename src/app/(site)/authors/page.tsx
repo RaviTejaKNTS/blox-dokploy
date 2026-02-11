@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthorSocialLinks } from "@/components/AuthorSocialLinks";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { listAuthors } from "@/lib/db";
-import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 
 const title = "Bloxodes Authors";
 const description = "Meet the editors and contributors who verify Roblox codes for Bloxodes.";
@@ -14,7 +14,7 @@ const ogImage = `${SITE_URL}/og-image.png`;
 export const metadata: Metadata = {
   title,
   description,
-  alternates: { canonical },
+  alternates: buildAlternates(canonical),
   openGraph: {
     type: "website",
     url: canonical,

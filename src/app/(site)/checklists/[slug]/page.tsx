@@ -6,7 +6,7 @@ import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { ChecklistFooterLinks } from "@/components/ChecklistFooterLinks";
 import { getChecklistPageBySlug } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
-import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 3600; // 1 hour
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${titleBase} | ${SITE_NAME}`,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "article",
       url: canonical,

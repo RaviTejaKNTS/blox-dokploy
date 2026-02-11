@@ -13,7 +13,7 @@ import {
   type GameListNavEntry,
   type UniverseListBadge
 } from "@/lib/db";
-import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle } from "@/lib/seo";
+import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, webPageJsonLd, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { markdownToPlainText } from "@/lib/markdown";
 import { formatDistanceToNow } from "date-fns";
 import { ListCard } from "@/components/ListCard";
@@ -113,9 +113,7 @@ export async function buildMetadata(slug: string, page: number): Promise<Metadat
     title,
     description,
     robots: page > 1 ? { index: false, follow: true } : undefined,
-    alternates: {
-      canonical
-    },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "article",
       url: canonical,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TOOLS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { TOOLS_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { loadToolsPageData, renderToolsPage } from "./page-data";
 
 export const revalidate = 21600; // refresh a few times per day
@@ -8,9 +8,7 @@ export const revalidate = 21600; // refresh a few times per day
 export const metadata: Metadata = {
   title: `Roblox Tools & Calculators | ${SITE_NAME}`,
   description: TOOLS_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/tools`
-  },
+  alternates: buildAlternates(`${SITE_URL}/tools`),
   openGraph: {
     type: "website",
     url: `${SITE_URL}/tools`,

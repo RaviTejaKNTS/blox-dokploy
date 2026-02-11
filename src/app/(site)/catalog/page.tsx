@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { CatalogCard } from "@/components/CatalogCard";
-import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadAdminCommandSummary } from "@/lib/admin-commands";
 
@@ -10,9 +10,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: `Roblox Catalogs | ${SITE_NAME}`,
   description: CATALOG_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/catalog`
-  },
+  alternates: buildAlternates(`${SITE_URL}/catalog`),
   openGraph: {
     type: "website",
     url: `${SITE_URL}/catalog`,

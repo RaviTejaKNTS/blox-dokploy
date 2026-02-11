@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { notFound } from "next/navigation";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   loadFreeItemCategoryBySlug,
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${title} | ${SITE_NAME}`,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "website",
       url: canonical,

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { LISTS_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { loadListsPageData, renderListsPage } from "./page-data";
 
 export const revalidate = 86400; // daily
@@ -7,9 +7,7 @@ export const revalidate = 86400; // daily
 export const metadata = {
   title: `Roblox Game Lists | ${SITE_NAME}`,
   description: LISTS_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/lists`
-  }
+  alternates: buildAlternates(`${SITE_URL}/lists`)
 };
 
 export default async function ListsPage() {

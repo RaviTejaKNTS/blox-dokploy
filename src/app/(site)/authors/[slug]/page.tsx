@@ -15,7 +15,8 @@ import {
   SITE_NAME,
   SITE_URL,
   authorJsonLd,
-  breadcrumbJsonLd
+  breadcrumbJsonLd,
+  buildAlternates,
 } from "@/lib/seo";
 
 // Cache author pages for a month; on-demand revalidation keeps them fresh
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     authors: [{ name: author.name, url: canonical }],
     openGraph: {
       type: "profile",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { getToolContent } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { loadCropDataset } from "@/lib/grow-a-garden/crops";
@@ -81,7 +81,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: CANONICAL },
+    alternates: buildAlternates(CANONICAL),
     openGraph: {
       type: "article",
       url: CANONICAL,

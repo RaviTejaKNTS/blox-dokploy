@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
-import { breadcrumbJsonLd, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   buildCategoryCards,
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${PAGE_TITLE} | ${SITE_NAME}`,
     description: PAGE_DESCRIPTION,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "website",
       url: canonical,

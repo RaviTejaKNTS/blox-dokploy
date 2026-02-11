@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes, type CatalogFaqEntry } from "@/lib/catalog";
-import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 
 export const revalidate = 86400;
@@ -90,14 +90,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonical = `${SITE_URL.replace(/\/$/, "")}/catalog/${code}`;
   if (!code) {
     return {
-      alternates: { canonical: `${SITE_URL.replace(/\/$/, "")}/catalog` }
+      alternates: buildAlternates(`${SITE_URL.replace(/\/$/, "")}/catalog`)
     };
   }
 
   const catalog = await getCatalogPageContentByCodes([code]);
   if (!catalog) {
     return {
-      alternates: { canonical }
+      alternates: buildAlternates(canonical)
     };
   }
 
@@ -108,9 +108,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    alternates: {
-      canonical
-    },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "website",
       url: canonical,

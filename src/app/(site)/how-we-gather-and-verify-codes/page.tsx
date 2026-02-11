@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "@/styles/article-content.css";
-import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 
 const title = "How We Gather and Verify Codes";
 const description = "Learn how Bloxodes finds, verifies, and keeps Roblox codes accurate for players.";
@@ -10,7 +10,7 @@ const ogImage = `${SITE_URL}/og-image.png`;
 export const metadata: Metadata = {
   title,
   description,
-  alternates: { canonical },
+  alternates: buildAlternates(canonical),
   openGraph: {
     type: "website",
     url: canonical,

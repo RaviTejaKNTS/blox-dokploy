@@ -4,7 +4,7 @@ import Link from "next/link";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { loadAdminCommandDatasets } from "@/lib/admin-commands";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 
@@ -87,9 +87,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: CANONICAL
-    },
+    alternates: buildAlternates(CANONICAL),
     openGraph: {
       type: "website",
       url: CANONICAL,

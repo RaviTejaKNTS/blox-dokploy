@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { listPublishedArticlesPage, type ArticleWithRelations } from "@/lib/db";
-import { ARTICLES_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { ARTICLES_DESCRIPTION, SITE_URL, buildAlternates } from "@/lib/seo";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -124,7 +124,5 @@ export function renderArticlesPage(props: Parameters<typeof ArticlesPageView>[0]
 export const articlesMetadata: Metadata = {
   title: "Articles & Guides",
   description: ARTICLES_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/articles`
-  }
+  alternates: buildAlternates(`${SITE_URL}/articles`)
 };

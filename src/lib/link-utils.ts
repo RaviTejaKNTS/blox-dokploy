@@ -8,25 +8,31 @@ type ProcessedHtml = {
 export function processHtmlLinks(html: string): ProcessedHtml {
   if (typeof document === 'undefined') {
     // Server-side: Use string manipulation
-    const processedHtml = html.replace(/<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g, (match, quote, href) => {
-      if (!href) return match;
-      
-      // Skip processing if it's a relative URL or bloxodes.com
-      if (href.startsWith('/') || 
-          href.startsWith('#') || 
-          href.startsWith('mailto:') || 
+    const processedHtml = html.replace(
+      /<a\b([^>]*?)href=(["'])(.*?)\2([^>]*?)>/gi,
+      (match, attrsBefore, quote, href, attrsAfter) => {
+        if (!href) return match;
+
+        // Skip processing if it's a relative URL or bloxodes.com
+        if (
+          href.startsWith('/') ||
+          href.startsWith('#') ||
+          href.startsWith('mailto:') ||
           href.startsWith('tel:') ||
-          new URL(href, 'https://bloxodes.com').hostname === 'bloxodes.com') {
-        return match;
+          new URL(href, 'https://bloxodes.com').hostname === 'bloxodes.com'
+        ) {
+          return match;
+        }
+
+        const before = attrsBefore ?? '';
+        const after = attrsAfter ?? '';
+        const hasTarget = /\btarget\s*=/.test(before) || /\btarget\s*=/.test(after);
+        const hasRel = /\brel\s*=/.test(before) || /\brel\s*=/.test(after);
+        const extraAttrs = `${hasTarget ? '' : ' target="_blank"'}${hasRel ? '' : ' rel="noopener noreferrer"'}`;
+
+        return `<a${before}href=${quote}${href}${quote}${after}${extraAttrs}>`;
       }
-      
-      // Add target="_blank" and rel="noopener noreferrer" to external links
-      if (match.includes('target=')) {
-        return match.replace(/target=["'][^"']*["']/, 'target="_blank" rel="noopener noreferrer"');
-      } else {
-        return `${match} target="_blank" rel="noopener noreferrer"`;
-      }
-    });
+    );
     
     return { __html: processedHtml };
   } else {
@@ -48,9 +54,13 @@ export function processHtmlLinks(html: string): ProcessedHtml {
           return;
         }
         
-        // Add target and rel attributes
-        link.setAttribute('target', '_blank');
-        link.setAttribute('rel', 'noopener noreferrer');
+        // Add target and rel attributes if missing
+        if (!link.hasAttribute('target')) {
+          link.setAttribute('target', '_blank');
+        }
+        if (!link.hasAttribute('rel')) {
+          link.setAttribute('rel', 'noopener noreferrer');
+        }
       } catch (e) {
         // If URL parsing fails, leave the link as is
         console.warn('Failed to process link:', link.href, e);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { loadForgeArmorDataset } from "@/lib/forge/armors";
 import { loadForgeOreDataset } from "@/lib/forge/ores";
@@ -65,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: "The Forge Crafting Calculator",
       description: "Plan your ores for The Forge and see weapon or armor probabilities, multipliers, and trait activations.",
-      alternates: { canonical: CANONICAL }
+      alternates: buildAlternates(CANONICAL)
     };
   }
 
@@ -78,9 +78,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: CANONICAL
-    },
+    alternates: buildAlternates(CANONICAL),
     openGraph: {
       type: "article",
       url: CANONICAL,

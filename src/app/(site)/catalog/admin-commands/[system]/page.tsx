@@ -7,7 +7,7 @@ import { CopyCodeButton } from "@/components/CopyCodeButton";
 import { CommentsSection } from "@/components/comments/CommentsSection";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { ADMIN_COMMANDS_DESCRIPTION, resolveSeoTitle, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { getAdminCommandSystems, loadAdminCommandDataset, loadAdminCommandDatasets } from "@/lib/admin-commands";
 
 export const revalidate = 86400;
@@ -376,9 +376,7 @@ export async function generateMetadata({ params }: { params: Promise<{ system: s
     return {
       title: `Roblox Admin Commands | ${SITE_NAME}`,
       description: ADMIN_COMMANDS_DESCRIPTION,
-      alternates: {
-        canonical: CANONICAL_BASE
-      }
+      alternates: buildAlternates(CANONICAL_BASE)
     };
   }
 
@@ -396,9 +394,7 @@ export async function generateMetadata({ params }: { params: Promise<{ system: s
   return {
     title,
     description,
-    alternates: {
-      canonical
-    },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "article",
       url: canonical,

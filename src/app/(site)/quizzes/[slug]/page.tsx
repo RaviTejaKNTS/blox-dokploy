@@ -6,7 +6,7 @@ import { QuizRunner } from "@/components/QuizRunner";
 import { getQuizPageByCode, loadQuizData } from "@/lib/quizzes";
 import { markdownToPlainText, renderMarkdown } from "@/lib/markdown";
 import type { QuizData, QuizQuestion } from "@/lib/quiz-types";
-import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
 
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${titleBase} | ${SITE_NAME}`,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "website",
       url: canonical,

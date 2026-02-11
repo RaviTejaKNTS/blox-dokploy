@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadListsPageData, renderListsPage } from "../../page-data";
-import { LISTS_DESCRIPTION } from "@/lib/seo";
+import { LISTS_DESCRIPTION, buildAlternates } from "@/lib/seo";
 
 export const revalidate = 86400; // daily
 
@@ -18,9 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description: LISTS_DESCRIPTION,
     robots: { index: false, follow: true },
-    alternates: {
-      canonical: pageNumber === 1 ? "/lists" : `/lists/page/${pageNumber}`
-    }
+    alternates: buildAlternates(pageNumber === 1 ? "/lists" : `/lists/page/${pageNumber}`)
   };
 }
 

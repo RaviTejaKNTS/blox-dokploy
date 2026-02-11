@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { loadQuizzesPageData, renderQuizzesPage } from "./page-data";
 
 export const revalidate = 21600; // 6 hours
@@ -7,9 +7,7 @@ export const revalidate = 21600; // 6 hours
 export const metadata: Metadata = {
   title: `Roblox Quizzes | ${SITE_NAME}`,
   description: QUIZZES_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/quizzes`
-  },
+  alternates: buildAlternates(`${SITE_URL}/quizzes`),
   openGraph: {
     type: "website",
     url: `${SITE_URL}/quizzes`,

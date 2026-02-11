@@ -41,7 +41,8 @@ import {
   SITE_NAME,
   SITE_URL,
   breadcrumbJsonLd,
-  resolveSeoTitle
+  resolveSeoTitle,
+  buildAlternates,
 } from "@/lib/seo";
 import { replaceLinkPlaceholders } from "@/lib/link-placeholders";
 import { extractHowToSteps } from "@/lib/how-to";
@@ -340,6 +341,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const codes = Array.isArray((game as any).codes) ? ((game as any).codes as Code[]) : [];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
+    if (code.status !== "active") return latest;
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;
     return latest;
@@ -377,7 +379,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       "Bloxodes"
     ],
     category: "Gaming",
-    alternates: { canonical: canonicalUrl },
+    alternates: buildAlternates(canonicalUrl),
     authors: [{ name: SITE_NAME, url: SITE_URL }],
     publisher: SITE_NAME,
     openGraph: {
@@ -468,6 +470,7 @@ export default async function GamePage({ params }: Params) {
   // Merge: recent expired codes first, then legacy codes
   const expiredWithoutSpaces = [...expiredFromCodesTable, ...uniqueLegacyExpired];
   const latestCodeFirstSeen = codes.reduce<string | null>((latest, code) => {
+    if (code.status !== "active") return latest;
     if (!code.first_seen_at) return latest;
     if (!latest || code.first_seen_at > latest) return code.first_seen_at;
     return latest;

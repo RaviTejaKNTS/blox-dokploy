@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { PagePagination } from "@/components/PagePagination";
-import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   MusicBreadcrumb,
@@ -27,9 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `Artist Music IDs - Page ${pageNumber} | ${SITE_NAME}`,
     robots: { index: false, follow: true },
-    alternates: {
-      canonical: `${BASE_PATH}/artists/${artist}/page/${pageNumber}`
-    }
+    alternates: buildAlternates(`${BASE_PATH}/artists/${artist}/page/${pageNumber}`)
   };
 }
 

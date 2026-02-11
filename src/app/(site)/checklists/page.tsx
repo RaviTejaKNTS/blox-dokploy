@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { loadChecklistsPageData, renderChecklistsPage } from "./page-data";
 
 export const revalidate = 21600; // 6 hours
@@ -7,9 +7,7 @@ export const revalidate = 21600; // 6 hours
 export const metadata = {
   title: `Roblox Checklists | ${SITE_NAME}`,
   description: CHECKLISTS_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/checklists`
-  }
+  alternates: buildAlternates(`${SITE_URL}/checklists`)
 };
 
 export default async function ChecklistsPage() {

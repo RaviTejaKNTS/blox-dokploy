@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { PagePagination } from "@/components/PagePagination";
-import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   MusicBreadcrumb,
@@ -18,9 +18,7 @@ export const metadata: Metadata = {
   title: `Trending Music IDs | ${SITE_NAME}`,
   description: "Ranked Roblox music IDs sorted by the latest top chart data.",
   robots: { index: false, follow: true },
-  alternates: {
-    canonical: `${BASE_PATH}/trending`
-  }
+  alternates: buildAlternates(`${BASE_PATH}/trending`)
 };
 
 export default async function TrendingMusicIdsPage() {

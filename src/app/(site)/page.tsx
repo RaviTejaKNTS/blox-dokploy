@@ -8,7 +8,7 @@ import {
   listPublishedGameLists
 } from "@/lib/db";
 import { listPublishedTools } from "@/lib/tools";
-import { CHECKLISTS_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { supabaseAdmin } from "@/lib/supabase";
 import { GameCard } from "@/components/GameCard";
 import { ArticleCard } from "@/components/ArticleCard";
@@ -44,9 +44,7 @@ export const metadata: Metadata = {
     "Roblox checklists",
     "Roblox tools"
   ],
-  alternates: {
-    canonical: SITE_URL
-  },
+  alternates: buildAlternates(SITE_URL),
   openGraph: {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,

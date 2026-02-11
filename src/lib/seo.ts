@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { collectAuthorSocials } from "./author-socials";
 
 const DEFAULT_SITE_URL = "https://bloxodes.com";
@@ -25,6 +26,17 @@ export const CATALOG_DESCRIPTION =
   "Catalog pages for Roblox assets and command lists like music IDs and admin commands, with quick lookup details, filters, and links.";
 export const ADMIN_COMMANDS_DESCRIPTION =
   "Roblox admin commands catalog covering HD Admin, Kohl's Admin, Basic Admin Essentials, and Adonis Admin.";
+
+type Alternates = NonNullable<Metadata["alternates"]>;
+type AlternatesLanguages = NonNullable<Alternates["languages"]>;
+
+export function buildAlternates(canonical: string | URL, languages?: AlternatesLanguages): Alternates {
+  const defaults: AlternatesLanguages = { en: canonical, "x-default": canonical };
+  return {
+    canonical,
+    languages: { ...defaults, ...(languages ?? {}) }
+  };
+}
 
 export function resolveSeoTitle(template?: string | null, now = new Date()): string | null {
   if (!template) return null;

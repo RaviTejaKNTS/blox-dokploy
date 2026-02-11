@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { getToolContent, type ToolContent, type ToolFaqEntry } from "@/lib/tools";
 import { ContentSlot } from "@/components/ContentSlot";
 import { DevexCalculatorClient } from "./DevexCalculatorClient";
@@ -72,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const tool = await getToolContent(TOOL_CODE);
   if (!tool) {
     return {
-      alternates: { canonical: CANONICAL }
+      alternates: buildAlternates(CANONICAL)
     };
   }
 
@@ -85,9 +85,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: CANONICAL
-    },
+    alternates: buildAlternates(CANONICAL),
     openGraph: {
       type: "article",
       url: CANONICAL,

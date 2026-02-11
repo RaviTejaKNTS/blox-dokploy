@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { EventsPageCard } from "@/components/EventsPageCard";
-import { EVENTS_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { EVENTS_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import { buildEventsCards } from "./page-data";
 
 export const revalidate = 3600;
@@ -9,9 +9,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: `Roblox Events | ${SITE_NAME}`,
   description: EVENTS_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/events`
-  },
+  alternates: buildAlternates(`${SITE_URL}/events`),
   openGraph: {
     type: "website",
     url: `${SITE_URL}/events`,

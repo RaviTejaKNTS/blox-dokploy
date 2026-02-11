@@ -19,7 +19,8 @@ import {
   SITE_URL,
   breadcrumbJsonLd,
   howToJsonLd,
-  resolveSeoTitle
+  resolveSeoTitle,
+  buildAlternates,
 } from "@/lib/seo";
 import {
   getArticleBySlug,
@@ -77,7 +78,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: canonicalUrl },
+    alternates: buildAlternates(canonicalUrl),
     category: universeName ?? "Gaming",
     openGraph: {
       type: "article",

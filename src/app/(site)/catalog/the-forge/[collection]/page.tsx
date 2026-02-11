@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCatalogPageContentByCodes, type CatalogFaqEntry } from "@/lib/catalog";
-import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   buildForgeCatalogCodeCandidates,
@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: `The Forge Catalog | ${SITE_NAME}`,
       description: CATALOG_DESCRIPTION,
-      alternates: { canonical }
+      alternates: buildAlternates(canonical)
     };
   }
 
@@ -96,7 +96,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "website",
       url: canonical,

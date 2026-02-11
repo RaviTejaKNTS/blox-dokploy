@@ -23,7 +23,7 @@ import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { processHtmlLinks } from "@/lib/link-utils";
 import { authorAvatarUrl } from "@/lib/avatar";
 import { supabaseAdmin } from "@/lib/supabase";
-import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, resolveSeoTitle } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, breadcrumbJsonLd, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { listPublishedToolsByUniverseId, type ToolListEntry } from "@/lib/tools";
 import { EventTimePanel } from "./EventTimePanel";
 import { EventEndCountdown } from "./EventEndCountdown";
@@ -458,7 +458,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: seoTitle ? `${seoTitle} | ${SITE_NAME}` : SITE_NAME,
     description,
-    alternates: { canonical },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "article",
       url: canonical,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import { listGamesWithActiveCountsPage, type GameWithCounts } from "@/lib/db";
-import { CODES_DESCRIPTION, SITE_URL } from "@/lib/seo";
+import { CODES_DESCRIPTION, SITE_URL, buildAlternates } from "@/lib/seo";
 import { GameCard } from "@/components/GameCard";
 import { PagePagination } from "@/components/PagePagination";
 
@@ -133,7 +133,5 @@ export function renderCodesPage(props: Parameters<typeof CodesPageView>[0]) {
 export const codesMetadata: Metadata = {
   title: "Roblox Game Codes",
   description: CODES_DESCRIPTION,
-  alternates: {
-    canonical: `${SITE_URL}/codes`
-  }
+  alternates: buildAlternates(`${SITE_URL}/codes`)
 };

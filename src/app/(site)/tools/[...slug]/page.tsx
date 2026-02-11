@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
-import { CHECKLISTS_DESCRIPTION, EVENTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CHECKLISTS_DESCRIPTION, EVENTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import {
   getEventsPageByUniverseId,
   listGamesWithActiveCountsByUniverseId,
@@ -118,14 +118,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonical = `${SITE_URL.replace(/\/$/, "")}/tools/${code}`;
   if (!code) {
     return {
-      alternates: { canonical: `${SITE_URL.replace(/\/$/, "")}/tools` }
+      alternates: buildAlternates(`${SITE_URL.replace(/\/$/, "")}/tools`)
     };
   }
 
   const tool = await fetchTool(code);
   if (!tool) {
     return {
-      alternates: { canonical }
+      alternates: buildAlternates(canonical)
     };
   }
 
@@ -138,9 +138,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    alternates: {
-      canonical
-    },
+    alternates: buildAlternates(canonical),
     openGraph: {
       type: "article",
       url: canonical,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
 import { loadRobloxMusicIdsPageData, renderRobloxMusicIdsPage } from "../../page-data";
-import { CATALOG_DESCRIPTION } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, buildAlternates } from "@/lib/seo";
 
 export const revalidate = 2592000;
 
@@ -21,9 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description: CATALOG_DESCRIPTION,
     robots: { index: false, follow: true },
-    alternates: {
-      canonical: pageNumber === 1 ? "/catalog/roblox-music-ids" : `/catalog/roblox-music-ids/page/${pageNumber}`
-    }
+    alternates: buildAlternates(pageNumber === 1 ? "/catalog/roblox-music-ids" : `/catalog/roblox-music-ids/page/${pageNumber}`)
   };
 }
 

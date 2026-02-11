@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CatalogAdSlot } from "@/components/CatalogAdSlot";
 import { PagePagination } from "@/components/PagePagination";
-import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_NAME, SITE_URL, webPageJsonLd, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
   MusicBreadcrumb,
@@ -17,9 +17,7 @@ export const metadata: Metadata = {
   title: `Music ID Artists | ${SITE_NAME}`,
   description: "Browse Roblox music IDs organized by artist.",
   robots: { index: false, follow: true },
-  alternates: {
-    canonical: "/catalog/roblox-music-ids/artists"
-  }
+  alternates: buildAlternates("/catalog/roblox-music-ids/artists")
 };
 
 export default async function MusicIdArtistsPage() {

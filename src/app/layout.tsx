@@ -91,6 +91,7 @@ const structuredData = JSON.stringify({
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 const googleAdSenseClientId =
   process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID ?? "ca-pub-5243258773824278";
+const alternatesTypes = { "application/rss+xml": `${SITE_URL}/feed.xml` };
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
@@ -147,7 +148,8 @@ export const metadata = {
     images: [`${SITE_URL}/og-image.png`]
   },
   alternates: {
-    types: { "application/rss+xml": `${SITE_URL}/feed.xml` }
+    canonical: "./",
+    types: alternatesTypes
   },
   manifest: "/site.webmanifest",
   icons: {
@@ -161,6 +163,9 @@ export const metadata = {
     ],
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     shortcut: ["/favicon.ico"]
+  },
+  verification: {
+    google: "m-QfA406lK-3WGDXN0yV6Cv8hXoLI0RBnJBtndIyAp4"
   },
   appleWebApp: {
     capable: true,

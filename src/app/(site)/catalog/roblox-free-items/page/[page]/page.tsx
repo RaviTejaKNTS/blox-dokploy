@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/article-content.css";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
-import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle } from "@/lib/seo";
+import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { BASE_PATH, loadFreeItemsPageData, renderRobloxFreeItemsPage } from "../../page-data";
 
 export const revalidate = 2592000;
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         follow: true
       }
     },
-    alternates: { canonical: canonicalUrl },
+    alternates: buildAlternates(canonicalUrl),
     openGraph: {
       type: "website",
       url: canonicalUrl,
