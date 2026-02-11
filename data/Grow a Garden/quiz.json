@@ -1,0 +1,1448 @@
+{
+  "easy": [
+    {
+      "id": "E1",
+      "question": "What’s the main in-game currency you earn and spend to buy seeds and gear early on?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Chi"
+        },
+        {
+          "id": "B",
+          "text": "Sheckles"
+        },
+        {
+          "id": "C",
+          "text": "Candy Corn"
+        },
+        {
+          "id": "D",
+          "text": "Pollen"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E2",
+      "question": "When you first start playing, what seed are you specifically buying with your starting currency?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Strawberry seeds"
+        },
+        {
+          "id": "B",
+          "text": "Carrot seeds"
+        },
+        {
+          "id": "C",
+          "text": "Blueberry seeds"
+        },
+        {
+          "id": "D",
+          "text": "Tomato seeds"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E3",
+      "question": "Which statement about crop growth is true in Grow a Garden?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Crops only grow while you’re online"
+        },
+        {
+          "id": "B",
+          "text": "Crops stop growing if you switch servers"
+        },
+        {
+          "id": "C",
+          "text": "Crops can keep growing even while you’re offline"
+        },
+        {
+          "id": "D",
+          "text": "Only multi-harvest crops grow offline"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "E4",
+      "question": "Which statement best describes Seed Shop availability over time?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The same seeds are always available"
+        },
+        {
+          "id": "B",
+          "text": "Seeds can go in and out of stock"
+        },
+        {
+          "id": "C",
+          "text": "Only “Daily Deals” seeds can go out of stock"
+        },
+        {
+          "id": "D",
+          "text": "Only Common seeds can go out of stock"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E5",
+      "question": "If you don’t pay to restock, how often does the Seed Shop’s main stock refresh?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every 1 minute"
+        },
+        {
+          "id": "B",
+          "text": "Every 5 minutes"
+        },
+        {
+          "id": "C",
+          "text": "Every 10 minutes"
+        },
+        {
+          "id": "D",
+          "text": "Every 24 hours"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E6",
+      "question": "Where do you buy sprinklers like the Master Sprinkler?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Seed Shop"
+        },
+        {
+          "id": "B",
+          "text": "Gear Shop"
+        },
+        {
+          "id": "C",
+          "text": "Pet Eggs Shop"
+        },
+        {
+          "id": "D",
+          "text": "Cosmetics Shop"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E7",
+      "question": "How often does the Gear Shop refresh its stock (like Seed Shop timing)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every 2 minutes"
+        },
+        {
+          "id": "B",
+          "text": "Every 5 minutes"
+        },
+        {
+          "id": "C",
+          "text": "Every 15 minutes"
+        },
+        {
+          "id": "D",
+          "text": "Once per hour"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E8",
+      "question": "Which weather is directly tied to giving the Eclipsed mutation?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Blood Moon"
+        },
+        {
+          "id": "B",
+          "text": "Solar Eclipse"
+        },
+        {
+          "id": "C",
+          "text": "Acid Rain"
+        },
+        {
+          "id": "D",
+          "text": "Frost"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E9",
+      "question": "Which mutation is described as happening during Acid Rain?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Wet"
+        },
+        {
+          "id": "B",
+          "text": "Acidic"
+        },
+        {
+          "id": "C",
+          "text": "Chilled"
+        },
+        {
+          "id": "D",
+          "text": "Twisted"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E10",
+      "question": "Which mutation is created by having Windstruck and Twisted on the same crop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Frozen"
+        },
+        {
+          "id": "B",
+          "text": "Tempestuous"
+        },
+        {
+          "id": "C",
+          "text": "Ceramic"
+        },
+        {
+          "id": "D",
+          "text": "Diamond"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E11",
+      "question": "Where is the Pet Mutation Machine located?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Inside the Seed Shop stall"
+        },
+        {
+          "id": "B",
+          "text": "Near the Egg Shop"
+        },
+        {
+          "id": "C",
+          "text": "On top of the Zen Tree"
+        },
+        {
+          "id": "D",
+          "text": "At the selling stand only"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E12",
+      "question": "What’s the minimum pet age/level needed to use the Mutation Machine?",
+      "options": [
+        {
+          "id": "A",
+          "text": "25+"
+        },
+        {
+          "id": "B",
+          "text": "40+"
+        },
+        {
+          "id": "C",
+          "text": "50+"
+        },
+        {
+          "id": "D",
+          "text": "100+"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "E13",
+      "question": "How long does one Mutation Machine attempt take (without skipping)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "10 minutes"
+        },
+        {
+          "id": "B",
+          "text": "30 minutes"
+        },
+        {
+          "id": "C",
+          "text": "1 hour"
+        },
+        {
+          "id": "D",
+          "text": "4 hours 10 minutes"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "E14",
+      "question": "After a pet finishes mutating in the Mutation Machine, what happens to its age/level?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It doubles"
+        },
+        {
+          "id": "B",
+          "text": "It stays the same"
+        },
+        {
+          "id": "C",
+          "text": "It resets back to 1"
+        },
+        {
+          "id": "D",
+          "text": "It becomes permanently locked"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "E15",
+      "question": "Which item can mutate pets instantly by clicking the pet (without putting it in the machine)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Pet Mutation Shards"
+        },
+        {
+          "id": "B",
+          "text": "Basic Sprinkler"
+        },
+        {
+          "id": "C",
+          "text": "Zen Seed Pack"
+        },
+        {
+          "id": "D",
+          "text": "Golden Acorn Crate"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E16",
+      "question": "What event/weather cycle is associated with the Tranquil mutation on crops?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Zen Aura"
+        },
+        {
+          "id": "B",
+          "text": "Tornado"
+        },
+        {
+          "id": "C",
+          "text": "Sandstorm"
+        },
+        {
+          "id": "D",
+          "text": "Acid Rain"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "E17",
+      "question": "How often does Zen Aura occur, and how long does it last?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every 30 minutes for 5 minutes"
+        },
+        {
+          "id": "B",
+          "text": "Every hour for 10 minutes"
+        },
+        {
+          "id": "C",
+          "text": "Once per day for 1 hour"
+        },
+        {
+          "id": "D",
+          "text": "Every 10 minutes for 1 minute"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E18",
+      "question": "What special currency is used in the Zen content (like buying Zen Seed Packs)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sheckles"
+        },
+        {
+          "id": "B",
+          "text": "Chi"
+        },
+        {
+          "id": "C",
+          "text": "Robux"
+        },
+        {
+          "id": "D",
+          "text": "Nectar"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E19",
+      "question": "How is Chi commonly earned during the Zen event?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Selling any crop at the stand"
+        },
+        {
+          "id": "B",
+          "text": "Trading Tranquil crops to the Tanuki vendor"
+        },
+        {
+          "id": "C",
+          "text": "Watering crops 100 times"
+        },
+        {
+          "id": "D",
+          "text": "Hatching any egg"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "E20",
+      "question": "Which gear item is described as an “expensive version” alternative to the Mutation Machine with a lower age requirement?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Pet Mutation Shard Rainbow"
+        },
+        {
+          "id": "B",
+          "text": "Golden Acorn"
+        },
+        {
+          "id": "C",
+          "text": "Star Caller"
+        },
+        {
+          "id": "D",
+          "text": "Corrupt Radar"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    }
+  ],
+  "medium": [
+    {
+      "id": "M1",
+      "question": "What is the Sheckles cost to start a pet mutation using the Mutation Machine?",
+      "options": [
+        {
+          "id": "A",
+          "text": "50,000,000"
+        },
+        {
+          "id": "B",
+          "text": "100,000,000"
+        },
+        {
+          "id": "C",
+          "text": "500,000,000"
+        },
+        {
+          "id": "D",
+          "text": "1,000,000,000"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M2",
+      "question": "If you don’t want to wait the full Mutation Machine timer, what is a documented way to skip the wait?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Spend 79 Robux"
+        },
+        {
+          "id": "B",
+          "text": "Spend 49 Robux"
+        },
+        {
+          "id": "C",
+          "text": "Spend 199 Robux"
+        },
+        {
+          "id": "D",
+          "text": "Spend 7 Robux"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M3",
+      "question": "Which statement about the Golden Acorn is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It only works on pets age 50+"
+        },
+        {
+          "id": "B",
+          "text": "It works on pets age 40+ (lower than the Mutation Machine requirement)"
+        },
+        {
+          "id": "C",
+          "text": "It permanently doubles pet rarity"
+        },
+        {
+          "id": "D",
+          "text": "It’s free from the Seed Shop once per day"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M4",
+      "question": "What makes the Master Sprinkler stand out compared to cheaper sprinklers?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It only increases fruit size, nothing else"
+        },
+        {
+          "id": "B",
+          "text": "It increases growth speed, mutation chance, and fruit size, and lasts longer"
+        },
+        {
+          "id": "C",
+          "text": "It guarantees Diamond mutation"
+        },
+        {
+          "id": "D",
+          "text": "It replaces the Seed Shop"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M5",
+      "question": "How long does the Master Sprinkler last when placed?",
+      "options": [
+        {
+          "id": "A",
+          "text": "2 minutes"
+        },
+        {
+          "id": "B",
+          "text": "5 minutes"
+        },
+        {
+          "id": "C",
+          "text": "10 minutes"
+        },
+        {
+          "id": "D",
+          "text": "20 minutes"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M6",
+      "question": "What is the listed Sheckles price for the Master Sprinkler in the Gear Shop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "1,000,000"
+        },
+        {
+          "id": "B",
+          "text": "5,000,000"
+        },
+        {
+          "id": "C",
+          "text": "10,000,000"
+        },
+        {
+          "id": "D",
+          "text": "50,000,000"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M7",
+      "question": "Which sprinkler is commonly described as combining the benefits of boosting growth speed + mutation chances + fruit size?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Basic Sprinkler"
+        },
+        {
+          "id": "B",
+          "text": "Advanced Sprinkler"
+        },
+        {
+          "id": "C",
+          "text": "Godly Sprinkler"
+        },
+        {
+          "id": "D",
+          "text": "Watering Can"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M8",
+      "question": "What’s the listed Sheckles cost of the Godly Sprinkler?",
+      "options": [
+        {
+          "id": "A",
+          "text": "25,000"
+        },
+        {
+          "id": "B",
+          "text": "50,000"
+        },
+        {
+          "id": "C",
+          "text": "120,000"
+        },
+        {
+          "id": "D",
+          "text": "10,000,000"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M9",
+      "question": "Which crop mutation gives a x20 multiplier and is tied to Solar Eclipse weather?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Corrupt"
+        },
+        {
+          "id": "B",
+          "text": "Eclipsed"
+        },
+        {
+          "id": "C",
+          "text": "Tranquil"
+        },
+        {
+          "id": "D",
+          "text": "Frozen"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M10",
+      "question": "Which crop mutation is x10 and can be formed by combining “Wet/Drenched” with “Chilled”?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Frozen"
+        },
+        {
+          "id": "B",
+          "text": "Acidic"
+        },
+        {
+          "id": "C",
+          "text": "Ceramic"
+        },
+        {
+          "id": "D",
+          "text": "Tempestuous"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M11",
+      "question": "Which crop mutation is x32 and is made by combining Clay with a heat-type mutation (like Molten/Burnt/etc.)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Diamond"
+        },
+        {
+          "id": "B",
+          "text": "Ceramic"
+        },
+        {
+          "id": "C",
+          "text": "Tempestuous"
+        },
+        {
+          "id": "D",
+          "text": "Wet"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M12",
+      "question": "Which crop mutation is x50 and can be applied by the Diamond Dragonfly pet?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Gold"
+        },
+        {
+          "id": "B",
+          "text": "Rainbow"
+        },
+        {
+          "id": "C",
+          "text": "Diamond"
+        },
+        {
+          "id": "D",
+          "text": "Celestial"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M13",
+      "question": "What is the Diamond Dragonfly’s core passive effect?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It makes crops Tranquil every 30 seconds"
+        },
+        {
+          "id": "B",
+          "text": "It occasionally turns a random fruit Diamond"
+        },
+        {
+          "id": "C",
+          "text": "It makes all eggs hatch instantly"
+        },
+        {
+          "id": "D",
+          "text": "It permanently restocks the Gear Shop"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M14",
+      "question": "How do players obtain the Diamond Dragonfly (official method described in guides)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Guaranteed drop from Bug Egg"
+        },
+        {
+          "id": "B",
+          "text": "Redeem a code from a Grow a Garden plushie (PhatMojo)"
+        },
+        {
+          "id": "C",
+          "text": "Buy from Seed Shop with Sheckles"
+        },
+        {
+          "id": "D",
+          "text": "Trade 12 Chi at Zen Shop for it directly"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M15",
+      "question": "Which statement about buying sprinklers is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sprinklers are bought from the Seed Shop"
+        },
+        {
+          "id": "B",
+          "text": "Sprinklers are bought from the Gear Shop using Sheckles"
+        },
+        {
+          "id": "C",
+          "text": "Sprinklers can only be crafted; they can’t be bought"
+        },
+        {
+          "id": "D",
+          "text": "Sprinklers are only earned via pet mutations"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M16",
+      "question": "What is one core reason sprinklers are recommended for bigger/better harvests?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They can increase growth speed and (depending on type) mutation chances/size"
+        },
+        {
+          "id": "B",
+          "text": "They change your plot size permanently"
+        },
+        {
+          "id": "C",
+          "text": "They guarantee giant plant models from seeds"
+        },
+        {
+          "id": "D",
+          "text": "They let you buy seeds for free"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "M17",
+      "question": "According to the Seed Shop info, what is the paid instant restock cost (per use)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "49 Robux"
+        },
+        {
+          "id": "B",
+          "text": "79 Robux"
+        },
+        {
+          "id": "C",
+          "text": "199 Robux"
+        },
+        {
+          "id": "D",
+          "text": "449 Robux"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M18",
+      "question": "Which statement about the Seed Shop restock purchase is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It’s permanent after buying once"
+        },
+        {
+          "id": "B",
+          "text": "It’s 79 Robux per purchase and not permanent"
+        },
+        {
+          "id": "C",
+          "text": "It only works once per day"
+        },
+        {
+          "id": "D",
+          "text": "It restocks only Daily Deals, not main stock"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "M19",
+      "question": "Why can’t you get Hinomai seeds the same way as most early seeds?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Hinomai can only be crafted, never found in packs"
+        },
+        {
+          "id": "B",
+          "text": "Hinomai can’t be harvested"
+        },
+        {
+          "id": "C",
+          "text": "Hinomai seeds aren’t bought with standard currency; they come from Zen Seed Packs bought with Chi"
+        },
+        {
+          "id": "D",
+          "text": "Hinomai is a cosmetic, not a crop"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "M20",
+      "question": "Which pairing is correct for Zen Seed Packs described in guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Zen Seed Pack: 12 Chi; Exotic Zen Seed Pack: 199 Robux"
+        },
+        {
+          "id": "B",
+          "text": "Zen Seed Pack: 79 Robux; Exotic Zen Seed Pack: 49 Robux"
+        },
+        {
+          "id": "C",
+          "text": "Zen Seed Pack: 10 Sheckles; Exotic Zen Seed Pack: 120,000 Sheckles"
+        },
+        {
+          "id": "D",
+          "text": "Zen Seed Pack: 45 Chi; Exotic Zen Seed Pack: 449 Robux"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    }
+  ],
+  "hard": [
+    {
+      "id": "H1",
+      "question": "You’re trying to get Frozen on a crop without sprays. What stack is explicitly listed as a way to make Frozen?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Wet/Drenched + Chilled"
+        },
+        {
+          "id": "B",
+          "text": "Moonlit + Pollinated"
+        },
+        {
+          "id": "C",
+          "text": "Acidic + Toxic"
+        },
+        {
+          "id": "D",
+          "text": "Verdant + Sundried"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H2",
+      "question": "Which option is a correct way to get Frozen that has a key restriction?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Use Flower Froster Sprinkler on any crop type"
+        },
+        {
+          "id": "B",
+          "text": "Use Flower Froster Sprinkler, but it only works on flower-type plants"
+        },
+        {
+          "id": "C",
+          "text": "Use Basic Sprinkler during Night"
+        },
+        {
+          "id": "D",
+          "text": "Use Godly Sprinkler during Solar Eclipse"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H3",
+      "question": "Which exact mutation stack creates Tempestuous?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Windstruck + Twisted"
+        },
+        {
+          "id": "B",
+          "text": "Wet + Chilled"
+        },
+        {
+          "id": "C",
+          "text": "Clay + Molten"
+        },
+        {
+          "id": "D",
+          "text": "Aurora + Celestial"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H4",
+      "question": "Which condition is specifically tied to the Acidic mutation?",
+      "options": [
+        {
+          "id": "A",
+          "text": "During Acid Rain"
+        },
+        {
+          "id": "B",
+          "text": "During Solar Eclipse"
+        },
+        {
+          "id": "C",
+          "text": "During Tornado"
+        },
+        {
+          "id": "D",
+          "text": "During Frost"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H5",
+      "question": "You already have Clay on a crop and want Ceramic. Which additional mutation is a valid trigger?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Molten"
+        },
+        {
+          "id": "B",
+          "text": "Chilled"
+        },
+        {
+          "id": "C",
+          "text": "Twisted"
+        },
+        {
+          "id": "D",
+          "text": "Eclipsed"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H6",
+      "question": "Which statement about Ceramic stacking rules is correct (as documented)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ceramic removes Clay, but the heat mutation used can remain (with some exceptions)"
+        },
+        {
+          "id": "B",
+          "text": "Ceramic always keeps Clay active permanently"
+        },
+        {
+          "id": "C",
+          "text": "Ceramic automatically turns into Diamond if left overnight"
+        },
+        {
+          "id": "D",
+          "text": "Ceramic can only be made during Solar Eclipse"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H7",
+      "question": "Which method is explicitly listed as a way to obtain the Amber mutation (not just “wait for weather”)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Buy Amber directly from the Gear Shop"
+        },
+        {
+          "id": "B",
+          "text": "Craft/use Mutation Spray Amber at the Prehistoric crafting station"
+        },
+        {
+          "id": "C",
+          "text": "Get Amber from Night weather automatically"
+        },
+        {
+          "id": "D",
+          "text": "Apply Amber by using Basic Sprinkler in Rain"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H8",
+      "question": "Which pet-based method is documented as applying Amber to harvested crops?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Raptor pet"
+        },
+        {
+          "id": "B",
+          "text": "Diamond Dragonfly pet"
+        },
+        {
+          "id": "C",
+          "text": "Polar Bear pet"
+        },
+        {
+          "id": "D",
+          "text": "Tanuki pet"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H9",
+      "question": "Which statement about the Corrupt mutation is correct in guides?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It’s only obtainable from the Seed Shop “Daily Deals”"
+        },
+        {
+          "id": "B",
+          "text": "It’s tied to a special red-sky corruption weather window (first ten minutes of each hour)"
+        },
+        {
+          "id": "C",
+          "text": "It replaces Sheckles as your currency"
+        },
+        {
+          "id": "D",
+          "text": "It’s guaranteed on every crop during Night"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H10",
+      "question": "Which Zen-event action is specifically linked to earning Chi (not Sheckles)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Selling any crop at the stand"
+        },
+        {
+          "id": "B",
+          "text": "Exchanging Tranquil crops with the Tanuki vendor"
+        },
+        {
+          "id": "C",
+          "text": "Buying a Master Sprinkler"
+        },
+        {
+          "id": "D",
+          "text": "Hatching a Bug Egg"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H11",
+      "question": "Which statement best matches how Zen Aura applies Tranquil mutation over its 10-minute window?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every planted seed instantly becomes Tranquil"
+        },
+        {
+          "id": "B",
+          "text": "Tranquil can be applied to random crops repeatedly during the event window"
+        },
+        {
+          "id": "C",
+          "text": "Only one specific crop type can ever become Tranquil"
+        },
+        {
+          "id": "D",
+          "text": "Tranquil only comes from the Seed Shop restock button"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H12",
+      "question": "You want Hinomai seeds without spending Robux. What’s the intended path?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Buy Hinomai directly with Sheckles in Seed Shop"
+        },
+        {
+          "id": "B",
+          "text": "Earn Chi by donating Tranquil crops, then buy Zen Seed Packs"
+        },
+        {
+          "id": "C",
+          "text": "Hatch any egg during Night for a Hinomai drop"
+        },
+        {
+          "id": "D",
+          "text": "Use Golden Acorn on a crop to transform it into Hinomai"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H13",
+      "question": "Which is the correct “cost + timer” combination for a Mutation Machine attempt (no skip)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "79 Robux + 5 minutes"
+        },
+        {
+          "id": "B",
+          "text": "500,000,000 Sheckles + 1 hour"
+        },
+        {
+          "id": "C",
+          "text": "10,000,000 Sheckles + 10 minutes"
+        },
+        {
+          "id": "D",
+          "text": "12 Chi + 10 minutes"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H14",
+      "question": "Which option correctly contrasts Golden Acorn vs Mutation Machine requirements?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Golden Acorn needs age 50+, Mutation Machine needs age 40+"
+        },
+        {
+          "id": "B",
+          "text": "Golden Acorn can work at age 40+, Mutation Machine requires age 50+"
+        },
+        {
+          "id": "C",
+          "text": "Both require age 100+"
+        },
+        {
+          "id": "D",
+          "text": "Both require age 10+"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H15",
+      "question": "What makes Pet Mutation Shards different from the Mutation Machine?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Shards only mutate crops, not pets"
+        },
+        {
+          "id": "B",
+          "text": "Shards mutate pets instantly without putting them in the machine"
+        },
+        {
+          "id": "C",
+          "text": "Shards permanently increase shop refresh rates"
+        },
+        {
+          "id": "D",
+          "text": "Shards only work during Solar Eclipse"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H16",
+      "question": "Which statement about Master Sprinkler is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It’s a Seed Shop item and lasts 24 hours"
+        },
+        {
+          "id": "B",
+          "text": "It’s bought from Gear Shop and lasts 10 minutes"
+        },
+        {
+          "id": "C",
+          "text": "It can only be earned from Pet Eggs"
+        },
+        {
+          "id": "D",
+          "text": "It only increases fruit size and nothing else"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H17",
+      "question": "Which sprinkler is the “all-in-one” booster (growth speed + mutation chance + fruit size) commonly recommended over Advanced?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Advanced Sprinkler"
+        },
+        {
+          "id": "B",
+          "text": "Godly Sprinkler"
+        },
+        {
+          "id": "C",
+          "text": "Basic Sprinkler"
+        },
+        {
+          "id": "D",
+          "text": "Watering Can"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    },
+    {
+      "id": "H18",
+      "question": "Which mutation + source pairing is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Diamond (x50) — applied by Diamond Dragonfly"
+        },
+        {
+          "id": "B",
+          "text": "Diamond (x20) — applied by Tanuki"
+        },
+        {
+          "id": "C",
+          "text": "Diamond (x12) — applied by Pterodactyl"
+        },
+        {
+          "id": "D",
+          "text": "Diamond (x32) — applied by Cooked Owl"
+        }
+      ],
+      "correctOptionId": "A",
+      "image": null
+    },
+    {
+      "id": "H19",
+      "question": "Which statement about the Diamond Dragonfly’s acquisition is correct?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It’s bought from Zen Shop for 45 Chi"
+        },
+        {
+          "id": "B",
+          "text": "It’s hatched from Zen Egg at a guaranteed rate"
+        },
+        {
+          "id": "C",
+          "text": "It’s obtained by redeeming a code from a Grow a Garden plushie (PhatMojo)"
+        },
+        {
+          "id": "D",
+          "text": "It’s earned by restocking the Seed Shop 100 times"
+        }
+      ],
+      "correctOptionId": "C",
+      "image": null
+    },
+    {
+      "id": "H20",
+      "question": "Which crop has a unique removal rule compared to every other crop?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Strawberry can’t be removed by Shovel"
+        },
+        {
+          "id": "B",
+          "text": "Carrot can’t be removed by Shovel"
+        },
+        {
+          "id": "C",
+          "text": "Tomato can’t be removed by Shovel"
+        },
+        {
+          "id": "D",
+          "text": "Blueberry can’t be removed by Shovel"
+        }
+      ],
+      "correctOptionId": "B",
+      "image": null
+    }
+  ]
+}

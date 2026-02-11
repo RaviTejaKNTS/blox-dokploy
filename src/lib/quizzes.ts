@@ -46,7 +46,8 @@ const QUIZ_SELECT_FIELDS_BASE =
   "id, universe_id, code, title, description_md, about_md, seo_title, seo_description, is_published, published_at, created_at, updated_at";
 
 const QUIZ_DATA_MAP: Record<string, string> = {
-  "the-forge": path.join(process.cwd(), "data", "The Forge", "quiz.json")
+  "the-forge": path.join(process.cwd(), "data", "The Forge", "quiz.json"),
+  "grow-a-garden": path.join(process.cwd(), "data", "Grow a Garden", "quiz.json")
 };
 
 function normalizeCode(value: string): string {
