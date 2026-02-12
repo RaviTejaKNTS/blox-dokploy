@@ -40,14 +40,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, page } = await params;
   const pageNumber = Number(page);
-  if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) return {};
   return buildMetadata(slug, pageNumber);
 }
 
 export default async function GameListPageWithPagination({ params }: PageProps) {
   const { slug, page } = await params;
   const pageNumber = Number(page);
-  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) {
     notFound();
   }
 

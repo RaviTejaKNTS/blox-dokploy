@@ -28,13 +28,10 @@ export const ADMIN_COMMANDS_DESCRIPTION =
   "Roblox admin commands catalog covering HD Admin, Kohl's Admin, Basic Admin Essentials, and Adonis Admin.";
 
 type Alternates = NonNullable<Metadata["alternates"]>;
-type AlternatesLanguages = NonNullable<Alternates["languages"]>;
 
-export function buildAlternates(canonical: string | URL, languages?: AlternatesLanguages): Alternates {
-  const defaults: AlternatesLanguages = { en: canonical, "x-default": canonical };
+export function buildAlternates(canonical: string | URL): Alternates {
   return {
-    canonical,
-    languages: { ...defaults, ...(languages ?? {}) }
+    canonical
   };
 }
 

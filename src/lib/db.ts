@@ -102,6 +102,45 @@ export type ArticleWithRelations = Article & {
   universe: UniverseSummary | null;
 };
 
+function normalizePositivePage(page: number): number {
+  if (!Number.isFinite(page) || page < 1) return 1;
+  const floored = Math.floor(page);
+  return Number.isSafeInteger(floored) ? floored : 1;
+}
+
+function isOutOfRangePaginationError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    message?: unknown;
+    details?: unknown;
+    hint?: unknown;
+  };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  if (code === "PGRST103") return true;
+
+  const status =
+    typeof candidate.status === "number"
+      ? candidate.status
+      : typeof candidate.status === "string"
+      ? Number(candidate.status)
+      : Number.NaN;
+  if (status === 416) return true;
+
+  const message = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+  return message.includes("range not satisfiable") || (message.includes("invalid") && message.includes("range"));
+}
+
+function isOutOfRangePaginationFailure(status: unknown, error: unknown): boolean {
+  if (status === 416 || status === "416") return true;
+  return isOutOfRangePaginationError(error);
+}
+
 const ARTICLE_INDEX_FIELDS =
   `id,title,slug,cover_image,meta_description,published_at,created_at,updated_at,is_published,` +
   `author,universe`;
@@ -398,26 +437,44 @@ export async function listPublishedCodeSlugs(): Promise<string[]> {
 }
 
 export async function listGamesWithActiveCountsPage(page: number, pageSize: number): Promise<{ games: GameWithCounts[]; total: number }> {
-  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePage = normalizePositivePage(page);
   const safePageSize = Math.max(1, pageSize);
   const offset = (safePage - 1) * safePageSize;
 
   const cached = unstable_cache(
     async () => {
       const sb = supabaseAdmin();
-      const { data, count, error } = await sb
-        .from("game_pages_index_view")
-        .select(
-          "id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at",
-          { count: "exact" }
-        )
-        .eq("is_published", true)
-        .order("content_updated_at", { ascending: false })
-        .range(offset, offset + safePageSize - 1);
+      try {
+        const { data, count, error, status } = await sb
+          .from("game_pages_index_view")
+          .select(
+            "id,name,slug,cover_image,created_at,updated_at,universe_id,genre_l1,genre_l2,active_code_count,latest_code_first_seen_at,content_updated_at",
+            { count: "exact" }
+          )
+          .eq("is_published", true)
+          .order("content_updated_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
 
-      if (error) throw error;
-      const games = (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
-      return { games, total: count ?? games.length };
+        if (error) {
+          if (!isOutOfRangePaginationFailure(status, error)) throw error;
+          const { count, error: countError } = await sb
+            .from("game_pages_index_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_published", true);
+          if (countError) throw countError;
+          return { games: [], total: count ?? 0 };
+        }
+        const games = (data ?? []).map((row) => mapCodePageRowToCounts(row as CodePageSummary));
+        return { games, total: count ?? games.length };
+      } catch (error) {
+        if (!isOutOfRangePaginationError(error)) throw error;
+        const { count, error: countError } = await sb
+          .from("game_pages_index_view")
+          .select("id", { count: "exact", head: true })
+          .eq("is_published", true);
+        if (countError) throw countError;
+        return { games: [], total: count ?? 0 };
+      }
     },
     [`listGamesWithActiveCountsPage:${safePage}:${safePageSize}`],
     {
@@ -531,7 +588,7 @@ export async function listPublishedGameListsPage(
   page: number,
   pageSize: number
 ): Promise<{ lists: GameList[]; total: number }> {
-  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePage = normalizePositivePage(page);
   const safePageSize = Math.max(1, pageSize);
   const offset = (safePage - 1) * safePageSize;
 
@@ -539,29 +596,54 @@ export async function listPublishedGameListsPage(
     async () => {
       const sb = supabaseAdmin();
       try {
-        const { data, count, error } = await sb
+        const { data, count, error, status } = await sb
           .from("game_lists_index_view")
           .select("id, slug, title, display_name, cover_image, top_entry_image, updated_at, created_at", { count: "exact" })
           .eq("is_published", true)
           .order("updated_at", { ascending: false })
           .range(offset, offset + safePageSize - 1);
 
-        if (error) throw error;
+        if (error) {
+          if (!isOutOfRangePaginationFailure(status, error)) throw error;
+          const { count, error: countError } = await sb
+            .from("game_lists_index_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_published", true);
+          if (countError) throw countError;
+          return { lists: [], total: count ?? 0 };
+        }
         const lists = (data ?? []) as GameList[];
         return { lists, total: count ?? lists.length };
       } catch (err: any) {
+        if (isOutOfRangePaginationError(err)) {
+          const { count, error: countError } = await sb
+            .from("game_lists_index_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_published", true);
+          if (countError) throw countError;
+          return { lists: [], total: count ?? 0 };
+        }
+
         if (err?.code !== "42703") {
           // non-column errors should still bubble
           throw err;
         }
-        const { data, count, error } = await sb
+        const { data, count, error, status } = await sb
           .from("game_lists")
           .select("id, slug, title, display_name, cover_image, updated_at, created_at", { count: "exact" })
           .eq("is_published", true)
           .order("updated_at", { ascending: false })
           .range(offset, offset + safePageSize - 1);
 
-        if (error) throw error;
+        if (error) {
+          if (!isOutOfRangePaginationFailure(status, error)) throw error;
+          const { count: fallbackCount, error: countError } = await sb
+            .from("game_lists")
+            .select("id", { count: "exact", head: true })
+            .eq("is_published", true);
+          if (countError) throw countError;
+          return { lists: [], total: fallbackCount ?? 0 };
+        }
         const lists = (data ?? []) as GameList[];
         return { lists, total: count ?? lists.length };
       }
@@ -657,9 +739,21 @@ export async function getGameListEntriesPage(
   pageSize: number
 ): Promise<{ entries: GameListUniverseEntry[]; total: number }> {
   const sb = supabaseAdmin();
-  const offset = Math.max(0, (page - 1) * pageSize);
+  const safePage = normalizePositivePage(page);
+  const safePageSize = Math.max(1, pageSize);
+  const offset = Math.max(0, (safePage - 1) * safePageSize);
+
+  const getTotalEntriesCount = async (): Promise<number> => {
+    const { count, error } = await sb
+      .from("game_list_entries")
+      .select("list_id", { count: "exact", head: true })
+      .eq("list_id", listId);
+    if (error) throw error;
+    return count ?? 0;
+  };
+
   try {
-    const { data, count, error } = await sb
+    const { data, count, error, status } = await sb
       .from("game_list_entries")
       .select(
         `
@@ -703,65 +797,79 @@ export async function getGameListEntriesPage(
       )
       .eq("list_id", listId)
       .order("rank", { ascending: true })
-      .range(offset, offset + pageSize - 1);
+      .range(offset, offset + safePageSize - 1);
 
-    if (error) throw error;
+    if (error) {
+      if (!isOutOfRangePaginationFailure(status, error)) throw error;
+      return { entries: [], total: await getTotalEntriesCount() };
+    }
     return {
       entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
       total: count ?? 0
     };
   } catch (error: any) {
+    if (isOutOfRangePaginationError(error)) {
+      return { entries: [], total: await getTotalEntriesCount() };
+    }
     if (error?.code !== "42703") throw error;
     // Fallback for environments missing some universe columns
-    const { data, count, error: fallbackError } = await sb
-      .from("game_list_entries")
-      .select(
-        `
-          list_id,
-          universe_id,
-          game_id,
-          rank,
-          metric_value,
-          reason,
-          extra,
-          universe:roblox_universes(
+    try {
+      const { data, count, error: fallbackError, status: fallbackStatus } = await sb
+        .from("game_list_entries")
+        .select(
+          `
+            list_id,
             universe_id,
-            name,
-            display_name,
-            slug,
-            icon_url,
-            playing,
-            visits,
-            favorites,
-            likes,
-            dislikes,
-            age_rating,
-            desktop_enabled,
-            mobile_enabled,
-            tablet_enabled,
-            console_enabled,
-            vr_enabled,
-            updated_at,
-            description,
-            game_description_md
-          ),
-          game:games(
-            id,
-            slug,
-            name,
-            universe_id
-          )
-        `,
-        { count: "exact" }
-      )
-      .eq("list_id", listId)
-      .order("rank", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (fallbackError) throw fallbackError;
-    return {
-      entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
-      total: count ?? 0
-    };
+            game_id,
+            rank,
+            metric_value,
+            reason,
+            extra,
+            universe:roblox_universes(
+              universe_id,
+              name,
+              display_name,
+              slug,
+              icon_url,
+              playing,
+              visits,
+              favorites,
+              likes,
+              dislikes,
+              age_rating,
+              desktop_enabled,
+              mobile_enabled,
+              tablet_enabled,
+              console_enabled,
+              vr_enabled,
+              updated_at,
+              description,
+              game_description_md
+            ),
+            game:games(
+              id,
+              slug,
+              name,
+              universe_id
+            )
+          `,
+          { count: "exact" }
+        )
+        .eq("list_id", listId)
+        .order("rank", { ascending: true })
+        .range(offset, offset + safePageSize - 1);
+      if (fallbackError) {
+        if (!isOutOfRangePaginationFailure(fallbackStatus, fallbackError)) throw fallbackError;
+        return { entries: [], total: await getTotalEntriesCount() };
+      }
+      return {
+        entries: ((data ?? []) as unknown as GameListUniverseEntry[]).filter((entry) => Boolean((entry as any).universe)),
+        total: count ?? 0
+      };
+    } catch (fallbackError) {
+      if (!isOutOfRangePaginationError(fallbackError)) throw fallbackError;
+      return { entries: [], total: await getTotalEntriesCount() };
+    }
   }
 }
 
@@ -945,31 +1053,49 @@ export async function listPublishedArticlesPage(
   page: number,
   pageSize: number
 ): Promise<{ articles: ArticleWithRelations[]; total: number }> {
-  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePage = normalizePositivePage(page);
   const safePageSize = Math.max(1, pageSize);
   const offset = (safePage - 1) * safePageSize;
 
   const cached = unstable_cache(
     async () => {
       const sb = supabaseAdmin();
-      const { data, count, error } = await sb
-        .from("article_pages_index_view")
-        .select(ARTICLE_INDEX_FIELDS, { count: "exact" })
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .range(offset, offset + safePageSize - 1);
+      try {
+        const { data, count, error, status } = await sb
+          .from("article_pages_index_view")
+          .select(ARTICLE_INDEX_FIELDS, { count: "exact" })
+          .eq("is_published", true)
+          .order("published_at", { ascending: false })
+          .range(offset, offset + safePageSize - 1);
 
-      if (error) throw error;
-      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
-      const mapped = rows.map((row) => ({
-        ...row,
-        content_md: "",
-        tags: [],
-        word_count: null,
-        author: (row as any).author ?? null,
-        universe: (row as any).universe ?? null
-      })) as unknown as ArticleWithRelations[];
-      return { articles: mapped, total: count ?? mapped.length };
+        if (error) {
+          if (!isOutOfRangePaginationFailure(status, error)) throw error;
+          const { count, error: countError } = await sb
+            .from("article_pages_index_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_published", true);
+          if (countError) throw countError;
+          return { articles: [], total: count ?? 0 };
+        }
+        const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+        const mapped = rows.map((row) => ({
+          ...row,
+          content_md: "",
+          tags: [],
+          word_count: null,
+          author: (row as any).author ?? null,
+          universe: (row as any).universe ?? null
+        })) as unknown as ArticleWithRelations[];
+        return { articles: mapped, total: count ?? mapped.length };
+      } catch (error) {
+        if (!isOutOfRangePaginationError(error)) throw error;
+        const { count, error: countError } = await sb
+          .from("article_pages_index_view")
+          .select("id", { count: "exact", head: true })
+          .eq("is_published", true);
+        if (countError) throw countError;
+        return { articles: [], total: count ?? 0 };
+      }
     },
     [`listPublishedArticlesPage:${safePage}:${safePageSize}`],
     {
@@ -1290,7 +1416,7 @@ export async function listPublishedChecklistsPage(
   page: number,
   pageSize: number
 ): Promise<{ checklists: ChecklistSummaryRow[]; total: number }> {
-  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePage = normalizePositivePage(page);
   const safePageSize = Math.max(1, pageSize);
   const offset = (safePage - 1) * safePageSize;
 
@@ -1298,7 +1424,7 @@ export async function listPublishedChecklistsPage(
     async () => {
       const sb = supabaseAdmin();
       try {
-        const { data, count, error } = await sb
+        const { data, count, error, status } = await sb
           .from("checklist_pages_view")
           .select(
             "id, slug, title, description_md, seo_description, cover_image, published_at, updated_at, created_at, item_count, leaf_item_count, universe, universe_id",
@@ -1308,12 +1434,29 @@ export async function listPublishedChecklistsPage(
           .order("updated_at", { ascending: false })
           .range(offset, offset + safePageSize - 1);
 
-        if (error) throw error;
+        if (error) {
+          if (!isOutOfRangePaginationFailure(status, error)) throw error;
+          const { count, error: countError } = await sb
+            .from("checklist_pages_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_public", true);
+          if (countError) throw countError;
+          return { checklists: [], total: count ?? 0 };
+        }
         const rows = (data ?? []) as ChecklistSummaryRow[];
         return { checklists: rows, total: count ?? rows.length };
       } catch (error: any) {
+        if (isOutOfRangePaginationError(error)) {
+          const { count, error: countError } = await sb
+            .from("checklist_pages_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_public", true);
+          if (countError) throw countError;
+          return { checklists: [], total: count ?? 0 };
+        }
+
         if (error?.code !== "42703") throw error;
-        const { data: viewData, count: viewCount, error: viewError } = await sb
+        const { data: viewData, count: viewCount, error: viewError, status: viewStatus } = await sb
           .from("checklist_pages_view")
           .select(
             "id, slug, title, description_md, seo_description, published_at, updated_at, created_at, item_count, leaf_item_count, universe, universe_id",
@@ -1328,9 +1471,18 @@ export async function listPublishedChecklistsPage(
           return { checklists: rows, total: viewCount ?? rows.length };
         }
 
+        if (isOutOfRangePaginationFailure(viewStatus, viewError)) {
+          const { count, error: countError } = await sb
+            .from("checklist_pages_view")
+            .select("id", { count: "exact", head: true })
+            .eq("is_public", true);
+          if (countError) throw countError;
+          return { checklists: [], total: count ?? 0 };
+        }
+
         if (viewError?.code !== "42703") throw viewError;
         // Fallback for schemas missing view columns: include universe icon via join
-        const { data, count, error: fallbackError } = await sb
+        const { data, count, error: fallbackError, status: fallbackStatus } = await sb
           .from("checklist_pages")
           .select(
             `
@@ -1349,7 +1501,15 @@ export async function listPublishedChecklistsPage(
           .order("updated_at", { ascending: false })
           .range(offset, offset + safePageSize - 1);
 
-        if (fallbackError) throw fallbackError;
+        if (fallbackError) {
+          if (!isOutOfRangePaginationFailure(fallbackStatus, fallbackError)) throw fallbackError;
+          const { count: fallbackCount, error: countError } = await sb
+            .from("checklist_pages")
+            .select("id", { count: "exact", head: true })
+            .eq("is_public", true);
+          if (countError) throw countError;
+          return { checklists: [], total: fallbackCount ?? 0 };
+        }
         const rows = (data ?? []) as ChecklistSummaryRow[];
         return { checklists: rows, total: count ?? rows.length };
       }

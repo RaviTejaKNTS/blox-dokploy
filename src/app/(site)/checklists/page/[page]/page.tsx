@@ -19,7 +19,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { page } = await params;
   const pageNumber = Number(page);
-  if (!Number.isFinite(pageNumber) || pageNumber < 1) return {};
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) return {};
   const title = pageNumber > 1 ? `Roblox Checklists - Page ${pageNumber}` : "Roblox Checklists";
   return {
     title,
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ChecklistsPaginatedPage({ params }: PageProps) {
   const { page } = await params;
   const pageNumber = Number(page);
-  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+  if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) {
     notFound();
   }
 
