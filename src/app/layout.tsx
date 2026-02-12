@@ -83,59 +83,6 @@ const consentModeScript = `(() => {
 })();`;
 
 const growInitializerScript = `!(function(){window.growMe||((window.growMe=function(e){window.growMe._.push(e);}),(window.growMe._=[]));var e=document.createElement("script");(e.type="text/javascript"),(e.src="https://faves.grow.me/main.js"),(e.defer=!0),e.setAttribute("data-grow-faves-site-id","U2l0ZTo3NWQ5YWI3ZC0yNjhjLTRlMDMtYmI2Yy0xODBjYTRiOGQ1ZWQ=");var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t);})();`;
-const headMetadataDedupeScript = `(() => {
-  if (typeof document === "undefined") return;
-
-  const singletons = [
-    "title",
-    "meta[name='description']",
-    "meta[name='robots']",
-    "link[rel='canonical']"
-  ];
-
-  const dedupeSingleton = (selector) => {
-    const nodes = Array.from(document.head.querySelectorAll(selector));
-    if (nodes.length <= 1) return;
-    // Keep the newest node so client navigations retain current-route metadata.
-    nodes.slice(0, -1).forEach((node) => node.remove());
-  };
-
-  const dedupeAlternates = () => {
-    const nodes = Array.from(document.head.querySelectorAll("link[rel='alternate'][hreflang]"));
-    if (nodes.length <= 1) return;
-
-    const seen = new Set();
-    for (let i = nodes.length - 1; i >= 0; i -= 1) {
-      const node = nodes[i];
-      const key = \`\${(node.getAttribute("hreflang") || "").toLowerCase()}|\${node.getAttribute("href") || ""}\`;
-      if (seen.has(key)) {
-        node.remove();
-      } else {
-        seen.add(key);
-      }
-    }
-  };
-
-  const run = () => {
-    singletons.forEach(dedupeSingleton);
-    dedupeAlternates();
-  };
-
-  let queued = false;
-  const schedule = () => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      run();
-    });
-  };
-
-  run();
-  new MutationObserver(schedule).observe(document.head, { childList: true });
-  window.addEventListener("pageshow", run);
-})();`;
-
 const structuredData = JSON.stringify({
   "@context": "https://schema.org",
   "@graph": [siteJsonLd({ siteUrl: SITE_URL }), organizationJsonLd({ siteUrl: SITE_URL })]
@@ -239,9 +186,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: consentModeScript }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
-        <Script id="head-metadata-dedupe" strategy="afterInteractive">
-          {headMetadataDedupeScript}
-        </Script>
         <Script id="grow-initializer" strategy="afterInteractive">
           {growInitializerScript}
         </Script>
