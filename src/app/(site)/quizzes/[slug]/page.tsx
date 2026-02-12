@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import "@/styles/article-content.css";
 import { QuizRunner } from "@/components/QuizRunner";
-import { getQuizPageByCode, loadQuizData } from "@/lib/quizzes";
+import { GameCard } from "@/components/GameCard";
+import { ArticleCard } from "@/components/ArticleCard";
+import { ToolCard } from "@/components/ToolCard";
+import { getQuizPageByCode, listPublishedQuizCodes, loadQuizData } from "@/lib/quizzes";
+import { listGamesWithActiveCountsByUniverseId, listPublishedArticlesByUniverseId } from "@/lib/db";
+import { listPublishedToolsByUniverseId } from "@/lib/tools";
+import { listPublishedCatalogPagesByUniverseId } from "@/lib/catalog";
 import { markdownToPlainText, renderMarkdown } from "@/lib/markdown";
 import type { QuizData, QuizQuestion } from "@/lib/quiz-types";
 import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
@@ -13,6 +20,11 @@ export const revalidate = 3600; // 1 hour
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateStaticParams() {
+  const slugs = await listPublishedQuizCodes();
+  return slugs.map((slug) => ({ slug }));
+}
 
 function pickThumbnail(value: unknown): string | null {
   if (!value) return null;
@@ -31,6 +43,26 @@ function pickThumbnail(value: unknown): string | null {
 
 function flattenQuestions(quizData: QuizData): QuizQuestion[] {
   return [...(quizData.easy ?? []), ...(quizData.medium ?? []), ...(quizData.hard ?? [])];
+}
+
+function summarize(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const normalized = markdownToPlainText(value).replace(/\s+/g, " ").trim();
+  if (!normalized) return fallback;
+  if (normalized.length <= 140) return normalized;
+  const slice = normalized.slice(0, 137);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${lastSpace > 80 ? slice.slice(0, lastSpace) : slice}…`;
+}
+
+function buildCatalogHref(code: string): string {
+  const normalized = code
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  return `/catalog/${normalized}`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -101,6 +133,26 @@ export default async function QuizPage({ params }: PageProps) {
     : null;
   const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
   const allQuestions = flattenQuestions(quizData);
+  const universeId = page.universe_id ?? null;
+  const universeLabel = page.universe?.display_name ?? page.universe?.name ?? page.title;
+
+  const [relatedCodes, relatedArticles, relatedTools, relatedCatalogPagesRaw] = universeId
+    ? await Promise.all([
+        listGamesWithActiveCountsByUniverseId(universeId, 2),
+        listPublishedArticlesByUniverseId(universeId, 3, 0),
+        listPublishedToolsByUniverseId(universeId, 2),
+        listPublishedCatalogPagesByUniverseId(universeId, 2)
+      ])
+    : [[], [], [], []];
+
+  const relatedCatalogPages = relatedCatalogPagesRaw
+    .filter((entry) => typeof entry.code === "string" && entry.code.trim().length > 0)
+    .slice(0, 2);
+  const showRecommendations =
+    relatedCodes.length > 0 ||
+    relatedArticles.length > 0 ||
+    relatedTools.length > 0 ||
+    relatedCatalogPages.length > 0;
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -190,6 +242,104 @@ export default async function QuizPage({ params }: PageProps) {
             className="prose dark:prose-invert max-w-none game-copy"
             dangerouslySetInnerHTML={{ __html: aboutHtml }}
           />
+        </section>
+      ) : null}
+
+      {showRecommendations ? (
+        <section className="mt-16 border-t border-border/60 pt-10">
+          <div className="space-y-8">
+            <header className="space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">More for {universeLabel}</h2>
+            </header>
+
+            {relatedCodes.length ? (
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">Codes pages</h3>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {relatedCodes.map((game) => (
+                    <div
+                      key={game.id}
+                      className="block"
+                      data-analytics-event="related_content_click"
+                      data-analytics-source-type="quiz_recommendations"
+                      data-analytics-target-type="codes"
+                      data-analytics-target-slug={game.slug}
+                    >
+                      <GameCard game={game} titleAs="p" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {relatedArticles.length ? (
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">Articles</h3>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {relatedArticles.map((article) => (
+                    <div
+                      key={article.id}
+                      className="block"
+                      data-analytics-event="related_content_click"
+                      data-analytics-source-type="quiz_recommendations"
+                      data-analytics-target-type="article"
+                      data-analytics-target-slug={article.slug}
+                    >
+                      <ArticleCard article={article} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {relatedTools.length ? (
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">Tools</h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {relatedTools.map((tool) => (
+                    <div
+                      key={tool.id ?? tool.code}
+                      className="block"
+                      data-analytics-event="related_content_click"
+                      data-analytics-source-type="quiz_recommendations"
+                      data-analytics-target-type="tool"
+                      data-analytics-target-slug={tool.code}
+                    >
+                      <ToolCard tool={tool} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {relatedCatalogPages.length ? (
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">Catalog pages</h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {relatedCatalogPages.map((catalog) => (
+                    <div
+                      key={catalog.id ?? catalog.code}
+                      data-analytics-event="related_content_click"
+                      data-analytics-source-type="quiz_recommendations"
+                      data-analytics-target-type="catalog"
+                      data-analytics-target-slug={catalog.code}
+                    >
+                      <Link
+                        href={buildCatalogHref(catalog.code)}
+                        className="block rounded-xl border border-border/60 bg-surface/70 p-4 transition hover:border-accent/60 hover:bg-surface"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Catalog</p>
+                        <h4 className="mt-1 line-clamp-2 text-base font-semibold text-foreground">{catalog.title}</h4>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted">
+                          {summarize(catalog.meta_description, "Explore this related Roblox catalog page.")}
+                        </p>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
         </section>
       ) : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />

@@ -26,6 +26,11 @@ type PageProps = {
   params: Promise<{ artist: string }>;
 };
 
+export async function generateStaticParams() {
+  // Keep high-cardinality artist pages on on-demand ISR to prevent expensive build-time fanout.
+  return [];
+}
+
 export default async function ArtistMusicIdsPage({ params }: PageProps) {
   const { artist: artistSlug } = await params;
   const artist = await loadArtistOptionBySlug(artistSlug);

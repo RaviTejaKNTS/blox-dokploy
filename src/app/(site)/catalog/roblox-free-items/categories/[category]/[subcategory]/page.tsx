@@ -5,6 +5,7 @@ import { getCatalogPageContentByCodes } from "@/lib/catalog";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, buildAlternates } from "@/lib/seo";
 import {
   BASE_PATH,
+  loadFreeItemCategories,
   loadFreeItemCategoryBySlug,
   loadFreeItemSubcategories,
   loadFreeItemSubcategoryBySlug,
@@ -19,6 +20,20 @@ const CATALOG_CODE_CANDIDATES = ["roblox-free-items"];
 type PageProps = {
   params: Promise<{ category: string; subcategory: string }>;
 };
+
+export async function generateStaticParams() {
+  const categories = await loadFreeItemCategories();
+  const paramsList: Array<{ category: string; subcategory: string }> = [];
+
+  for (const category of categories) {
+    const subcategories = await loadFreeItemSubcategories(category.label);
+    for (const subcategory of subcategories) {
+      paramsList.push({ category: category.slug, subcategory: subcategory.slug });
+    }
+  }
+
+  return paramsList;
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { category: categorySlug, subcategory: subcategorySlug } = await params;

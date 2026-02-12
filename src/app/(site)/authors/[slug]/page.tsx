@@ -7,6 +7,7 @@ import { GameCard } from "@/components/GameCard";
 import { authorAvatarUrl } from "@/lib/avatar";
 import {
   getAuthorBySlug,
+  listAuthorSlugs,
   listPublishedArticlesByAuthor,
   listPublishedGamesByAuthorWithActiveCounts
 } from "@/lib/db";
@@ -23,6 +24,11 @@ import {
 export const revalidate = 2592000; // monthly
 
 type Params = { params: Promise<{ slug: string }> };
+
+export async function generateStaticParams() {
+  const slugs = await listAuthorSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
 
 function markdownToPlain(text?: string | null): string {
   if (!text) return "";

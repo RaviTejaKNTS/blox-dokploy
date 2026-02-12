@@ -3,15 +3,22 @@ import "@/styles/article-content.css";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { BASE_PATH, loadFreeItemsPageData, renderRobloxFreeItemsPage } from "../../page-data";
+import { buildPageParams } from "@/lib/static-params";
 
 export const revalidate = 2592000;
 
 const CATALOG_CODE_CANDIDATES = ["roblox-free-items"];
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
+const MAX_STATIC_PAGES = 20;
 
 type PageProps = {
   params: Promise<{ page: string }>;
 };
+
+export async function generateStaticParams() {
+  const { totalPages } = await loadFreeItemsPageData(1);
+  return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { page } = await params;

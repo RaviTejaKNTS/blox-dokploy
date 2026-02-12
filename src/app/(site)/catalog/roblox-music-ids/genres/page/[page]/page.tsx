@@ -11,12 +11,19 @@ import {
   buildSimpleItemListSchema,
   loadPagedGenreOptions
 } from "../../../page-data";
+import { buildPageParams } from "@/lib/static-params";
 
 export const revalidate = 2592000;
+const MAX_STATIC_PAGES = 20;
 
 type PageProps = {
   params: Promise<{ page: string }>;
 };
+
+export async function generateStaticParams() {
+  const { totalPages } = await loadPagedGenreOptions(1);
+  return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { page } = await params;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session-user";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isTrustedMutationOrigin } from "@/lib/security/request";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,10 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    if (!isTrustedMutationOrigin(request)) {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
     const user = await getSessionUser();
 
     if (!user) {

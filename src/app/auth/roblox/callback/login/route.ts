@@ -10,8 +10,14 @@ import {
   readRobloxLoginOauthCookies,
   resolveRobloxLoginRedirectUri
 } from "@/lib/auth/roblox-login";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp } from "@/lib/security/request";
 
 const LOGIN_PATH = "/login";
+const CALLBACK_RATE_LIMIT = {
+  limit: 60,
+  windowMs: 60 * 1000
+};
 
 type AppUserRow = {
   user_id: string;
@@ -52,12 +58,23 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
+  const ip = getRequestIp(request);
+  const rateLimit = checkRateLimit({
+    key: `roblox-callback:${ip}`,
+    ...CALLBACK_RATE_LIMIT
+  });
   const oauthCookies = readRobloxLoginOauthCookies(request);
   const nextPath = sanitizeNextPath(oauthCookies.nextPath);
   const redirectUri = resolveRobloxLoginRedirectUri(origin);
 
   const redirectWithError = (message: string) =>
     attachCleanupCookies(NextResponse.redirect(buildLoginRedirect(origin, "error", message, nextPath)));
+
+  if (!rateLimit.allowed) {
+    const response = redirectWithError("Too many login attempts. Please try again shortly.");
+    response.headers.set("Retry-After", String(rateLimit.retryAfterSeconds));
+    return response;
+  }
 
   if (oauthError) {
     return redirectWithError("Roblox sign-in was canceled or failed.");

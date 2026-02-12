@@ -84,34 +84,39 @@ export async function toCommentEntry(row: CommentRow): Promise<CommentEntry> {
 }
 
 async function fetchApprovedComments(entityType: string, entityId: string): Promise<CommentEntry[]> {
-  const supabase = supabaseAdmin();
-  const { data, error } = await supabase
-    .from("comments")
-    .select(
-      "id, parent_id, body_md, status, created_at, author_id, guest_name, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
-    )
-    .eq("entity_type", entityType)
-    .eq("entity_id", entityId)
-    .eq("status", "approved")
-    .order("created_at", { ascending: true })
-    .limit(200);
+  try {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from("comments")
+      .select(
+        "id, parent_id, body_md, status, created_at, author_id, guest_name, author:app_users(display_name, roblox_avatar_url, roblox_display_name, roblox_username, role)"
+      )
+      .eq("entity_type", entityType)
+      .eq("entity_id", entityId)
+      .eq("status", "approved")
+      .order("created_at", { ascending: true })
+      .limit(200);
 
-  if (error || !data?.length) {
-    if (error) {
-      console.error("Error fetching comments", error);
+    if (error || !data?.length) {
+      if (error) {
+        console.error("Error fetching comments", error);
+      }
+      return [];
     }
+
+    const rows = (data ?? []) as unknown as Array<
+      CommentRow & { author?: CommentRow["author"] | CommentRow["author"][] | null }
+    >;
+    const normalizedRows = rows.map((row) => ({
+      ...row,
+      author: Array.isArray(row.author) ? (row.author[0] ?? null) : (row.author ?? null)
+    })) as CommentRow[];
+
+    return Promise.all(normalizedRows.map((row) => toCommentEntry(row)));
+  } catch (error) {
+    console.error("Error fetching comments", error);
     return [];
   }
-
-  const rows = (data ?? []) as unknown as Array<
-    CommentRow & { author?: CommentRow["author"] | CommentRow["author"][] | null }
-  >;
-  const normalizedRows = rows.map((row) => ({
-    ...row,
-    author: Array.isArray(row.author) ? (row.author[0] ?? null) : (row.author ?? null)
-  })) as CommentRow[];
-
-  return Promise.all(normalizedRows.map((row) => toCommentEntry(row)));
 }
 
 export async function getApprovedComments(entityType: string, entityId: string): Promise<CommentEntry[]> {

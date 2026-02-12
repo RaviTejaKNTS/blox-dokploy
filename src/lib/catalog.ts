@@ -25,6 +25,11 @@ export type CatalogPageContent = {
   content_updated_at?: string | null;
 };
 
+export type CatalogListEntry = Pick<
+  CatalogPageContent,
+  "id" | "code" | "title" | "meta_description" | "thumb_url" | "universe_id" | "published_at" | "created_at" | "updated_at" | "content_updated_at"
+>;
+
 const CATALOG_SELECT_FIELDS_VIEW =
   "id, universe_id, code, title, seo_title, meta_description, intro_md, how_it_works_md, description_json, faq_json, cta_label, cta_url, schema_ld_json, thumb_url, is_published, published_at, created_at, updated_at, content_updated_at";
 const CATALOG_SELECT_FIELDS_BASE =
@@ -96,4 +101,64 @@ export async function getCatalogPageContentByCodes(codes: string[]): Promise<Cat
   );
 
   return cachedCatalogContent(normalizedCodes);
+}
+
+export async function listPublishedCatalogCodes(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const supabase = supabaseAdmin();
+      const { data, error } = await supabase
+        .from("catalog_pages")
+        .select("code")
+        .eq("is_published", true)
+        .not("code", "is", null);
+
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { code: string | null }).code)
+        .filter((code): code is string => typeof code === "string" && code.length > 0);
+    },
+    ["listPublishedCatalogCodes"],
+    {
+      revalidate: CATALOG_REVALIDATE_SECONDS,
+      tags: ["catalog-index"]
+    }
+  );
+
+  return cached();
+}
+
+export async function listPublishedCatalogPagesByUniverseId(
+  universeId: number,
+  limit = 2
+): Promise<CatalogListEntry[]> {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 2;
+  const supabase = supabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("catalog_pages_view")
+    .select("id, code, title, meta_description, thumb_url, universe_id, published_at, created_at, updated_at, content_updated_at")
+    .eq("is_published", true)
+    .eq("universe_id", universeId)
+    .order("content_updated_at", { ascending: false })
+    .limit(safeLimit);
+
+  if (!error && data) {
+    return (data ?? []) as CatalogListEntry[];
+  }
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("catalog_pages")
+    .select("id, code, title, meta_description, thumb_url, universe_id, published_at, created_at, updated_at")
+    .eq("is_published", true)
+    .eq("universe_id", universeId)
+    .order("updated_at", { ascending: false })
+    .limit(safeLimit);
+
+  if (fallbackError) {
+    console.error("Error fetching catalog pages by universe", fallbackError);
+    return [];
+  }
+
+  return (fallback ?? []) as CatalogListEntry[];
 }

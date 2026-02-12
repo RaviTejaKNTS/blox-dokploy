@@ -4,16 +4,25 @@ import "@/styles/article-content.css";
 import { ChecklistBoard } from "@/components/ChecklistBoard";
 import { ChecklistProgressHeader } from "@/components/ChecklistProgressHeader";
 import { ChecklistFooterLinks } from "@/components/ChecklistFooterLinks";
-import { getChecklistPageBySlug } from "@/lib/db";
+import { getChecklistPageBySlug, listPublishedChecklistsPage } from "@/lib/db";
 import { renderMarkdown, markdownToPlainText } from "@/lib/markdown";
 import { CHECKLISTS_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 3600; // 1 hour
+const MAX_STATIC_CHECKLIST_SLUGS = 120;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateStaticParams() {
+  const { checklists } = await listPublishedChecklistsPage(1, MAX_STATIC_CHECKLIST_SLUGS);
+  return checklists
+    .map((checklist) => checklist.slug?.trim())
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => ({ slug }));
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;

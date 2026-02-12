@@ -3,6 +3,8 @@ import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth/session-user";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getCommentsTag, toCommentEntry, type CommentRow } from "@/lib/comments";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp, isTrustedMutationOrigin } from "@/lib/security/request";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,10 @@ const MAX_BODY_LENGTH = 1000;
 const MAX_GUEST_NAME_LENGTH = 60;
 const MAX_GUEST_EMAIL_LENGTH = 120;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COMMENT_WRITE_RATE_LIMIT = {
+  limit: 20,
+  windowMs: 10 * 60 * 1000
+};
 
 type ModerationResult = {
   flagged?: boolean;
@@ -110,6 +116,25 @@ async function runModeration(input: string): Promise<ModerationResponse | null> 
 
 export async function POST(request: Request) {
   try {
+    if (!isTrustedMutationOrigin(request)) {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
+    const ip = getRequestIp(request);
+    const rateLimit = checkRateLimit({
+      key: `comments:create:${ip}`,
+      ...COMMENT_WRITE_RATE_LIMIT
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many comment attempts. Please try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) }
+        }
+      );
+    }
+
     const payload = await request.json();
     const entityType = normalizeString(payload?.entityType);
     const entityId = normalizeString(payload?.entityId);

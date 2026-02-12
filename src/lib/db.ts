@@ -268,6 +268,29 @@ export async function listAuthors(): Promise<Author[]> {
   return cached();
 }
 
+export async function listAuthorSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("authors")
+        .select("slug")
+        .not("slug", "is", null);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { slug: string | null }).slug)
+        .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+    },
+    ["listAuthorSlugs"],
+    {
+      revalidate: 2592000, // 30 days
+      tags: ["authors-index"]
+    }
+  );
+
+  return cached();
+}
+
 function articleSelectFields() {
   return `*, author:authors(id,name,slug,avatar_url,gravatar_email,bio_md,twitter,youtube,website,facebook,linkedin,instagram,roblox,discord,created_at,updated_at), universe:roblox_universes(universe_id,slug,display_name,name)`;
 }
@@ -347,6 +370,31 @@ const cachedListGamesWithActiveCounts = unstable_cache(
 
 export async function listGamesWithActiveCounts(): Promise<GameWithCounts[]> {
   return cachedListGamesWithActiveCounts();
+}
+
+export async function listPublishedCodeSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("game_pages_index_view")
+        .select("slug")
+        .eq("is_published", true)
+        .not("slug", "is", null)
+        .order("content_updated_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { slug: string | null }).slug)
+        .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+    },
+    ["listPublishedCodeSlugs"],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["codes-index", "home"]
+    }
+  );
+
+  return cached();
 }
 
 export async function listGamesWithActiveCountsPage(page: number, pageSize: number): Promise<{ games: GameWithCounts[]; total: number }> {
@@ -446,6 +494,30 @@ export async function listPublishedGameLists(): Promise<GameList[]> {
       return (fallback ?? []) as GameList[];
     },
     ["listPublishedGameLists"],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["lists-index"]
+    }
+  );
+
+  return cached();
+}
+
+export async function listPublishedGameListSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("game_lists")
+        .select("slug")
+        .eq("is_published", true)
+        .not("slug", "is", null);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { slug: string | null }).slug)
+        .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+    },
+    ["listPublishedGameListSlugs"],
     {
       revalidate: 21600, // 6 hours
       tags: ["lists-index"]
@@ -842,6 +914,31 @@ const cachedListPublishedArticles = unstable_cache(
 
 export async function listPublishedArticles(limit = 20, offset = 0): Promise<ArticleWithRelations[]> {
   return cachedListPublishedArticles(limit, offset);
+}
+
+export async function listPublishedArticleSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("article_pages_index_view")
+        .select("slug")
+        .eq("is_published", true)
+        .not("slug", "is", null)
+        .order("published_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { slug: string | null }).slug)
+        .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+    },
+    ["listPublishedArticleSlugs"],
+    {
+      revalidate: 21600, // 6 hours
+      tags: ["articles-index"]
+    }
+  );
+
+  return cached();
 }
 
 export async function listPublishedArticlesPage(
@@ -1304,6 +1401,30 @@ export async function getEventsPageByUniverseId(universeId: number): Promise<Eve
       return { ...raw, universe };
     },
     [`eventsPageByUniverse:${universeId}`],
+    {
+      revalidate: 3600,
+      tags: ["events-pages"]
+    }
+  );
+
+  return cached();
+}
+
+export async function listPublishedEventsPageSlugs(): Promise<string[]> {
+  const cached = unstable_cache(
+    async () => {
+      const sb = supabaseAdmin();
+      const { data, error } = await sb
+        .from("events_pages")
+        .select("slug")
+        .eq("is_published", true)
+        .not("slug", "is", null);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as { slug: string | null }).slug)
+        .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+    },
+    ["listPublishedEventsPageSlugs"],
     {
       revalidate: 3600,
       tags: ["events-pages"]

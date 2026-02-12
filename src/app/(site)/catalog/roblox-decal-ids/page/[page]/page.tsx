@@ -3,6 +3,7 @@ import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { getCatalogPageContentByCodes } from "@/lib/catalog";
+import { buildPageParams } from "@/lib/static-params";
 import {
     BASE_PATH,
     loadRobloxDecalIdsPageData,
@@ -14,6 +15,7 @@ export const revalidate = 2592000; // 30 days
 
 const CATALOG_CODE_CANDIDATES = ["roblox-decal-ids"];
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
+const MAX_STATIC_PAGES = 50;
 
 function sortDescriptionEntries(description: Record<string, string> | null | undefined) {
     return Object.entries(description ?? {}).sort((a, b) => {
@@ -69,6 +71,11 @@ async function buildCatalogContent(): Promise<{ contentHtml: CatalogContentHtml 
 type PageProps = {
     params: Promise<{ page: string }>;
 };
+
+export async function generateStaticParams() {
+    const { totalPages } = await loadRobloxDecalIdsPageData(1);
+    return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { page } = await params;

@@ -2,12 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadCodesPageData, renderCodesPage } from "../../page-data";
 import { CODES_DESCRIPTION, buildAlternates } from "@/lib/seo";
+import { buildPageParams } from "@/lib/static-params";
 
 export const revalidate = 86400; // daily
+const MAX_STATIC_PAGES = 15;
 
 type PageProps = {
   params: Promise<{ page: string }>;
 };
+
+export async function generateStaticParams() {
+  const { totalPages } = await loadCodesPageData(1);
+  return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { page } = await params;

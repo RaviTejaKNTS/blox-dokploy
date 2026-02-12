@@ -3,11 +3,17 @@ import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth/session-user";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getCommentsTag, toCommentEntry, type CommentRow } from "@/lib/comments";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp, isTrustedMutationOrigin } from "@/lib/security/request";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_LENGTH = 1000;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COMMENT_EDIT_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 10 * 60 * 1000
+};
 
 type ModerationResult = {
   flagged?: boolean;
@@ -92,6 +98,25 @@ async function runModeration(input: string): Promise<ModerationResponse | null> 
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    if (!isTrustedMutationOrigin(request)) {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
+    const ip = getRequestIp(request);
+    const rateLimit = checkRateLimit({
+      key: `comments:patch:${ip}`,
+      ...COMMENT_EDIT_RATE_LIMIT
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many edit attempts. Please try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) }
+        }
+      );
+    }
+
     const { id: rawId } = await context.params;
     const id = normalizeString(rawId);
     if (!UUID_REGEX.test(id)) {
@@ -164,8 +189,27 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 }
 
-export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    if (!isTrustedMutationOrigin(request)) {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
+    const ip = getRequestIp(request);
+    const rateLimit = checkRateLimit({
+      key: `comments:delete:${ip}`,
+      ...COMMENT_EDIT_RATE_LIMIT
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many delete attempts. Please try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) }
+        }
+      );
+    }
+
     const { id: rawId } = await context.params;
     const id = normalizeString(rawId);
     if (!UUID_REGEX.test(id)) {

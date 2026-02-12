@@ -20,6 +20,11 @@ type PageProps = {
   params: Promise<{ artist: string; page: string }>;
 };
 
+export async function generateStaticParams() {
+  // Keep high-cardinality artist pagination on on-demand ISR to prevent build-time timeouts.
+  return [];
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { artist, page } = await params;
   const pageNumber = Number(page);

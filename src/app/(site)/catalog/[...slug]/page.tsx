@@ -3,15 +3,26 @@ import { formatDistanceToNow } from "date-fns";
 import { notFound } from "next/navigation";
 import "@/styles/article-content.css";
 import { renderMarkdown } from "@/lib/markdown";
-import { getCatalogPageContentByCodes, type CatalogFaqEntry } from "@/lib/catalog";
+import { getCatalogPageContentByCodes, listPublishedCatalogCodes, type CatalogFaqEntry } from "@/lib/catalog";
 import { CATALOG_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 import { CommentsSection } from "@/components/comments/CommentsSection";
+import { splitPathToSlug } from "@/lib/static-params";
 
 export const revalidate = 86400;
+const RESERVED_CATALOG_PREFIXES = ["admin-commands", "roblox-decal-ids", "roblox-free-items", "roblox-music-ids", "the-forge"];
 
 type PageProps = {
   params: Promise<{ slug: string[] }>;
 };
+
+export async function generateStaticParams() {
+  const codes = await listPublishedCatalogCodes();
+  return codes
+    .map((code) => code.trim().toLowerCase())
+    .filter((code) => code.length > 0)
+    .filter((code) => !RESERVED_CATALOG_PREFIXES.some((prefix) => code === prefix || code.startsWith(`${prefix}/`)))
+    .map((code) => ({ slug: splitPathToSlug(code) }));
+}
 
 type CatalogContentHtml = {
   id?: string | null;

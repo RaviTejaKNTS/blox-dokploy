@@ -26,6 +26,11 @@ type PageProps = {
   params: Promise<{ genre: string }>;
 };
 
+export async function generateStaticParams() {
+  // Keep high-cardinality genre pages on on-demand ISR to prevent build-time timeouts.
+  return [];
+}
+
 export default async function GenreMusicIdsPage({ params }: PageProps) {
   const { genre: genreSlug } = await params;
   const genre = await loadGenreOptionBySlug(genreSlug);

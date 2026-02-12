@@ -20,6 +20,11 @@ type PageProps = {
   params: Promise<{ genre: string; page: string }>;
 };
 
+export async function generateStaticParams() {
+  // Keep high-cardinality genre pagination on on-demand ISR to prevent build-time timeouts.
+  return [];
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { genre, page } = await params;
   const pageNumber = Number(page);

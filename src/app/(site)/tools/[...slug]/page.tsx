@@ -10,7 +10,14 @@ import {
   listPublishedArticlesByUniverseId,
   listPublishedChecklistsByUniverseId
 } from "@/lib/db";
-import { getToolContent, listPublishedToolsByUniverseId, type ToolContent, type ToolFaqEntry, type ToolListEntry } from "@/lib/tools";
+import {
+  getToolContent,
+  listPublishedTools,
+  listPublishedToolsByUniverseId,
+  type ToolContent,
+  type ToolFaqEntry,
+  type ToolListEntry
+} from "@/lib/tools";
 import { getUniverseEventSummary } from "@/lib/events-summary";
 import { ContentSlot } from "@/components/ContentSlot";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -23,15 +30,32 @@ import { EventsPageCard, type EventsPageCardProps } from "@/components/EventsPag
 import { SocialShare } from "@/components/SocialShare";
 import { formatUpdatedLabel } from "@/lib/updated-label";
 import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
+import { splitPathToSlug } from "@/lib/static-params";
 
 export const revalidate = 3600;
 
 const FALLBACK_IMAGE = `${SITE_URL}/og-image.png`;
 const TOOL_AD_SLOT = "3529946151";
+const RESERVED_TOOL_CODES = new Set([
+  "grow-a-garden-crop-value-calculator",
+  "roblox-devex-calculator",
+  "roblox-id-extractor",
+  "robux-to-usd-calculator",
+  "the-forge-crafting-calculator",
+  "the-forge-inventory-optimizer"
+]);
 
 type PageProps = {
   params: Promise<{ slug: string[] }>;
 };
+
+export async function generateStaticParams() {
+  const tools = await listPublishedTools();
+  return tools
+    .map((tool) => tool.code?.trim().toLowerCase())
+    .filter((code): code is string => Boolean(code) && !RESERVED_TOOL_CODES.has(code))
+    .map((code) => ({ slug: splitPathToSlug(code) }));
+}
 
 function normalizeToolCode(slugParts: string[]): string {
   return slugParts

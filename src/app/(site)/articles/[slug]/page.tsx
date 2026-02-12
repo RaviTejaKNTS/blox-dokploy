@@ -27,6 +27,7 @@ import {
   getEventsPageByUniverseId,
   type ArticleWithRelations,
   type Author,
+  listPublishedArticleSlugs,
   listPublishedArticlesByUniverseId,
   listPublishedArticlesPage,
   listPublishedChecklistsByUniverseId,
@@ -48,8 +49,14 @@ import { getUniverseEventSummary } from "@/lib/events-summary";
 import { resolveModifiedAt, resolvePublishedAt } from "@/lib/content-dates";
 
 export const revalidate = 604800; // weekly
+const MAX_STATIC_ARTICLE_SLUGS = 150;
 
 type Params = { params: Promise<{ slug: string }> };
+
+export async function generateStaticParams() {
+  const slugs = await listPublishedArticleSlugs();
+  return slugs.slice(0, MAX_STATIC_ARTICLE_SLUGS).map((slug) => ({ slug }));
+}
 
 function collectAuthorSameAs(author?: Author | null): string[] {
   if (!author) return [];

@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import type { getGameListMetadata } from "@/lib/db";
+import { listPublishedGameListsPage } from "@/lib/db";
 import { renderMarkdown } from "@/lib/markdown";
 import { buildListData, buildMetadata, ListPageView } from "./page-data";
 import "@/styles/article-content.css";
 
 export const revalidate = 86400; // daily
+const MAX_STATIC_LIST_SLUGS = 120;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateStaticParams() {
+  const { lists } = await listPublishedGameListsPage(1, MAX_STATIC_LIST_SLUGS);
+  return lists
+    .map((list) => list.slug?.trim())
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => ({ slug }));
+}
 
 export default async function GameListPage({ params }: PageProps) {
   const { slug } = await params;

@@ -8,8 +8,14 @@ import {
   resolveRobloxLoginRedirectUri,
   setRobloxLoginOauthCookies
 } from "@/lib/auth/roblox-login";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp } from "@/lib/security/request";
 
 const LOGIN_PATH = "/login";
+const LOGIN_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 60 * 1000
+};
 
 function buildLoginRedirect(origin: string, status: "success" | "error", message: string, nextPath?: string) {
   const params = new URLSearchParams({ [status]: message });
@@ -24,6 +30,22 @@ export async function GET(request: NextRequest) {
   const requestedNext = request.nextUrl.searchParams.get("next");
   const nextPath = sanitizeNextPath(requestedNext);
   const clientId = process.env.ROBLOX_OAUTH_CLIENT_ID?.trim();
+  const ip = getRequestIp(request);
+  const rateLimit = checkRateLimit({
+    key: `roblox-login:${ip}`,
+    ...LOGIN_RATE_LIMIT
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.redirect(
+      buildLoginRedirect(origin, "error", "Too many login attempts. Please try again shortly.", nextPath),
+      {
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds)
+        }
+      }
+    );
+  }
 
   if (!clientId) {
     return NextResponse.redirect(buildLoginRedirect(origin, "error", "Roblox OAuth is not configured.", nextPath));
