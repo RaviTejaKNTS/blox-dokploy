@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { trackEvent } from "@/lib/analytics";
-import { getThemePreference, updateThemePreference } from "@/app/actions/preferences";
+import { updateThemePreference } from "@/app/actions/preferences";
 import { THEME_COOKIE, type Theme, normalizeTheme } from "@/lib/theme";
 
 function readThemeCookie(): Theme | null {
@@ -43,18 +43,6 @@ export function ThemeToggle() {
     setTheme(preferred);
     applyTheme(preferred);
     setHydrated(true);
-    startTransition(() => {
-      getThemePreference()
-        .then((result) => {
-          const remoteTheme = normalizeTheme(result?.theme ?? null);
-          if (remoteTheme && remoteTheme !== preferred) {
-            setTheme(remoteTheme);
-            applyTheme(remoteTheme);
-            document.cookie = `${THEME_COOKIE}=${encodeURIComponent(remoteTheme)}; path=/; max-age=31536000`;
-          }
-        })
-        .catch(() => null);
-    });
   }, []);
 
   const toggleTheme = () => {
