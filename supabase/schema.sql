@@ -389,11 +389,9 @@ create unique index if not exists idx_event_guide_generation_queue_event_id
 
 -- app users table (role-based access)
 create table if not exists public.app_users (
-  user_id uuid primary key references auth.users(id) on delete cascade,
+  user_id uuid primary key default uuid_generate_v4(),
   role text not null default 'user' check (role in ('admin','user')),
-  email text,
   display_name text,
-  email_login_enabled boolean not null default false,
   preferences jsonb not null default '{}'::jsonb,
   roblox_user_id bigint,
   roblox_username text,
@@ -577,7 +575,7 @@ create index if not exists idx_checklist_items_page_section on public.checklist_
 create index if not exists idx_checklist_items_page on public.checklist_items (page_id);
 
 create table if not exists public.user_checklist_progress (
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.app_users(user_id) on delete cascade,
   checklist_slug text not null,
   checked_item_ids text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
@@ -589,7 +587,7 @@ create index if not exists idx_user_checklist_progress_slug
   on public.user_checklist_progress (checklist_slug);
 
 create table if not exists public.user_quiz_progress (
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.app_users(user_id) on delete cascade,
   quiz_code text not null,
   seen_question_ids text[] not null default '{}'::text[],
   last_score int,
@@ -646,71 +644,6 @@ as $$
       and au.role = 'admin'
   );
 $$;
-
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  has_email_provider boolean;
-begin
-  has_email_provider :=
-    coalesce(new.raw_app_meta_data->>'provider', '') = 'email'
-    or (coalesce(new.raw_app_meta_data->'providers', '[]'::jsonb) ? 'email');
-
-  insert into public.app_users (user_id, role, email, display_name, email_login_enabled)
-  values (
-    new.id,
-    'user',
-    new.email,
-    coalesce(
-      new.raw_user_meta_data->>'full_name',
-      new.raw_user_meta_data->>'name',
-      new.raw_user_meta_data->>'display_name',
-      split_part(coalesce(new.email, ''), '@', 1)
-    ),
-    has_email_provider
-  )
-  on conflict (user_id)
-  do update set
-    email = excluded.email,
-    display_name = excluded.display_name;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-after insert on auth.users
-for each row execute function public.handle_new_user();
-
-create or replace function public.sync_app_user_on_auth_update()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.app_users
-    set email = new.email,
-        display_name = coalesce(
-          new.raw_user_meta_data->>'full_name',
-          new.raw_user_meta_data->>'name',
-          new.raw_user_meta_data->>'display_name',
-          split_part(coalesce(new.email, ''), '@', 1)
-        ),
-        updated_at = now()
-  where user_id = new.id;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_updated on auth.users;
-create trigger on_auth_user_updated
-after update of email, raw_user_meta_data on auth.users
-for each row execute function public.sync_app_user_on_auth_update();
 
 -- stamp published_at only when is_published flips to true
 create or replace function public.set_article_published_at() returns trigger as $$
@@ -931,10 +864,6 @@ begin
 
   for r in select tablename from pg_tables where schemaname = 'public' loop
     execute format('drop policy if exists "admin_full_access" on public.%I', r.tablename);
-    execute format(
-      'create policy "admin_full_access" on public.%I for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()))',
-      r.tablename
-    );
   end loop;
 end $$;
 
@@ -990,7 +919,6 @@ create policy "comments_select_public" on public.comments
   for select using (
     status = 'approved'
     or author_id = auth.uid()
-    or public.is_admin(auth.uid())
   );
 
 drop policy if exists "comments_insert_authenticated" on public.comments;
@@ -1015,9 +943,6 @@ create policy "comments_insert_guest" on public.comments
   );
 
 drop policy if exists "comments_admin_update" on public.comments;
-create policy "comments_admin_update" on public.comments
-  for update using (public.is_admin(auth.uid()))
-  with check (public.is_admin(auth.uid()));
 
 drop policy if exists "comments_update_own" on public.comments;
 create policy "comments_update_own" on public.comments

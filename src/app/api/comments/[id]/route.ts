@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getCommentsTag, toCommentEntry, type CommentRow } from "@/lib/comments";
 
@@ -107,15 +107,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return NextResponse.json({ error: `Comments must be ${MAX_BODY_LENGTH} characters or less.` }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
       return NextResponse.json({ error: "You must be logged in to edit comments." }, { status: 401 });
     }
 
-    const { data: updatedRow, error: updateError } = await supabase
+    const admin = supabaseAdmin();
+    const { data: updatedRow, error: updateError } = await admin
       .from("comments")
       .update({
         body_md: body,
@@ -123,7 +121,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         moderation: null
       })
       .eq("id", id)
-      .eq("author_id", user.id)
+      .eq("author_id", sessionUser.id)
       .select("id, entity_type, entity_id")
       .maybeSingle();
 
@@ -136,7 +134,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const approved = shouldApproveComment(moderation);
     const nextStatus = approved ? "approved" : "pending";
 
-    const admin = supabaseAdmin();
     await admin.from("comments").update({ status: nextStatus, moderation: moderationPayload }).eq("id", id);
 
     const { data: commentRow, error: commentError } = await admin
@@ -175,26 +172,28 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
       return NextResponse.json({ error: "Invalid comment id." }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
       return NextResponse.json({ error: "You must be logged in to delete comments." }, { status: 401 });
     }
 
-    const { data: commentRow } = await supabase
+    const admin = supabaseAdmin();
+    const { data: commentRow } = await admin
       .from("comments")
       .select("id, entity_type, entity_id, status")
       .eq("id", id)
-      .eq("author_id", user.id)
+      .eq("author_id", sessionUser.id)
       .maybeSingle();
 
     if (!commentRow) {
       return NextResponse.json({ error: "Comment not found." }, { status: 404 });
     }
 
-    const { error: deleteError } = await supabase.from("comments").delete().eq("id", id).eq("author_id", user.id);
+    const { error: deleteError } = await admin
+      .from("comments")
+      .delete()
+      .eq("id", id)
+      .eq("author_id", sessionUser.id);
     if (deleteError) {
       return NextResponse.json({ error: "Unable to delete comment." }, { status: 500 });
     }

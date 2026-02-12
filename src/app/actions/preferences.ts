@@ -1,7 +1,8 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
+import { supabaseAdmin } from "@/lib/supabase";
 import { THEME_COOKIE, type Theme, normalizeTheme } from "@/lib/theme";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
@@ -18,15 +19,13 @@ export async function updateThemePreference(nextTheme: Theme) {
   const cookieStore = await cookies();
   cookieStore.set(THEME_COOKIE, theme, { path: "/", maxAge: ONE_YEAR_SECONDS });
 
-  const supabase = await createSupabaseServerClient({ allowSetCookies: true });
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   if (!user) {
     return { stored: false };
   }
 
+  const supabase = supabaseAdmin();
   const { data: appUser, error: fetchError } = await supabase
     .from("app_users")
     .select("preferences")
@@ -54,15 +53,13 @@ export async function updateThemePreference(nextTheme: Theme) {
 }
 
 export async function getThemePreference() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   if (!user) {
     return { theme: null };
   }
 
+  const supabase = supabaseAdmin();
   const { data: appUser, error } = await supabase
     .from("app_users")
     .select("preferences")

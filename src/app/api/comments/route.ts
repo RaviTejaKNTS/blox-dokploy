@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getCommentsTag, toCommentEntry, type CommentRow } from "@/lib/comments";
 
@@ -134,12 +134,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Comments must be ${MAX_BODY_LENGTH} characters or less.` }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
       if (!guestName || guestName.length < 2 || guestName.length > MAX_GUEST_NAME_LENGTH) {
         return NextResponse.json({ error: "Please enter a valid name to comment." }, { status: 400 });
       }
@@ -148,8 +144,10 @@ export async function POST(request: Request) {
       }
     }
 
+    const admin = supabaseAdmin();
+
     if (parentId) {
-      const { data: parentRow } = await supabaseAdmin()
+      const { data: parentRow } = await admin
         .from("comments")
         .select("id, entity_type, entity_id")
         .eq("id", parentId)
@@ -159,15 +157,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: inserted, error: insertError } = await supabase
+    const { data: inserted, error: insertError } = await admin
       .from("comments")
       .insert({
         entity_type: entityType,
         entity_id: entityId,
         parent_id: parentId || null,
-        author_id: user?.id ?? null,
-        guest_name: user ? null : guestName,
-        guest_email: user ? null : guestEmail,
+        author_id: sessionUser?.id ?? null,
+        guest_name: sessionUser ? null : guestName,
+        guest_email: sessionUser ? null : guestEmail,
         body_md: body,
         status: "pending"
       })
@@ -184,7 +182,6 @@ export async function POST(request: Request) {
     const approved = shouldApproveComment(moderation);
     const nextStatus = approved ? "approved" : "pending";
 
-    const admin = supabaseAdmin();
     await admin
       .from("comments")
       .update({ status: nextStatus, moderation: moderationPayload })

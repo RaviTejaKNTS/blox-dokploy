@@ -1,33 +1,23 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
       return NextResponse.json({ user: null });
     }
 
-    const { data: appUser } = await supabase
-      .from("app_users")
-      .select("display_name, roblox_avatar_url, roblox_display_name, roblox_username, role")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
     return NextResponse.json({
       user: {
-        id: user.id,
-        display_name: appUser?.display_name ?? null,
-        roblox_avatar_url: appUser?.roblox_avatar_url ?? null,
-        roblox_display_name: appUser?.roblox_display_name ?? null,
-        roblox_username: appUser?.roblox_username ?? null,
-        role: appUser?.role ?? "user"
+        id: sessionUser.id,
+        display_name: sessionUser.display_name,
+        roblox_avatar_url: sessionUser.roblox_avatar_url,
+        roblox_display_name: sessionUser.roblox_display_name,
+        roblox_username: sessionUser.roblox_username,
+        role: sessionUser.role
       }
     });
   } catch (error) {

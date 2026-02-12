@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -50,20 +51,18 @@ function normalizeBreakdown(value: unknown): Record<string, { correct: number; t
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const admin = supabaseAdmin();
     const url = new URL(request.url);
     const code = normalizeCode(url.searchParams.get("code"));
 
     if (code) {
-      const { data, error } = await supabase
+      const { data, error } = await admin
         .from("user_quiz_progress")
         .select("seen_question_ids, last_score, last_total, last_breakdown, last_attempt_at")
         .eq("user_id", user.id)
@@ -94,7 +93,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("user_quiz_progress")
       .select("quiz_code, seen_question_ids, last_score, last_total")
       .eq("user_id", user.id);
@@ -131,15 +130,13 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const admin = supabaseAdmin();
     const payload = await request.json().catch(() => ({}));
     const code = normalizeCode(payload?.code ?? null);
     const seenQuestionIds = normalizeQuestionIds(payload?.questionIds);
@@ -152,7 +149,7 @@ export async function PUT(request: Request) {
     }
 
     if (seenQuestionIds.length === 0) {
-      const { error } = await supabase
+      const { error } = await admin
         .from("user_quiz_progress")
         .delete()
         .eq("user_id", user.id)
@@ -165,7 +162,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ seenQuestionIds: [] });
     }
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("user_quiz_progress")
       .upsert(
         {

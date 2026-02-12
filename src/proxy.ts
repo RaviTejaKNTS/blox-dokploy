@@ -198,26 +198,6 @@ export function proxy(req: NextRequest) {
     return applyConsentState(redirectWithStatus(redirectUrl, 301), requiresConsent, attachConsentState);
   }
 
-  if (
-    url.searchParams.has("code") &&
-    !url.pathname.startsWith("/auth/callback") &&
-    !url.pathname.startsWith("/auth/roblox/callback")
-  ) {
-    const redirectUrl = url.clone();
-    redirectUrl.pathname = "/auth/callback";
-    const code = url.searchParams.get("code");
-    const nextParams = new URLSearchParams(url.searchParams);
-    nextParams.delete("code");
-    nextParams.delete("next");
-    const nextPath = nextParams.toString() ? `${url.pathname}?${nextParams.toString()}` : url.pathname;
-    redirectUrl.search = "";
-    if (code) {
-      redirectUrl.searchParams.set("code", code);
-    }
-    redirectUrl.searchParams.set("next", nextPath || "/account");
-    return applyConsentState(NextResponse.redirect(redirectUrl), requiresConsent, attachConsentState);
-  }
-
   // Pass a header downstream so layouts can decide whether to show consent UI.
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(CONSENT_HEADER, requiresConsent ? "1" : "0");

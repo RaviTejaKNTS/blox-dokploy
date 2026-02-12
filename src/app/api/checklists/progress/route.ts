@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSessionUser } from "@/lib/auth/session-user";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -29,20 +30,18 @@ function normalizeCheckedIds(value: unknown): string[] {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const admin = supabaseAdmin();
     const url = new URL(request.url);
     const slug = normalizeSlug(url.searchParams.get("slug"));
 
     if (slug) {
-      const { data, error } = await supabase
+      const { data, error } = await admin
         .from("user_checklist_progress")
         .select("checked_item_ids")
         .eq("user_id", user.id)
@@ -60,7 +59,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("user_checklist_progress")
       .select("checklist_slug, checked_item_ids")
       .eq("user_id", user.id);
@@ -89,15 +88,13 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const admin = supabaseAdmin();
     const payload = await request.json().catch(() => ({}));
     const slug = normalizeSlug(payload?.slug ?? null);
     const checkedIds = normalizeCheckedIds(payload?.checkedIds);
@@ -107,7 +104,7 @@ export async function PUT(request: Request) {
     }
 
     if (checkedIds.length === 0) {
-      const { error } = await supabase
+      const { error } = await admin
         .from("user_checklist_progress")
         .delete()
         .eq("user_id", user.id)
@@ -120,7 +117,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ checkedIds: [] });
     }
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("user_checklist_progress")
       .upsert(
         {

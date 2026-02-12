@@ -70,19 +70,6 @@ function pickQuestions(pool: QuizQuestion[], seenIds: Set<string>, count: number
   return picks;
 }
 
-function buildAttemptFromPool(quizData: QuizData): AttemptQuestion[] {
-  const build = (difficulty: Difficulty) => {
-    const list = quizData[difficulty] ?? [];
-    return list.slice(0, LEVEL_CONFIG[difficulty]).map((question) => ({
-      ...question,
-      difficulty,
-      options: question.options ?? []
-    }));
-  };
-
-  return [...build("easy"), ...build("medium"), ...build("hard")];
-}
-
 function buildAttempt(quizData: QuizData, seenQuestionIds: string[]): AttemptQuestion[] {
   const seen = new Set(seenQuestionIds);
   const easy = pickQuestions(quizData.easy ?? [], seen, LEVEL_CONFIG.easy).map((question) => ({
@@ -217,14 +204,14 @@ export function QuizRunner(props: QuizRunnerProps) {
   const [session, setSession] = useState<SessionState>({ status: "loading", userId: null });
   const [progressStatus, setProgressStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [seenQuestionIds, setSeenQuestionIds] = useState<string[]>([]);
-  const staticAttempt = useMemo(() => buildAttemptFromPool(questions), [questions]);
-  const [attempt, setAttempt] = useState<AttemptQuestion[]>(() => staticAttempt);
+  const [attempt, setAttempt] = useState<AttemptQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showSummary, setShowSummary] = useState(false);
   const [savedAttemptKey, setSavedAttemptKey] = useState<string | null>(null);
   const lastSavedAttempt = useRef<string | null>(null);
   const storageKey = useMemo(() => getStorageKey(quizCode), [quizCode]);
+  const initializedStorageKey = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -309,6 +296,8 @@ export function QuizRunner(props: QuizRunnerProps) {
 
   useEffect(() => {
     if (!readyToStart) return;
+    if (initializedStorageKey.current === storageKey) return;
+    initializedStorageKey.current = storageKey;
     if (typeof window !== "undefined") {
       try {
         const raw = window.localStorage.getItem(storageKey);
@@ -324,19 +313,27 @@ export function QuizRunner(props: QuizRunnerProps) {
             const answeredCount = Object.keys(restoredAnswers).length;
             const total = restoredAttempt.length;
             const restoredShowSummary = Boolean(parsed.showSummary && answeredCount === total);
-            const safeIndex = Math.min(
-              Math.max(Number.isFinite(parsed.currentIndex) ? parsed.currentIndex : 0, 0),
-              Math.max(0, total - 1)
-            );
-            setAttempt(restoredAttempt);
-            setAnswers(restoredAnswers);
-            setCurrentIndex(safeIndex);
-            setShowSummary(restoredShowSummary);
-            setSavedAttemptKey(parsed.savedAttemptKey ?? null);
-            if (parsed.savedAttemptKey) {
-              lastSavedAttempt.current = parsed.savedAttemptKey;
+            if (answeredCount > 0 || restoredShowSummary) {
+              const safeIndex = Math.min(
+                Math.max(Number.isFinite(parsed.currentIndex) ? parsed.currentIndex : 0, 0),
+                Math.max(0, total - 1)
+              );
+              setAttempt(restoredAttempt);
+              setAnswers(restoredAnswers);
+              setCurrentIndex(safeIndex);
+              setShowSummary(restoredShowSummary);
+              setSavedAttemptKey(parsed.savedAttemptKey ?? null);
+              if (parsed.savedAttemptKey) {
+                lastSavedAttempt.current = parsed.savedAttemptKey;
+              }
+              return;
             }
-            return;
+
+            try {
+              window.localStorage.removeItem(storageKey);
+            } catch {
+              // ignore storage failures
+            }
           }
         }
       } catch {
@@ -344,10 +341,8 @@ export function QuizRunner(props: QuizRunnerProps) {
       }
     }
 
-    if (attempt.length === 0) {
-      startNewAttempt();
-    }
-  }, [readyToStart, attempt.length, startNewAttempt, questions, storageKey]);
+    startNewAttempt();
+  }, [readyToStart, startNewAttempt, questions, storageKey]);
 
   const currentQuestion = attempt[currentIndex] ?? null;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
@@ -371,6 +366,7 @@ export function QuizRunner(props: QuizRunnerProps) {
   const totalCorrect = breakdown.easy.correct + breakdown.medium.correct + breakdown.hard.correct;
   const totalQuestions = attempt.length;
   const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+  const totalAvailableQuestions = (questions.easy?.length ?? 0) + (questions.medium?.length ?? 0) + (questions.hard?.length ?? 0);
 
   useEffect(() => {
     if (!showSummary || !attempt.length) return;
@@ -404,6 +400,15 @@ export function QuizRunner(props: QuizRunnerProps) {
 
     if (!attempt.length) return;
 
+    if (answeredCount === 0) {
+      try {
+        window.localStorage.removeItem(storageKey);
+      } catch {
+        // ignore storage failures
+      }
+      return;
+    }
+
     const payload: PersistedState = {
       version: STORAGE_VERSION,
       attempt: toPersistedAttempt(attempt),
@@ -418,7 +423,7 @@ export function QuizRunner(props: QuizRunnerProps) {
     } catch {
       // ignore storage failures
     }
-  }, [attempt, currentIndex, answers, showSummary, savedAttemptKey, storageKey]);
+  }, [attempt, currentIndex, answers, showSummary, savedAttemptKey, storageKey, answeredCount]);
 
   const handleSelectOption = (optionId: string) => {
     if (!currentQuestion || currentAnswer) return;
@@ -446,7 +451,17 @@ export function QuizRunner(props: QuizRunnerProps) {
     startNewAttempt();
   };
 
-  if (!readyToStart && staticAttempt.length === 0) {
+  const handleReloadQuiz = () => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch {
+      // ignore storage failures
+    }
+    window.location.reload();
+  };
+
+  if (!readyToStart) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-muted">
         Preparing your quiz...
@@ -455,9 +470,17 @@ export function QuizRunner(props: QuizRunnerProps) {
   }
 
   if (!attempt.length) {
+    if (totalAvailableQuestions === 0) {
+      return (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-muted">
+          No quiz questions available yet.
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-surface/60 p-8 text-center text-muted">
-        No quiz questions available yet.
+        Preparing your quiz...
       </div>
     );
   }
@@ -579,6 +602,13 @@ export function QuizRunner(props: QuizRunnerProps) {
             <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
+                className="rounded-full border border-border/70 bg-background/70 px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-accent/60 hover:text-accent"
+                onClick={handleReloadQuiz}
+              >
+                Reload Quiz
+              </button>
+              <button
+                type="button"
                 className="rounded-full bg-accent px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-soft transition hover:shadow-lg disabled:cursor-not-allowed disabled:bg-accent/40"
                 onClick={handleNext}
                 disabled={!currentAnswer}
@@ -606,6 +636,13 @@ export function QuizRunner(props: QuizRunnerProps) {
               onClick={handleRestart}
             >
               Play Again
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-border/70 bg-background/70 px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-accent/60 hover:text-accent"
+              onClick={handleReloadQuiz}
+            >
+              Reload Quiz
             </button>
           </div>
 
