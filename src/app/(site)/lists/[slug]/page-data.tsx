@@ -40,7 +40,7 @@ function formatMetric(value?: number | null) {
 
 function listEntryUrl(entry: GameListUniverseEntry): string {
   if (entry.game?.slug) {
-    return `${SITE_URL}/${entry.game.slug}`;
+    return `${SITE_URL}/codes/${entry.game.slug}`;
   }
   const placeId = entry.universe.root_place_id ?? entry.universe.universe_id;
   return `https://www.roblox.com/games/${placeId}`;
