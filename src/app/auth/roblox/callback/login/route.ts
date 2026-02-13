@@ -18,6 +18,7 @@ const CALLBACK_RATE_LIMIT = {
   limit: 60,
   windowMs: 60 * 1000
 };
+const AUTH_ROBOTS_DIRECTIVE = "noindex, nofollow";
 
 type AppUserRow = {
   user_id: string;
@@ -32,10 +33,15 @@ function buildLoginRedirect(origin: string, status: "success" | "error", message
   return `${origin}${LOGIN_PATH}?${params.toString()}`;
 }
 
+function withNoIndexHeaders(response: NextResponse) {
+  response.headers.set("X-Robots-Tag", AUTH_ROBOTS_DIRECTIVE);
+  return response;
+}
+
 function attachCleanupCookies(response: NextResponse): NextResponse {
   clearRobloxLoginOauthCookies(response);
   clearAppSessionCookieOnResponse(response);
-  return response;
+  return withNoIndexHeaders(response);
 }
 
 function normalizeRobloxName(value: string | null | undefined): string | null {
@@ -203,5 +209,5 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(`${origin}${nextPath}`);
   clearRobloxLoginOauthCookies(response);
   setAppSessionCookieOnResponse(response, sessionToken, sessionMaxAge);
-  return response;
+  return withNoIndexHeaders(response);
 }

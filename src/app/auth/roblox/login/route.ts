@@ -16,6 +16,7 @@ const LOGIN_RATE_LIMIT = {
   limit: 30,
   windowMs: 60 * 1000
 };
+const AUTH_ROBOTS_DIRECTIVE = "noindex, nofollow";
 
 function buildLoginRedirect(origin: string, status: "success" | "error", message: string, nextPath?: string) {
   const params = new URLSearchParams({ [status]: message });
@@ -23,6 +24,11 @@ function buildLoginRedirect(origin: string, status: "success" | "error", message
     params.set("next", sanitizeNextPath(nextPath));
   }
   return `${origin}${LOGIN_PATH}?${params.toString()}`;
+}
+
+function withNoIndexHeaders(response: NextResponse) {
+  response.headers.set("X-Robots-Tag", AUTH_ROBOTS_DIRECTIVE);
+  return response;
 }
 
 export async function GET(request: NextRequest) {
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!rateLimit.allowed) {
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       buildLoginRedirect(origin, "error", "Too many login attempts. Please try again shortly.", nextPath),
       {
         headers: {
@@ -45,10 +51,13 @@ export async function GET(request: NextRequest) {
         }
       }
     );
+    return withNoIndexHeaders(response);
   }
 
   if (!clientId) {
-    return NextResponse.redirect(buildLoginRedirect(origin, "error", "Roblox OAuth is not configured.", nextPath));
+    return withNoIndexHeaders(
+      NextResponse.redirect(buildLoginRedirect(origin, "error", "Roblox OAuth is not configured.", nextPath))
+    );
   }
 
   const state = createRobloxOauthState();
@@ -65,5 +74,5 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(authUrl);
   setRobloxLoginOauthCookies(response, { state, verifier, nextPath });
-  return response;
+  return withNoIndexHeaders(response);
 }

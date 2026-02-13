@@ -12,6 +12,7 @@ export const ROBLOX_LOGIN_STATE_COOKIE = "roblox_login_oauth_state";
 export const ROBLOX_LOGIN_VERIFIER_COOKIE = "roblox_login_oauth_verifier";
 export const ROBLOX_LOGIN_NEXT_COOKIE = "roblox_login_oauth_next";
 const ROBLOX_LOGIN_CALLBACK_PATH = "/auth/roblox/callback/login";
+const ROBLOX_LOGIN_LEGACY_CALLBACK_PATH = "/auth/roblox/callback";
 
 type RobloxTokenResponse = {
   access_token?: string;
@@ -28,6 +29,15 @@ export type RobloxUserInfo = {
   picture?: string | null;
 };
 
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname.endsWith(".localhost")
+  );
+}
+
 function toBase64Url(value: Buffer) {
   return value
     .toString("base64")
@@ -37,11 +47,37 @@ function toBase64Url(value: Buffer) {
 }
 
 export function resolveRobloxLoginRedirectUri(origin: string): string {
+  const fallback = `${origin}${ROBLOX_LOGIN_CALLBACK_PATH}`;
   const configured = process.env.ROBLOX_OAUTH_LOGIN_REDIRECT_URI?.trim();
-  if (configured) {
-    return configured;
+  if (!configured) {
+    return fallback;
   }
-  return `${origin}${ROBLOX_LOGIN_CALLBACK_PATH}`;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configured);
+  } catch {
+    return fallback;
+  }
+
+  const protocol = parsed.protocol.toLowerCase();
+  if (process.env.NODE_ENV === "production" && protocol !== "https:") {
+    return fallback;
+  }
+  if (protocol !== "https:" && !isLocalHost(parsed.hostname.toLowerCase())) {
+    return fallback;
+  }
+
+  if (
+    parsed.pathname !== ROBLOX_LOGIN_CALLBACK_PATH &&
+    parsed.pathname !== ROBLOX_LOGIN_LEGACY_CALLBACK_PATH
+  ) {
+    return fallback;
+  }
+
+  parsed.hash = "";
+  parsed.search = "";
+  return parsed.toString();
 }
 
 function cookieOptions() {

@@ -11,7 +11,7 @@ export async function GET() {
   };
 
   if (!user) {
-    return NextResponse.json({ avatarUrl: null, displayName: null }, { headers });
+    return NextResponse.json({ avatarUrl: null, displayName: null, signedIn: false }, { headers });
   }
 
   const displayName = user.roblox_display_name ?? user.roblox_username ?? null;
@@ -19,7 +19,8 @@ export async function GET() {
   return NextResponse.json(
     {
       avatarUrl: user.roblox_avatar_url ?? null,
-      displayName
+      displayName,
+      signedIn: true
     },
     { headers }
   );
