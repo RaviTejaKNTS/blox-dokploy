@@ -17,11 +17,6 @@ type AttemptQuestion = QuizQuestion & { difficulty: Difficulty; options: QuizOpt
 
 type QuizRunnerProps = {
   quizCode: string;
-  title: string;
-  description?: string | null;
-  descriptionHtml?: string | null;
-  updatedLabel?: string | null;
-  updatedRelativeLabel?: string | null;
   questions: QuizData;
   heroImage?: string | null;
   heroAlt?: string | null;
@@ -198,7 +193,7 @@ function sanitizeAnswers(
 }
 
 export function QuizRunner(props: QuizRunnerProps) {
-  const { quizCode, title, description, descriptionHtml, questions, updatedLabel, updatedRelativeLabel } = props;
+  const { quizCode, questions } = props;
   const heroImage = props.heroImage ?? null;
   const heroAlt = props.heroAlt ?? null;
   const [session, setSession] = useState<SessionState>({ status: "loading", userId: null });
@@ -487,24 +482,6 @@ export function QuizRunner(props: QuizRunnerProps) {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">{title}</h1>
-        {updatedLabel ? (
-          <p className="text-sm text-foreground/80">
-            Updated on <span className="font-semibold text-foreground">{updatedLabel}</span>
-            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
-          </p>
-        ) : null}
-        {descriptionHtml ? (
-          <div
-            className="prose dark:prose-invert game-copy max-w-3xl"
-            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-          />
-        ) : description ? (
-          <p className="max-w-3xl text-sm text-muted md:text-base">{description}</p>
-        ) : null}
-      </header>
-
       {!showSummary ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
           {heroImage ? (
@@ -513,7 +490,7 @@ export function QuizRunner(props: QuizRunnerProps) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={heroImage}
-                  alt={heroAlt || title}
+                  alt={heroAlt || "Quiz hero image"}
                   className="h-full w-full object-contain"
                   loading="lazy"
                   decoding="async"

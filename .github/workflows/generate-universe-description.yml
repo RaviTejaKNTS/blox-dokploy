@@ -1,8 +1,6 @@
 name: Generate Universe Descriptions
 
 on:
-  schedule:
-    - cron: "0 * * * *" # every hour
   workflow_dispatch: {}
 
 concurrency:

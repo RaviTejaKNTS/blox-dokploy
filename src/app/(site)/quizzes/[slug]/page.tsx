@@ -225,17 +225,53 @@ export default async function QuizPage({ params }: PageProps) {
           </li>
         </ol>
       </nav>
+      <header className="mb-6 space-y-3">
+        <h1 className="text-4xl font-semibold leading-tight text-foreground md:text-5xl">{page.title}</h1>
+        {formattedUpdated ? (
+          <p className="text-sm text-foreground/80">
+            Updated on <span className="font-semibold text-foreground">{formattedUpdated}</span>
+            {updatedRelativeLabel ? <span>{' '}({updatedRelativeLabel})</span> : null}
+          </p>
+        ) : null}
+        {descriptionHtml ? (
+          <div
+            className="prose dark:prose-invert game-copy max-w-3xl"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
+        ) : description ? (
+          <p className="max-w-3xl text-sm text-muted md:text-base">{description}</p>
+        ) : null}
+      </header>
       <QuizRunner
         quizCode={page.code}
-        title={page.title}
-        description={description}
-        descriptionHtml={descriptionHtml}
-        updatedLabel={formattedUpdated}
-        updatedRelativeLabel={updatedRelativeLabel}
         questions={quizData}
         heroImage={heroImage}
         heroAlt={heroAlt}
       />
+      {allQuestions.length ? (
+        <section className="mt-10 border-t border-border/60 pt-6" id="questions">
+          <header className="space-y-2">
+            <h2 className="text-2xl font-semibold text-foreground">Quiz Questions</h2>
+            <p className="text-sm text-muted">Browse the full question bank for this quiz.</p>
+          </header>
+          <ol className="mt-4 space-y-3">
+            {allQuestions.map((question, index) => (
+              <li key={question.id} className="rounded-xl border border-border/60 bg-surface/70 p-4">
+                <p className="text-sm font-semibold text-foreground">
+                  {index + 1}. {question.question}
+                </p>
+                {question.options?.length ? (
+                  <ul className="mt-2 space-y-1 text-xs text-muted">
+                    {question.options.map((option) => (
+                      <li key={option.id}>{option.text}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
       {aboutHtml ? (
         <section className="mt-10 border-t border-border/60 pt-6" id="about">
           <div
