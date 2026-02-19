@@ -33,6 +33,46 @@ type OtherListLink = {
 
 export const PAGE_SIZE = 10;
 
+function isSupabasePoolTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  if (code === "PGRST003") return true;
+
+  const message = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+
+  return message.includes("timed out acquiring connection from connection pool");
+}
+
+async function wait(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withPoolTimeoutRetry<T>(
+  run: () => Promise<T>,
+  label: string,
+  maxAttempts = 4
+): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await run();
+    } catch (error) {
+      attempt += 1;
+      if (!isSupabasePoolTimeoutError(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+      const delayMs = Math.min(2000, 250 * Math.pow(2, attempt - 1));
+      console.warn(`[lists:${label}] Supabase pool timeout (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms`);
+      await wait(delayMs);
+    }
+  }
+}
+
 function formatMetric(value?: number | null) {
   if (value == null || Number.isNaN(value)) return null;
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
@@ -67,7 +107,10 @@ function mapJumpEntry(entry: GameListUniverseEntry): JumpListEntry {
 
 export async function buildListData(slug: string, page: number) {
   const pageNumber = Number.isFinite(page) && page > 0 ? page : 1;
-  const data = await getGameListBySlug(slug, pageNumber, PAGE_SIZE);
+  const data = await withPoolTimeoutRetry(
+    () => getGameListBySlug(slug, pageNumber, PAGE_SIZE),
+    `buildListData:getGameListBySlug:${slug}`
+  );
   if (!data) {
     notFound();
   }
@@ -78,9 +121,17 @@ export async function buildListData(slug: string, page: number) {
     badges: (entry as any).badges ? ((entry as any).badges as UniverseListBadge[]) : []
   }));
 
-  const otherLists = await listOtherGameLists(slug, 6);
+  const otherLists = await withPoolTimeoutRetry(
+    () => listOtherGameLists(slug, 6),
+    `buildListData:listOtherGameLists:${slug}`
+  );
   const jumpEntries =
-    total > PAGE_SIZE ? await getGameListNavEntries(list.id) : entriesWithBadges.map(mapJumpEntry);
+    total > PAGE_SIZE
+      ? await withPoolTimeoutRetry(
+          () => getGameListNavEntries(list.id),
+          `buildListData:getGameListNavEntries:${list.id}`
+        )
+      : entriesWithBadges.map(mapJumpEntry);
 
   return {
     list: { ...list, other_lists: otherLists },
@@ -91,7 +142,10 @@ export async function buildListData(slug: string, page: number) {
 }
 
 export async function buildMetadata(slug: string, page: number): Promise<Metadata> {
-  const list = await getGameListMetadata(slug);
+  const list = await withPoolTimeoutRetry(
+    () => getGameListMetadata(slug),
+    `buildMetadata:getGameListMetadata:${slug}`
+  );
   if (!list) return {};
 
   const description = list.meta_description
