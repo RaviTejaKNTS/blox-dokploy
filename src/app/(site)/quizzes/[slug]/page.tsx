@@ -12,7 +12,7 @@ import { listGamesWithActiveCountsByUniverseId, listPublishedArticlesByUniverseI
 import { listPublishedToolsByUniverseId } from "@/lib/tools";
 import { listPublishedCatalogPagesByUniverseId } from "@/lib/catalog";
 import { markdownToPlainText, renderMarkdown } from "@/lib/markdown";
-import type { QuizData, QuizQuestion } from "@/lib/quiz-types";
+import type { QuizData } from "@/lib/quiz-types";
 import { QUIZZES_DESCRIPTION, SITE_NAME, SITE_URL, resolveSeoTitle, buildAlternates } from "@/lib/seo";
 
 export const revalidate = 3600; // 1 hour
@@ -39,10 +39,6 @@ function pickThumbnail(value: unknown): string | null {
     }
   }
   return null;
-}
-
-function flattenQuestions(quizData: QuizData): QuizQuestion[] {
-  return [...(quizData.easy ?? []), ...(quizData.medium ?? []), ...(quizData.hard ?? [])];
 }
 
 function summarize(value: string | null | undefined, fallback: string): string {
@@ -132,7 +128,6 @@ export default async function QuizPage({ params }: PageProps) {
     ? updatedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : null;
   const updatedRelativeLabel = updatedDate ? formatDistanceToNow(updatedDate, { addSuffix: true }) : null;
-  const allQuestions = flattenQuestions(quizData);
   const universeId = page.universe_id ?? null;
   const universeLabel = page.universe?.display_name ?? page.universe?.name ?? page.title;
 
@@ -188,17 +183,6 @@ export default async function QuizPage({ params }: PageProps) {
           "@type": "WebSite",
           name: SITE_NAME,
           url: SITE_URL
-        },
-        about: {
-          "@type": "ItemList",
-          itemListElement: allQuestions.map((question, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            item: {
-              "@type": "Question",
-              name: question.question
-            }
-          }))
         }
       }
     ]
@@ -248,30 +232,6 @@ export default async function QuizPage({ params }: PageProps) {
         heroImage={heroImage}
         heroAlt={heroAlt}
       />
-      {allQuestions.length ? (
-        <section className="mt-10 border-t border-border/60 pt-6" id="questions">
-          <header className="space-y-2">
-            <h2 className="text-2xl font-semibold text-foreground">Quiz Questions</h2>
-            <p className="text-sm text-muted">Browse the full question bank for this quiz.</p>
-          </header>
-          <ol className="mt-4 space-y-3">
-            {allQuestions.map((question, index) => (
-              <li key={question.id} className="rounded-xl border border-border/60 bg-surface/70 p-4">
-                <p className="text-sm font-semibold text-foreground">
-                  {index + 1}. {question.question}
-                </p>
-                {question.options?.length ? (
-                  <ul className="mt-2 space-y-1 text-xs text-muted">
-                    {question.options.map((option) => (
-                      <li key={option.id}>{option.text}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
       {aboutHtml ? (
         <section className="mt-10 border-t border-border/60 pt-6" id="about">
           <div

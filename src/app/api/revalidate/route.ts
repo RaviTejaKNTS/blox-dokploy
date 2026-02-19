@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { submitIndexNowPaths } from "@/lib/indexnow";
 
 type Payload =
   | { type: "code"; slug: string }
@@ -14,6 +15,13 @@ type Payload =
   | { type: "quiz"; slug: string };
 
 const MUSIC_CATALOG_CODES = new Set(["roblox-music-ids"]);
+const MUSIC_INDEXNOW_PATHS = [
+  "/catalog",
+  "/catalog/roblox-music-ids",
+  "/catalog/roblox-music-ids/trending",
+  "/catalog/roblox-music-ids/genres",
+  "/catalog/roblox-music-ids/artists"
+];
 
 function assertSecret(request: Request) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -33,6 +41,33 @@ function normalizeSlug(value: string): string {
     .trim()
     .toLowerCase()
     .replace(/^\/+|\/+$/g, "");
+}
+
+function indexNowPathsForPayload(type: Payload["type"], slug: string): string[] {
+  switch (type) {
+    case "code":
+      return ["/", "/codes", `/codes/${slug}`];
+    case "article":
+      return ["/", "/articles", `/articles/${slug}`];
+    case "list":
+      return ["/lists", `/lists/${slug}`];
+    case "author":
+      return ["/authors", `/authors/${slug}`];
+    case "event":
+      return ["/events", `/events/${slug}`];
+    case "checklist":
+      return ["/checklists", `/checklists/${slug}`];
+    case "quiz":
+      return ["/quizzes", `/quizzes/${slug}`];
+    case "tool":
+      return ["/tools", `/tools/${slug}`];
+    case "catalog":
+      return MUSIC_CATALOG_CODES.has(slug) ? [...MUSIC_INDEXNOW_PATHS] : ["/catalog", `/catalog/${slug}`];
+    case "music":
+      return [...MUSIC_INDEXNOW_PATHS];
+    default:
+      return [];
+  }
 }
 
 function revalidateForCode(slug: string) {
@@ -192,5 +227,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unknown type" }, { status: 400 });
   }
 
-  return NextResponse.json({ revalidated: true, type: payload.type, slug });
+  const indexNow = await submitIndexNowPaths(indexNowPathsForPayload(payload.type, slug));
+
+  return NextResponse.json({ revalidated: true, type: payload.type, slug, indexNow });
 }
