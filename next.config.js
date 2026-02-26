@@ -1,6 +1,11 @@
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-});
+let withBundleAnalyzer = (config) => config;
+try {
+  withBundleAnalyzer = require("@next/bundle-analyzer")({
+    enabled: process.env.ANALYZE === "true",
+  });
+} catch {
+  // Bundle analyzer is a dev-only optional dependency in production containers.
+}
 
 const isProduction = process.env.NODE_ENV === "production";
 
