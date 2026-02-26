@@ -22,12 +22,18 @@ import {
 
 // Cache author pages for a month; on-demand revalidation keeps them fresh
 export const revalidate = 2592000; // monthly
+const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 type Params = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  const slugs = await listAuthorSlugs();
-  return slugs.map((slug) => ({ slug }));
+  if (IS_BUILD) return [];
+  try {
+    const slugs = await listAuthorSlugs();
+    return slugs.map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
 }
 
 function markdownToPlain(text?: string | null): string {

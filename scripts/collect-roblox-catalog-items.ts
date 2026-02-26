@@ -349,7 +349,9 @@ async function loadSubcategoriesFromDb(category: string): Promise<string[]> {
     console.warn(`Failed to load subcategories from DB: ${error.message}`);
     return [];
   }
-  return (data ?? []).map((row) => row.subcategory).filter((value) => typeof value === "string");
+  return (data ?? [])
+    .map((row: { subcategory: unknown }) => row.subcategory)
+    .filter((value: unknown): value is string => typeof value === "string");
 }
 
 async function resolveSubcategories(category: string): Promise<string[]> {

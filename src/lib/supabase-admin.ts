@@ -1,9 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin as createSupabaseAdmin } from "@/lib/supabase";
 
 export function supabaseAdmin() {
-  const url = process.env.SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE!;
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
+  return createSupabaseAdmin();
 }
