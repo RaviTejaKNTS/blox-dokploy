@@ -6,6 +6,7 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { PagePagination } from "@/components/PagePagination";
 
 export const ARTICLES_PAGE_SIZE = 20;
+const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 export type ArticlesPageData = {
   articles: ArticleWithRelations[];
@@ -13,10 +14,34 @@ export type ArticlesPageData = {
   totalPages: number;
 };
 
+function formatLoadError(error: unknown) {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (typeof (error as { message?: unknown }).message === "string") {
+    const message = (error as { message: string }).message;
+    return message.length > 240 ? `${message.slice(0, 240)}...` : message;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function reportLoadError(context: string, error: unknown) {
+  if (IS_BUILD) return;
+  console.error(context, formatLoadError(error));
+}
+
 export async function loadArticlesPageData(pageNumber: number): Promise<ArticlesPageData> {
-  const { articles, total } = await listPublishedArticlesPage(pageNumber, ARTICLES_PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(total / ARTICLES_PAGE_SIZE));
-  return { articles, total, totalPages };
+  try {
+    const { articles, total } = await listPublishedArticlesPage(pageNumber, ARTICLES_PAGE_SIZE);
+    const totalPages = Math.max(1, Math.ceil(total / ARTICLES_PAGE_SIZE));
+    return { articles, total, totalPages };
+  } catch (error) {
+    reportLoadError("Failed to load articles page data", error);
+    return { articles: [], total: 0, totalPages: 1 };
+  }
 }
 
 function ArticlesPageView({
