@@ -51,6 +51,7 @@ const CONSENT_HEADER = "x-require-consent";
 const CONSENT_COOKIE = "require-consent";
 const CONSENT_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const CANONICAL_HOST = "bloxodes.com";
+const ALLOWED_TEST_HOSTS = new Set(["ravitejaknts.com", "www.ravitejaknts.com"]);
 
 const ARTICLE_REDIRECT_SLUGS = new Set([
   "when-does-the-museum-open-in-jailbreak-roblox",
@@ -162,6 +163,7 @@ function redirectWithStatus(url: URL, status: 301 | 302 | 307 | 308 = 307) {
 
 function shouldRedirectToCanonicalHost(hostname: string) {
   if (hostname === CANONICAL_HOST) return false;
+  if (ALLOWED_TEST_HOSTS.has(hostname)) return false;
   if (hostname === "localhost") return false;
   if (hostname === "127.0.0.1") return false;
   if (hostname === "[::1]") return false;
