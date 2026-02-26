@@ -6,14 +6,20 @@ import { buildPageParams } from "@/lib/static-params";
 
 export const revalidate = 604800; // weekly
 const MAX_STATIC_PAGES = 15;
+const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 type PageProps = {
   params: Promise<{ page: string }>;
 };
 
 export async function generateStaticParams() {
-  const { totalPages } = await loadArticlesPageData(1);
-  return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+  if (IS_BUILD) return [];
+  try {
+    const { totalPages } = await loadArticlesPageData(1);
+    return buildPageParams(totalPages, 1, MAX_STATIC_PAGES);
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
